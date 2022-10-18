@@ -1,0 +1,14 @@
+[profile.default]
+src = 'src'
+cache_path = 'cache/foundry'
+out = 'out/foundry'
+libs = ['lib']
+optimizer = true
+optimizer_runs = 2_000_000
+fuzz_runs = 256
+gas_reports = ['BullaClaim']
+
+# See more config options https://github.com/gakonst/foundry/tree/master/config
+[profile.ci]
+fuzz_runs = 1_000
+fuzz_max_global_rejects = 1_500_000
