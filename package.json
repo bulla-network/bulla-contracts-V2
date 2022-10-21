@@ -8,12 +8,12 @@
   "license": "BUSL-1.1",
   "private": true,
   "scripts": {
-    "build": "forge build",
+    "build": "forge build --via-ir",
     "build:hh": "npx hardhat compile",
-    "test": "forge test --gas-report",
+    "test": "forge test --gas-report --via-ir",
     "test:hh": "npx hardhat test",
-    "dev": "forge test -vvv -w --run-all --gas-report",
-    "gas": "forge snapshot && forge build --sizes",
+    "dev": "forge test -vvv -w --run-all --gas-report --via-ir",
+    "gas": "forge snapshot --via-ir && forge build --via-ir --sizes",
     "prepare": "husky install"
   },
   "devDependencies": {

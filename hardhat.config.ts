@@ -16,7 +16,7 @@ function getRemappings() {
 const config: HardhatUserConfig = {
   solidity: {
     version: "0.8.15",
-    settings: { optimizer: { enabled: true, runs: 2_000_000 } },
+    settings: { viaIR: true, optimizer: { enabled: true, runs: 2_000_000 } },
   },
   paths: { cache: "cache/hardhat", sources: "src", artifacts: "out/hardhat" },
   preprocess: {
