@@ -20,14 +20,14 @@ enum FeePayer {
     Debtor
 }
 
-enum LockState {
-    Unlocked,
-    NoNewClaims, // an intermediary state where we allow users to pay, reject, rescind, and accept claims, but disallow new claims to be made
-    Locked
-}
-
 enum CreateClaimApprovalType {
     Approved, // an addresss is allowed to create any kind of claim
     CreditorOnly, // an addresss is allowed only to create claims where the user is the creditor
     DebtorOnly // an addresss is allowed only to create claims where the user is the debtor
+}
+
+enum LockState {
+    Unlocked,
+    NoNewClaims, // an intermediary state where we allow users to pay, reject, rescind, and accept claims, but disallow new claims to be made
+    Locked
 }

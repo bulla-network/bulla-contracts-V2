@@ -16,8 +16,8 @@ contract BullaExtensionRegistry is Owned {
         return extension;
     }
 
-    function getExtensionSafe(address _address) external view returns (string memory) {
-        string memory extension = extensions[_address];
+    function getExtensionForSignature(address _operatorAddress) external view returns (string memory) {
+        string memory extension = extensions[_operatorAddress];
         if (bytes(extension).length == 0) extension = "WARNING: CONTRACT UNKNOWN";
         return extension;
     }

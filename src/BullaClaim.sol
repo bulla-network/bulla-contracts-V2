@@ -30,7 +30,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     mapping(uint256 => ClaimStorage) private claims;
     /// a mapping of claimId to token metadata if exists - both attachmentURIs and tokenURIs
     mapping(uint256 => ClaimMetadata) public claimMetadata;
-    /// a mapping of users to "extensions" to approvals for specific actions
+    /// a mapping of users to operators to approvals for specific actions
     mapping(address => mapping(address => Approvals)) public approvals;
     /// The contract which calculates the fee for a specific claim - tracked via ids
     uint256 public currentFeeCalculatorId;
@@ -61,7 +61,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     error ClaimDelegated(uint256 claimId, address delegator);
     error NotDelegator(address sender);
     error NotMinted(uint256 claimId);
-    error NotApproved(address extension);
+    error NotApproved(address operator);
     error Unauthorized();
     error Locked();
 
@@ -108,7 +108,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
 
     event CreateClaimApproved(
         address indexed owner,
-        address indexed extension,
+        address indexed operator,
         CreateClaimApprovalType indexed approvalType,
         uint256 approvalCount,
         bool isBindingAllowed
@@ -137,7 +137,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
         return _createClaim(msg.sender, params);
     }
 
-    /// @notice same as createClaim but allows a caller (extension) to create a claim on behalf of a user
+    /// @notice same as createClaim but allows a caller (operator) to create a claim on behalf of a user
     /// @notice SPEC:
     ///     1. verify and spend msg.sender's approval to create claims
     ///     2. create a claim on `from`'s behalf
@@ -184,30 +184,30 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
         return claimId;
     }
 
-    /// @notice "spends" an extension's create claim approval
+    /// @notice "spends" an operator's create claim approval
     /// @notice SPEC:
-    /// A function can call this function to verify and "spend" `from`'s approval of `extension` to create a claim:
-    ///     S1. msg.sender has > 1 approvalCount from `from` address -> otherwise: reverts
+    /// A function can call this function to verify and "spend" `from`'s approval of `operator` to create a claim:
+    ///     S1. `operator` has > 0 approvalCount from `from` address -> otherwise: reverts
     ///     S2. The creditor and debtor parameters are permissed by the `from` address
     ///        Meaning:
     ///         - If the approvalType is `CreditorOnly` the `from` address must be the creditor -> otherwise: reverts
-    ///         - If the approvalType is `DebtorOnly` and `from`address  must be the debtor -> otherwise: reverts
-    ///        Note: If the approvalType is `Approved`, the `from` address may specify the `from` address as the creditor, the debtor, _or neither_
+    ///         - If the approvalType is `DebtorOnly` the `from` address must be the debtor -> otherwise: reverts
+    ///        Note: If the approvalType is `Approved`, the `operator` may specify the `from` address as the creditor, the debtor, _or neither_
     ///     S3. If the claimBinding parameter is `Bound`, then the isBindingAllowed permission must be set to true -> otherwise: reverts
-    ///         - Note: _createClaim will always revert if the claimBinding parameter is `Bound` and the `from` address is not the debtor
+    ///        Note: _createClaim will always revert if the claimBinding parameter is `Bound` and the `from` address is not the debtor
     ///
     /// Result: If the above are true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return
     function _spendCreateClaimApproval(
         address from,
-        address extension,
+        address operator,
         address creditor,
         address debtor,
         ClaimBinding binding
     ) internal {
-        CreateClaimApproval memory approval = approvals[from][extension].createClaim; // msg.sender is the "extension" in the from case
+        CreateClaimApproval memory approval = approvals[from][operator].createClaim;
 
         // spec.S1
-        if (approval.approvalCount == 0) revert NotApproved(extension);
+        if (approval.approvalCount == 0) revert NotApproved(operator);
 
         // spec.S2
         if (
@@ -224,7 +224,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
 
         // result
         if (approval.approvalCount != type(uint64).max) {
-            approvals[from][extension].createClaim.approvalCount -= 1;
+            approvals[from][operator].createClaim.approvalCount -= 1;
         }
 
         return;
@@ -497,18 +497,18 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     }
 
     /*///////////////////////////////////////////////////////////////
-                      EXTENSION / PERMIT FUNCTIONS
+                             PERMIT FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice allows a user - via a signature - to appove an extension to call createClaim on their behalf
+    /// @notice allows a user - via a signature - to appove an operator to call createClaim on their behalf
     /// @notice SPEC:
-    /// Anyone can call this function with a valid signature to modify the `owner`'s CreateClaimApproval of `extension` to the provided parameters
-    /// This function can _approve_ an extension given:
+    /// Anyone can call this function with a valid signature to modify the `owner`'s CreateClaimApproval of `operator` to the provided parameters
+    /// This function can _approve_ an operator given:
     ///     A1. The recovered signer from the EIP712 signature == `owner` TODO: OR if `owner.code.length` > 0, an EIP-1271 signature lookup is valid
     ///     A2. `owner` is not a 0 address
     ///     A3. 0 < `approvalCount` < type(uint64).max
     ///     A4. `extensionRegistry` is not address(0)
-    /// This function can _revoke_ an extension given:
+    /// This function can _revoke_ an operator given:
     ///     R1. The recovered signer from the EIP712 signature == `owner`
     ///     R2. `owner` is not a 0 address
     ///     R3. `approvalCount` == 0
@@ -517,20 +517,20 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     /// A valid approval signature is defined as: a signed EIP712 hash digest of the following parameters:
     ///     S1. The hash of the EIP712 typedef string
     ///     S2. The `owner` address
-    ///     S3. The `extension` address
+    ///     S3. The `operator` address
     ///     S4. A verbose approval message: see `BullaClaimEIP712.getPermitCreateClaimMessage`
     ///     S5. The `approvalType` enum as a uint8
     ///     S6. The `approvalCount`
-    ///     S7. The isBindingAllowed boolean flag
-    ///     S8. The stored signing nonce found in `owner`'s CreateClaimApproval struct for `extension`
+    ///     S7. The `isBindingAllowed` boolean flag
+    ///     S8. The stored signing nonce found in `owner`'s CreateClaimApproval struct for `operator`
 
     /// Result: If the above conditions are met:
     ///     RES1: The nonce is incremented
-    ///     RES2: The `owner`'s approval of `extension` is updated
+    ///     RES2: The `owner`'s approval of `operator` is updated
     ///     RES3: A CreateClaimApproved event is emitted with the approval parameters
     function permitCreateClaim(
         address owner, // todo: rename owner -> user?
-        address extension,
+        address operator,
         CreateClaimApprovalType approvalType,
         uint64 approvalCount,
         bool isBindingAllowed,
@@ -543,11 +543,11 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
                     abi.encode(
                         BullaClaimEIP712.CREATE_CLAIM_TYPEHASH, // spec.S1
                         owner, // spec.S2
-                        extension, // spec.S3
+                        operator, // spec.S3
                         // spec.S4
                         BullaClaimEIP712.getPermitCreateClaimMessageDigest(
                             extensionRegistry, // spec.A4 // spec.R4 /// WARNING: this could revert!
-                            extension,
+                            operator,
                             approvalType,
                             approvalCount,
                             isBindingAllowed
@@ -555,7 +555,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
                         approvalType, // spec.S5
                         approvalCount, // spec.S6
                         isBindingAllowed, // spec.S7
-                        approvals[owner][extension].createClaim.nonce++ // spec.S8 // spec.RES1
+                        approvals[owner][operator].createClaim.nonce++ // spec.S8 // spec.RES1
                     )
                 )
             ),
@@ -572,19 +572,19 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
         // revoke case // spec.R3
         if (approvalCount == 0) {
             // spec.RES2
-            delete approvals[owner][extension].createClaim.isBindingAllowed;
-            delete approvals[owner][extension].createClaim.approvalType;
-            delete approvals[owner][extension].createClaim.approvalCount;
+            delete approvals[owner][operator].createClaim.isBindingAllowed;
+            delete approvals[owner][operator].createClaim.approvalType;
+            delete approvals[owner][operator].createClaim.approvalCount;
         } else {
             // approve case
             // spec.RES2
-            approvals[owner][extension].createClaim.isBindingAllowed = isBindingAllowed;
-            approvals[owner][extension].createClaim.approvalType = approvalType;
-            approvals[owner][extension].createClaim.approvalCount = approvalCount;
+            approvals[owner][operator].createClaim.isBindingAllowed = isBindingAllowed;
+            approvals[owner][operator].createClaim.approvalType = approvalType;
+            approvals[owner][operator].createClaim.approvalCount = approvalCount;
         }
 
         // spec.RES3
-        emit CreateClaimApproved(owner, extension, approvalType, approvalCount, isBindingAllowed);
+        emit CreateClaimApproved(owner, operator, approvalType, approvalCount, isBindingAllowed);
     }
 
     /*///////////////////////////////////////////////////////////////

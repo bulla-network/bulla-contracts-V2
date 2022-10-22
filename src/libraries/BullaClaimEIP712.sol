@@ -17,17 +17,17 @@ library BullaClaimEIP712 {
 
     function getPermitCreateClaimMessage(
         BullaExtensionRegistry extensionRegistry,
-        address extension,
+        address operator,
         CreateClaimApprovalType approvalType,
         uint64 approvalCount,
         bool isBindingAllowed
     ) public view returns (string memory) {
         return approvalCount > 0 // approve case:
             ? string.concat(
-                "I approve the following contract: ", //todo: add \n new lines
-                extensionRegistry.getExtensionSafe(extension),
+                "I approve the following contract: ", // todo: add \n new lines
+                extensionRegistry.getExtensionForSignature(operator),
                 " (",
-                extension.toHexString(), // note: will _not_ be checksummed
+                operator.toHexString(), // note: will _not_ be checksummed
                 ") ",
                 "to create ",
                 approvalCount != type(uint64).max ? string.concat(uint256(approvalCount).toString(), " ") : "",
@@ -41,24 +41,24 @@ library BullaClaimEIP712 {
             ) // revoke case
             : string.concat(
                 "I revoke approval for the following contract: ",
-                extensionRegistry.getExtensionSafe(extension),
+                extensionRegistry.getExtensionForSignature(operator),
                 " (",
-                extension.toHexString(),
+                operator.toHexString(),
                 ") ",
-                "to create claims on my behalf"
+                "to create claims on my behalf."
             );
     }
 
     function getPermitCreateClaimMessageDigest(
         BullaExtensionRegistry extensionRegistry,
-        address extension,
+        address operator,
         CreateClaimApprovalType approvalType,
         uint64 approvalCount,
         bool isBindingAllowed
     ) public view returns (bytes32) {
         return keccak256(
             bytes(
-                getPermitCreateClaimMessage(extensionRegistry, extension, approvalType, approvalCount, isBindingAllowed)
+                getPermitCreateClaimMessage(extensionRegistry, operator, approvalType, approvalCount, isBindingAllowed)
             )
         );
     }
