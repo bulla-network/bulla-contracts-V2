@@ -4,7 +4,6 @@ cache_path = 'cache/foundry'
 out = 'out/foundry'
 libs = ['lib']
 optimizer = true
-via_ir = true
 optimizer_runs = 2_000_000
 fuzz_runs = 256
 gas_reports = ['BullaClaim']

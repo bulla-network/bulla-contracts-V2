@@ -537,8 +537,10 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
         Signature calldata signature
     ) public {
         // TODO: EIP-1271 smart contract signatures
-        address signer = ecrecover(
-            _hashTypedDataV4(
+        bytes32 digest;
+        {
+            uint256 nonce = approvals[owner][operator].createClaim.nonce;
+            digest = _hashTypedDataV4(
                 keccak256(
                     abi.encode(
                         BullaClaimEIP712.CREATE_CLAIM_TYPEHASH, // spec.S1
@@ -555,14 +557,13 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
                         approvalType, // spec.S5
                         approvalCount, // spec.S6
                         isBindingAllowed, // spec.S7
-                        approvals[owner][operator].createClaim.nonce++ // spec.S8 // spec.RES1
+                        nonce // spec.S8
                     )
                 )
-            ),
-            signature.v,
-            signature.r,
-            signature.s
-        );
+            );
+        }
+
+        address signer = ecrecover(digest, signature.v, signature.r, signature.s);
         // address 0 check to prevent approval of the 0 address
         if (
             signer != owner // spec.A1 // spec.R1
@@ -581,6 +582,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
             approvals[owner][operator].createClaim.isBindingAllowed = isBindingAllowed;
             approvals[owner][operator].createClaim.approvalType = approvalType;
             approvals[owner][operator].createClaim.approvalCount = approvalCount;
+            approvals[owner][operator].createClaim.nonce++; // spec.RES1
         }
 
         // spec.RES3
