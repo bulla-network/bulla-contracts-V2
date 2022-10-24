@@ -5,7 +5,10 @@ on:
   
   pull_request:
 
-name: Tests and Gas Report
+env:
+  FOUNDRY_PROFILE: ci
+
+name: Tests, Gas, and coverage report
 
 jobs:
   check:
@@ -24,5 +27,18 @@ jobs:
       - name: Install dependencies
         run: forge install
 
+      - name: Run forge build
+        run: |
+          forge --version
+          forge build --sizes
+        id: build
+        
       - name: Run tests with fuzzing
-        run: FOUNDRY_PROFILE=CI forge test -vvv --gas-report
+        run: forge test -vvv --gas-report
+
+      - name: Generate coverage report
+        run: |
+          forge coverage --report lcov
+        id: coverage
+      - uses: codecov/codecov-action@v3
+
