@@ -3,5 +3,16 @@
   "conventionalCommits.scopes": [],
   "files.associations": {
     ".gas-snapshot": "julia"
+  },
+  "runItOn": {
+    "watchers": [
+      {
+        "cmd": "forge coverage --report lcov",
+        "isShellCommand": true,
+        "match": "**/*.sol",
+        "silent": true,
+        // "isAsync": false
+      }
+    ]
   }
 }
