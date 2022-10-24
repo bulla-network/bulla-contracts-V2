@@ -1,7 +1,13 @@
 //SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.15;
 
-import {Status, ClaimBinding, FeePayer} from "contracts/types/Enums.sol";
+import {Status, ClaimBinding, FeePayer, CreateClaimApprovalType} from "contracts/types/Enums.sol";
+
+struct Signature {
+    bytes32 r;
+    bytes32 s;
+    uint8 v;
+}
 
 struct ClaimMetadata {
     string tokenURI;
@@ -37,4 +43,16 @@ struct Claim {
     uint256 dueBy;
     address token;
     address delegator;
+}
+
+struct CreateClaimApproval {
+    bool isBindingAllowed;
+    CreateClaimApprovalType approvalType;
+    uint64 approvalCount; // the amount the contract can call this function for the user, type(uint64).max implies unlimited
+    uint64 nonce; // the nonce for the approval - only incremented per approval update.
+}
+
+struct Approvals {
+    CreateClaimApproval createClaim; // can only approve all claims
+        // PayClaimApproval payClaim;
 }

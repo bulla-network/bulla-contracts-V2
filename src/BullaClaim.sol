@@ -3,17 +3,23 @@ pragma solidity 0.8.15;
 
 import "contracts/types/Types.sol";
 import {IBullaFeeCalculator} from "contracts/interfaces/IBullaFeeCalculator.sol";
+import {BullaExtensionRegistry} from "contracts/BullaExtensionRegistry.sol";
+import {EIP712} from "openzeppelin-contracts/contracts/utils/cryptography/EIP712.sol";
+import {ECDSA} from "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
+import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {SafeCastLib} from "solmate/utils/SafeCastLib.sol";
-import {BoringBatchable} from "./libraries/BoringBatchable.sol";
+import {BoringBatchable} from "contracts/libraries/BoringBatchable.sol";
+import {BullaClaimEIP712} from "contracts/libraries/BullaClaimEIP712.sol";
 import {Owned} from "solmate/auth/Owned.sol";
 import {ERC721} from "solmate/tokens/ERC721.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {ClaimMetadataGenerator} from "contracts/ClaimMetadataGenerator.sol";
 import "forge-std/console.sol";
 
-contract BullaClaim is ERC721, Owned, BoringBatchable {
-    using SafeTransferLib for *;
+contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
+    using SafeTransferLib for ERC20;
+    using SafeTransferLib for address;
     using SafeCastLib for uint256;
 
     /*///////////////////////////////////////////////////////////////
@@ -24,8 +30,8 @@ contract BullaClaim is ERC721, Owned, BoringBatchable {
     mapping(uint256 => ClaimStorage) private claims;
     /// a mapping of claimId to token metadata if exists - both attachmentURIs and tokenURIs
     mapping(uint256 => ClaimMetadata) public claimMetadata;
-    /// a mapping of enabled "extensions" have have special access to the `*From` functions - gets around msg.sender limitations
-    mapping(address => bool) public bullaExtensions;
+    /// a mapping of users to operators to approvals for specific actions
+    mapping(address => mapping(address => Approvals)) public approvals;
     /// The contract which calculates the fee for a specific claim - tracked via ids
     uint256 public currentFeeCalculatorId;
     mapping(uint256 => IBullaFeeCalculator) public feeCalculators;
@@ -35,23 +41,28 @@ contract BullaClaim is ERC721, Owned, BoringBatchable {
     address public feeCollectionAddress;
     /// the total amount of claims minted
     uint256 public currentClaimId;
+    /// a registry of extension names vetted by Bulla Network
+    BullaExtensionRegistry public extensionRegistry;
 
     /*///////////////////////////////////////////////////////////////
                             ERRORS / MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
     error PayingZero();
-    error PastDueDate(uint256 dueBy);
+    error IncorrectDueDate(uint256 dueBy);
     error ClaimBound(uint256 claimId);
     error NotOwner();
     error NotExtension(address sender);
     error CannotBindClaim();
+    error InvalidSignature();
     error NotCreditorOrDebtor(address sender);
     error OverPaying(uint256 paymentAmount);
     error ClaimNotPending(uint256 claimId);
     error ClaimDelegated(uint256 claimId, address delegator);
     error NotDelegator(address sender);
     error NotMinted(uint256 claimId);
+    error NotApproved(address operator);
+    error Unauthorized();
     error Locked();
 
     modifier notLocked() {
@@ -62,9 +73,7 @@ contract BullaClaim is ERC721, Owned, BoringBatchable {
     }
 
     modifier onlyExtension() {
-        if (!bullaExtensions[msg.sender]) {
-            revert NotExtension(msg.sender);
-        }
+        revert("not implemented"); // temporary for this PR
         _;
     }
 
@@ -97,8 +106,21 @@ contract BullaClaim is ERC721, Owned, BoringBatchable {
 
     event ClaimRescinded(uint256 indexed claimId, address indexed from, string note);
 
-    constructor(address _feeCollectionAddress, LockState _lockState) ERC721("BullaClaim", "CLAIM") Owned(msg.sender) {
+    event CreateClaimApproved(
+        address indexed owner,
+        address indexed operator,
+        CreateClaimApprovalType indexed approvalType,
+        uint256 approvalCount,
+        bool isBindingAllowed
+    );
+
+    constructor(address _feeCollectionAddress, address _extensionRegistry, LockState _lockState)
+        ERC721("BullaClaim", "CLAIM")
+        EIP712("BullaClaim", "1")
+        Owned(msg.sender)
+    {
         feeCollectionAddress = _feeCollectionAddress;
+        extensionRegistry = BullaExtensionRegistry(_extensionRegistry);
         lockState = _lockState;
     }
 
@@ -109,25 +131,19 @@ contract BullaClaim is ERC721, Owned, BoringBatchable {
     /**
      * /// CREATE FUNCTIONS ///
      */
-    function createClaim(CreateClaimParams calldata params) external returns (uint256) {
-        // we allow dueBy to be 0 in the case of an "open" claim, or we allow a reasonable timestamp
-        if (params.dueBy != 0 && params.dueBy < block.timestamp && params.dueBy < type(uint40).max) {
-            revert PastDueDate(params.dueBy);
-        }
-        // you need the permission of the debtor to bind a claim
-        if (params.binding == ClaimBinding.Bound && msg.sender != params.debtor) {
-            revert CannotBindClaim();
-        }
 
+    /// @notice allows a user to create a claim from their address
+    function createClaim(CreateClaimParams calldata params) external returns (uint256) {
         return _createClaim(msg.sender, params);
     }
 
-    /// @notice for permissioned extensions
-    function createClaimFrom(address from, CreateClaimParams calldata params)
-        external
-        onlyExtension
-        returns (uint256)
-    {
+    /// @notice same as createClaim but allows a caller (operator) to create a claim on behalf of a user
+    /// @notice SPEC:
+    ///     1. verify and spend msg.sender's approval to create claims
+    ///     2. create a claim on `from`'s behalf
+    function createClaimFrom(address from, CreateClaimParams calldata params) external returns (uint256) {
+        _spendCreateClaimApproval(from, msg.sender, params.creditor, params.debtor, params.binding);
+
         return _createClaim(from, params);
     }
 
@@ -136,21 +152,20 @@ contract BullaClaim is ERC721, Owned, BoringBatchable {
         external
         returns (uint256)
     {
-        if (params.dueBy != 0 && params.dueBy < block.timestamp) {
-            revert PastDueDate(params.dueBy);
-        }
-        if (params.binding == ClaimBinding.Bound && msg.sender != params.debtor) {
-            revert CannotBindClaim();
-        }
-
         return _createClaimWithMetadata(msg.sender, params, metadata);
     }
 
+    /// @notice same as createClaimFrom() but with a token/attachmentURI
+    /// @notice SPEC:
+    ///     1. verify and spend msg.sender's approval to create claims
+    ///     2. create a claim with metadata on `from`'s behalf
     function createClaimWithMetadataFrom(
         address from,
         CreateClaimParams calldata params,
         ClaimMetadata calldata metadata
-    ) external onlyExtension returns (uint256) {
+    ) external returns (uint256) {
+        _spendCreateClaimApproval(from, msg.sender, params.creditor, params.debtor, params.binding);
+
         return _createClaimWithMetadata(from, params, metadata);
     }
 
@@ -165,20 +180,80 @@ contract BullaClaim is ERC721, Owned, BoringBatchable {
 
         claimMetadata[claimId] = metadata;
         emit MetadataAdded(claimId, metadata.tokenURI, metadata.attachmentURI);
+
         return claimId;
     }
 
-    /// @notice creates a claim between two parties for a certain amount
-    /// @notice we mint the claim to the creditor - in other words: the wallet owed money holds the NFT.
-    ///         The holder of the NFT will receive the payment from the debtor - See `payClaim` functions for more details.
-    /// @notice NOTE: if the `token` param is address(0) then we consider the claim to be denominated in ETH - (native token)
+    /// @notice "spends" an operator's create claim approval
+    /// @notice SPEC:
+    /// A function can call this function to verify and "spend" `from`'s approval of `operator` to create a claim:
+    ///     S1. `operator` has > 0 approvalCount from `from` address -> otherwise: reverts
+    ///     S2. The creditor and debtor parameters are permissed by the `from` address
+    ///        Meaning:
+    ///         - If the approvalType is `CreditorOnly` the `from` address must be the creditor -> otherwise: reverts
+    ///         - If the approvalType is `DebtorOnly` the `from` address must be the debtor -> otherwise: reverts
+    ///        Note: If the approvalType is `Approved`, the `operator` may specify the `from` address as the creditor, the debtor, _or neither_
+    ///     S3. If the claimBinding parameter is `Bound`, then the isBindingAllowed permission must be set to true -> otherwise: reverts
+    ///        Note: _createClaim will always revert if the claimBinding parameter is `Bound` and the `from` address is not the debtor
+    ///
+    /// Result: If the above are true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return
+    function _spendCreateClaimApproval(
+        address from,
+        address operator,
+        address creditor,
+        address debtor,
+        ClaimBinding binding
+    ) internal {
+        CreateClaimApproval memory approval = approvals[from][operator].createClaim;
+
+        // spec.S1
+        if (approval.approvalCount == 0) revert NotApproved(operator);
+
+        // spec.S2
+        if (
+            (approval.approvalType == CreateClaimApprovalType.CreditorOnly && from != creditor)
+                || (approval.approvalType == CreateClaimApprovalType.DebtorOnly && from != debtor)
+        ) {
+            revert Unauthorized();
+        }
+
+        // spec.S3
+        if (binding == ClaimBinding.Bound && !approval.isBindingAllowed) {
+            revert Unauthorized();
+        }
+
+        // result
+        if (approval.approvalCount != type(uint64).max) {
+            approvals[from][operator].createClaim.approvalCount -= 1;
+        }
+
+        return;
+    }
+
+    /// @notice Creates a claim between two addresses for a certain amount and token
+    /// @notice the claim NFT is minted to the creditor - in other words: the wallet owed money holds the NFT.
+    ///         The holder of the NFT will receive the payment from the debtor - See `_payClaim()` for more details.
+    /// @notice SPEC:
+    ///         TODO
+    /// @dev if the `token` param is address(0) then we consider the claim to be denominated in ETH - (native token)
     /// @return The newly created tokenId
     function _createClaim(address from, CreateClaimParams calldata params) internal returns (uint256) {
         if (lockState != LockState.Unlocked) {
             revert Locked();
         }
+
         if (params.delegator != address(0) && params.delegator != msg.sender) {
             revert NotDelegator(msg.sender);
+        }
+
+        // we allow dueBy to be 0 in the case of an "open" claim, or we allow a reasonable timestamp
+        if (params.dueBy != 0 && params.dueBy < block.timestamp && params.dueBy < type(uint40).max) {
+            revert IncorrectDueDate(params.dueBy);
+        }
+
+        // you need the permission of the debtor to bind a claim
+        if (params.binding == ClaimBinding.Bound && from != params.debtor) {
+            revert CannotBindClaim();
         }
 
         uint256 claimId;
@@ -188,7 +263,7 @@ contract BullaClaim is ERC721, Owned, BoringBatchable {
 
         ClaimStorage storage claim = claims[claimId];
 
-        claim.claimAmount = params.claimAmount.safeCastTo128();
+        claim.claimAmount = params.claimAmount.safeCastTo128(); //TODO: is this necessary?
         claim.debtor = params.debtor;
 
         uint256 _currentFeeCalculatorId = currentFeeCalculatorId;
@@ -422,16 +497,101 @@ contract BullaClaim is ERC721, Owned, BoringBatchable {
     }
 
     /*///////////////////////////////////////////////////////////////
-                            OWNER FUNCTIONS
+                             PERMIT FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function registerExtension(address extension) external onlyOwner {
-        bullaExtensions[extension] = true;
+    /// @notice allows a user - via a signature - to appove an operator to call createClaim on their behalf
+    /// @notice SPEC:
+    /// Anyone can call this function with a valid signature to modify the `owner`'s CreateClaimApproval of `operator` to the provided parameters
+    /// This function can _approve_ an operator given:
+    ///     A1. The recovered signer from the EIP712 signature == `owner` TODO: OR if `owner.code.length` > 0, an EIP-1271 signature lookup is valid
+    ///     A2. `owner` is not a 0 address
+    ///     A3. 0 < `approvalCount` < type(uint64).max
+    ///     A4. `extensionRegistry` is not address(0)
+    /// This function can _revoke_ an operator given:
+    ///     R1. The recovered signer from the EIP712 signature == `owner`
+    ///     R2. `owner` is not a 0 address
+    ///     R3. `approvalCount` == 0
+    ///     R4. `extensionRegistry` is not address(0)
+    ///
+    /// A valid approval signature is defined as: a signed EIP712 hash digest of the following parameters:
+    ///     S1. The hash of the EIP712 typedef string
+    ///     S2. The `owner` address
+    ///     S3. The `operator` address
+    ///     S4. A verbose approval message: see `BullaClaimEIP712.getPermitCreateClaimMessage`
+    ///     S5. The `approvalType` enum as a uint8
+    ///     S6. The `approvalCount`
+    ///     S7. The `isBindingAllowed` boolean flag
+    ///     S8. The stored signing nonce found in `owner`'s CreateClaimApproval struct for `operator`
+
+    /// Result: If the above conditions are met:
+    ///     RES1: The nonce is incremented
+    ///     RES2: The `owner`'s approval of `operator` is updated
+    ///     RES3: A CreateClaimApproved event is emitted with the approval parameters
+    function permitCreateClaim(
+        address owner, // todo: rename owner -> user?
+        address operator,
+        CreateClaimApprovalType approvalType,
+        uint64 approvalCount,
+        bool isBindingAllowed,
+        Signature calldata signature
+    ) public {
+        // TODO: EIP-1271 smart contract signatures
+        bytes32 digest;
+        {
+            uint256 nonce = approvals[owner][operator].createClaim.nonce;
+            digest = _hashTypedDataV4(
+                keccak256(
+                    abi.encode(
+                        BullaClaimEIP712.CREATE_CLAIM_TYPEHASH, // spec.S1
+                        owner, // spec.S2
+                        operator, // spec.S3
+                        // spec.S4
+                        BullaClaimEIP712.getPermitCreateClaimMessageDigest(
+                            extensionRegistry, // spec.A4 // spec.R4 /// WARNING: this could revert!
+                            operator,
+                            approvalType,
+                            approvalCount,
+                            isBindingAllowed
+                        ),
+                        approvalType, // spec.S5
+                        approvalCount, // spec.S6
+                        isBindingAllowed, // spec.S7
+                        nonce // spec.S8
+                    )
+                )
+            );
+        }
+
+        address signer = ecrecover(digest, signature.v, signature.r, signature.s);
+        // address 0 check to prevent approval of the 0 address
+        if (
+            signer != owner // spec.A1 // spec.R1
+                || signer == address(0) // spec.A2 // spec.R2
+        ) revert InvalidSignature();
+
+        // revoke case // spec.R3
+        if (approvalCount == 0) {
+            // spec.RES2
+            delete approvals[owner][operator].createClaim.isBindingAllowed;
+            delete approvals[owner][operator].createClaim.approvalType;
+            delete approvals[owner][operator].createClaim.approvalCount;
+        } else {
+            // approve case
+            // spec.RES2
+            approvals[owner][operator].createClaim.isBindingAllowed = isBindingAllowed;
+            approvals[owner][operator].createClaim.approvalType = approvalType;
+            approvals[owner][operator].createClaim.approvalCount = approvalCount;
+            approvals[owner][operator].createClaim.nonce++; // spec.RES1
+        }
+
+        // spec.RES3
+        emit CreateClaimApproved(owner, operator, approvalType, approvalCount, isBindingAllowed);
     }
 
-    function unregisterExtension(address extension) external onlyOwner {
-        delete bullaExtensions[extension];
-    }
+    /*///////////////////////////////////////////////////////////////
+                            OWNER FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
 
     function setFeeCalculator(address _feeCalculator) external onlyOwner {
         uint256 nextFeeCalculator;
@@ -440,6 +600,10 @@ contract BullaClaim is ERC721, Owned, BoringBatchable {
         }
 
         feeCalculators[nextFeeCalculator] = IBullaFeeCalculator(_feeCalculator);
+    }
+
+    function setExtensionRegistry(address _extensionRegistry) external onlyOwner {
+        extensionRegistry = BullaExtensionRegistry(_extensionRegistry);
     }
 
     function setFeeCollectionAddress(address newFeeCollector) external onlyOwner {
@@ -453,6 +617,10 @@ contract BullaClaim is ERC721, Owned, BoringBatchable {
     /*///////////////////////////////////////////////////////////////
                         VIEW / UTILITY FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    function DOMAIN_SEPARATOR() public view returns (bytes32) {
+        return _domainSeparatorV4();
+    }
 
     function feeCalculator() public view returns (address) {
         return address(feeCalculators[currentFeeCalculatorId]);

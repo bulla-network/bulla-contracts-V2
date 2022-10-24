@@ -9,6 +9,7 @@ import {WETH} from "contracts/mocks/weth.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {IBullaFeeCalculator, BullaFeeCalculator} from "contracts/BullaFeeCalculator.sol";
 import {BullaHelpers} from "contracts/libraries/BullaHelpers.sol";
+import {Deployer} from "script/Deployment.s.sol";
 import {Claim, Status, ClaimBinding, FeePayer, LockState, CreateClaimParams} from "contracts/types/Types.sol";
 
 enum BullaClaimState {
@@ -65,7 +66,12 @@ contract TestInvariants is Test {
         vm.label(alice, "ALICE");
 
         vm.prank(contractOwner);
-        bullaClaim = new BullaClaim(feeReceiver, LockState.Unlocked);
+        (bullaClaim,) = (new Deployer()).deploy_test({
+            _deployer: contractOwner,
+            _feeReceiver: feeReceiver,
+            _initialLockState: LockState.Unlocked,
+            _feeBPS: 0
+        });
 
         weth.transferFrom(address(this), creditor, type(uint136).max);
         weth.transferFrom(address(this), debtor, type(uint136).max);

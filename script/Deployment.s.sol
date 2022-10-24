@@ -4,9 +4,11 @@ pragma solidity ^0.8.14;
 import "forge-std/Script.sol";
 import "contracts/BullaClaim.sol";
 import "contracts/BullaFeeCalculator.sol";
+import "contracts/BullaExtensionRegistry.sol";
 
 contract Deployer is Script {
     BullaClaim bullaClaim;
+    BullaExtensionRegistry extensionRegistry;
     BullaFeeCalculator feeCalculator;
 
     function run() public {
@@ -33,6 +35,7 @@ contract Deployer is Script {
     }
 
     function _deploy(address _feeReceiver, LockState _initialLockState) internal {
-        bullaClaim = new BullaClaim(_feeReceiver, _initialLockState);
+        extensionRegistry = new BullaExtensionRegistry();
+        bullaClaim = new BullaClaim(_feeReceiver, address(extensionRegistry), _initialLockState);
     }
 }
