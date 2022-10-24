@@ -12,7 +12,7 @@ name: Tests, Gas, and coverage report
 
 jobs:
   check:
-    name: Foundry project
+    name: Foundry - Tests + Coverage
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
