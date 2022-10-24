@@ -4,6 +4,7 @@ pragma solidity 0.8.15;
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import "contracts/BullaClaim.sol";
+import "contracts/mocks/PenalizedClaim.sol";
 import {console} from "forge-std/console.sol";
 import {Test} from "forge-std/Test.sol";
 
@@ -127,7 +128,7 @@ contract TestPermitCreateClaim is Test {
         uint64 approvalCount = 1;
         bool isBindingAllowed = true;
 
-        BullaExtensionRegistry(bullaClaim.extensionRegistry()).setExtensionName(bob, "BullaFake");
+        BullaExtensionRegistry(bullaClaim.extensionRegistry()).setExtensionName(bob, "bobby bob");
 
         bullaClaim.permitCreateClaim({
             owner: alice,
@@ -319,6 +320,28 @@ contract TestPermitCreateClaim is Test {
             approvalCount: approvalCount,
             isBindingAllowed: true,
             signature: signature
+        });
+    }
+
+    /// @notice sanity check to ensure that existance of code at the operator address doesn't break anything
+    function testCanPermitSmartContract() public {
+        PenalizedClaim operator = new PenalizedClaim(address(bullaClaim));
+        uint256 alicePK = uint256(0xA11c3);
+
+        bullaClaim.permitCreateClaim({
+            owner: vm.addr(alicePK),
+            operator: address(operator),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: alicePK,
+                owner: vm.addr(alicePK),
+                operator: address(operator),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
         });
     }
 

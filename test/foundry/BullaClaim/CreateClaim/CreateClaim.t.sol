@@ -66,28 +66,7 @@ contract CreateClaimTest is Test {
         );
     }
 
-    // function _newClaimFrom(address _from, address _creditor, address _debtor) private returns (uint256 claimId) {
-    //     claimId = bullaClaim.createClaimFrom(
-    //         _from,
-    //         CreateClaimParams({
-    //             creditor: _creditor,
-    //             debtor: _debtor,
-    //             description: "",
-    //             claimAmount: 1 ether,
-    //             dueBy: block.timestamp + 1 days,
-    //             token: address(weth),
-    //             delegator: address(0),
-    //             feePayer: FeePayer.Debtor,
-    //             binding: ClaimBinding.Unbound
-    //         })
-    //     );
-    // }
-
     /*///////////////////// CREATE CLAIM TESTS /////////////////////*/
-
-    /*
-    ///////// EOA FUNCTIONS /////////
-    */
 
     //baseline gas report after 1 mint
     function testBaselineGas__createClaim() public {
@@ -110,6 +89,17 @@ contract CreateClaimTest is Test {
         );
         Claim memory claim = bullaClaim.getClaim(claimId);
         assertEq(claim.token, address(0));
+    }
+
+    function testCannotCreateClaimWhenContractIsLocked() public {
+        bullaClaim.setLockState(LockState.Locked);
+
+        vm.expectRevert(BullaClaim.Locked.selector);
+        _newClaim(creditor, debtor);
+
+        bullaClaim.setLockState(LockState.NoNewClaims);
+        vm.expectRevert(BullaClaim.Locked.selector);
+        _newClaim(creditor, debtor);
     }
 
     function testCannotCreateClaimLargerThanMaxUint128() public {
@@ -148,27 +138,6 @@ contract CreateClaimTest is Test {
             })
         );
     }
-
-    // function testDelegatedClaim() public {
-    //     PenalizedClaim delegator = new PenalizedClaim(address(bullaClaim));
-    //     bullaClaim.registerExtension(address(delegator));
-
-    //     uint256 claimId = delegator.createClaim(
-    //         CreateClaimParams({
-    //             creditor: creditor,
-    //             debtor: debtor,
-    //             description: "",
-    //             claimAmount: 1 ether,
-    //             dueBy: block.timestamp + 1 days,
-    //             token: address(weth),
-    //             delegator: address(delegator),
-    //             feePayer: FeePayer.Debtor,
-    //             binding: ClaimBinding.Unbound
-    //         })
-    //     );
-    //     Claim memory claim = bullaClaim.getClaim(claimId);
-    //     assertEq(claim.delegator, address(delegator));
-    // }
 
     function testCreateBoundClaim() public {
         // test creation of a pending bound claim
@@ -438,135 +407,4 @@ contract CreateClaimTest is Test {
         Claim memory claim = bullaClaim.getClaim(claimId);
         assertEq(claim.feeCalculatorId, uint256(claim.feeCalculatorId));
     }
-
-    /*
-    ///////// BULLA EXTENSIONS (*From functions) /////////
-    */
-
-    // function _setupExtension() private returns (address extension) {
-    //     extension = address(0xe41e45104);
-    //     bullaClaim.registerExtension(address(extension));
-    // }
-
-    // function test_Extension_createClaim() public {
-    //     vm.prank(_setupExtension());
-    //     _newClaimFrom(creditor, creditor, debtor);
-    // }
-
-    // function test_Extension_cannotCreateFromNonExtension() public {
-    //     vm.expectRevert(abi.encodeWithSignature("NotExtension(address)", address(this)));
-    //     _newClaimFrom(creditor, creditor, debtor);
-    // }
-
-    // function test_Extension_canBypassDueByCheck() public {
-    //     uint256 futureTimestamp = block.timestamp + 6 days;
-    //     vm.warp(futureTimestamp);
-    //     vm.prank(_setupExtension());
-    //     uint256 expectedBlockTime = futureTimestamp - 3 days;
-
-    //     uint256 claimId = bullaClaim.createClaimFrom(
-    //         creditor,
-    //         CreateClaimParams({
-    //             creditor: creditor,
-    //             debtor: debtor,
-    //             description: "",
-    //             claimAmount: 1 ether,
-    //             dueBy: expectedBlockTime,
-    //             token: address(weth),
-    //             delegator: address(0),
-    //             feePayer: FeePayer.Debtor,
-    //             binding: ClaimBinding.Unbound
-    //         })
-    //     );
-
-    //     Claim memory claim = bullaClaim.getClaim(claimId);
-    //     assertEq(claim.dueBy, expectedBlockTime);
-    // }
-
-    // function test_Extension_canBypassBindingCheck() public {
-    //     vm.prank(_setupExtension());
-
-    //     uint256 claimId = bullaClaim.createClaimFrom(
-    //         creditor, // NOTE: a creditor is creating a bound claim for the debtor
-    //         CreateClaimParams({
-    //             creditor: creditor,
-    //             debtor: debtor,
-    //             description: "gotcha",
-    //             claimAmount: 1 ether,
-    //             dueBy: block.timestamp + 1 days,
-    //             token: address(weth),
-    //             delegator: address(0),
-    //             feePayer: FeePayer.Debtor,
-    //             binding: ClaimBinding.Bound
-    //         })
-    //     );
-
-    //     Claim memory claim = bullaClaim.getClaim(claimId);
-    //     assertTrue(claim.binding == ClaimBinding.Bound);
-    // }
-
-    // function test_Extension_FUZZ_createWithBypasses(
-    //     address _from,
-    //     address _creditor,
-    //     address _debtor,
-    //     uint128 claimAmount,
-    //     address token,
-    //     uint40 dueBy,
-    //     uint8 _binding
-    // ) public {
-    //     address extensionAddr = _setupExtension();
-
-    //     ClaimBinding binding = ClaimBinding(_binding % 2); // can create any type of ClaimBinding
-    //     vm.assume(_creditor.code.length == 0 && _creditor != address(0) && _creditor != extensionAddr); // ignore mints to a smart contract or 0 address
-    //     vm.assume(dueBy > block.timestamp + 6 days);
-
-    //     vm.warp(block.timestamp + 6 days);
-    //     vm.roll(10_000);
-    //     uint256 expectedClaimId = bullaClaim.currentClaimId() + 1;
-
-    //     vm.startPrank(extensionAddr);
-    //     vm.expectEmit(true, true, true, true);
-    //     emit ClaimCreated(
-    //         expectedClaimId,
-    //         _from,
-    //         _creditor,
-    //         _debtor,
-    //         "fuzz",
-    //         uint256(claimAmount),
-    //         token,
-    //         binding,
-    //         uint256(dueBy),
-    //         bullaClaim.currentFeeCalculatorId()
-    //         );
-
-    //     uint256 claimId = bullaClaim.createClaimFrom(
-    //         _from,
-    //         CreateClaimParams({
-    //             creditor: _creditor,
-    //             debtor: _debtor,
-    //             description: "fuzz",
-    //             claimAmount: claimAmount,
-    //             dueBy: dueBy,
-    //             token: token,
-    //             delegator: address(0),
-    //             feePayer: FeePayer.Debtor,
-    //             binding: binding
-    //         })
-    //     );
-    //     vm.stopPrank();
-
-    //     assertEq(bullaClaim.currentClaimId(), claimId);
-    //     Claim memory claim = bullaClaim.getClaim(claimId);
-    //     assertEq(bullaClaim.ownerOf(claimId), _creditor);
-    //     assertEq(claim.paidAmount, 0);
-    //     assertTrue(claim.status == Status.Pending);
-    //     assertEq(claim.claimAmount, claimAmount);
-    //     assertEq(claim.debtor, _debtor);
-    //     assertEq(claim.feeCalculatorId, 0);
-    //     assertEq(claim.dueBy, dueBy);
-    //     assertTrue(claim.binding == ClaimBinding(binding));
-    //     assertEq(claim.token, token);
-
-    //     vm.stopPrank();
-    // }
 }
