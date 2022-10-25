@@ -519,7 +519,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
         // TODO: EIP-1271 smart contract signatures
         bytes32 digest;
         {
-            uint256 nonce = approvals[owner][operator].createClaim.nonce++; // spec.RES1
+            uint256 nonce = approvals[owner][operator].createClaim.nonce;
             digest = _hashTypedDataV4(
                 keccak256(
                     abi.encode(
@@ -556,12 +556,14 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
             delete approvals[owner][operator].createClaim.isBindingAllowed;
             delete approvals[owner][operator].createClaim.approvalType;
             delete approvals[owner][operator].createClaim.approvalCount;
+            approvals[owner][operator].createClaim.nonce++; // SPEC.RES1
         } else {
             // approve case
             // spec.RES2
             approvals[owner][operator].createClaim.isBindingAllowed = isBindingAllowed;
             approvals[owner][operator].createClaim.approvalType = approvalType;
             approvals[owner][operator].createClaim.approvalCount = approvalCount;
+            approvals[owner][operator].createClaim.nonce++; // SPEC.RES1
         }
 
         // spec.RES3
