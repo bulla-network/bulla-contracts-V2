@@ -109,19 +109,25 @@ contract CreateClaimTest is Test {
         _permitCreateClaim(_ownerPK, _operator, _approvalCount, CreateClaimApprovalType.Approved, true);
     }
 
-    /*
     ///////// CREATE CLAIM FROM TESTS /////////
-    */
 
     function testCannotCreateClaimWhenContractIsLocked() public {
         bullaClaim.setLockState(LockState.Locked);
 
+        _permitCreateClaim({_ownerPK: ownerPK, _operator: address(this), _approvalCount: type(uint64).max});
+
         vm.expectRevert(BullaClaim.Locked.selector);
         _newClaim(creditor, debtor);
+
+        vm.expectRevert(BullaClaim.Locked.selector);
+        _newClaimFrom(owner, creditor, debtor);
 
         bullaClaim.setLockState(LockState.NoNewClaims);
         vm.expectRevert(BullaClaim.Locked.selector);
         _newClaim(creditor, debtor);
+
+        vm.expectRevert(BullaClaim.Locked.selector);
+        _newClaimFrom(owner, creditor, debtor);
     }
 
     function testCreateClaim() public {
@@ -176,7 +182,7 @@ contract CreateClaimTest is Test {
     function testCannotCreateFromNonExtension() public {
         address rando = address(0x1247765432);
 
-        vm.expectRevert(abi.encodeWithSignature("NotApproved(address)", rando));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector, rando));
         vm.prank(rando);
         _newClaimFrom(creditor, creditor, debtor);
     }
@@ -189,11 +195,12 @@ contract CreateClaimTest is Test {
         vm.startPrank(operator);
         _newClaimFrom(owner, owner, debtor);
         // approval is now 0
-        vm.expectRevert(abi.encodeWithSignature("NotApproved(address)", operator));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector, operator));
         _newClaimFrom(owner, owner, debtor);
         vm.stopPrank();
     }
 
+    /// @notice SPEC.result
     function testuint64MaxApprovalDoesNotDecrement() public {
         _permitCreateClaim({_ownerPK: ownerPK, _operator: operator, _approvalCount: type(uint64).max});
 
@@ -233,21 +240,7 @@ contract CreateClaimTest is Test {
         _newClaimFrom({_from: owner, _creditor: owner, _debtor: debtor});
     }
 
-    function testCannotCreateBoundClaimUnlessApproved() public {
-        _permitCreateClaim({
-            _ownerPK: ownerPK,
-            _operator: operator,
-            _approvalCount: type(uint64).max,
-            _approvalType: CreateClaimApprovalType.CreditorOnly,
-            _isBindingAllowed: true
-        });
-
-        vm.prank(operator);
-        vm.expectRevert(BullaClaim.Unauthorized.selector);
-        _newClaimFrom({_from: owner, _creditor: creditor, _debtor: owner});
-    }
-
-    // TODO: remove once BullaClaim only allows claims to be created when you're a creditor or debtor
+    // TODO: remove once BullaClaim only permits creating claims when from == creditor || from == debtor
     function test_TEMP_canCreateForAnyone() public {
         address rando1 = address(0x1234412577737373733);
         address rando2 = address(0x12faabef8281992);
@@ -265,6 +258,7 @@ contract CreateClaimTest is Test {
         _newClaimFrom({_from: owner, _creditor: rando1, _debtor: rando2});
     }
 
+    /// @notice SPEC.S3
     function testCannotCreateBoundClaimWhenUnapproved() public {
         _permitCreateClaim({
             _ownerPK: ownerPK,
@@ -274,7 +268,6 @@ contract CreateClaimTest is Test {
             _isBindingAllowed: false // binding is not allowed
         });
 
-        // create a claim between rando1 and rando2
         vm.prank(operator);
         vm.expectRevert(BullaClaim.Unauthorized.selector);
         bullaClaim.createClaimFrom(
@@ -288,7 +281,7 @@ contract CreateClaimTest is Test {
                 token: address(weth),
                 delegator: address(0),
                 feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Bound
+                binding: ClaimBinding.Bound // binding is set to bound
             })
         );
     }
