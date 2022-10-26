@@ -36,7 +36,7 @@ contract EIP712Helper {
         uint64 approvalCount,
         bool isBindingAllowed
     ) internal view returns (bytes32) {
-        CreateClaimApproval memory approvals = bullaClaim.approvals(owner, operator);
+        (CreateClaimApproval memory approvals,) = bullaClaim.approvals(owner, operator);
 
         return keccak256(
             abi.encode(

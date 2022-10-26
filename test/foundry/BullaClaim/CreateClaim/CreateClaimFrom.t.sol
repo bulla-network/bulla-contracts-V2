@@ -3,11 +3,9 @@ pragma solidity ^0.8.14;
 
 import "forge-std/Test.sol";
 import "forge-std/Vm.sol";
+import "contracts/types/Types.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
-import {
-    Signature, Claim, Status, ClaimBinding, FeePayer, CreateClaimParams, LockState
-} from "contracts/types/Types.sol";
 import {BullaFeeCalculator} from "contracts/BullaFeeCalculator.sol";
 import {BullaClaim, CreateClaimApprovalType} from "contracts/BullaClaim.sol";
 import {PenalizedClaim} from "contracts/mocks/PenalizedClaim.sol";
@@ -134,12 +132,14 @@ contract CreateClaimTest is Test {
         // have the creditor permit bob to act as a operator
         _permitCreateClaim({_ownerPK: ownerPK, _operator: operator, _approvalCount: 1});
 
-        uint256 approvalCount = bullaClaim.approvals(owner, operator).approvalCount;
+        (CreateClaimApproval memory approval,) = bullaClaim.approvals(owner, operator);
+        uint256 approvalCount = approval.approvalCount;
 
         vm.prank(operator);
         _newClaimFrom(owner, owner, debtor);
+        (approval,) = bullaClaim.approvals(owner, operator);
 
-        assertEq(bullaClaim.approvals(owner, operator).approvalCount, approvalCount - 1);
+        assertEq(approval.approvalCount, approvalCount - 1);
     }
 
     function testCreateDelegatedClaim() public {
@@ -207,7 +207,9 @@ contract CreateClaimTest is Test {
         vm.prank(operator);
         _newClaimFrom(owner, owner, debtor);
 
-        assertEq(bullaClaim.approvals(owner, operator).approvalCount, type(uint64).max);
+        (CreateClaimApproval memory approval,) = bullaClaim.approvals(owner, operator);
+
+        assertEq(approval.approvalCount, type(uint64).max);
     }
 
     /// @notice SPEC.S2

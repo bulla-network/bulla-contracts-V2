@@ -480,29 +480,117 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
                              PERMIT FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice allows a user, via a signature, to appove an operator to call payClaim on their behalf
+    /// @notice SPEC:
+    /// Anyone can call this function with a valid signature to set `owner`'s PayClaimApproval of `operator` to the provided parameters.
+    /// A user may signal 3 different approval types through this function: "Unapproved", "Approved for specific claims only", and "Approved for all claims".
+    /// This function can approve an operator to pay _specific_ claims given the following conditions listed below as AS - (Approve Specific 1-7):
+    ///     AS1: The recovered signer from the EIP712 signature == `owner` -> otherwise: reverts
+    ///     AS2: `owner` is not the 0 address -> otherwise: reverts
+    ///     AS3: `approvalType` == PayClaimApprovalType.IsApprovedForSpecific
+    ///     AS4: `approvalExpiraryTimestamp` is either 0 (indicating unexpiring approval) or block.timestamp < `approvalExpiraryTimestamp` < type(uint40).max -> otherwise reverts
+    ///     AS5: `paymentApprovals.length > 0` and contains valid `ClaimPaymentApprovals` meaning each paymentApproval conforms to the below:
+    ///     AS6: ClaimPaymentApproval.claimId is <= currentClaimId -> otherwise: reverts
+    ///     AS6: ClaimPaymentApproval.approvalExpiraryTimestamp is either 0 (indicating unexpiring approval) or block.timestamp < `approvalExpiraryTimestamp` < type(uint40).max -> otherwise reverts
+    ///     AS7: ClaimPaymentApproval.amountA < type(uint128).max
+    ///   RESULT: The following call parameters are stored on on `owner`'s approval of `operator`
+    ///     AS.RES1: The approvalType = PayClaimApprovalType.IsApprovedForSpecific
+    ///     AS.RES2: The approvalExpiraryTimestamp is stored if not 0
+    ///     AS.RES3: The nonce is incremented by 1
+    ///     AS.RES4. The claimApprovals array
+    ///
+    /// This function can approve an operator to pay _all_ claims given the following conditions listed below as AA - (Approve All 1-5):
+    ///     AA1: The recovered signer from the EIP712 signature == `owner` -> otherwise: reverts
+    ///     AA2: `owner` is not the 0 address -> otherwise: reverts
+    ///     AA3: `approvalType` == PayClaimApprovalType.IsApprovedForAll
+    ///     AA4: `approvalExpiraryTimestamp` is either 0 (indicating unexpiring approval) or block.timestamp < `approvalExpiraryTimestamp` < type(uint40).max -> otherwise reverts
+    ///     AA5: `paymentApprovals.length == 0` -> otherwise: reverts
+    ///   RESULT: The following call parameters are stored on on `owner`'s approval of `operator`
+    ///     AA.RES1: The approvalType = PayClaimApprovalType.IsApprovedForAll
+    ///     AA.RES2: The nonce is incremented by 1
+    ///     AA.RES3: If the previous approvalType == PayClaimApprovalType.IsApprovedForSpecific, delete the claimApprovals array -> otherwise: continue
+    ///
+    /// This function can _revoke_ an operator to pay claims given the following conditions listed below as AR - (Approval Revoked 1-5):
+    ///     AR1: The recovered signer from the EIP712 signature == `owner` -> otherwise: reverts
+    ///     AR2: `owner` is not the 0 address -> otherwise: reverts
+    ///     AR3: `approvalType` == PayClaimApprovalType.Unapproved
+    ///     AR4: `approvalExpiraryTimestamp` == 0 -> otherwise: reverts
+    ///     AR5: `paymentApprovals.length` == 0 -> otherwise: reverts
+    ///   RESULT: `owner`'s approval of `operator` is updated to the following:
+    ///     AR.RES1: approvalType is deleted (equivalent to being set to `Unapproved`)
+    ///     AR.RES2: approvalExpiraryTimestamp is deleted
+    ///     AR.RES3: The nonce is incremented by 1
+    ///     AR.RES4: the claimApprovalsArray is deleted
+
+    /// A valid approval signature is defined as: a signed EIP712 hash digest of the following parameters:
+    ///     S1: The hash of the EIP712 typedef string
+    ///     S2: The `owner` address
+    ///     S3: The `operator` address
+    ///     S4: A verbose approval message: see `BullaClaimEIP712.getPermitPayClaimMessage()`
+    ///     S5: The `approvalType` enum as a uint8
+    ///     S6: The `approvalExpiraryTimestamp` as uint256
+    ///     S7: The keccak256 hash of the abi.encodePacked array of the keccak256 hashStruct of ClaimPaymentApproval typehash and contents:
+    ///     S8: The stored signing nonce found in `owner`'s PayClaimApproval struct for `operator`
+    function permitPayClaim(
+        address owner,
+        address operator,
+        PayClaimApprovalType approvalType,
+        uint40 approvalExpiraryTimestamp,
+        ClaimPaymentApproval[] calldata paymentApprovals,
+        Signature calldata signature
+    ) public {
+        bytes32 digest;
+        {
+            uint256 nonce = 0; // approvals[owner][operator].createClaim.nonce++
+            bytes32 paymentApprovalsHash = BullaClaimEIP712.hashPaymentApprovals(paymentApprovals);
+            bytes32 permitMessage = BullaClaimEIP712.getPermitPayClaimMessageDigest(
+                extensionRegistry, operator, approvalType, approvalExpiraryTimestamp
+            );
+
+            digest = _hashTypedDataV4(
+                keccak256(
+                    abi.encode(
+                        BullaClaimEIP712.PAY_CLAIM_TYPEHASH,
+                        owner,
+                        operator,
+                        permitMessage,
+                        approvalType,
+                        approvalExpiraryTimestamp,
+                        paymentApprovalsHash,
+                        nonce
+                    )
+                )
+            );
+        }
+
+        address signer = ecrecover(digest, signature.v, signature.r, signature.s);
+        // address 0 check to prevent approval of the 0 address
+        if (signer != owner || signer == address(0)) revert InvalidSignature();
+    }
+
     /// @notice allows a user - via a signature - to appove an operator to call createClaim on their behalf
     /// @notice SPEC:
     /// Anyone can call this function with a valid signature to modify the `owner`'s CreateClaimApproval of `operator` to the provided parameters
     /// This function can _approve_ an operator given:
-    ///     A1. The recovered signer from the EIP712 signature == `owner` TODO: OR if `owner.code.length` > 0, an EIP-1271 signature lookup is valid
-    ///     A2. `owner` is not a 0 address
-    ///     A3. 0 < `approvalCount` < type(uint64).max
-    ///     A4. `extensionRegistry` is not address(0)
+    ///     A1: The recovered signer from the EIP712 signature == `owner` TODO: OR if `owner.code.length` > 0, an EIP-1271 signature lookup is valid
+    ///     A2: `owner` is not a 0 address
+    ///     A3: 0 < `approvalCount` < type(uint64).max
+    ///     A4: `extensionRegistry` is not address(0)
     /// This function can _revoke_ an operator given:
-    ///     R1. The recovered signer from the EIP712 signature == `owner`
-    ///     R2. `owner` is not a 0 address
-    ///     R3. `approvalCount` == 0
-    ///     R4. `extensionRegistry` is not address(0)
+    ///     R1: The recovered signer from the EIP712 signature == `owner`
+    ///     R2: `owner` is not a 0 address
+    ///     R3: `approvalCount` == 0
+    ///     R4: `extensionRegistry` is not address(0)
     ///
     /// A valid approval signature is defined as: a signed EIP712 hash digest of the following parameters:
-    ///     S1. The hash of the EIP712 typedef string
-    ///     S2. The `owner` address
-    ///     S3. The `operator` address
-    ///     S4. A verbose approval message: see `BullaClaimEIP712.getPermitCreateClaimMessage`
-    ///     S5. The `approvalType` enum as a uint8
-    ///     S6. The `approvalCount`
-    ///     S7. The `isBindingAllowed` boolean flag
-    ///     S8. The stored signing nonce found in `owner`'s CreateClaimApproval struct for `operator`
+    ///     S1: The hash of the EIP712 typedef string
+    ///     S2: The `owner` address
+    ///     S3: The `operator` address
+    ///     S4: A verbose approval message: see `BullaClaimEIP712.getPermitCreateClaimMessage()`
+    ///     S5: The `approvalType` enum as a uint8
+    ///     S6: The `approvalCount`
+    ///     S7: The `isBindingAllowed` boolean flag
+    ///     S8: The stored signing nonce found in `owner`'s CreateClaimApproval struct for `operator`
 
     /// Result: If the above conditions are met:
     ///     RES1: The nonce is incremented

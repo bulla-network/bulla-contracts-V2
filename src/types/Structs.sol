@@ -1,7 +1,9 @@
 //SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.15;
 
-import {Status, ClaimBinding, FeePayer, CreateClaimApprovalType} from "contracts/types/Enums.sol";
+import {
+    Status, ClaimBinding, FeePayer, CreateClaimApprovalType, PayClaimApprovalType
+} from "contracts/types/Enums.sol";
 
 struct Signature {
     bytes32 r;
@@ -52,7 +54,20 @@ struct CreateClaimApproval {
     uint64 nonce; // the nonce for the approval - only incremented per approval update.
 }
 
+struct ClaimPaymentApproval {
+    uint88 claimId;
+    uint40 approvalExpiraryTimestamp;
+    uint128 approvedAmount;
+}
+
+struct PayClaimApproval {
+    PayClaimApprovalType approvalType;
+    uint40 approvalExpiraryTimestamp;
+    uint64 nonce;
+    ClaimPaymentApproval[] claimApprovals;
+}
+
 struct Approvals {
-    CreateClaimApproval createClaim; // can only approve all claims
-        // PayClaimApproval payClaim;
+    CreateClaimApproval createClaim;
+    PayClaimApproval payClaim;
 }

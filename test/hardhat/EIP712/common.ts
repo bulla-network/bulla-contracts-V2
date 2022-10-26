@@ -7,11 +7,18 @@ import {
 } from "../../../typechain-types";
 import { ethers } from "hardhat";
 import { BigNumber, BigNumberish, Signature } from "ethers";
+import { ClaimPaymentApprovalStruct } from "../../../typechain-types/src/BullaClaim";
 
 export enum CreateClaimApprovalType {
   Approved,
   CreditorOnly,
   DebtorOnly,
+}
+
+export enum PayClaimApprovalType {
+  Unapproved,
+  IsApprovedForSpecific,
+  IsApprovedForAll,
 }
 
 export enum FeePayer {
@@ -35,7 +42,14 @@ export const declareSignerWithAddress = (): SignerWithAddress[] => [];
 
 export const UNLIMITED_APPROVAL_COUNT = 2n ** 64n - 1n;
 
-export const approveCreateClaimTypes = {
+const getDomain = (bullaClaimAddress: string) => ({
+  name: "BullaClaim",
+  version: "1",
+  verifyingContract: bullaClaimAddress,
+  chainId: 31337,
+});
+
+export const permitCreateClaimTypes = {
   ApproveCreateClaimExtension: [
     { name: "owner", type: "address" },
     { name: "operator", type: "address" },
@@ -45,6 +59,23 @@ export const approveCreateClaimTypes = {
     { name: "isBindingAllowed", type: "bool" },
     { name: "nonce", type: "uint256" },
   ],
+};
+
+export const permitPayClaimTypes = {
+  ApprovePayClaimExtension: [
+    { name: "owner", type: "address" },
+    { name: "operator", type: "address" },
+    { name: "message", type: "string" },
+    { name: "approvalType", type: "uint8" },
+    { name: "approvalExpiraryTimestamp", type: "uint256" },
+    { name: "paymentApprovals", type: "ClaimPaymentApproval[]" },
+    { name: "nonce", type: "uint256" },
+  ],
+  ClaimPaymentApproval: [
+    { name: "claimId", type: "uint256" },
+    { name: "approvalExpiraryTimestamp", type: "uint256" },
+    { name: "approvedAmount", type: "uint256" },
+  ]
 };
 
 export const getPermitCreateClaimMessage = (
@@ -76,6 +107,37 @@ export const getPermitCreateClaimMessage = (
       operatorAddress.toLowerCase() +
       ") " +
       "to create claims on my behalf.";
+
+export const getPermitPayClaimMessage = (
+  operatorAddress: string,
+  operatorName: string,
+  approvalType: PayClaimApprovalType,
+  approvalExpiraryTimestamp: number
+): string =>
+  approvalType != PayClaimApprovalType.Unapproved // approve case:
+    ? (approvalType == PayClaimApprovalType.IsApprovedForAll
+        ? "ATTENTION!: "
+        : "") +
+      "I approve the following contract: " +
+      operatorName +
+      " (" +
+      operatorAddress.toLowerCase() + // note: will _not_ be checksummed
+      ") " +
+      "to pay " +
+      (approvalType == PayClaimApprovalType.IsApprovedForAll
+        ? "any claim"
+        : "the below claims") +
+      " on my behalf. I understand that once I sign this message this contract can spend tokens I've approved" +
+      (approvalExpiraryTimestamp != 0
+        ? " until the timestamp: " + approvalExpiraryTimestamp.toString()
+        : ".")
+    : // revoke case
+      "I revoke approval for the following contract: " +
+      operatorName +
+      " (" +
+      operatorAddress.toLowerCase() +
+      ") " +
+      "pay claims on my behalf.";
 
 export function deployContractsFixture(deployer: SignerWithAddress) {
   return async function fixture(): Promise<
@@ -144,7 +206,7 @@ export function deployContractsFixture(deployer: SignerWithAddress) {
   };
 }
 
-export const generateSignature = async ({
+export const generateCreateClaimSignature = async ({
   bullaClaimAddress,
   signer,
   operatorName,
@@ -163,12 +225,7 @@ export const generateSignature = async ({
   isBindingAllowed?: boolean;
   nonce?: number;
 }): Promise<Signature> => {
-  const domain = {
-    name: "BullaClaim",
-    version: "1",
-    verifyingContract: bullaClaimAddress,
-    chainId: 31337,
-  };
+  const domain = getDomain(bullaClaimAddress);
 
   const message = getPermitCreateClaimMessage(
     operator,
@@ -191,8 +248,51 @@ export const generateSignature = async ({
   return ethers.utils.splitSignature(
     await signer._signTypedData(
       domain,
-      approveCreateClaimTypes,
+      permitCreateClaimTypes,
       payClaimPermission
     )
+  );
+};
+
+export const generatePayClaimSignature = async ({
+  bullaClaimAddress,
+  signer,
+  operatorName,
+  operator,
+  approvalType = PayClaimApprovalType.IsApprovedForAll,
+  approvalExpiraryTimestamp = 0,
+  paymentApprovals = [],
+  nonce = 0,
+}: {
+  bullaClaimAddress: string;
+  signer: SignerWithAddress;
+  operatorName: string;
+  operator: string; // address
+  approvalType?: PayClaimApprovalType;
+  approvalExpiraryTimestamp?: number;
+  paymentApprovals?: ClaimPaymentApprovalStruct[];
+  nonce?: number;
+}): Promise<Signature> => {
+  const domain = getDomain(bullaClaimAddress);
+
+  const message = getPermitPayClaimMessage(
+    operator,
+    operatorName,
+    approvalType,
+    approvalExpiraryTimestamp
+  );
+
+  const payClaimPermission = {
+    owner: signer.address,
+    operator: operator,
+    message: message,
+    approvalType: approvalType,
+    approvalExpiraryTimestamp: approvalExpiraryTimestamp,
+    paymentApprovals: paymentApprovals,
+    nonce,
+  };
+
+  return ethers.utils.splitSignature(
+    await signer._signTypedData(domain, permitPayClaimTypes, payClaimPermission)
   );
 };

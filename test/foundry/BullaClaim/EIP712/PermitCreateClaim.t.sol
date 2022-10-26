@@ -64,7 +64,7 @@ contract TestPermitCreateClaim is Test {
             })
         });
 
-        CreateClaimApproval memory approval = bullaClaim.approvals(alice, bob);
+        (CreateClaimApproval memory approval,) = bullaClaim.approvals(alice, bob);
 
         assertEq(approval.isBindingAllowed, isBindingAllowed, "isBindingAllowed");
         assertTrue(approval.approvalType == approvalType, "approvalType");
@@ -386,7 +386,7 @@ contract TestPermitCreateClaim is Test {
             signature: sig
         });
 
-        CreateClaimApproval memory approval = bullaClaim.approvals(owner, operator);
+        (CreateClaimApproval memory approval,) = bullaClaim.approvals(owner, operator);
 
         assertEq(approval.nonce, 1, "nonce");
         assertEq(approval.approvalCount, approvalCount, "approvalCount");

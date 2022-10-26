@@ -26,6 +26,12 @@ enum CreateClaimApprovalType {
     DebtorOnly // an addresss is allowed only to create claims where the user is the debtor
 }
 
+enum PayClaimApprovalType {
+    Unapproved,
+    IsApprovedForSpecific,
+    IsApprovedForAll
+}
+
 enum LockState {
     Unlocked,
     NoNewClaims, // an intermediary state where we allow users to pay, reject, rescind, and accept claims, but disallow new claims to be made

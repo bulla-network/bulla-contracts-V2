@@ -7,18 +7,24 @@ import {
   BullaClaimEIP712,
 } from "../../../typechain-types";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { CreateClaimApprovalStruct } from "../../../typechain-types/src/BullaClaim";
+import {
+  ClaimPaymentApprovalStruct,
+  CreateClaimApprovalStruct,
+  PayClaimApprovalStruct,
+} from "../../../typechain-types/src/BullaClaim";
 import {
   ClaimBinding,
   CreateClaimApprovalType,
   declareSignerWithAddress,
   deployContractsFixture,
   FeePayer,
-  generateSignature,
+  generateCreateClaimSignature,
+  generatePayClaimSignature,
+  PayClaimApprovalType,
   UNLIMITED_APPROVAL_COUNT,
 } from "./common";
 
-describe("PayClaimEIP712Test", async () => {
+describe("BullaClaim EIP712 approval signatures", async () => {
   let [deployer, alice, bob] = declareSignerWithAddress();
 
   let bullaClaim: BullaClaim,
@@ -32,7 +38,7 @@ describe("PayClaimEIP712Test", async () => {
       await loadFixture(deployContractsFixture(deployer));
   });
 
-  it("it accepts a valid signature", async () => {
+  it("permitCreateClaim", async () => {
     [bullaClaim, bullaClaimEIP712, penalizedClaim, registry] =
       await loadFixture(deployContractsFixture(deployer));
 
@@ -49,7 +55,7 @@ describe("PayClaimEIP712Test", async () => {
     };
 
     // approve penalized claim to create bound claims for alice
-    const userSignature = await generateSignature({
+    const permitCreateClaimSig = await generateCreateClaimSignature({
       bullaClaimAddress: bullaClaim.address,
       signer: alice,
       operatorName: await registry.getExtensionForSignature(
@@ -69,14 +75,14 @@ describe("PayClaimEIP712Test", async () => {
           CreateClaimApprovalType.Approved,
           UNLIMITED_APPROVAL_COUNT,
           true,
-          userSignature
+          permitCreateClaimSig
         )
     ).to.not.be.reverted;
 
-    const approval = (await bullaClaim.approvals(
+    let [approval] = (await bullaClaim.approvals(
       alice.address,
       penalizedClaim.address
-    )) as CreateClaimApprovalStruct;
+    )) as [CreateClaimApprovalStruct, PayClaimApprovalStruct];
 
     expect(approval.approvalCount).to.equal(UNLIMITED_APPROVAL_COUNT);
     expect(approval.nonce).to.equal(1);
@@ -85,13 +91,72 @@ describe("PayClaimEIP712Test", async () => {
     await (await penalizedClaim.connect(alice).createClaim(claim)).wait();
 
     // expect approval count to decrement
-    expect(
-      (
-        (await bullaClaim.approvals(
-          bob.address,
-          penalizedClaim.address
-        )) as CreateClaimApprovalStruct
-      ).approvalCount
-    ).to.equal(0);
+    [approval] = (await bullaClaim.approvals(
+      bob.address,
+      penalizedClaim.address
+    )) as [CreateClaimApprovalStruct, PayClaimApprovalStruct];
+    expect(approval.approvalCount).to.equal(0);
+  });
+
+  it("permitPayClaim", async () => {
+    [bullaClaim, bullaClaimEIP712, penalizedClaim, registry] =
+      await loadFixture(deployContractsFixture(deployer));
+
+    const APPROVAL_TYPE = PayClaimApprovalType.Unapproved;
+    const EXPIRARY_TIMESTAMP = Math.floor(Date.now() / 1000) + 100;
+    const PAY_CLAIM_APPROVALS: ClaimPaymentApprovalStruct[] = [
+      {
+        approvalExpiraryTimestamp: EXPIRARY_TIMESTAMP,
+        approvedAmount: ethers.utils.parseEther("1"),
+        claimId: 1,
+      },
+    ];
+
+    // approve penalized claim to create bound claims for alice
+    const permitPayClaimSig = await generatePayClaimSignature({
+      bullaClaimAddress: bullaClaim.address,
+      signer: alice,
+      operatorName: await registry.getExtensionForSignature(
+        penalizedClaim.address
+      ),
+      operator: penalizedClaim.address,
+      approvalType: APPROVAL_TYPE,
+      paymentApprovals: PAY_CLAIM_APPROVALS,
+      approvalExpiraryTimestamp: EXPIRARY_TIMESTAMP,
+    });
+
+    await expect(
+      bullaClaim
+        .connect(bob) // notice anyone can submit the permit
+        .permitPayClaim(
+          alice.address,
+          penalizedClaim.address,
+          APPROVAL_TYPE,
+          EXPIRARY_TIMESTAMP,
+          PAY_CLAIM_APPROVALS,
+          permitPayClaimSig
+        )
+    ).to.not.be.reverted;
+
+    // const approval = (await bullaClaim.approvals(
+    //   alice.address,
+    //   penalizedClaim.address
+    // )) as PayClaimApproval;
+
+    // expect(approval.approvalCount).to.equal(UNLIMITED_APPROVAL_COUNT);
+    // expect(approval.nonce).to.equal(1);
+
+    // // create the claim with the approval
+    // await (await penalizedClaim.connect(alice).createClaim(claim)).wait();
+
+    // // expect approval count to decrement
+    // expect(
+    //   (
+    //     (await bullaClaim.approvals(
+    //       bob.address,
+    //       penalizedClaim.address
+    //     )) as CreateClaimApprovalStruct
+    //   ).approvalCount
+    // ).to.equal(0);
   });
 });
