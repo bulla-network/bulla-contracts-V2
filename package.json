@@ -14,6 +14,7 @@
     "test:hh": "npx hardhat test",
     "dev": "forge test -vvv -w --run-all --gas-report",
     "gas": "forge snapshot && forge build --sizes",
+    "coverage": "forge coverage --report lcov; ex -c 'g/SF:src\/mocks/.-1,/end_of_record/d' -c 'wq' lcov.info",
     "prepare": "husky install"
   },
   "devDependencies": {
@@ -26,6 +27,8 @@
     "@nomiclabs/hardhat-etherscan": "^3.1.0",
     "@typechain/ethers-v5": "^10.1.0",
     "@typechain/hardhat": "^6.1.3",
+    "@types/chai": "^4.3.3",
+    "@types/mocha": "^10.0.0",
     "chai": "^4.3.6",
     "ethers": "^5.7.1",
     "hardhat": "^2.11.2",

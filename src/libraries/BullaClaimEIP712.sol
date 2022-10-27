@@ -11,7 +11,7 @@ library BullaClaimEIP712 {
 
     bytes32 constant CREATE_CLAIM_TYPEHASH = keccak256(
         bytes(
-            "ApproveCreateClaimExtension(address owner,address extension,string message,uint8 approvalType,uint256 approvalCount,bool isBindingAllowed,uint256 nonce)"
+            "ApproveCreateClaimExtension(address owner,address operator,string message,uint8 approvalType,uint256 approvalCount,bool isBindingAllowed,uint256 nonce)"
         )
     );
 

@@ -5,3 +5,4 @@ broadcast
 .env
 typechain-types
 .DS_Store
+lcov.info

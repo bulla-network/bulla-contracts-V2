@@ -52,7 +52,6 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     error IncorrectDueDate(uint256 dueBy);
     error ClaimBound(uint256 claimId);
     error NotOwner();
-    error NotExtension(address sender);
     error CannotBindClaim();
     error InvalidSignature();
     error NotCreditorOrDebtor(address sender);
@@ -69,11 +68,6 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
         if (lockState == LockState.Locked) {
             revert Locked();
         }
-        _;
-    }
-
-    modifier onlyExtension() {
-        revert("not implemented"); // temporary for this PR
         _;
     }
 
@@ -339,10 +333,6 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
         _updateBinding(msg.sender, claimId, binding);
     }
 
-    function updateBindingFrom(address from, uint256 claimId, ClaimBinding binding) external onlyExtension {
-        _updateBinding(from, claimId, binding);
-    }
-
     function _updateBinding(address from, uint256 claimId, ClaimBinding binding) internal notLocked {
         claims[claimId].binding = binding;
 
@@ -365,10 +355,6 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
         }
 
         _cancelClaim(msg.sender, claimId, note);
-    }
-
-    function cancelClaimFrom(address from, uint256 claimId, string calldata note) external onlyExtension {
-        _cancelClaim(from, claimId, note);
     }
 
     function _cancelClaim(address from, uint256 claimId, string calldata note) internal notLocked {
@@ -401,12 +387,6 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
         }
 
         _payClaim(msg.sender, claimId, claim, amount);
-    }
-
-    function payClaimFrom(address from, uint256 claimId, uint256 amount) external payable onlyExtension {
-        Claim memory claim = getClaim(claimId);
-
-        _payClaim(from, claimId, claim, amount);
     }
 
     /// @notice pay a claim with tokens (WETH -> ETH included)
@@ -576,13 +556,14 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
             delete approvals[owner][operator].createClaim.isBindingAllowed;
             delete approvals[owner][operator].createClaim.approvalType;
             delete approvals[owner][operator].createClaim.approvalCount;
+            approvals[owner][operator].createClaim.nonce++; // SPEC.RES1
         } else {
             // approve case
             // spec.RES2
             approvals[owner][operator].createClaim.isBindingAllowed = isBindingAllowed;
             approvals[owner][operator].createClaim.approvalType = approvalType;
             approvals[owner][operator].createClaim.approvalCount = approvalCount;
-            approvals[owner][operator].createClaim.nonce++; // spec.RES1
+            approvals[owner][operator].createClaim.nonce++; // SPEC.RES1
         }
 
         // spec.RES3

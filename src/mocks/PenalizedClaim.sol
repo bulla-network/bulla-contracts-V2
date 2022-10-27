@@ -27,39 +27,39 @@ contract PenalizedClaim {
         return bullaClaim.createClaimFrom(msg.sender, claimParams);
     }
 
-    function payClaim(uint256 claimId, uint256 amount) public payable {
-        Claim memory claim = bullaClaim.getClaim(claimId);
-        _checkDelegator(claim.delegator);
+    // function payClaim(uint256 claimId, uint256 amount) public payable {
+    //     Claim memory claim = bullaClaim.getClaim(claimId);
+    //     _checkDelegator(claim.delegator);
 
-        uint256 amountToPay = amount;
+    //     uint256 amountToPay = amount;
 
-        if (claim.binding == ClaimBinding.Bound && claim.dueBy < block.timestamp) {
-            uint256 lateFee = (LATE_FEE_BPS * claim.claimAmount) / 10000;
-            amountToPay -= lateFee;
-            address creditor = bullaClaim.ownerOf(claimId);
+    //     if (claim.binding == ClaimBinding.Bound && claim.dueBy < block.timestamp) {
+    //         uint256 lateFee = (LATE_FEE_BPS * claim.claimAmount) / 10000;
+    //         amountToPay -= lateFee;
+    //         address creditor = bullaClaim.ownerOf(claimId);
 
-            claim.token == address(0)
-                ? creditor.safeTransferETH(lateFee)
-                : ERC20(claim.token).safeTransferFrom(msg.sender, creditor, lateFee);
-        }
+    //         claim.token == address(0)
+    //             ? creditor.safeTransferETH(lateFee)
+    //             : ERC20(claim.token).safeTransferFrom(msg.sender, creditor, lateFee);
+    //     }
 
-        bullaClaim.payClaimFrom{value: amountToPay}(msg.sender, claimId, amountToPay);
-    }
+    //     bullaClaim.payClaimFrom{value: amountToPay}(msg.sender, claimId, amountToPay);
+    // }
 
-    function cancelClaim(uint256 claimId, string calldata note) public {
-        Claim memory claim = bullaClaim.getClaim(claimId);
-        _checkDelegator(claim.delegator);
+    // function cancelClaim(uint256 claimId, string calldata note) public {
+    //     Claim memory claim = bullaClaim.getClaim(claimId);
+    //     _checkDelegator(claim.delegator);
 
-        if (claim.binding == ClaimBinding.Bound && claim.debtor == msg.sender) {
-            revert BullaClaim.ClaimBound(claimId);
-        }
+    //     if (claim.binding == ClaimBinding.Bound && claim.debtor == msg.sender) {
+    //         revert BullaClaim.ClaimBound(claimId);
+    //     }
 
-        bullaClaim.cancelClaimFrom(msg.sender, claimId, note);
-    }
+    //     bullaClaim.cancelClaimFrom(msg.sender, claimId, note);
+    // }
 
-    function acceptClaim(uint256 claimId) public {
-        bullaClaim.updateBindingFrom(msg.sender, claimId, ClaimBinding.Bound);
-    }
+    // function acceptClaim(uint256 claimId) public {
+    //     bullaClaim.updateBindingFrom(msg.sender, claimId, ClaimBinding.Bound);
+    // }
 
     function _checkDelegator(address _delegator) internal view {
         if (_delegator != address(this)) {
