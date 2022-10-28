@@ -56,13 +56,13 @@ struct CreateClaimApproval {
 
 struct ClaimPaymentApproval {
     uint88 claimId;
-    uint40 approvalExpiraryTimestamp;
+    uint40 approvalDeadline;
     uint128 approvedAmount;
 }
 
 struct PayClaimApproval {
     PayClaimApprovalType approvalType;
-    uint40 approvalExpiraryTimestamp;
+    uint40 approvalDeadline;
     uint64 nonce;
     ClaimPaymentApproval[] claimApprovals;
 }

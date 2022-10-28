@@ -6,7 +6,6 @@ import {IBullaFeeCalculator} from "contracts/interfaces/IBullaFeeCalculator.sol"
 import {BullaExtensionRegistry} from "contracts/BullaExtensionRegistry.sol";
 import {EIP712} from "openzeppelin-contracts/contracts/utils/cryptography/EIP712.sol";
 import {ECDSA} from "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
-import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {SafeCastLib} from "solmate/utils/SafeCastLib.sol";
 import {BoringBatchable} from "contracts/libraries/BoringBatchable.sol";
@@ -49,11 +48,12 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     //////////////////////////////////////////////////////////////*/
 
     error PayingZero();
-    error IncorrectDueDate(uint256 dueBy);
     error ClaimBound(uint256 claimId);
     error NotOwner();
     error CannotBindClaim();
     error InvalidSignature();
+    error InvalidTimestamp(uint256 timestamp);
+    error InvalidPaymentApproval();
     error NotCreditorOrDebtor(address sender);
     error OverPaying(uint256 paymentAmount);
     error ClaimNotPending(uint256 claimId);
@@ -106,6 +106,14 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
         CreateClaimApprovalType indexed approvalType,
         uint256 approvalCount,
         bool isBindingAllowed
+    );
+
+    event PayClaimApproved(
+        address indexed owner,
+        address indexed operator,
+        PayClaimApprovalType indexed approvalType,
+        uint256 approvalDeadline,
+        ClaimPaymentApproval[] paymentApprovals
     );
 
     constructor(address _feeCollectionAddress, address _extensionRegistry, LockState _lockState)
@@ -242,7 +250,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
 
         // we allow dueBy to be 0 in the case of an "open" claim, or we allow a reasonable timestamp
         if (params.dueBy != 0 && params.dueBy < block.timestamp && params.dueBy < type(uint40).max) {
-            revert IncorrectDueDate(params.dueBy);
+            revert InvalidTimestamp(params.dueBy);
         }
 
         // you need the permission of the debtor to bind a claim
@@ -378,15 +386,79 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     }
 
     function payClaim(uint256 claimId, uint256 amount) external payable {
-        Claim memory claim = getClaim(claimId);
-        // We allow for claims to be "delegated". Meaning, it is another smart contract's responsibility to implement
-        //      custom logic, then call these functions. We check the msg.sender against the delegator to make sure a user
-        //      isn't trying to bypass delegator specific logic (eg: late fees) and by going to this contract directly.
-        if (claim.delegator != address(0) && msg.sender != claim.delegator) {
-            revert ClaimDelegated(claimId, claim.delegator);
+        _payClaim(msg.sender, claimId, amount);
+    }
+
+    function payClaimFrom(address from, uint256 claimId, uint256 amount) external payable {
+        _spendPayClaimApproval(from, msg.sender, claimId, amount);
+
+        _payClaim(from, claimId, amount);
+    }
+
+    /// @notice _spendPayClaimApproval() "spends" an operator's pay claim approval
+    /// @notice SPEC:
+    /// A function can call this function to verify and "spend" `from`'s approval of `operator` to pay a claim under the following circumstances:
+    ///     S1. The `approvalType` is not `Unapproved` -> otherwise: reverts
+    ///
+    ///     When the `approvalType` is `IsApprovedForSpecific`, then `operator` must be approved to pay that claim meaning:
+    ///         AS1: `from` has approved payment for the `claimId` parameter -> otherwise: reverts
+    ///         AS2: `from` has approved payment for at least the `amount` parameter -> otherwise: reverts
+    ///         AS3: `from`'s approval has not expired -> otherwise: reverts
+    ///
+    ///         AS.RES1: If the `amount` parameter == the pre-approved amount on the permission, spend the permission -> otherwise: decrement the approved amount by `amount`
+    ///
+    ///     If the `approvalType` is `IsApprovedForAll`, then `operator` must be approved to pay, meaning:
+    ///         AA1: `from`'s approval of `operator` has not expired -> otherwise: reverts
+    ///
+    ///         AA.RES1: This function allows execution to continue - (no storage needs to be updated)
+    function _spendPayClaimApproval(address from, address operator, uint256 claimId, uint256 amount) internal {
+        PayClaimApproval memory approval = approvals[from][operator].payClaim;
+
+        if (approval.approvalType == PayClaimApprovalType.Unapproved) revert Unauthorized();
+
+        if (approval.approvalType == PayClaimApprovalType.IsApprovedForAll) {
+            if (approval.approvalDeadline != 0 && block.timestamp > approval.approvalDeadline) {
+                revert Unauthorized();
+            } else {
+                return;
+            } // no-op, because `operator` is approved
         }
 
-        _payClaim(msg.sender, claimId, claim, amount);
+        uint256 i;
+        ClaimPaymentApproval[] memory _paymentApprovals = approval.claimApprovals;
+        uint256 totalApprovals = _paymentApprovals.length;
+
+        for (; i < totalApprovals; ++i) {
+            // if a matching approval is found
+            if (_paymentApprovals[i].claimId == claimId) {
+                // check if the approval is expired or under approved
+                if (
+                    block.timestamp > _paymentApprovals[i].approvalDeadline
+                        || amount > _paymentApprovals[i].approvedAmount
+                ) revert Unauthorized();
+
+                PayClaimApproval storage paymentApprovals = approvals[from][operator].payClaim;
+                // if the approval is fully spent, we can delete it
+                if (amount == _paymentApprovals[i].approvedAmount) {
+                    // perform a swap and pop
+                    if (i != totalApprovals - 1) {
+                        // if the approval is not the last approval in the array, copy the last approval and overwrite `i`
+                        paymentApprovals.claimApprovals[i] = paymentApprovals.claimApprovals[totalApprovals - 1];
+                    }
+
+                    // delete the last approval (which is either the spent approval, or the duplicated one)
+                    paymentApprovals.claimApprovals.pop();
+                } else {
+                    // otherwise we decrement it in place
+                    // this cast is safe because amount is ensured to be < approvedAmount because
+                    paymentApprovals.claimApprovals[i].approvedAmount -= uint128(amount);
+                }
+                return;
+            }
+        }
+
+        // if the execution has gotten this far, it means no approvals were found
+        revert Unauthorized();
     }
 
     /// @notice pay a claim with tokens (WETH -> ETH included)
@@ -394,7 +466,16 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     /// @notice NOTE: we transfer the NFT back to whomever makes the final payment of the claim. This represents a receipt of their payment
     /// @notice NOTE: The actual amount "paid off" of the claim may be less if our fee is enabled
     ///              In other words, we treat this `amount` param as the amount the user wants to spend, and then deduct a fee from that amount
-    function _payClaim(address from, uint256 claimId, Claim memory claim, uint256 paymentAmount) internal notLocked {
+    function _payClaim(address from, uint256 claimId, uint256 paymentAmount) internal notLocked {
+        Claim memory claim = getClaim(claimId);
+
+        // We allow for claims to be "delegated". Meaning, it is another smart contract's responsibility to implement
+        //      custom logic, then call these functions. We check the msg.sender against the delegator to make sure a user
+        //      isn't trying to bypass delegator specific logic (eg: late fees) and by going to this contract directly.
+        if (claim.delegator != address(0) && msg.sender != claim.delegator) {
+            revert ClaimDelegated(claimId, claim.delegator);
+        }
+
         // load the claim from storage
         address creditor = getCreditor(claimId);
 
@@ -451,6 +532,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
                 : ERC20(claim.token).safeTransferFrom(from, feeCollectionAddress, fee);
         }
 
+        // TODO: this should happen after transfer
         emit ClaimPayment(claimId, from, claimPaymentAmount, fee);
 
         claim.token == address(0)
@@ -480,47 +562,51 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
                              PERMIT FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice allows a user, via a signature, to appove an operator to call payClaim on their behalf
+    /// @notice permitPayClaim() allows a user, via a signature, to appove an operator to call payClaim on their behalf
     /// @notice SPEC:
     /// Anyone can call this function with a valid signature to set `owner`'s PayClaimApproval of `operator` to the provided parameters.
     /// A user may signal 3 different approval types through this function: "Unapproved", "Approved for specific claims only", and "Approved for all claims".
-    /// This function can approve an operator to pay _specific_ claims given the following conditions listed below as AS - (Approve Specific 1-7):
+    /// This function can approve an operator to pay _specific_ claims given the following conditions listed below as AS - (Approve Specific 1-5):
     ///     AS1: The recovered signer from the EIP712 signature == `owner` -> otherwise: reverts
     ///     AS2: `owner` is not the 0 address -> otherwise: reverts
     ///     AS3: `approvalType` == PayClaimApprovalType.IsApprovedForSpecific
-    ///     AS4: `approvalExpiraryTimestamp` is either 0 (indicating unexpiring approval) or block.timestamp < `approvalExpiraryTimestamp` < type(uint40).max -> otherwise reverts
-    ///     AS5: `paymentApprovals.length > 0` and contains valid `ClaimPaymentApprovals` meaning each paymentApproval conforms to the below:
-    ///     AS6: ClaimPaymentApproval.claimId is <= currentClaimId -> otherwise: reverts
-    ///     AS6: ClaimPaymentApproval.approvalExpiraryTimestamp is either 0 (indicating unexpiring approval) or block.timestamp < `approvalExpiraryTimestamp` < type(uint40).max -> otherwise reverts
-    ///     AS7: ClaimPaymentApproval.amountA < type(uint128).max
+    ///     AS4: `approvalDeadline` is either 0 (indicating unexpiring approval) or block.timestamp < `approvalDeadline` < type(uint40).max -> otherwise reverts
+    ///     AS5: `paymentApprovals.length > 0` and contains valid `ClaimPaymentApprovals` -> otherwise: reverts
+    ///     A valid ClaimPaymentApproval is defined as the following:
+    ///         AS5.1: `ClaimPaymentApproval.claimId` is <= currentClaimId -> otherwise: reverts // TODO--JEREMY: is this necessary?
+    ///         AS5.2: `ClaimPaymentApproval.approvalDeadline` is either 0 (indicating unexpiring approval) or block.timestamp < `approvalDeadline` < type(uint40).max -> otherwise reverts
+    ///         AS5.3: `ClaimPaymentApproval.amountApproved` < type(uint128).max -> otherwise: reverts
     ///   RESULT: The following call parameters are stored on on `owner`'s approval of `operator`
     ///     AS.RES1: The approvalType = PayClaimApprovalType.IsApprovedForSpecific
-    ///     AS.RES2: The approvalExpiraryTimestamp is stored if not 0
+    ///     AS.RES2: The approvalDeadline is stored if not 0
     ///     AS.RES3: The nonce is incremented by 1
-    ///     AS.RES4. The claimApprovals array
+    ///     AS.RES4. The only claimApprovals listen in params are stored
+    ///     AR.RES5: A PayClaimApproval event is emitted
     ///
     /// This function can approve an operator to pay _all_ claims given the following conditions listed below as AA - (Approve All 1-5):
     ///     AA1: The recovered signer from the EIP712 signature == `owner` -> otherwise: reverts
     ///     AA2: `owner` is not the 0 address -> otherwise: reverts
     ///     AA3: `approvalType` == PayClaimApprovalType.IsApprovedForAll
-    ///     AA4: `approvalExpiraryTimestamp` is either 0 (indicating unexpiring approval) or block.timestamp < `approvalExpiraryTimestamp` < type(uint40).max -> otherwise reverts
+    ///     AA4: `approvalDeadline` is either 0 (indicating unexpiring approval) or block.timestamp < `approvalDeadline` < type(uint40).max -> otherwise reverts
     ///     AA5: `paymentApprovals.length == 0` -> otherwise: reverts
     ///   RESULT: The following call parameters are stored on on `owner`'s approval of `operator`
     ///     AA.RES1: The approvalType = PayClaimApprovalType.IsApprovedForAll
     ///     AA.RES2: The nonce is incremented by 1
     ///     AA.RES3: If the previous approvalType == PayClaimApprovalType.IsApprovedForSpecific, delete the claimApprovals array -> otherwise: continue
+    ///     AA.RES5: A PayClaimApproval event is emitted
     ///
     /// This function can _revoke_ an operator to pay claims given the following conditions listed below as AR - (Approval Revoked 1-5):
     ///     AR1: The recovered signer from the EIP712 signature == `owner` -> otherwise: reverts
     ///     AR2: `owner` is not the 0 address -> otherwise: reverts
     ///     AR3: `approvalType` == PayClaimApprovalType.Unapproved
-    ///     AR4: `approvalExpiraryTimestamp` == 0 -> otherwise: reverts
+    ///     AR4: `approvalDeadline` == 0 -> otherwise: reverts
     ///     AR5: `paymentApprovals.length` == 0 -> otherwise: reverts
     ///   RESULT: `owner`'s approval of `operator` is updated to the following:
     ///     AR.RES1: approvalType is deleted (equivalent to being set to `Unapproved`)
-    ///     AR.RES2: approvalExpiraryTimestamp is deleted
+    ///     AR.RES2: approvalDeadline is deleted
     ///     AR.RES3: The nonce is incremented by 1
-    ///     AR.RES4: the claimApprovalsArray is deleted
+    ///     AR.RES4: The claimApprovals array is deleted
+    ///     AR.RES5: A PayClaimApproval event is emitted
 
     /// A valid approval signature is defined as: a signed EIP712 hash digest of the following parameters:
     ///     S1: The hash of the EIP712 typedef string
@@ -528,44 +614,65 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     ///     S3: The `operator` address
     ///     S4: A verbose approval message: see `BullaClaimEIP712.getPermitPayClaimMessage()`
     ///     S5: The `approvalType` enum as a uint8
-    ///     S6: The `approvalExpiraryTimestamp` as uint256
-    ///     S7: The keccak256 hash of the abi.encodePacked array of the keccak256 hashStruct of ClaimPaymentApproval typehash and contents:
+    ///     S6: The `approvalDeadline` as uint256
+    ///     S7: The keccak256 hash of the abi.encodePacked array of the keccak256 hashStruct of ClaimPaymentApproval typehash and contents
     ///     S8: The stored signing nonce found in `owner`'s PayClaimApproval struct for `operator`
     function permitPayClaim(
         address owner,
         address operator,
         PayClaimApprovalType approvalType,
-        uint40 approvalExpiraryTimestamp,
+        uint40 approvalDeadline,
         ClaimPaymentApproval[] calldata paymentApprovals,
         Signature calldata signature
     ) public {
-        bytes32 digest;
-        {
-            uint256 nonce = 0; // approvals[owner][operator].createClaim.nonce++
-            bytes32 paymentApprovalsHash = BullaClaimEIP712.hashPaymentApprovals(paymentApprovals);
-            bytes32 permitMessage = BullaClaimEIP712.getPermitPayClaimMessageDigest(
-                extensionRegistry, operator, approvalType, approvalExpiraryTimestamp
-            );
+        PayClaimApproval storage approval = approvals[owner][operator].payClaim;
 
-            digest = _hashTypedDataV4(
-                keccak256(
-                    abi.encode(
-                        BullaClaimEIP712.PAY_CLAIM_TYPEHASH,
-                        owner,
-                        operator,
-                        permitMessage,
-                        approvalType,
-                        approvalExpiraryTimestamp,
-                        paymentApprovalsHash,
-                        nonce
-                    )
-                )
-            );
-        }
+        bytes32 digest = _hashTypedDataV4(
+            BullaClaimEIP712.getPermitPayClaimDigest(
+                extensionRegistry, owner, operator, approvalType, approvalDeadline, paymentApprovals, approval.nonce
+            )
+        );
 
         address signer = ecrecover(digest, signature.v, signature.r, signature.s);
-        // address 0 check to prevent approval of the 0 address
-        if (signer != owner || signer == address(0)) revert InvalidSignature();
+
+        if (signer != owner || signer == address(0)) revert InvalidSignature(); // AS1/2, AA1/2, AR1/2
+        if (approvalDeadline != 0 && approvalDeadline < block.timestamp) revert InvalidTimestamp(approvalDeadline);
+
+        // TODO: should approvalDeadline be 0 if approved for specific?
+
+        if (approvalType == PayClaimApprovalType.IsApprovedForAll) {
+            if (paymentApprovals.length > 0) revert InvalidPaymentApproval();
+
+            approval.approvalType = PayClaimApprovalType.IsApprovedForAll;
+            approval.approvalDeadline = approvalDeadline;
+            delete approval.claimApprovals;
+        } else if (approvalType == PayClaimApprovalType.IsApprovedForSpecific) {
+            if (paymentApprovals.length == 0) revert InvalidPaymentApproval();
+            uint256 _currentClaimId = currentClaimId;
+
+            for (uint256 i; i < paymentApprovals.length; ++i) {
+                if (paymentApprovals[i].claimId > _currentClaimId) revert InvalidPaymentApproval();
+                if (paymentApprovals[i].approvalDeadline != 0 && paymentApprovals[i].approvalDeadline < block.timestamp)
+                {
+                    revert InvalidTimestamp(paymentApprovals[i].approvalDeadline);
+                }
+
+                approval.claimApprovals.push(paymentApprovals[i]);
+            }
+
+            approval.approvalType = PayClaimApprovalType.IsApprovedForSpecific;
+            approval.approvalDeadline = approvalDeadline;
+        } else {
+            if (approvalDeadline != 0 || paymentApprovals.length > 0) revert InvalidPaymentApproval();
+
+            delete approval.approvalType; // will reset back to 0, which is unapproved
+            delete approval.approvalDeadline;
+            delete approval.claimApprovals;
+        }
+
+        approval.nonce++;
+
+        emit PayClaimApproved(owner, operator, approvalType, approvalDeadline, paymentApprovals);
     }
 
     /// @notice allows a user - via a signature - to appove an operator to call createClaim on their behalf
@@ -605,51 +712,32 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
         Signature calldata signature
     ) public {
         // TODO: EIP-1271 smart contract signatures
-        bytes32 digest;
-        {
-            uint256 nonce = approvals[owner][operator].createClaim.nonce++; // spec.RES1
-            digest = _hashTypedDataV4(
-                keccak256(
-                    abi.encode(
-                        BullaClaimEIP712.CREATE_CLAIM_TYPEHASH, // spec.S1
-                        owner, // spec.S2
-                        operator, // spec.S3
-                        // spec.S4
-                        BullaClaimEIP712.getPermitCreateClaimMessageDigest(
-                            extensionRegistry, // spec.A4 // spec.R4 /// WARNING: this could revert!
-                            operator,
-                            approvalType,
-                            approvalCount,
-                            isBindingAllowed
-                        ),
-                        approvalType, // spec.S5
-                        approvalCount, // spec.S6
-                        isBindingAllowed, // spec.S7
-                        nonce // spec.S8
-                    )
-                )
-            );
-        }
+        CreateClaimApproval storage approval = approvals[owner][operator].createClaim;
+
+        bytes32 digest = _hashTypedDataV4(
+            BullaClaimEIP712.getPermitCreateClaimDigest(
+                extensionRegistry, owner, operator, approvalType, approvalCount, isBindingAllowed, approval.nonce
+            )
+        );
 
         address signer = ecrecover(digest, signature.v, signature.r, signature.s);
-        // address 0 check to prevent approval of the 0 address
         if (
             signer != owner // spec.A1 // spec.R1
                 || signer == address(0) // spec.A2 // spec.R2
         ) revert InvalidSignature();
 
-        // revoke case // spec.R3
-        if (approvalCount == 0) {
-            // spec.RES2
-            delete approvals[owner][operator].createClaim.isBindingAllowed;
-            delete approvals[owner][operator].createClaim.approvalType;
-            delete approvals[owner][operator].createClaim.approvalCount;
+        if (approvalCount > 0) {
+            // spec.A3
+            approval.isBindingAllowed = isBindingAllowed; // spec.RES2
+            approval.approvalType = approvalType; // spec.RES2
+            approval.approvalCount = approvalCount; // spec.RES2
+            approval.nonce++; // spec.RES1
         } else {
-            // approve case
-            // spec.RES2
-            approvals[owner][operator].createClaim.isBindingAllowed = isBindingAllowed;
-            approvals[owner][operator].createClaim.approvalType = approvalType;
-            approvals[owner][operator].createClaim.approvalCount = approvalCount;
+            // spec.R3
+            delete approval.isBindingAllowed; // spec.RES2
+            delete approval.approvalType; // spec.RES2
+            delete approval.approvalCount; // spec.RES2
+            approval.nonce++; // spec.RES1
         }
 
         // spec.RES3

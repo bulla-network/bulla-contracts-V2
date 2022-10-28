@@ -75,6 +75,32 @@ contract EIP712Helper {
         );
     }
 
+    // computes the hash of the fully encoded EIP-712 message for the domain, which can be used to recover the signer
+    function getPermitPayClaimDigest(
+        address owner,
+        address operator,
+        PayClaimApprovalType approvalType,
+        uint40 approvalDeadline,
+        ClaimPaymentApproval[] calldata paymentApprovals
+    ) public view returns (bytes32) {
+        (, PayClaimApproval memory approval) = bullaClaim.approvals(owner, operator);
+        return keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                DOMAIN_SEPARATOR,
+                BullaClaimEIP712.getPermitPayClaimDigest(
+                    bullaClaim.extensionRegistry(),
+                    owner,
+                    operator,
+                    approvalType,
+                    approvalDeadline,
+                    paymentApprovals,
+                    approval.nonce
+                )
+            )
+        );
+    }
+
     function signCreateClaimPermit(
         uint256 pk,
         address owner,
@@ -84,6 +110,20 @@ contract EIP712Helper {
         bool isBindingAllowed
     ) public returns (Signature memory) {
         bytes32 digest = getPermitCreateClaimDigest(owner, operator, approvalType, approvalCount, isBindingAllowed);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
+        return Signature({v: v, r: r, s: s});
+    }
+
+    function signPayClaimPermit(
+        uint256 pk,
+        address owner,
+        address operator,
+        PayClaimApprovalType approvalType,
+        uint40 approvalDeadline,
+        ClaimPaymentApproval[] calldata paymentApprovals
+    ) public returns (Signature memory) {
+        bytes32 digest = getPermitPayClaimDigest(owner, operator, approvalType, approvalDeadline, paymentApprovals);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
         return Signature({v: v, r: r, s: s});

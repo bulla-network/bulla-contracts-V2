@@ -4,6 +4,7 @@ import {
   PenalizedClaim,
   BullaExtensionRegistry,
   BullaClaimEIP712,
+  WETH,
 } from "../../../typechain-types";
 import { ethers } from "hardhat";
 import { BigNumber, BigNumberish, Signature } from "ethers";
@@ -67,15 +68,15 @@ export const permitPayClaimTypes = {
     { name: "operator", type: "address" },
     { name: "message", type: "string" },
     { name: "approvalType", type: "uint8" },
-    { name: "approvalExpiraryTimestamp", type: "uint256" },
+    { name: "approvalDeadline", type: "uint256" },
     { name: "paymentApprovals", type: "ClaimPaymentApproval[]" },
     { name: "nonce", type: "uint256" },
   ],
   ClaimPaymentApproval: [
     { name: "claimId", type: "uint256" },
-    { name: "approvalExpiraryTimestamp", type: "uint256" },
+    { name: "approvalDeadline", type: "uint256" },
     { name: "approvedAmount", type: "uint256" },
-  ]
+  ],
 };
 
 export const getPermitCreateClaimMessage = (
@@ -112,7 +113,7 @@ export const getPermitPayClaimMessage = (
   operatorAddress: string,
   operatorName: string,
   approvalType: PayClaimApprovalType,
-  approvalExpiraryTimestamp: number
+  approvalDeadline: number
 ): string =>
   approvalType != PayClaimApprovalType.Unapproved // approve case:
     ? (approvalType == PayClaimApprovalType.IsApprovedForAll
@@ -128,8 +129,8 @@ export const getPermitPayClaimMessage = (
         ? "any claim"
         : "the below claims") +
       " on my behalf. I understand that once I sign this message this contract can spend tokens I've approved" +
-      (approvalExpiraryTimestamp != 0
-        ? " until the timestamp: " + approvalExpiraryTimestamp.toString()
+      (approvalDeadline != 0
+        ? " until the timestamp: " + approvalDeadline.toString()
         : ".")
     : // revoke case
       "I revoke approval for the following contract: " +
@@ -141,7 +142,7 @@ export const getPermitPayClaimMessage = (
 
 export function deployContractsFixture(deployer: SignerWithAddress) {
   return async function fixture(): Promise<
-    [BullaClaim, BullaClaimEIP712, PenalizedClaim, BullaExtensionRegistry]
+    [BullaClaim, BullaClaimEIP712, PenalizedClaim, BullaExtensionRegistry, WETH]
   > {
     // deploy metadata library
     const claimMetadataGeneratorFactory = await ethers.getContractFactory(
@@ -197,11 +198,17 @@ export function deployContractsFixture(deployer: SignerWithAddress) {
       "PenalizedClaim"
     );
 
+    const WETHFactory = await ethers.getContractFactory("WETH");
+    const Weth = await (
+      await WETHFactory.connect(deployer).deploy()
+    ).deployed();
+
     return [
       BullaClaim,
       BullaClaimEIP712,
       PenalizedClaim,
       BullaExtensionRegistry,
+      Weth,
     ];
   };
 }
@@ -260,7 +267,7 @@ export const generatePayClaimSignature = async ({
   operatorName,
   operator,
   approvalType = PayClaimApprovalType.IsApprovedForAll,
-  approvalExpiraryTimestamp = 0,
+  approvalDeadline = 0,
   paymentApprovals = [],
   nonce = 0,
 }: {
@@ -269,7 +276,7 @@ export const generatePayClaimSignature = async ({
   operatorName: string;
   operator: string; // address
   approvalType?: PayClaimApprovalType;
-  approvalExpiraryTimestamp?: number;
+  approvalDeadline?: number;
   paymentApprovals?: ClaimPaymentApprovalStruct[];
   nonce?: number;
 }): Promise<Signature> => {
@@ -279,7 +286,7 @@ export const generatePayClaimSignature = async ({
     operator,
     operatorName,
     approvalType,
-    approvalExpiraryTimestamp
+    approvalDeadline
   );
 
   const payClaimPermission = {
@@ -287,7 +294,7 @@ export const generatePayClaimSignature = async ({
     operator: operator,
     message: message,
     approvalType: approvalType,
-    approvalExpiraryTimestamp: approvalExpiraryTimestamp,
+    approvalDeadline: approvalDeadline,
     paymentApprovals: paymentApprovals,
     nonce,
   };

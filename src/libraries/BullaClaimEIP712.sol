@@ -16,13 +16,12 @@ library BullaClaimEIP712 {
         )
     );
 
-    bytes32 constant CLAIM_PAYMENT_APPROVAL_TYPEHASH = keccak256(
-        bytes("ClaimPaymentApproval(uint256 claimId,uint256 approvalExpiraryTimestamp,uint256 approvedAmount)")
-    );
+    bytes32 constant CLAIM_PAYMENT_APPROVAL_TYPEHASH =
+        keccak256(bytes("ClaimPaymentApproval(uint256 claimId,uint256 approvalDeadline,uint256 approvedAmount)"));
 
     bytes32 constant PAY_CLAIM_TYPEHASH = keccak256(
         bytes(
-            "ApprovePayClaimExtension(address owner,address operator,string message,uint8 approvalType,uint256 approvalExpiraryTimestamp,ClaimPaymentApproval[] paymentApprovals,uint256 nonce)ClaimPaymentApproval(uint256 claimId,uint256 approvalExpiraryTimestamp,uint256 approvedAmount)"
+            "ApprovePayClaimExtension(address owner,address operator,string message,uint8 approvalType,uint256 approvalDeadline,ClaimPaymentApproval[] paymentApprovals,uint256 nonce)ClaimPaymentApproval(uint256 claimId,uint256 approvalDeadline,uint256 approvedAmount)"
         )
     );
 
@@ -35,7 +34,7 @@ library BullaClaimEIP712 {
                 abi.encode(
                     BullaClaimEIP712.CLAIM_PAYMENT_APPROVAL_TYPEHASH,
                     paymentApprovals[i].claimId,
-                    paymentApprovals[i].approvalExpiraryTimestamp,
+                    paymentApprovals[i].approvalDeadline,
                     paymentApprovals[i].approvedAmount
                 )
             );
@@ -47,7 +46,7 @@ library BullaClaimEIP712 {
         BullaExtensionRegistry extensionRegistry,
         address operator,
         PayClaimApprovalType approvalType,
-        uint40 approvalExpiraryTimestamp
+        uint40 approvalDeadline
     ) public view returns (string memory) {
         return approvalType != PayClaimApprovalType.Unapproved // approve case:
             ? string.concat(
@@ -60,9 +59,7 @@ library BullaClaimEIP712 {
                 "to pay ",
                 approvalType == PayClaimApprovalType.IsApprovedForAll ? "any claim" : "the below claims",
                 " on my behalf. I understand that once I sign this message this contract can spend tokens I've approved",
-                approvalExpiraryTimestamp != 0
-                    ? string.concat(" until the timestamp: ", uint256(approvalExpiraryTimestamp).toString())
-                    : "."
+                approvalDeadline != 0 ? string.concat(" until the timestamp: ", uint256(approvalDeadline).toString()) : "."
             ) // revoke case
             : string.concat(
                 "I revoke approval for the following contract: ",
@@ -78,10 +75,31 @@ library BullaClaimEIP712 {
         BullaExtensionRegistry extensionRegistry,
         address operator,
         PayClaimApprovalType approvalType,
-        uint40 approvalExpiraryTimestamp
+        uint40 approvalDeadline
+    ) public view returns (bytes32) {
+        return keccak256(bytes(getPermitPayClaimMessage(extensionRegistry, operator, approvalType, approvalDeadline)));
+    }
+
+    function getPermitPayClaimDigest(
+        BullaExtensionRegistry extensionRegistry,
+        address owner,
+        address operator,
+        PayClaimApprovalType approvalType,
+        uint40 approvalDeadline,
+        ClaimPaymentApproval[] calldata paymentApprovals,
+        uint64 nonce
     ) public view returns (bytes32) {
         return keccak256(
-            bytes(getPermitPayClaimMessage(extensionRegistry, operator, approvalType, approvalExpiraryTimestamp))
+            abi.encode(
+                PAY_CLAIM_TYPEHASH,
+                owner,
+                operator,
+                getPermitPayClaimMessageDigest(extensionRegistry, operator, approvalType, approvalDeadline),
+                approvalType,
+                approvalDeadline,
+                hashPaymentApprovals(paymentApprovals),
+                nonce
+            )
         );
     }
 
@@ -129,6 +147,40 @@ library BullaClaimEIP712 {
         return keccak256(
             bytes(
                 getPermitCreateClaimMessage(extensionRegistry, operator, approvalType, approvalCount, isBindingAllowed)
+            )
+        );
+    }
+
+    function getPermitCreateClaimDigest(
+        BullaExtensionRegistry extensionRegistry,
+        address owner,
+        address operator,
+        CreateClaimApprovalType approvalType,
+        uint64 approvalCount,
+        bool isBindingAllowed,
+        uint64 nonce
+    ) public view returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                BullaClaimEIP712.CREATE_CLAIM_TYPEHASH, // spec.S1
+                owner, // spec.S2
+                operator, // spec.S3
+                // spec.S4
+                keccak256(
+                    bytes(
+                        getPermitCreateClaimMessage(
+                            extensionRegistry, // spec.A4 // spec.R4 /// WARNING: this could revert!
+                            operator,
+                            approvalType,
+                            approvalCount,
+                            isBindingAllowed
+                        )
+                    )
+                ),
+                approvalType, // spec.S5
+                approvalCount, // spec.S6
+                isBindingAllowed, // spec.S7
+                nonce // spec.S8
             )
         );
     }
