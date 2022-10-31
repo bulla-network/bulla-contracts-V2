@@ -25,7 +25,11 @@ library BullaClaimEIP712 {
         )
     );
 
-    function hashPaymentApprovals(ClaimPaymentApproval[] calldata paymentApprovals) public pure returns (bytes32) {
+    function hashPaymentApprovals(ClaimPaymentApprovalParam[] calldata paymentApprovals)
+        public
+        pure
+        returns (bytes32)
+    {
         bytes32[] memory approvalHashes = new bytes32[](
             paymentApprovals.length
         );
@@ -46,7 +50,7 @@ library BullaClaimEIP712 {
         BullaExtensionRegistry extensionRegistry,
         address operator,
         PayClaimApprovalType approvalType,
-        uint40 approvalDeadline
+        uint256 approvalDeadline
     ) public view returns (string memory) {
         return approvalType != PayClaimApprovalType.Unapproved // approve case:
             ? string.concat(
@@ -75,7 +79,7 @@ library BullaClaimEIP712 {
         BullaExtensionRegistry extensionRegistry,
         address operator,
         PayClaimApprovalType approvalType,
-        uint40 approvalDeadline
+        uint256 approvalDeadline
     ) public view returns (bytes32) {
         return keccak256(bytes(getPermitPayClaimMessage(extensionRegistry, operator, approvalType, approvalDeadline)));
     }
@@ -85,9 +89,9 @@ library BullaClaimEIP712 {
         address owner,
         address operator,
         PayClaimApprovalType approvalType,
-        uint40 approvalDeadline,
-        ClaimPaymentApproval[] calldata paymentApprovals,
-        uint64 nonce
+        uint256 approvalDeadline,
+        ClaimPaymentApprovalParam[] calldata paymentApprovals,
+        uint256 nonce
     ) public view returns (bytes32) {
         return keccak256(
             abi.encode(

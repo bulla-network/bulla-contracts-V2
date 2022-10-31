@@ -80,8 +80,8 @@ contract EIP712Helper {
         address owner,
         address operator,
         PayClaimApprovalType approvalType,
-        uint40 approvalDeadline,
-        ClaimPaymentApproval[] calldata paymentApprovals
+        uint256 approvalDeadline,
+        ClaimPaymentApprovalParam[] calldata paymentApprovals
     ) public view returns (bytes32) {
         (, PayClaimApproval memory approval) = bullaClaim.approvals(owner, operator);
         return keccak256(
@@ -120,8 +120,8 @@ contract EIP712Helper {
         address owner,
         address operator,
         PayClaimApprovalType approvalType,
-        uint40 approvalDeadline,
-        ClaimPaymentApproval[] calldata paymentApprovals
+        uint256 approvalDeadline,
+        ClaimPaymentApprovalParam[] calldata paymentApprovals
     ) public returns (Signature memory) {
         bytes32 digest = getPermitPayClaimDigest(owner, operator, approvalType, approvalDeadline, paymentApprovals);
 

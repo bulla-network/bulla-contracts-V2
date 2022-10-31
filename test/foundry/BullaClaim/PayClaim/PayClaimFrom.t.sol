@@ -68,7 +68,7 @@ contract PayClaimFrom is Test {
         address _operator,
         PayClaimApprovalType _approvalType,
         uint40 _approvalDeadline,
-        ClaimPaymentApproval[] memory _paymentApprovals
+        ClaimPaymentApprovalParam[] memory _paymentApprovals
     ) private {
         Signature memory sig = sigHelper.signPayClaimPermit(
             _ownerPK, vm.addr(_ownerPK), _operator, _approvalType, _approvalDeadline, _paymentApprovals
@@ -79,7 +79,7 @@ contract PayClaimFrom is Test {
     }
 
     function _permitPayClaim(uint256 _ownerPK, address _operator, uint40 _approvalDeadline) private {
-        ClaimPaymentApproval[] memory approvals = new ClaimPaymentApproval[](0);
+        ClaimPaymentApprovalParam[] memory approvals = new ClaimPaymentApprovalParam[](0);
         _permitPayClaim(_ownerPK, _operator, PayClaimApprovalType.IsApprovedForAll, _approvalDeadline, approvals);
     }
 

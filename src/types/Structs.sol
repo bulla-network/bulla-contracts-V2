@@ -54,6 +54,13 @@ struct CreateClaimApproval {
     uint64 nonce; // the nonce for the approval - only incremented per approval update.
 }
 
+struct ClaimPaymentApprovalParam {
+    uint256 claimId;
+    uint256 approvalDeadline;
+    uint256 approvedAmount;
+}
+
+// a compact 1 slot representation of a claim payment approval
 struct ClaimPaymentApproval {
     uint88 claimId;
     uint40 approvalDeadline;
