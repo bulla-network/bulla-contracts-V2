@@ -8,11 +8,9 @@ on:
 env:
   FOUNDRY_PROFILE: ci
 
-name: Tests, Gas, and coverage report
-
 jobs:
   check:
-    name: Foundry - Tests + Coverage
+    name: "Foundry: Tests + Coverage 🧪"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
