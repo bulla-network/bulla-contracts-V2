@@ -417,7 +417,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     ///
     ///         AA.RES1: This function allows execution to continue - (no storage needs to be updated)
     function _spendPayClaimApproval(address from, address operator, uint256 claimId, uint256 amount) internal {
-        PayClaimApproval memory approval = approvals[from][operator].payClaim;
+        PayClaimApproval storage approval = approvals[from][operator].payClaim;
 
         if (approval.approvalType == PayClaimApprovalType.Unapproved) revert Unauthorized();
         if (approval.approvalDeadline != 0 && block.timestamp > approval.approvalDeadline) revert Unauthorized();
@@ -444,21 +444,20 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
                 }
                 if (amount > _paymentApprovals[i].approvedAmount) revert Unauthorized();
 
-                PayClaimApproval storage paymentApprovals = approvals[from][operator].payClaim;
                 // if the approval is fully spent, we can delete it
                 if (amount == _paymentApprovals[i].approvedAmount) {
                     // perform a swap and pop
                     // if the approval is not the last approval in the array, copy the last approval and overwrite `i`
                     if (i != totalApprovals - 1) {
-                        paymentApprovals.claimApprovals[i] = paymentApprovals.claimApprovals[totalApprovals - 1];
+                        approval.claimApprovals[i] = approval.claimApprovals[totalApprovals - 1];
                     }
 
                     // delete the last approval (which is either the spent approval, or the duplicated one)
-                    paymentApprovals.claimApprovals.pop();
+                    approval.claimApprovals.pop();
                 } else {
                     // otherwise we decrement it in place
                     // this cast is safe because amount is ensured to be < approvedAmount because
-                    paymentApprovals.claimApprovals[i].approvedAmount -= uint128(amount);
+                    approval.claimApprovals[i].approvedAmount -= uint128(amount);
                 }
             }
         }
