@@ -4,7 +4,6 @@ pragma solidity 0.8.15;
 import "contracts/types/Types.sol";
 import {BullaExtensionRegistry} from "contracts/BullaExtensionRegistry.sol";
 import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
-import {console} from "forge-std/console.sol";
 
 library BullaClaimEIP712 {
     using Strings for uint256;
