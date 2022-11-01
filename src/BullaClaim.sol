@@ -400,11 +400,15 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     /// @notice SPEC:
     /// A function can call this function to verify and "spend" `from`'s approval of `operator` to pay a claim under the following circumstances:
     ///     S1. The `approvalType` is not `Unapproved` -> otherwise: reverts
+    ///     S2. The contract LockStatus is not `Locked` -> otherwise: reverts
     ///
     ///     When the `approvalType` is `IsApprovedForSpecific`, then `operator` must be approved to pay that claim meaning:
     ///         AS1: `from` has approved payment for the `claimId` parameter -> otherwise: reverts
     ///         AS2: `from` has approved payment for at least the `amount` parameter -> otherwise: reverts
-    ///         AS3: `from`'s approval has not expired -> otherwise: reverts
+    ///         AS3: `from`'s approval has not expired, meaning:
+    ///             AS3.1: If the operator has an "operator" expirary, then the operator expirary must be greater than the current block timestamp -> otherwise: reverts
+    ///             AS3.2: If the operator does not have an operator expirary and instead has a claim-specific expirary,
+    ///                 then the claim-specific expirary must be greater than the current block timestamp -> otherwise: reverts
     ///
     ///         AS.RES1: If the `amount` parameter == the pre-approved amount on the permission, spend the permission -> otherwise: decrement the approved amount by `amount`
     ///
@@ -416,34 +420,36 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
         PayClaimApproval memory approval = approvals[from][operator].payClaim;
 
         if (approval.approvalType == PayClaimApprovalType.Unapproved) revert Unauthorized();
-
-        if (approval.approvalType == PayClaimApprovalType.IsApprovedForAll) {
-            if (approval.approvalDeadline != 0 && block.timestamp > approval.approvalDeadline) {
-                revert Unauthorized();
-            } else {
-                return;
-            } // no-op, because `operator` is approved
-        }
+        if (approval.approvalDeadline != 0 && block.timestamp > approval.approvalDeadline) revert Unauthorized();
+        // no-op, because `operator` is approved
+        if (approval.approvalType == PayClaimApprovalType.IsApprovedForAll) return;
 
         uint256 i;
         ClaimPaymentApproval[] memory _paymentApprovals = approval.claimApprovals;
         uint256 totalApprovals = _paymentApprovals.length;
+        bool approvalFound;
 
         for (; i < totalApprovals; ++i) {
             // if a matching approval is found
             if (_paymentApprovals[i].claimId == claimId) {
+                approvalFound = true;
                 // check if the approval is expired or under approved
                 if (
-                    block.timestamp > _paymentApprovals[i].approvalDeadline
-                        || amount > _paymentApprovals[i].approvedAmount
-                ) revert Unauthorized();
+                    (
+                        _paymentApprovals[i].approvalDeadline != 0
+                            && block.timestamp > _paymentApprovals[i].approvalDeadline
+                    )
+                ) {
+                    revert Unauthorized();
+                }
+                if (amount > _paymentApprovals[i].approvedAmount) revert Unauthorized();
 
                 PayClaimApproval storage paymentApprovals = approvals[from][operator].payClaim;
                 // if the approval is fully spent, we can delete it
                 if (amount == _paymentApprovals[i].approvedAmount) {
                     // perform a swap and pop
+                    // if the approval is not the last approval in the array, copy the last approval and overwrite `i`
                     if (i != totalApprovals - 1) {
-                        // if the approval is not the last approval in the array, copy the last approval and overwrite `i`
                         paymentApprovals.claimApprovals[i] = paymentApprovals.claimApprovals[totalApprovals - 1];
                     }
 
@@ -454,19 +460,18 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
                     // this cast is safe because amount is ensured to be < approvedAmount because
                     paymentApprovals.claimApprovals[i].approvedAmount -= uint128(amount);
                 }
-                return;
             }
         }
 
-        // if the execution has gotten this far, it means no approvals were found
-        revert Unauthorized();
+        if (!approvalFound) revert Unauthorized();
     }
 
     /// @notice pay a claim with tokens (WETH -> ETH included)
-    /// @notice NOTE: if the claim token is address(0) (eth) then we use the eth transferred to the contract
+    /// @notice NOTE: if the claim token is address(0) (eth) then we use the eth transferred to the contract. If this function is called via PayClaimFrom,
+    ///     then the calling function must either escrow `from`'s eth or transfer it to the contract while calling this function.
     /// @notice NOTE: we transfer the NFT back to whomever makes the final payment of the claim. This represents a receipt of their payment
     /// @notice NOTE: The actual amount "paid off" of the claim may be less if our fee is enabled
-    ///              In other words, we treat this `amount` param as the amount the user wants to spend, and then deduct a fee from that amount
+    ///     In other words, we treat this `amount` param as the amount the user wants to spend, and then deduct a fee from that amount
     function _payClaim(address from, uint256 claimId, uint256 paymentAmount) internal notLocked {
         Claim memory claim = getClaim(claimId);
 
@@ -677,7 +682,9 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
             approval.approvalType = PayClaimApprovalType.IsApprovedForSpecific;
             approval.approvalDeadline = uint40(approvalDeadline);
         } else {
-            if (approvalDeadline != 0 || paymentApprovals.length > 0) revert InvalidPaymentApproval();
+            if (approvalDeadline != 0 || paymentApprovals.length > 0) {
+                revert InvalidPaymentApproval();
+            }
 
             delete approval.approvalType; // will reset back to 0, which is unapproved
             delete approval.approvalDeadline;
