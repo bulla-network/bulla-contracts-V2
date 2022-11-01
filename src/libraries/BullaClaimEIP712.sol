@@ -140,20 +140,6 @@ library BullaClaimEIP712 {
             );
     }
 
-    function getPermitCreateClaimMessageDigest(
-        BullaExtensionRegistry extensionRegistry,
-        address operator,
-        CreateClaimApprovalType approvalType,
-        uint64 approvalCount,
-        bool isBindingAllowed
-    ) public view returns (bytes32) {
-        return keccak256(
-            bytes(
-                getPermitCreateClaimMessage(extensionRegistry, operator, approvalType, approvalCount, isBindingAllowed)
-            )
-        );
-    }
-
     function getPermitCreateClaimDigest(
         BullaExtensionRegistry extensionRegistry,
         address owner,
