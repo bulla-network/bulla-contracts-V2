@@ -199,7 +199,7 @@ contract TestPayClaimFrom is Test {
 
         // user 2 tries to pull owner's funds
         vm.prank(user2);
-        vm.expectRevert(BullaClaim.Unauthorized.selector);
+        vm.expectRevert(BullaClaim.NotApproved.selector);
         bullaClaim.payClaimFrom(owner, claimId, 1 ether);
     }
 
@@ -225,7 +225,7 @@ contract TestPayClaimFrom is Test {
 
         // operator tries to pay claimId 2
         vm.prank(operator);
-        vm.expectRevert(BullaClaim.Unauthorized.selector);
+        vm.expectRevert(BullaClaim.NotApproved.selector);
         bullaClaim.payClaimFrom(owner, 2, 1 ether);
     }
 
@@ -250,7 +250,7 @@ contract TestPayClaimFrom is Test {
 
         // operator tries to pay 1 ether
         vm.prank(operator);
-        vm.expectRevert(BullaClaim.Unauthorized.selector);
+        vm.expectRevert(BullaClaim.PaymentUnderApproved.selector);
         bullaClaim.payClaimFrom(owner, 1, 1 ether);
     }
 
@@ -278,7 +278,7 @@ contract TestPayClaimFrom is Test {
 
         // operator tries to pay 1 ether on October 28th
         vm.prank(operator);
-        vm.expectRevert(BullaClaim.Unauthorized.selector);
+        vm.expectRevert(BullaClaim.PastApprovalDeadline.selector);
         bullaClaim.payClaimFrom(owner, claimId, 1 ether);
     }
 
@@ -307,7 +307,7 @@ contract TestPayClaimFrom is Test {
 
         // operator tries to pay 1 ether on October 28th
         vm.prank(operator);
-        vm.expectRevert(BullaClaim.Unauthorized.selector);
+        vm.expectRevert(BullaClaim.PastApprovalDeadline.selector);
         bullaClaim.payClaimFrom(owner, claimId, 1 ether);
     }
 
@@ -335,7 +335,7 @@ contract TestPayClaimFrom is Test {
         weth.approve(address(bullaClaim), 1 ether);
 
         vm.prank(operator);
-        vm.expectRevert(BullaClaim.Unauthorized.selector);
+        vm.expectRevert(BullaClaim.PastApprovalDeadline.selector);
         bullaClaim.payClaimFrom(owner, claimId, 1 ether);
     }
 

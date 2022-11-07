@@ -166,7 +166,7 @@ contract CreateClaimTest is Test {
 
         _newClaimFrom(owner, owner, debtor);
 
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector, address(this)));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector));
         _newClaimFrom(owner, owner, debtor);
     }
 
@@ -179,7 +179,7 @@ contract CreateClaimTest is Test {
             _isBindingAllowed: false
         });
 
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.Unauthorized.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.CannotBindClaim.selector));
         bullaClaim.createClaimWithMetadataFrom(
             owner,
             CreateClaimParams({
@@ -206,7 +206,7 @@ contract CreateClaimTest is Test {
             _isBindingAllowed: true
         });
 
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.Unauthorized.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector));
         bullaClaim.createClaimWithMetadataFrom(
             owner,
             CreateClaimParams({
@@ -233,7 +233,7 @@ contract CreateClaimTest is Test {
             _isBindingAllowed: true
         });
 
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.Unauthorized.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector));
         bullaClaim.createClaimWithMetadataFrom(
             owner,
             CreateClaimParams({
