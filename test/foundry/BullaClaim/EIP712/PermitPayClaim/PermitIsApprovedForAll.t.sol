@@ -43,7 +43,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
             })
         });
 
-        (, PayClaimApproval memory approval) = bullaClaim.approvals(alice, bob);
+        (, PayClaimApproval memory approval,,) = bullaClaim.approvals(alice, bob);
 
         // SPEC.AA.RES1-4
         assertTrue(approval.approvalType == PayClaimApprovalType.IsApprovedForAll, "approvalType");
@@ -116,8 +116,9 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         address owner = address(0);
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](0);
 
-        bytes32 digest =
-            BullaClaimEIP712.getPermitPayClaimMessageDigest(bullaClaim.extensionRegistry(), bob, approvalType, 0);
+        bytes32 digest = keccak256(
+            bytes(BullaClaimEIP712.getPermitPayClaimMessage(bullaClaim.extensionRegistry(), bob, approvalType, 0))
+        );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePK, digest);
         Signature memory signature = Signature({v: v, r: r, s: s});
 
@@ -268,7 +269,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
             signature: signature
         });
 
-        (, PayClaimApproval memory approval) = bullaClaim.approvals(alice, bob);
+        (, PayClaimApproval memory approval,,) = bullaClaim.approvals(alice, bob);
 
         assertEq(approval.approvalDeadline, 0, "approvalDeadline");
         assertEq(approval.claimApprovals.length, approvalsCount, "specific approvals");
@@ -294,7 +295,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
             signature: signature
         });
 
-        (, approval) = bullaClaim.approvals(alice, bob);
+        (, approval,,) = bullaClaim.approvals(alice, bob);
 
         assertEq(approval.claimApprovals.length, 0, "specific approvals");
         assertEq(approval.approvalDeadline, 0, "approvalDeadline");

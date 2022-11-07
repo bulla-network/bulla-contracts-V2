@@ -127,7 +127,7 @@ contract TestPayClaimFrom is Test {
         vm.prank(operator);
         bullaClaim.payClaimFrom(owner, claimId, 1 ether);
 
-        (, PayClaimApproval memory approval) = bullaClaim.approvals(owner, operator);
+        (, PayClaimApproval memory approval,,) = bullaClaim.approvals(owner, operator);
         assertEq(approval.claimApprovals.length, 0, "AS.RES1: claim approvals not cleared");
     }
 
@@ -151,7 +151,7 @@ contract TestPayClaimFrom is Test {
         vm.prank(operator);
         bullaClaim.payClaimFrom(owner, claimId, 0.5 ether);
 
-        (, PayClaimApproval memory approval) = bullaClaim.approvals(owner, operator);
+        (, PayClaimApproval memory approval,,) = bullaClaim.approvals(owner, operator);
         assertEq(approval.claimApprovals.length, 1, "AS.RES1: claim approval not decremented");
         assertEq(approval.claimApprovals[0].approvedAmount, 0.5 ether, "AS.RES1: claim approval not decremented");
         assertEq(
@@ -180,7 +180,7 @@ contract TestPayClaimFrom is Test {
         vm.prank(operator);
         bullaClaim.payClaimFrom(owner, claimIdToPay, 1 ether);
 
-        (, PayClaimApproval memory approval) = bullaClaim.approvals(owner, operator);
+        (, PayClaimApproval memory approval,,) = bullaClaim.approvals(owner, operator);
         assertEq(approval.claimApprovals.length, approvalCount - 1, "AS.RES1: claim approvals not cleared");
 
         bool approvalFound;

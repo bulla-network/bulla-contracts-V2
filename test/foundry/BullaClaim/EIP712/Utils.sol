@@ -36,7 +36,7 @@ contract EIP712Helper {
         uint64 approvalCount,
         bool isBindingAllowed
     ) internal view returns (bytes32) {
-        (CreateClaimApproval memory approvals,) = bullaClaim.approvals(owner, operator);
+        (CreateClaimApproval memory approvals,,,) = bullaClaim.approvals(owner, operator);
 
         return keccak256(
             abi.encode(
@@ -83,7 +83,7 @@ contract EIP712Helper {
         uint256 approvalDeadline,
         ClaimPaymentApprovalParam[] calldata paymentApprovals
     ) public view returns (bytes32) {
-        (, PayClaimApproval memory approval) = bullaClaim.approvals(owner, operator);
+        (, PayClaimApproval memory approval,,) = bullaClaim.approvals(owner, operator);
         return keccak256(
             abi.encodePacked(
                 "\x19\x01",
@@ -96,6 +96,40 @@ contract EIP712Helper {
                     approvalDeadline,
                     paymentApprovals,
                     approval.nonce
+                )
+            )
+        );
+    }
+
+    function getPermitUpdateBindingDigest(address owner, address operator, uint64 approvalCount)
+        public
+        view
+        returns (bytes32)
+    {
+        (,, UpdateBindingApproval memory approval,) = bullaClaim.approvals(owner, operator);
+        return keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                DOMAIN_SEPARATOR,
+                BullaClaimEIP712.getPermitUpdateBindingDigest(
+                    bullaClaim.extensionRegistry(), owner, operator, approvalCount, approval.nonce
+                )
+            )
+        );
+    }
+
+    function getPermitCancelClaimDigest(address owner, address operator, uint64 approvalCount)
+        public
+        view
+        returns (bytes32)
+    {
+        (,,, CancelClaimApproval memory approval) = bullaClaim.approvals(owner, operator);
+        return keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                DOMAIN_SEPARATOR,
+                BullaClaimEIP712.getPermitCancelClaimDigest(
+                    bullaClaim.extensionRegistry(), owner, operator, approvalCount, approval.nonce
                 )
             )
         );
@@ -124,6 +158,26 @@ contract EIP712Helper {
         ClaimPaymentApprovalParam[] calldata paymentApprovals
     ) public returns (Signature memory) {
         bytes32 digest = getPermitPayClaimDigest(owner, operator, approvalType, approvalDeadline, paymentApprovals);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
+        return Signature({v: v, r: r, s: s});
+    }
+
+    function signUpdateBindingPermit(uint256 pk, address owner, address operator, uint64 approvalCount)
+        public
+        returns (Signature memory)
+    {
+        bytes32 digest = getPermitUpdateBindingDigest(owner, operator, approvalCount);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
+        return Signature({v: v, r: r, s: s});
+    }
+
+    function signCancelClaimPermit(uint256 pk, address owner, address operator, uint64 approvalCount)
+        public
+        returns (Signature memory)
+    {
+        bytes32 digest = getPermitCancelClaimDigest(owner, operator, approvalCount);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
         return Signature({v: v, r: r, s: s});

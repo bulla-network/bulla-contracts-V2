@@ -43,7 +43,7 @@ contract PenalizedClaim {
                 : ERC20(claim.token).safeTransferFrom(msg.sender, creditor, lateFee);
         }
 
-        bullaClaim.payClaimFrom{value: amountToPay}(msg.sender, claimId, amountToPay);
+        bullaClaim.payClaimFrom{value: claim.token == address(0) ? amountToPay : 0}(msg.sender, claimId, amountToPay);
     }
 
     // function cancelClaim(uint256 claimId, string calldata note) public {
