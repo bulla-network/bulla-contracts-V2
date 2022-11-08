@@ -16,7 +16,6 @@ import "test/foundry/BullaClaim/EIP712/PermitPayClaim/Common.t.sol";
 ///     AR.RES3: The nonce is incremented by 1
 ///     AR.RES4: The claimApprovals array is deleted
 ///     AR.RES5: A PayClaimApproval event is emitted
-
 contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
     PayClaimApprovalType approvalType = PayClaimApprovalType.Unapproved;
 

@@ -53,6 +53,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     error CannotBindClaim();
     error InvalidSignature();
     error InvalidTimestamp(uint256 timestamp);
+    error PastApprovalDeadline();
     error InvalidPaymentApproval();
     error NotCreditorOrDebtor(address sender);
     error OverPaying(uint256 paymentAmount);
@@ -60,7 +61,8 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     error ClaimDelegated(uint256 claimId, address delegator);
     error NotDelegator(address sender);
     error NotMinted(uint256 claimId);
-    error NotApproved(address operator);
+    error NotApproved();
+    error PaymentUnderApproved();
     error Unauthorized();
     error Locked();
 
@@ -213,19 +215,19 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
         CreateClaimApproval memory approval = approvals[from][operator].createClaim;
 
         // spec.S1
-        if (approval.approvalCount == 0) revert NotApproved(operator);
+        if (approval.approvalCount == 0) revert NotApproved();
 
         // spec.S2
         if (
             (approval.approvalType == CreateClaimApprovalType.CreditorOnly && from != creditor)
                 || (approval.approvalType == CreateClaimApprovalType.DebtorOnly && from != debtor)
         ) {
-            revert Unauthorized();
+            revert NotApproved();
         }
 
         // spec.S3
         if (binding == ClaimBinding.Bound && !approval.isBindingAllowed) {
-            revert Unauthorized();
+            revert CannotBindClaim();
         }
 
         // result
@@ -462,8 +464,10 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     function _spendPayClaimApproval(address from, address operator, uint256 claimId, uint256 amount) internal {
         PayClaimApproval storage approval = approvals[from][operator].payClaim;
 
-        if (approval.approvalType == PayClaimApprovalType.Unapproved) revert Unauthorized();
-        if (approval.approvalDeadline != 0 && block.timestamp > approval.approvalDeadline) revert Unauthorized();
+        if (approval.approvalType == PayClaimApprovalType.Unapproved) revert NotApproved();
+        if (approval.approvalDeadline != 0 && block.timestamp > approval.approvalDeadline) {
+            revert PastApprovalDeadline();
+        }
         // no-op, because `operator` is approved
         if (approval.approvalType == PayClaimApprovalType.IsApprovedForAll) return;
 
@@ -483,9 +487,9 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
                             && block.timestamp > _paymentApprovals[i].approvalDeadline
                     )
                 ) {
-                    revert Unauthorized();
+                    revert PastApprovalDeadline();
                 }
-                if (amount > _paymentApprovals[i].approvedAmount) revert Unauthorized();
+                if (amount > _paymentApprovals[i].approvedAmount) revert PaymentUnderApproved();
 
                 // if the approval is fully spent, we can delete it
                 if (amount == _paymentApprovals[i].approvedAmount) {
@@ -499,13 +503,14 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
                     approval.claimApprovals.pop();
                 } else {
                     // otherwise we decrement it in place
-                    // this cast is safe because amount is ensured to be < approvedAmount because
+                    // this cast is safe because we check if amount > approvedAmount and approvedAmount is a uint128
                     approval.claimApprovals[i].approvedAmount -= uint128(amount);
                 }
+                break;
             }
         }
 
-        if (!approvalFound) revert Unauthorized();
+        if (!approvalFound) revert NotApproved();
     }
 
     /// @notice pay a claim with tokens (WETH -> ETH included)

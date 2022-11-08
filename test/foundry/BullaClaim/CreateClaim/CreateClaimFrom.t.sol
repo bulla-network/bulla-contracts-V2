@@ -11,7 +11,7 @@ import {BullaClaim, CreateClaimApprovalType} from "contracts/BullaClaim.sol";
 import {PenalizedClaim} from "contracts/mocks/PenalizedClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
 
-contract CreateClaimTest is Test {
+contract CreateClaimFromTest is Test {
     WETH public weth;
     BullaClaim public bullaClaim;
     EIP712Helper public sigHelper;
@@ -182,7 +182,7 @@ contract CreateClaimTest is Test {
     function testCannotCreateFromNonExtension() public {
         address rando = address(0x1247765432);
 
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector, rando));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector));
         vm.prank(rando);
         _newClaimFrom(creditor, creditor, debtor);
     }
@@ -195,7 +195,7 @@ contract CreateClaimTest is Test {
         vm.startPrank(operator);
         _newClaimFrom(owner, owner, debtor);
         // approval is now 0
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector, operator));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector));
         _newClaimFrom(owner, owner, debtor);
         vm.stopPrank();
     }
@@ -223,7 +223,7 @@ contract CreateClaimTest is Test {
         });
 
         vm.prank(operator);
-        vm.expectRevert(BullaClaim.Unauthorized.selector);
+        vm.expectRevert(BullaClaim.NotApproved.selector);
         _newClaimFrom({_from: owner, _creditor: owner, _debtor: debtor});
     }
 
@@ -238,7 +238,7 @@ contract CreateClaimTest is Test {
         });
 
         vm.prank(operator);
-        vm.expectRevert(BullaClaim.Unauthorized.selector);
+        vm.expectRevert(BullaClaim.NotApproved.selector);
         _newClaimFrom({_from: owner, _creditor: owner, _debtor: debtor});
     }
 
@@ -271,7 +271,7 @@ contract CreateClaimTest is Test {
         });
 
         vm.prank(operator);
-        vm.expectRevert(BullaClaim.Unauthorized.selector);
+        vm.expectRevert(BullaClaim.CannotBindClaim.selector);
         bullaClaim.createClaimFrom(
             owner,
             CreateClaimParams({
@@ -313,7 +313,7 @@ contract CreateClaimTest is Test {
             (approvalType == CreateClaimApprovalType.CreditorOnly && !isInvoice)
                 || (approvalType == CreateClaimApprovalType.DebtorOnly && isInvoice)
         ) {
-            vm.expectRevert(BullaClaim.Unauthorized.selector);
+            vm.expectRevert(BullaClaim.NotApproved.selector);
         }
 
         vm.prank(_operator);
