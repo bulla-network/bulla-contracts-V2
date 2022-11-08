@@ -400,7 +400,7 @@ contract TestUpdateBinding is Test {
         assertEq(approval.approvalCount, 0);
 
         vm.prank(operator);
-        vm.expectRevert(BullaClaim.Unauthorized.selector);
+        vm.expectRevert(BullaClaim.NotApproved.selector);
         bullaClaim.updateBindingFrom(creditor, claimId, ClaimBinding.BindingPending);
     }
 }

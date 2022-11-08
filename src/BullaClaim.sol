@@ -63,7 +63,6 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     error NotMinted(uint256 claimId);
     error NotApproved();
     error PaymentUnderApproved();
-    error Unauthorized();
     error Locked();
 
     modifier notLocked() {
@@ -339,7 +338,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     function _spendUpdateBindingApproval(address owner, address operator) internal {
         UpdateBindingApproval storage approval = approvals[owner][operator].updateBinding;
 
-        if (approval.approvalCount == 0) revert Unauthorized();
+        if (approval.approvalCount == 0) revert NotApproved();
         if (approval.approvalCount != type(uint64).max) approval.approvalCount--;
 
         return;
@@ -397,7 +396,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     function _spendCancelClaimApproval(address owner, address operator) internal {
         CancelClaimApproval storage approval = approvals[owner][operator].cancelClaim;
 
-        if (approval.approvalCount == 0) revert Unauthorized();
+        if (approval.approvalCount == 0) revert NotApproved();
         if (approval.approvalCount != type(uint64).max) approval.approvalCount--;
 
         return;

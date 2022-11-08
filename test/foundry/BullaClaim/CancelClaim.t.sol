@@ -542,7 +542,7 @@ contract TestCancelClaim is Test {
         _permitCancelClaim({_ownerPK: debtorPK, _operator: operator, _approvalCount: 0});
 
         vm.prank(operator);
-        vm.expectRevert(BullaClaim.Unauthorized.selector);
+        vm.expectRevert(BullaClaim.NotApproved.selector);
         bullaClaim.cancelClaimFrom(debtor, claimId, "Nope");
     }
 
