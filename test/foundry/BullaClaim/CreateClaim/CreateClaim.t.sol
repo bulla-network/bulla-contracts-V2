@@ -300,7 +300,7 @@ contract CreateClaimTest is Test {
         vm.warp(block.timestamp + 6 days);
 
         uint256 dueBy = block.timestamp - 1 days;
-        vm.expectRevert(abi.encodeWithSignature("IncorrectDueDate(uint256)", dueBy));
+        vm.expectRevert(abi.encodeWithSignature("InvalidTimestamp(uint256)", dueBy));
         bullaClaim.createClaim(
             CreateClaimParams({
                 creditor: creditor,

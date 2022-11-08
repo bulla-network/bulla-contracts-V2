@@ -16,13 +16,18 @@ function getRemappings() {
 const config: HardhatUserConfig = {
   solidity: {
     version: "0.8.15",
-    settings: { viaIR: true, optimizer: { enabled: true, runs: 2_000_000 } },
+    settings: { optimizer: { enabled: true, runs: 2_000_000 } },
+  },
+  networks: {
+    hardhat: {
+      allowUnlimitedContractSize: true,
+    },
   },
   paths: { cache: "cache/hardhat", sources: "src", artifacts: "out/hardhat" },
   preprocess: {
     eachLine: () => ({
       transform: (line: string) => {
-        if (line.match(/^\s*import /i)) {
+        if (line.match(/^\s*import /i) || line.match(/} from /i)) {
           for (const [from, to] of getRemappings()) {
             if (line.includes(from)) {
               line = line.replace(from, to);
