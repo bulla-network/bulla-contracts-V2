@@ -10,10 +10,6 @@ contract ERC1271WalletMock is IERC1271 {
         signatures[digest] = true;
     }
 
-    function unsign(bytes32 digest) external {
-        signatures[digest] = false;
-    }
-
     function isValidSignature(bytes32 hash, bytes memory) public view override returns (bytes4 magicValue) {
         return signatures[hash] ? this.isValidSignature.selector : bytes4(0);
     }

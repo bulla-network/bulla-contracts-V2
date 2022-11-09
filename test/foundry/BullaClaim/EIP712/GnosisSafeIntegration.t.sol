@@ -32,7 +32,7 @@ contract TestGnosisSafeSignatures is Test {
         });
 
         sigHelper = new EIP712Helper(address(bullaClaim));
-        CompatibilityFallbackHandlerFIXED handler = new CompatibilityFallbackHandlerFIXED();
+        CompatibilityFallbackHandler_patch handler = new CompatibilityFallbackHandler_patch();
         GnosisSafe singleton = new GnosisSafe();
         GnosisSafeProxyFactory proxyFactory = new GnosisSafeProxyFactory();
         signMessageLib = new SignMessageLib();
@@ -99,9 +99,9 @@ contract TestGnosisSafeSignatures is Test {
             signatures: signature
         });
 
-        bytes32 safeDigest = CompatibilityFallbackHandlerFIXED(safeAddress).getMessageHash(abi.encodePacked(digest));
-        assertEq(safe.signedMessages(safeDigest), 1);
+        bytes32 safeDigest = CompatibilityFallbackHandler_patch(safeAddress).getMessageHash(abi.encodePacked(digest));
 
+        assertEq(safe.signedMessages(safeDigest), 1);
         assertEq(IERC1271(safeAddress).isValidSignature(digest, ""), IERC1271.isValidSignature.selector);
 
         bullaClaim.permitCreateClaim({

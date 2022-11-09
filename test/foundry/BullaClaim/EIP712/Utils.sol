@@ -188,7 +188,7 @@ contract EIP712Helper {
 }
 
 /// @dev this contract wont compile with solc 0.8.15
-contract CompatibilityFallbackHandlerFIXED is DefaultCallbackHandler, ISignatureValidator {
+contract CompatibilityFallbackHandler_patch is DefaultCallbackHandler, ISignatureValidator {
     //keccak256(
     //    "SafeMessage(bytes message)"
     //);

@@ -20,7 +20,7 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
     PayClaimApprovalType approvalType = PayClaimApprovalType.Unapproved;
 
     /// @dev create an approval for bob to pay claims on alice's behalf
-    function _setUp(PayClaimApprovalType _approvalType, bool useSmartContractWallet) internal {
+    function _init(PayClaimApprovalType _approvalType, bool useSmartContractWallet) internal {
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](0);
         if (_approvalType == PayClaimApprovalType.IsApprovedForSpecific) {
             paymentApprovals = _generateClaimPaymentApprovals(4);
@@ -52,9 +52,17 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
         });
     }
 
+    function _setUp(PayClaimApprovalType _approvalType) internal {
+        _init(_approvalType, true);
+    }
+
+    function _setUpWithSmartContractWallet(PayClaimApprovalType _approvalType) internal {
+        _init(_approvalType, true);
+    }
+
     /// @notice happy path: AR.RES1,2,3,5
     function testRevoke() public {
-        _setUp(PayClaimApprovalType.IsApprovedForAll, false);
+        _setUp(PayClaimApprovalType.IsApprovedForAll);
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](0);
 
         Signature memory signature = sigHelper.signPayClaimPermit({
@@ -86,7 +94,7 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
     }
 
     function testRevokeEIP1271() public {
-        _setUp(PayClaimApprovalType.IsApprovedForAll, true);
+        _setUpWithSmartContractWallet(PayClaimApprovalType.IsApprovedForAll);
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](0);
 
         bytes32 digest = sigHelper.getPermitPayClaimDigest(alice, bob, approvalType, 0, paymentApprovals);
@@ -113,7 +121,7 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
 
     /// @notice SPEC.AR.RES4
     function testRevokeDeleteSpecificApprovals() public {
-        _setUp(PayClaimApprovalType.IsApprovedForSpecific, false);
+        _setUp(PayClaimApprovalType.IsApprovedForSpecific);
 
         (, PayClaimApproval memory approval,,) = bullaClaim.approvals(alice, bob);
         assertEq(approval.claimApprovals.length, 4, "claim approvals");
@@ -142,7 +150,7 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
 
     /// @notice SPEC.AR1
     function testCannotSignForSomeoneElse() public {
-        _setUp(PayClaimApprovalType.IsApprovedForAll, false);
+        _setUp(PayClaimApprovalType.IsApprovedForAll);
         uint256 charliePK = uint256(keccak256(bytes("charlie")));
 
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](0);
@@ -169,7 +177,7 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
 
     /// @notice SPEC.AR1
     function testCannotReplaySig() public {
-        _setUp(PayClaimApprovalType.IsApprovedForAll, false);
+        _setUp(PayClaimApprovalType.IsApprovedForAll);
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](0);
 
         Signature memory signature = sigHelper.signPayClaimPermit({
@@ -231,7 +239,7 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
     /// @notice SPEC.AR4
     function testCannotSpecifyApprovalDeadline() public {
         uint256 approvalDeadline = OCTOBER_28TH_2022;
-        _setUp(PayClaimApprovalType.IsApprovedForAll, false);
+        _setUp(PayClaimApprovalType.IsApprovedForAll);
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](0);
 
         Signature memory signature = sigHelper.signPayClaimPermit({
@@ -256,7 +264,7 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
 
     /// @notice SPEC.AR5
     function testCannotSpecifySpecificPaymentApprovals() public {
-        _setUp(PayClaimApprovalType.IsApprovedForAll, false);
+        _setUp(PayClaimApprovalType.IsApprovedForAll);
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](1);
         paymentApprovals[0] = ClaimPaymentApprovalParam({claimId: 1, approvedAmount: 1 ether, approvalDeadline: 0});
 

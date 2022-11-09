@@ -241,6 +241,9 @@ contract TestPermitCreateClaim is Test {
             isBindingAllowed: true,
             signature: Signature(0, 0, 0)
         });
+
+        (CreateClaimApproval memory approval,,,) = bullaClaim.approvals(alice, bob);
+        assertEq(approval.approvalCount, 0, "approvalCount");
     }
 
     function testPermitRegisteredContract() public {
