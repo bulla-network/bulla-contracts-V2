@@ -53,7 +53,7 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
     }
 
     function _setUp(PayClaimApprovalType _approvalType) internal {
-        _init(_approvalType, true);
+        _init(_approvalType, false);
     }
 
     function _setUpWithSmartContractWallet(PayClaimApprovalType _approvalType) internal {
