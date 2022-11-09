@@ -20,10 +20,26 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
     PayClaimApprovalType approvalType = PayClaimApprovalType.Unapproved;
 
     /// @dev create an approval for bob to pay claims on alice's behalf
-    function _setUp(PayClaimApprovalType _approvalType) internal {
+    function _setUp(PayClaimApprovalType _approvalType, bool useSmartContractWallet) internal {
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](0);
         if (_approvalType == PayClaimApprovalType.IsApprovedForSpecific) {
             paymentApprovals = _generateClaimPaymentApprovals(4);
+        }
+
+        Signature memory signature = sigHelper.signPayClaimPermit({
+            pk: alicePK,
+            owner: alice,
+            operator: bob,
+            approvalType: _approvalType,
+            approvalDeadline: 12455,
+            paymentApprovals: paymentApprovals
+        });
+
+        if (useSmartContractWallet) {
+            alice = address(eip1271Wallet);
+            signature = Signature(0, 0, 0);
+            bytes32 digest = sigHelper.getPermitPayClaimDigest(alice, bob, _approvalType, 12455, paymentApprovals);
+            eip1271Wallet.sign(digest);
         }
 
         bullaClaim.permitPayClaim({
@@ -32,20 +48,13 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
             approvalType: _approvalType,
             approvalDeadline: 12455,
             paymentApprovals: paymentApprovals,
-            signature: sigHelper.signPayClaimPermit({
-                pk: alicePK,
-                owner: alice,
-                operator: bob,
-                approvalType: _approvalType,
-                approvalDeadline: 12455,
-                paymentApprovals: paymentApprovals
-            })
+            signature: signature
         });
     }
 
     /// @notice happy path: AR.RES1,2,3,5
     function testRevoke() public {
-        _setUp(PayClaimApprovalType.IsApprovedForAll);
+        _setUp(PayClaimApprovalType.IsApprovedForAll, false);
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](0);
 
         Signature memory signature = sigHelper.signPayClaimPermit({
@@ -76,9 +85,35 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
         assertEq(approval.claimApprovals.length, 0, "claim approvals");
     }
 
+    function testRevokeEIP1271() public {
+        _setUp(PayClaimApprovalType.IsApprovedForAll, true);
+        ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](0);
+
+        bytes32 digest = sigHelper.getPermitPayClaimDigest(alice, bob, approvalType, 0, paymentApprovals);
+        eip1271Wallet.sign(digest);
+
+        vm.expectEmit(true, true, true, true);
+        emit PayClaimApproved(alice, bob, PayClaimApprovalType.Unapproved, 0, new ClaimPaymentApprovalParam[](0));
+
+        bullaClaim.permitPayClaim({
+            owner: alice,
+            operator: bob,
+            approvalType: approvalType,
+            approvalDeadline: 0,
+            paymentApprovals: paymentApprovals,
+            signature: Signature(0, 0, 0)
+        });
+
+        (, PayClaimApproval memory approval,,) = bullaClaim.approvals(alice, bob);
+        assertTrue(approval.approvalType == approvalType, "approvalType");
+        assertEq(approval.approvalDeadline, 0, "deadline");
+        assertEq(approval.nonce, 2, "nonce");
+        assertEq(approval.claimApprovals.length, 0, "claim approvals");
+    }
+
     /// @notice SPEC.AR.RES4
     function testRevokeDeleteSpecificApprovals() public {
-        _setUp(PayClaimApprovalType.IsApprovedForSpecific);
+        _setUp(PayClaimApprovalType.IsApprovedForSpecific, false);
 
         (, PayClaimApproval memory approval,,) = bullaClaim.approvals(alice, bob);
         assertEq(approval.claimApprovals.length, 4, "claim approvals");
@@ -107,7 +142,7 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
 
     /// @notice SPEC.AR1
     function testCannotSignForSomeoneElse() public {
-        _setUp(PayClaimApprovalType.IsApprovedForAll);
+        _setUp(PayClaimApprovalType.IsApprovedForAll, false);
         uint256 charliePK = uint256(keccak256(bytes("charlie")));
 
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](0);
@@ -134,7 +169,7 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
 
     /// @notice SPEC.AR1
     function testCannotReplaySig() public {
-        _setUp(PayClaimApprovalType.IsApprovedForAll);
+        _setUp(PayClaimApprovalType.IsApprovedForAll, false);
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](0);
 
         Signature memory signature = sigHelper.signPayClaimPermit({
@@ -196,7 +231,7 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
     /// @notice SPEC.AR4
     function testCannotSpecifyApprovalDeadline() public {
         uint256 approvalDeadline = OCTOBER_28TH_2022;
-        _setUp(PayClaimApprovalType.IsApprovedForAll);
+        _setUp(PayClaimApprovalType.IsApprovedForAll, false);
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](0);
 
         Signature memory signature = sigHelper.signPayClaimPermit({
@@ -221,7 +256,7 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
 
     /// @notice SPEC.AR5
     function testCannotSpecifySpecificPaymentApprovals() public {
-        _setUp(PayClaimApprovalType.IsApprovedForAll);
+        _setUp(PayClaimApprovalType.IsApprovedForAll, false);
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](1);
         paymentApprovals[0] = ClaimPaymentApprovalParam({claimId: 1, approvedAmount: 1 ether, approvalDeadline: 0});
 

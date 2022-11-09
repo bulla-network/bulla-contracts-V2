@@ -3,6 +3,7 @@ pragma solidity 0.8.15;
 
 import "contracts/BullaClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
+import {ERC1271WalletMock} from "contracts/mocks/ERC1271Wallet.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {Test} from "forge-std/Test.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
@@ -12,6 +13,7 @@ contract PermitPayClaimTest is Test {
     BullaClaim internal bullaClaim;
     WETH internal weth;
     EIP712Helper internal sigHelper;
+    ERC1271WalletMock internal eip1271Wallet;
 
     uint256 alicePK = uint256(0xA11c3);
     address alice = vm.addr(alicePK);
@@ -36,6 +38,7 @@ contract PermitPayClaimTest is Test {
             _feeBPS: 0
         });
         sigHelper = new EIP712Helper(address(bullaClaim));
+        eip1271Wallet = new ERC1271WalletMock();
     }
 
     function _newClaim(address _creditor, address _debtor) internal returns (uint256 claimId) {

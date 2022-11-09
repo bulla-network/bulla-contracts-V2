@@ -52,6 +52,42 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         assertTrue(approval.nonce == 1, "nonce");
     }
 
+    function testPermitApprovedForAllEIP1271(uint256 approvalDeadline) public {
+        alice = address(eip1271Wallet);
+        vm.assume(approvalDeadline < type(uint40).max);
+
+        ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](0);
+
+        bytes32 digest = sigHelper.getPermitPayClaimDigest({
+            owner: alice,
+            operator: bob,
+            approvalType: approvalType,
+            approvalDeadline: approvalDeadline,
+            paymentApprovals: paymentApprovals
+        });
+        eip1271Wallet.sign(digest);
+
+        vm.expectEmit(true, true, true, true);
+        emit PayClaimApproved(alice, bob, approvalType, approvalDeadline, paymentApprovals);
+
+        bullaClaim.permitPayClaim({
+            owner: alice,
+            operator: bob,
+            approvalType: approvalType,
+            approvalDeadline: approvalDeadline,
+            paymentApprovals: paymentApprovals,
+            signature: Signature(0, 0, 0)
+        });
+
+        (, PayClaimApproval memory approval,,) = bullaClaim.approvals(alice, bob);
+
+        // SPEC.AA.RES1-4
+        assertTrue(approval.approvalType == PayClaimApprovalType.IsApprovedForAll, "approvalType");
+        assertEq(approval.approvalDeadline, approvalDeadline, "approvalDeadline");
+        assertTrue(approval.claimApprovals.length == 0, "specific approvals");
+        assertTrue(approval.nonce == 1, "nonce");
+    }
+
     /// @notice SPEC.AA2
     function testCannotSignForSomeoneElse() public {
         uint256 charliePK = uint256(0xC114c113);
