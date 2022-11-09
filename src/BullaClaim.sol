@@ -877,11 +877,12 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
         address recoveredAddress = ecrecover(digest, signature.v, signature.r, signature.s);
 
         if (recoveredAddress != signer || recoveredAddress == address(0)) {
-            (bool success, bytes memory result) = signer.staticcall(
-                abi.encodeWithSelector(
-                    IERC1271.isValidSignature.selector, digest, abi.encodePacked(signature.r, signature.s, signature.v)
-                )
-            );
+            bytes memory byteSig = signature.r == bytes32(0) && signature.s == bytes32(0) && signature.v == 0
+                ? bytes("")
+                : abi.encodePacked(signature.r, signature.s, signature.v);
+
+            (bool success, bytes memory result) =
+                signer.staticcall(abi.encodeWithSelector(IERC1271.isValidSignature.selector, digest, byteSig));
 
             return (
                 success && result.length == 32
