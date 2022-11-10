@@ -20,10 +20,26 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
     PayClaimApprovalType approvalType = PayClaimApprovalType.Unapproved;
 
     /// @dev create an approval for bob to pay claims on alice's behalf
-    function _setUp(PayClaimApprovalType _approvalType) internal {
+    function _init(PayClaimApprovalType _approvalType, bool useSmartContractWallet) internal {
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](0);
         if (_approvalType == PayClaimApprovalType.IsApprovedForSpecific) {
             paymentApprovals = _generateClaimPaymentApprovals(4);
+        }
+
+        Signature memory signature = sigHelper.signPayClaimPermit({
+            pk: alicePK,
+            owner: alice,
+            operator: bob,
+            approvalType: _approvalType,
+            approvalDeadline: 12455,
+            paymentApprovals: paymentApprovals
+        });
+
+        if (useSmartContractWallet) {
+            alice = address(eip1271Wallet);
+            signature = Signature(0, 0, 0);
+            bytes32 digest = sigHelper.getPermitPayClaimDigest(alice, bob, _approvalType, 12455, paymentApprovals);
+            eip1271Wallet.sign(digest);
         }
 
         bullaClaim.permitPayClaim({
@@ -32,15 +48,16 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
             approvalType: _approvalType,
             approvalDeadline: 12455,
             paymentApprovals: paymentApprovals,
-            signature: sigHelper.signPayClaimPermit({
-                pk: alicePK,
-                owner: alice,
-                operator: bob,
-                approvalType: _approvalType,
-                approvalDeadline: 12455,
-                paymentApprovals: paymentApprovals
-            })
+            signature: signature
         });
+    }
+
+    function _setUp(PayClaimApprovalType _approvalType) internal {
+        _init(_approvalType, false);
+    }
+
+    function _setUpWithSmartContractWallet(PayClaimApprovalType _approvalType) internal {
+        _init(_approvalType, true);
     }
 
     /// @notice happy path: AR.RES1,2,3,5
@@ -67,6 +84,32 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
             approvalDeadline: 0,
             paymentApprovals: paymentApprovals,
             signature: signature
+        });
+
+        (, PayClaimApproval memory approval,,) = bullaClaim.approvals(alice, bob);
+        assertTrue(approval.approvalType == approvalType, "approvalType");
+        assertEq(approval.approvalDeadline, 0, "deadline");
+        assertEq(approval.nonce, 2, "nonce");
+        assertEq(approval.claimApprovals.length, 0, "claim approvals");
+    }
+
+    function testRevokeEIP1271() public {
+        _setUpWithSmartContractWallet(PayClaimApprovalType.IsApprovedForAll);
+        ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](0);
+
+        bytes32 digest = sigHelper.getPermitPayClaimDigest(alice, bob, approvalType, 0, paymentApprovals);
+        eip1271Wallet.sign(digest);
+
+        vm.expectEmit(true, true, true, true);
+        emit PayClaimApproved(alice, bob, PayClaimApprovalType.Unapproved, 0, new ClaimPaymentApprovalParam[](0));
+
+        bullaClaim.permitPayClaim({
+            owner: alice,
+            operator: bob,
+            approvalType: approvalType,
+            approvalDeadline: 0,
+            paymentApprovals: paymentApprovals,
+            signature: Signature(0, 0, 0)
         });
 
         (, PayClaimApproval memory approval,,) = bullaClaim.approvals(alice, bob);

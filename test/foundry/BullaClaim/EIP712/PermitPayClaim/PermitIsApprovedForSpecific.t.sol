@@ -69,6 +69,52 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
         }
     }
 
+    function testIsApprovedForSpecificEIP1271() public {
+        alice = address(eip1271Wallet);
+        uint256 approvalDeadline = OCTOBER_23RD_2022;
+        ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](2);
+
+        // create individual claim approvals
+        paymentApprovals[0] = ClaimPaymentApprovalParam({claimId: 1, approvedAmount: 12345, approvalDeadline: 0});
+        paymentApprovals[1] = ClaimPaymentApprovalParam({claimId: 2, approvedAmount: 98765, approvalDeadline: 25122});
+
+        bytes32 digest = sigHelper.getPermitPayClaimDigest({
+            owner: alice,
+            operator: bob,
+            approvalType: approvalType,
+            approvalDeadline: approvalDeadline,
+            paymentApprovals: paymentApprovals
+        });
+        eip1271Wallet.sign(digest);
+
+        vm.expectEmit(true, true, true, true);
+        emit PayClaimApproved(alice, bob, approvalType, approvalDeadline, paymentApprovals);
+
+        bullaClaim.permitPayClaim({
+            owner: alice,
+            operator: bob,
+            approvalType: approvalType,
+            approvalDeadline: approvalDeadline,
+            paymentApprovals: paymentApprovals,
+            signature: Signature(0, 0, 0)
+        });
+
+        (, PayClaimApproval memory approval,,) = bullaClaim.approvals(alice, bob);
+
+        assertTrue(approval.approvalType == PayClaimApprovalType.IsApprovedForSpecific, "approvalType");
+        assertEq(approval.approvalDeadline, approvalDeadline, "deadline");
+        assertEq(approval.nonce, 1, "nonce");
+        assertEq(approval.claimApprovals.length, 2, "claim approvals");
+
+        for (uint256 i = 0; i < 2; i++) {
+            assertEq(approval.claimApprovals[i].claimId, paymentApprovals[i].claimId, "claimId");
+            assertEq(approval.claimApprovals[i].approvedAmount, paymentApprovals[i].approvedAmount, "approvedAmount");
+            assertEq(
+                approval.claimApprovals[i].approvalDeadline, paymentApprovals[i].approvalDeadline, "approvalDeadline"
+            );
+        }
+    }
+
     /// @notice SPEC.AS1
     function testCannotSignForSomeoneElse() public {
         uint256 charliePK = uint256(0xC114c113);

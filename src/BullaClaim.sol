@@ -3,6 +3,7 @@ pragma solidity 0.8.15;
 
 import "contracts/types/Types.sol";
 import {IBullaFeeCalculator} from "contracts/interfaces/IBullaFeeCalculator.sol";
+import {IERC1271} from "contracts/interfaces/IERC1271.sol";
 import {BullaExtensionRegistry} from "contracts/BullaExtensionRegistry.sol";
 import {EIP712} from "openzeppelin-contracts/contracts/utils/cryptography/EIP712.sol";
 import {ECDSA} from "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
@@ -618,7 +619,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     /// @notice SPEC:
     /// Anyone can call this function with a valid signature to modify the `owner`'s CreateClaimApproval of `operator` to the provided parameters
     /// In all cases:
-    ///     SIG1: The recovered signer from the EIP712 signature == `owner` TODO: OR if `owner.code.length` > 0, an EIP-1271 signature lookup is valid
+    ///     SIG1: The recovered signer from the EIP712 signature == `owner`
     ///     SIG2: `owner` is not a 0 address
     ///     SIG3: `extensionRegistry` is not address(0)
     /// This function can _approve_ an operator given:
@@ -648,7 +649,6 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
         bool isBindingAllowed,
         Signature calldata signature
     ) public {
-        // TODO: EIP-1271 smart contract signatures
         CreateClaimApproval storage approval = approvals[owner][operator].createClaim;
 
         bytes32 digest = _hashTypedDataV4(
@@ -657,10 +657,8 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
             )
         );
 
-        address signer = ecrecover(digest, signature.v, signature.r, signature.s);
         if (
-            signer != owner // spec.A1 // spec.R1
-                || signer == address(0) // spec.A2 // spec.R2
+            !_validateSignature(owner, digest, signature) // spec.A1, spec.A2, spec.R1, spec.R2
         ) revert InvalidSignature();
 
         if (approvalCount > 0) {
@@ -749,9 +747,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
             )
         );
 
-        address signer = ecrecover(digest, signature.v, signature.r, signature.s);
-
-        if (signer != owner || signer == address(0)) revert InvalidSignature();
+        if (!_validateSignature(owner, digest, signature)) revert InvalidSignature();
         if (approvalDeadline != 0 && (approvalDeadline < block.timestamp || approvalDeadline > type(uint40).max)) {
             revert InvalidTimestamp(approvalDeadline);
         }
@@ -831,8 +827,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
             )
         );
 
-        address signer = ecrecover(digest, signature.v, signature.r, signature.s);
-        if (signer != owner || signer == address(0)) revert InvalidSignature();
+        if (!_validateSignature(owner, digest, signature)) revert InvalidSignature();
 
         approval.approvalCount = approvalCount;
         approval.nonce++;
@@ -865,13 +860,37 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
             )
         );
 
-        address signer = ecrecover(digest, signature.v, signature.r, signature.s);
-        if (signer != owner || signer == address(0)) revert InvalidSignature();
+        if (!_validateSignature(owner, digest, signature)) revert InvalidSignature();
 
         approval.approvalCount = approvalCount;
         approval.nonce++;
 
         emit CancelClaimApproved(owner, operator, approvalCount);
+    }
+
+    /// @dev copied and modified from OpenZeppelin's SignatureChecker
+    function _validateSignature(address signer, bytes32 digest, Signature calldata signature)
+        internal
+        view
+        returns (bool)
+    {
+        address recoveredAddress = ecrecover(digest, signature.v, signature.r, signature.s);
+
+        if (recoveredAddress != signer || recoveredAddress == address(0)) {
+            bytes memory byteSig = signature.r == bytes32(0) && signature.s == bytes32(0) && signature.v == 0
+                ? bytes("")
+                : abi.encodePacked(signature.r, signature.s, signature.v);
+
+            (bool success, bytes memory result) =
+                signer.staticcall(abi.encodeWithSelector(IERC1271.isValidSignature.selector, digest, byteSig));
+
+            return (
+                success && result.length == 32
+                    && abi.decode(result, (bytes32)) == bytes32(IERC1271.isValidSignature.selector)
+            );
+        } else {
+            return true;
+        }
     }
 
     /*///////////////////////////////////////////////////////////////

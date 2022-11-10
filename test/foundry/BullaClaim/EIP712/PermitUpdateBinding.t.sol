@@ -5,6 +5,7 @@ import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/U
 import {Deployer} from "script/Deployment.s.sol";
 import "contracts/BullaClaim.sol";
 import "contracts/mocks/PenalizedClaim.sol";
+import "contracts/mocks/ERC1271Wallet.sol";
 import {console} from "forge-std/console.sol";
 import {Test} from "forge-std/Test.sol";
 
@@ -29,6 +30,7 @@ import {Test} from "forge-std/Test.sol";
 contract TestPermitCreateClaim is Test {
     BullaClaim internal bullaClaim;
     EIP712Helper internal sigHelper;
+    ERC1271WalletMock internal eip1271Wallet;
 
     event UpdateBindingApproved(address indexed owner, address indexed operator, uint256 approvalCount);
 
@@ -40,6 +42,7 @@ contract TestPermitCreateClaim is Test {
             _feeBPS: 0
         });
         sigHelper = new EIP712Helper(address(bullaClaim));
+        eip1271Wallet = new ERC1271WalletMock();
     }
 
     /// @notice happy path: SPEC.AB1 - RES1,2,3
@@ -61,6 +64,30 @@ contract TestPermitCreateClaim is Test {
                 operator: bob,
                 approvalCount: approvalCount
             })
+        });
+
+        (,, UpdateBindingApproval memory approval,) = bullaClaim.approvals(alice, bob);
+
+        assertTrue(approval.approvalCount == approvalCount, "approvalCount");
+        assertTrue(approval.nonce == 1, "approvalCount");
+    }
+
+    function testPermitEIP1271(uint64 approvalCount) public {
+        address alice = address(eip1271Wallet);
+        address bob = address(0xB0b);
+
+        bytes32 digest =
+            sigHelper.getPermitUpdateBindingDigest({owner: alice, operator: bob, approvalCount: approvalCount});
+        eip1271Wallet.sign(digest);
+
+        vm.expectEmit(true, true, true, true);
+        emit UpdateBindingApproved(alice, bob, approvalCount);
+
+        bullaClaim.permitUpdateBinding({
+            owner: alice,
+            operator: bob,
+            approvalCount: approvalCount,
+            signature: Signature(0, 0, 0)
         });
 
         (,, UpdateBindingApproval memory approval,) = bullaClaim.approvals(alice, bob);
@@ -91,6 +118,29 @@ contract TestPermitCreateClaim is Test {
             approvalCount: 0,
             signature: sigHelper.signUpdateBindingPermit({pk: alicePK, owner: alice, operator: bob, approvalCount: 0})
         });
+
+        (,, UpdateBindingApproval memory approval,) = bullaClaim.approvals(alice, bob);
+
+        assertTrue(approval.approvalCount == 0, "approvalCount");
+        assertTrue(approval.nonce == 2, "nonce");
+    }
+
+    function testRevokeEIP1271() public {
+        address alice = address(eip1271Wallet);
+        address bob = address(0xB0b);
+
+        bytes32 digest = sigHelper.getPermitUpdateBindingDigest({owner: alice, operator: bob, approvalCount: 1});
+        eip1271Wallet.sign(digest);
+
+        bullaClaim.permitUpdateBinding({owner: alice, operator: bob, approvalCount: 1, signature: Signature(0, 0, 0)});
+
+        digest = sigHelper.getPermitUpdateBindingDigest({owner: alice, operator: bob, approvalCount: 0});
+        eip1271Wallet.sign(digest);
+
+        vm.expectEmit(true, true, true, true);
+        emit UpdateBindingApproved(alice, bob, 0);
+
+        bullaClaim.permitUpdateBinding({owner: alice, operator: bob, approvalCount: 0, signature: Signature(0, 0, 0)});
 
         (,, UpdateBindingApproval memory approval,) = bullaClaim.approvals(alice, bob);
 

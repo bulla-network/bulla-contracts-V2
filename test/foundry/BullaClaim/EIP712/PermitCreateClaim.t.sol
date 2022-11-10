@@ -5,6 +5,7 @@ import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/U
 import {Deployer} from "script/Deployment.s.sol";
 import "contracts/BullaClaim.sol";
 import "contracts/mocks/PenalizedClaim.sol";
+import "contracts/mocks/ERC1271Wallet.sol";
 import {console} from "forge-std/console.sol";
 import {Test} from "forge-std/Test.sol";
 
@@ -17,7 +18,7 @@ import {Test} from "forge-std/Test.sol";
 /// @notice SPEC:
 /// Anyone can call this function with a valid signature to modify the `owner`'s CreateClaimApproval of `operator` to the provided parameters
 /// This function can _approve_ an operator given:
-///     A1: The recovered signer from the EIP712 signature == `owner` TODO: OR if `owner.code.length` > 0, an EIP-1271 signature lookup is valid
+///     A1: The recovered signer from the EIP712 signature == `owner`
 ///     A2: `owner` is not a 0 address
 ///     A3: 0 < `approvalCount` < type(uint64).max
 ///     A4: `extensionRegistry` is not address(0)
@@ -45,6 +46,7 @@ import {Test} from "forge-std/Test.sol";
 contract TestPermitCreateClaim is Test {
     BullaClaim internal bullaClaim;
     EIP712Helper internal sigHelper;
+    ERC1271WalletMock internal eip1271Wallet;
 
     event CreateClaimApproved(
         address indexed owner,
@@ -62,6 +64,7 @@ contract TestPermitCreateClaim is Test {
             _feeBPS: 0
         });
         sigHelper = new EIP712Helper(address(bullaClaim));
+        eip1271Wallet = new ERC1271WalletMock();
     }
 
     /// @notice happy path: RES1,2,3
@@ -91,6 +94,43 @@ contract TestPermitCreateClaim is Test {
                 approvalCount: approvalCount,
                 isBindingAllowed: isBindingAllowed
             })
+        });
+
+        (CreateClaimApproval memory approval,,,) = bullaClaim.approvals(alice, bob);
+
+        assertEq(approval.isBindingAllowed, isBindingAllowed, "isBindingAllowed");
+        assertTrue(approval.approvalType == approvalType, "approvalType");
+        assertTrue(approval.approvalCount == approvalCount, "approvalCount");
+        assertTrue(approval.nonce == 1, "approvalCount");
+    }
+
+    function testPermitEip1271() public {
+        address alice = address(eip1271Wallet);
+        address bob = address(0xB0b);
+
+        CreateClaimApprovalType approvalType = CreateClaimApprovalType.Approved;
+        uint64 approvalCount = 1;
+        bool isBindingAllowed = true;
+
+        bytes32 digest = sigHelper.getPermitCreateClaimDigest({
+            owner: alice,
+            operator: bob,
+            approvalType: approvalType,
+            approvalCount: approvalCount,
+            isBindingAllowed: isBindingAllowed
+        });
+        eip1271Wallet.sign(digest);
+
+        vm.expectEmit(true, true, true, true);
+        emit CreateClaimApproved(alice, bob, approvalType, approvalCount, isBindingAllowed);
+
+        bullaClaim.permitCreateClaim({
+            owner: alice,
+            operator: bob,
+            approvalType: approvalType,
+            approvalCount: approvalCount,
+            isBindingAllowed: isBindingAllowed,
+            signature: Signature(0, 0, 0)
         });
 
         (CreateClaimApproval memory approval,,,) = bullaClaim.approvals(alice, bob);
@@ -147,6 +187,63 @@ contract TestPermitCreateClaim is Test {
                 isBindingAllowed: true
             })
         });
+    }
+
+    function testRevokeEIP1271() public {
+        address alice = address(eip1271Wallet);
+        address bob = address(0xB0b);
+
+        CreateClaimApprovalType approvalType = CreateClaimApprovalType.Approved;
+        uint64 approvalCount = 1;
+        bool isBindingAllowed = true;
+
+        bytes32 digest = sigHelper.getPermitCreateClaimDigest({
+            owner: alice,
+            operator: bob,
+            approvalType: approvalType,
+            approvalCount: approvalCount,
+            isBindingAllowed: isBindingAllowed
+        });
+        eip1271Wallet.sign(digest);
+
+        bullaClaim.permitCreateClaim({
+            owner: alice,
+            operator: bob,
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: Signature(0, 0, 0)
+        });
+
+        vm.expectEmit(true, true, true, true);
+        emit CreateClaimApproved(
+            alice,
+            bob,
+            CreateClaimApprovalType.Approved,
+            0, // revoke case
+            true
+            );
+
+        digest = sigHelper.getPermitCreateClaimDigest({
+            owner: alice,
+            operator: bob,
+            approvalType: approvalType,
+            approvalCount: 0,
+            isBindingAllowed: isBindingAllowed
+        });
+        eip1271Wallet.sign(digest);
+
+        bullaClaim.permitCreateClaim({
+            owner: alice,
+            operator: bob,
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 0,
+            isBindingAllowed: true,
+            signature: Signature(0, 0, 0)
+        });
+
+        (CreateClaimApproval memory approval,,,) = bullaClaim.approvals(alice, bob);
+        assertEq(approval.approvalCount, 0, "approvalCount");
     }
 
     function testPermitRegisteredContract() public {
