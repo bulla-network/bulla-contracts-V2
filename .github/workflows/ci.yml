@@ -28,7 +28,7 @@ jobs:
       - name: Run forge build
         run: |
           forge --version
-#         forge build --sizes
+          forge build --sizes
         id: build
         
       - name: Run tests with fuzzing
@@ -38,5 +38,6 @@ jobs:
         run: |
           forge coverage --report lcov
           ex -c 'g/SF:src\/mocks/.-1,/end_of_record/d' -c 'wq' lcov.info
+          ex -c 'g/SF:test/.-1,/end_of_record/d' -c 'wq' lcov.info
         id: coverage
       - uses: codecov/codecov-action@v3
