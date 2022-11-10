@@ -12,7 +12,7 @@ library BullaClaimEIP712 {
     using Strings for address;
 
     event CreateClaimApproved(
-        address indexed owner,
+        address indexed user,
         address indexed operator,
         CreateClaimApprovalType indexed approvalType,
         uint256 approvalCount,
@@ -20,20 +20,20 @@ library BullaClaimEIP712 {
     );
 
     event PayClaimApproved(
-        address indexed owner,
+        address indexed user,
         address indexed operator,
         PayClaimApprovalType indexed approvalType,
         uint256 approvalDeadline,
         ClaimPaymentApprovalParam[] paymentApprovals
     );
 
-    event UpdateBindingApproved(address indexed owner, address indexed operator, uint256 approvalCount);
+    event UpdateBindingApproved(address indexed user, address indexed operator, uint256 approvalCount);
 
-    event CancelClaimApproved(address indexed owner, address indexed operator, uint256 approvalCount);
+    event CancelClaimApproved(address indexed user, address indexed operator, uint256 approvalCount);
 
     bytes32 constant CREATE_CLAIM_TYPEHASH = keccak256(
         bytes(
-            "ApproveCreateClaimExtension(address owner,address operator,string message,uint8 approvalType,uint256 approvalCount,bool isBindingAllowed,uint256 nonce)"
+            "ApproveCreateClaimExtension(address user,address operator,string message,uint8 approvalType,uint256 approvalCount,bool isBindingAllowed,uint256 nonce)"
         )
     );
 
@@ -42,19 +42,19 @@ library BullaClaimEIP712 {
 
     bytes32 constant PAY_CLAIM_TYPEHASH = keccak256(
         bytes(
-            "ApprovePayClaimExtension(address owner,address operator,string message,uint8 approvalType,uint256 approvalDeadline,ClaimPaymentApproval[] paymentApprovals,uint256 nonce)ClaimPaymentApproval(uint256 claimId,uint256 approvalDeadline,uint256 approvedAmount)"
+            "ApprovePayClaimExtension(address user,address operator,string message,uint8 approvalType,uint256 approvalDeadline,ClaimPaymentApproval[] paymentApprovals,uint256 nonce)ClaimPaymentApproval(uint256 claimId,uint256 approvalDeadline,uint256 approvedAmount)"
         )
     );
 
     bytes32 constant CANCEL_CLAIM_TYPEHASH = keccak256(
         bytes(
-            "ApproveCancelClaimExtension(address owner,address operator,string message,uint256 approvalCount,uint256 nonce)"
+            "ApproveCancelClaimExtension(address user,address operator,string message,uint256 approvalCount,uint256 nonce)"
         )
     );
 
     bytes32 constant UPDATE_BINDING_TYPEHASH = keccak256(
         bytes(
-            "ApproveUpdateBindingExtension(address owner,address operator,string message,uint256 approvalCount,uint256 nonce)"
+            "ApproveUpdateBindingExtension(address user,address operator,string message,uint256 approvalCount,uint256 nonce)"
         )
     );
 
@@ -205,7 +205,7 @@ library BullaClaimEIP712 {
 
     function getPermitCreateClaimDigest(
         BullaExtensionRegistry extensionRegistry,
-        address owner,
+        address user,
         address operator,
         CreateClaimApprovalType approvalType,
         uint64 approvalCount,
@@ -215,7 +215,7 @@ library BullaClaimEIP712 {
         return keccak256(
             abi.encode(
                 BullaClaimEIP712.CREATE_CLAIM_TYPEHASH, // spec.S1
-                owner, // spec.S2
+                user, // spec.S2
                 operator, // spec.S3
                 // spec.S4
                 keccak256(
@@ -260,7 +260,7 @@ library BullaClaimEIP712 {
 
     function getPermitPayClaimDigest(
         BullaExtensionRegistry extensionRegistry,
-        address owner,
+        address user,
         address operator,
         PayClaimApprovalType approvalType,
         uint256 approvalDeadline,
@@ -270,7 +270,7 @@ library BullaClaimEIP712 {
         return keccak256(
             abi.encode(
                 PAY_CLAIM_TYPEHASH,
-                owner,
+                user,
                 operator,
                 keccak256(bytes(getPermitPayClaimMessage(extensionRegistry, operator, approvalType, approvalDeadline))),
                 approvalType,
@@ -283,7 +283,7 @@ library BullaClaimEIP712 {
 
     function getPermitCancelClaimDigest(
         BullaExtensionRegistry extensionRegistry,
-        address owner,
+        address user,
         address operator,
         uint64 approvalCount,
         uint64 nonce
@@ -291,7 +291,7 @@ library BullaClaimEIP712 {
         return keccak256(
             abi.encode(
                 BullaClaimEIP712.CANCEL_CLAIM_TYPEHASH,
-                owner,
+                user,
                 operator,
                 keccak256(bytes(getPermitCancelClaimMessage(extensionRegistry, operator, approvalCount))),
                 approvalCount,
@@ -302,7 +302,7 @@ library BullaClaimEIP712 {
 
     function getPermitUpdateBindingDigest(
         BullaExtensionRegistry extensionRegistry,
-        address owner,
+        address user,
         address operator,
         uint64 approvalCount,
         uint64 nonce
@@ -310,7 +310,7 @@ library BullaClaimEIP712 {
         return keccak256(
             abi.encode(
                 BullaClaimEIP712.UPDATE_BINDING_TYPEHASH,
-                owner,
+                user,
                 operator,
                 keccak256(bytes(getPermitUpdateBindingMessage(extensionRegistry, operator, approvalCount))),
                 approvalCount,
@@ -325,10 +325,10 @@ library BullaClaimEIP712 {
 
     /// @notice allows a user - via a signature - to appove an operator to call createClaim on their behalf
     /// @notice SPEC:
-    /// Anyone can call this function with a valid signature to modify the `owner`'s CreateClaimApproval of `operator` to the provided parameters
+    /// Anyone can call this function with a valid signature to modify the `user`'s CreateClaimApproval of `operator` to the provided parameters
     /// In all cases:
-    ///     SIG1: The recovered signer from the EIP712 signature == `owner`
-    ///     SIG2: `owner` is not a 0 address
+    ///     SIG1: The recovered signer from the EIP712 signature == `user`
+    ///     SIG2: `user` is not a 0 address
     ///     SIG3: `extensionRegistry` is not address(0)
     /// This function can _approve_ an operator given:
     ///     A1: 0 < `approvalCount` < type(uint64).max
@@ -337,23 +337,23 @@ library BullaClaimEIP712 {
     ///
     /// A valid approval signature is defined as: a signed EIP712 hash digest of the following parameters:
     ///     S1: The hash of the EIP712 typedef string
-    ///     S2: The `owner` address
+    ///     S2: The `user` address
     ///     S3: The `operator` address
     ///     S4: A verbose approval message: see `BullaClaimEIP712.getPermitCreateClaimMessage()`
     ///     S5: The `approvalType` enum as a uint8
     ///     S6: The `approvalCount`
     ///     S7: The `isBindingAllowed` boolean flag
-    ///     S8: The stored signing nonce found in `owner`'s CreateClaimApproval struct for `operator`
+    ///     S8: The stored signing nonce found in `user`'s CreateClaimApproval struct for `operator`
 
     /// Result: If the above conditions are met:
     ///     RES1: The nonce is incremented
-    ///     RES2: The `owner`'s approval of `operator` is updated
+    ///     RES2: The `user`'s approval of `operator` is updated
     ///     RES3: A CreateClaimApproved event is emitted with the approval parameters
     function permitCreateClaim(
         Approvals storage approvals,
         BullaExtensionRegistry extensionRegistry,
         bytes32 domainSeparator,
-        address owner, // todo: rename owner -> user?
+        address user,
         address operator,
         CreateClaimApprovalType approvalType,
         uint64 approvalCount,
@@ -367,13 +367,13 @@ library BullaClaimEIP712 {
                 "\x19\x01",
                 domainSeparator,
                 getPermitCreateClaimDigest(
-                    extensionRegistry, owner, operator, approvalType, approvalCount, isBindingAllowed, nonce
+                    extensionRegistry, user, operator, approvalType, approvalCount, isBindingAllowed, nonce
                 )
             )
         );
 
         if (
-            !_validateSignature(owner, digest, signature) // spec.A1, spec.A2, spec.R1, spec.R2
+            !_validateSignature(user, digest, signature) // spec.A1, spec.A2, spec.R1, spec.R2
         ) revert BullaClaim.InvalidSignature();
 
         if (approvalCount > 0) {
@@ -391,16 +391,16 @@ library BullaClaimEIP712 {
         }
 
         // spec.RES3
-        emit CreateClaimApproved(owner, operator, approvalType, approvalCount, isBindingAllowed);
+        emit CreateClaimApproved(user, operator, approvalType, approvalCount, isBindingAllowed);
     }
 
     /// @notice permitPayClaim() allows a user, via a signature, to appove an operator to call payClaim on their behalf
     /// @notice SPEC:
-    /// Anyone can call this function with a valid signature to set `owner`'s PayClaimApproval of `operator` to the provided parameters.
+    /// Anyone can call this function with a valid signature to set `user`'s PayClaimApproval of `operator` to the provided parameters.
     /// A user may signal 3 different approval types through this function: "Unapproved", "Approved for specific claims only", and "Approved for all claims".
     /// In all cases:
-    ///     SIG1: The recovered signer from the EIP712 signature == `owner` -> otherwise: reverts
-    ///     SIG2: `owner` is not the 0 address -> otherwise: reverts
+    ///     SIG1: The recovered signer from the EIP712 signature == `user` -> otherwise: reverts
+    ///     SIG2: `user` is not the 0 address -> otherwise: reverts
     /// This function can approve an operator to pay _specific_ claims given the following conditions listed below as AS - (Approve Specific 1-5):
     ///     AS1: `approvalType` == PayClaimApprovalType.IsApprovedForSpecific
     ///     AS2: `approvalDeadline` is either 0 (indicating unexpiring approval) or block.timestamp < `approvalDeadline` < type(uint40).max -> otherwise reverts
@@ -409,7 +409,7 @@ library BullaClaimEIP712 {
     ///         AS3.1: `ClaimPaymentApproval.claimId` is < type(uint88).max -> otherwise: reverts
     ///         AS3.2: `ClaimPaymentApproval.approvalDeadline` is either 0 (indicating unexpiring approval) or block.timestamp < `approvalDeadline` < type(uint40).max -> otherwise reverts
     ///         AS3.3: `ClaimPaymentApproval.approvedAmount` < type(uint128).max -> otherwise: reverts
-    ///   RESULT: The following call parameters are stored on on `owner`'s approval of `operator`
+    ///   RESULT: The following call parameters are stored on on `user`'s approval of `operator`
     ///     AS.RES1: The approvalType = PayClaimApprovalType.IsApprovedForSpecific
     ///     AS.RES2: The approvalDeadline is stored if not 0
     ///     AS.RES3: The nonce is incremented by 1
@@ -420,7 +420,7 @@ library BullaClaimEIP712 {
     ///     AA1: `approvalType` == PayClaimApprovalType.IsApprovedForAll
     ///     AA2: `approvalDeadline` is either 0 (indicating unexpiring approval) or block.timestamp < `approvalDeadline` < type(uint40).max -> otherwise reverts
     ///     AA3: `paymentApprovals.length == 0` -> otherwise: reverts
-    ///   RESULT: The following call parameters are stored on on `owner`'s approval of `operator`
+    ///   RESULT: The following call parameters are stored on on `user`'s approval of `operator`
     ///     AA.RES1: The approvalType = PayClaimApprovalType.IsApprovedForAll
     ///     AA.RES2: The nonce is incremented by 1
     ///     AA.RES3: If the previous approvalType == PayClaimApprovalType.IsApprovedForSpecific, delete the claimApprovals array -> otherwise: continue
@@ -430,7 +430,7 @@ library BullaClaimEIP712 {
     ///     AR1: `approvalType` == PayClaimApprovalType.Unapproved
     ///     AR2: `approvalDeadline` == 0 -> otherwise: reverts
     ///     AR3: `paymentApprovals.length` == 0 -> otherwise: reverts
-    ///   RESULT: `owner`'s approval of `operator` is updated to the following:
+    ///   RESULT: `user`'s approval of `operator` is updated to the following:
     ///     AR.RES1: approvalType is deleted (equivalent to being set to `Unapproved`)
     ///     AR.RES2: approvalDeadline is deleted
     ///     AR.RES3: The nonce is incremented by 1
@@ -439,18 +439,18 @@ library BullaClaimEIP712 {
 
     /// A valid approval signature is defined as: a signed EIP712 hash digest of the following parameters:
     ///     S1: The hash of the EIP712 typedef string
-    ///     S2: The `owner` address
+    ///     S2: The `user` address
     ///     S3: The `operator` address
     ///     S4: A verbose approval message: see `BullaClaimEIP712.getPermitPayClaimMessage()`
     ///     S5: The `approvalType` enum as a uint8
     ///     S6: The `approvalDeadline` as uint256
     ///     S7: The keccak256 hash of the abi.encodePacked array of the keccak256 hashStruct of ClaimPaymentApproval typehash and contents
-    ///     S8: The stored signing nonce found in `owner`'s PayClaimApproval struct for `operator`
+    ///     S8: The stored signing nonce found in `user`'s PayClaimApproval struct for `operator`
     function permitPayClaim(
         Approvals storage approvals,
         BullaExtensionRegistry extensionRegistry,
         bytes32 domainSeparator,
-        address owner,
+        address user,
         address operator,
         PayClaimApprovalType approvalType,
         uint256 approvalDeadline,
@@ -464,12 +464,12 @@ library BullaClaimEIP712 {
                 "\x19\x01",
                 domainSeparator,
                 getPermitPayClaimDigest(
-                    extensionRegistry, owner, operator, approvalType, approvalDeadline, paymentApprovals, nonce
+                    extensionRegistry, user, operator, approvalType, approvalDeadline, paymentApprovals, nonce
                 )
             )
         );
 
-        if (!_validateSignature(owner, digest, signature)) revert BullaClaim.InvalidSignature();
+        if (!_validateSignature(user, digest, signature)) revert BullaClaim.InvalidSignature();
         if (approvalDeadline != 0 && (approvalDeadline < block.timestamp || approvalDeadline > type(uint40).max)) {
             revert BullaClaim.InvalidTimestamp(approvalDeadline);
         }
@@ -521,14 +521,14 @@ library BullaClaimEIP712 {
 
         approvals.payClaim.nonce++;
 
-        emit PayClaimApproved(owner, operator, approvalType, approvalDeadline, paymentApprovals);
+        emit PayClaimApproved(user, operator, approvalType, approvalDeadline, paymentApprovals);
     }
 
     /// @notice permitUpdateBinding() allows a user, via a signature, to appove an operator to call updateBinding on their behalf
     /// @notice SPEC:
     /// This function can approve an operator to update the binding on claims given the following conditions:
-    ///     SIG1. The recovered signer from the EIP712 signature == `owner` -> otherwise: reverts
-    ///     SIG2. `owner` is not the 0 address -> otherwise: reverts
+    ///     SIG1. The recovered signer from the EIP712 signature == `user` -> otherwise: reverts
+    ///     SIG2. `user` is not the 0 address -> otherwise: reverts
     ///     SIG3. `extensionRegistry` is not address(0)
     /// This function can approve an operator to update a claim's binding given:
     ///     AB1: 0 < `approvalCount` < type(uint64).max -> otherwise reverts
@@ -542,7 +542,7 @@ library BullaClaimEIP712 {
         Approvals storage approvals,
         BullaExtensionRegistry extensionRegistry,
         bytes32 domainSeparator,
-        address owner,
+        address user,
         address operator,
         uint64 approvalCount,
         Signature calldata signature
@@ -553,23 +553,23 @@ library BullaClaimEIP712 {
             abi.encodePacked(
                 "\x19\x01",
                 domainSeparator,
-                getPermitUpdateBindingDigest(extensionRegistry, owner, operator, approvalCount, nonce)
+                getPermitUpdateBindingDigest(extensionRegistry, user, operator, approvalCount, nonce)
             )
         );
 
-        if (!_validateSignature(owner, digest, signature)) revert BullaClaim.InvalidSignature();
+        if (!_validateSignature(user, digest, signature)) revert BullaClaim.InvalidSignature();
 
         approvals.updateBinding.approvalCount = approvalCount;
         approvals.updateBinding.nonce++;
 
-        emit UpdateBindingApproved(owner, operator, approvalCount);
+        emit UpdateBindingApproved(user, operator, approvalCount);
     }
 
     /// @notice permitCancelClaim() allows a user, via a signature, to appove an operator to call cancelClaim on their behalf
     /// @notice SPEC:
     /// A user can specify an operator address to call `cancelClaim` on their behalf under the following conditions:
-    ///     SIG1. The recovered signer from the EIP712 signature == `owner` -> otherwise: reverts
-    ///     SIG2. `owner` is not the 0 address -> otherwise: reverts
+    ///     SIG1. The recovered signer from the EIP712 signature == `user` -> otherwise: reverts
+    ///     SIG2. `user` is not the 0 address -> otherwise: reverts
     ///     SIG3. `extensionRegistry` is not address(0)
     /// This function can approve an operator to cancel claims given:
     ///     AC1: 0 < `approvalCount` < type(uint64).max -> otherwise reverts
@@ -583,7 +583,7 @@ library BullaClaimEIP712 {
         Approvals storage approvals,
         BullaExtensionRegistry extensionRegistry,
         bytes32 domainSeparator,
-        address owner,
+        address user,
         address operator,
         uint64 approvalCount,
         Signature calldata signature
@@ -593,16 +593,16 @@ library BullaClaimEIP712 {
                 "\x19\x01",
                 domainSeparator,
                 getPermitCancelClaimDigest(
-                    extensionRegistry, owner, operator, approvalCount, approvals.cancelClaim.nonce
+                    extensionRegistry, user, operator, approvalCount, approvals.cancelClaim.nonce
                 )
             )
         );
 
-        if (!_validateSignature(owner, digest, signature)) revert BullaClaim.InvalidSignature();
+        if (!_validateSignature(user, digest, signature)) revert BullaClaim.InvalidSignature();
 
         approvals.cancelClaim.approvalCount = approvalCount;
         approvals.cancelClaim.nonce++;
 
-        emit CancelClaimApproved(owner, operator, approvalCount);
+        emit CancelClaimApproved(user, operator, approvalCount);
     }
 }

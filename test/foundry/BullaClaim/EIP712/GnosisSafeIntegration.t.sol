@@ -63,7 +63,7 @@ contract TestGnosisSafeSignatures is Test {
         bool isBindingAllowed = true;
 
         bytes32 digest = sigHelper.getPermitCreateClaimDigest({
-            owner: safeAddress,
+            user: safeAddress,
             operator: operator,
             approvalType: approvalType,
             approvalCount: approvalCount,
@@ -105,7 +105,7 @@ contract TestGnosisSafeSignatures is Test {
         assertEq(IERC1271(safeAddress).isValidSignature(digest, ""), IERC1271.isValidSignature.selector);
 
         bullaClaim.permitCreateClaim({
-            owner: safeAddress,
+            user: safeAddress,
             operator: operator,
             approvalType: approvalType,
             approvalCount: approvalCount,

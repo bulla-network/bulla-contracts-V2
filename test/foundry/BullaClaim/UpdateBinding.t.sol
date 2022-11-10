@@ -54,9 +54,9 @@ contract TestUpdateBinding is Test {
         claim = bullaClaim.getClaim(claimId);
     }
 
-    function _permitUpdateBinding(uint256 _ownerPK, address _operator, uint64 _approvalCount) internal {
-        Signature memory sig = sigHelper.signUpdateBindingPermit(_ownerPK, vm.addr(_ownerPK), _operator, _approvalCount);
-        bullaClaim.permitUpdateBinding(vm.addr(_ownerPK), _operator, _approvalCount, sig);
+    function _permitUpdateBinding(uint256 _userPK, address _operator, uint64 _approvalCount) internal {
+        Signature memory sig = sigHelper.signUpdateBindingPermit(_userPK, vm.addr(_userPK), _operator, _approvalCount);
+        bullaClaim.permitUpdateBinding(vm.addr(_userPK), _operator, _approvalCount, sig);
     }
 
     function testDebtorBindsSelfToClaim() public {
@@ -82,7 +82,7 @@ contract TestUpdateBinding is Test {
         assertTrue(claimId == 2 && claim.binding == ClaimBinding.Unbound);
 
         // permit an operator
-        _permitUpdateBinding({_ownerPK: debtorPK, _operator: operator, _approvalCount: type(uint64).max});
+        _permitUpdateBinding({_userPK: debtorPK, _operator: operator, _approvalCount: type(uint64).max});
 
         vm.prank(operator);
         vm.expectEmit(true, true, true, true);
@@ -117,7 +117,7 @@ contract TestUpdateBinding is Test {
         assertTrue(claimId == 2 && claim.binding == ClaimBinding.BindingPending);
 
         // permit an operator
-        _permitUpdateBinding({_ownerPK: debtorPK, _operator: operator, _approvalCount: type(uint64).max});
+        _permitUpdateBinding({_userPK: debtorPK, _operator: operator, _approvalCount: type(uint64).max});
 
         vm.prank(operator);
         vm.expectEmit(true, true, true, true);
@@ -156,7 +156,7 @@ contract TestUpdateBinding is Test {
         vm.prank(creditor);
         (claimId,) = _newClaim(ClaimBinding.Unbound);
         // permit an operator
-        _permitUpdateBinding({_ownerPK: debtorPK, _operator: operator, _approvalCount: type(uint64).max});
+        _permitUpdateBinding({_userPK: debtorPK, _operator: operator, _approvalCount: type(uint64).max});
 
         vm.prank(debtor);
         bullaClaim.updateBinding(claimId, ClaimBinding.Bound);
@@ -188,7 +188,7 @@ contract TestUpdateBinding is Test {
         vm.prank(creditor);
         (claimId,) = _newClaim(ClaimBinding.Unbound);
         // permit an operator
-        _permitUpdateBinding({_ownerPK: creditorPK, _operator: operator, _approvalCount: type(uint64).max});
+        _permitUpdateBinding({_userPK: creditorPK, _operator: operator, _approvalCount: type(uint64).max});
 
         vm.expectEmit(true, true, true, true);
         emit BindingUpdated(claimId, creditor, ClaimBinding.BindingPending);
@@ -238,7 +238,7 @@ contract TestUpdateBinding is Test {
         vm.prank(creditor);
         (uint256 claimId,) = _newClaim(ClaimBinding.BindingPending);
 
-        _permitUpdateBinding({_ownerPK: creditorPK, _operator: operator, _approvalCount: type(uint64).max});
+        _permitUpdateBinding({_userPK: creditorPK, _operator: operator, _approvalCount: type(uint64).max});
 
         // debtor accepts
         vm.prank(debtor);
@@ -291,7 +291,7 @@ contract TestUpdateBinding is Test {
         bullaClaim.updateBinding(claimId, ClaimBinding.Bound);
 
         // also test for operators
-        _permitUpdateBinding({_ownerPK: creditorPK, _operator: operator, _approvalCount: type(uint64).max});
+        _permitUpdateBinding({_userPK: creditorPK, _operator: operator, _approvalCount: type(uint64).max});
 
         vm.prank(creditor);
         (claimId,) = _newClaim(ClaimBinding.Unbound);
@@ -356,7 +356,7 @@ contract TestUpdateBinding is Test {
         bullaClaim.updateBinding(claimId, ClaimBinding.Bound);
 
         // the delegator must be approved
-        _permitUpdateBinding({_ownerPK: debtorPK, _operator: delegatorAddress, _approvalCount: type(uint64).max});
+        _permitUpdateBinding({_userPK: debtorPK, _operator: delegatorAddress, _approvalCount: type(uint64).max});
         vm.prank(delegatorAddress);
         bullaClaim.updateBindingFrom(debtor, claimId, ClaimBinding.Bound);
     }
@@ -364,7 +364,7 @@ contract TestUpdateBinding is Test {
     function testUpdateBindingFromDecrementsApprovals() public {
         vm.prank(creditor);
         (uint256 claimId,) = _newClaim(ClaimBinding.Unbound);
-        _permitUpdateBinding({_ownerPK: creditorPK, _operator: operator, _approvalCount: 12});
+        _permitUpdateBinding({_userPK: creditorPK, _operator: operator, _approvalCount: 12});
 
         vm.prank(operator);
         bullaClaim.updateBindingFrom(creditor, claimId, ClaimBinding.BindingPending);
@@ -376,7 +376,7 @@ contract TestUpdateBinding is Test {
         // doesn't decrement if approvalCount is uint64.max
 
         (claimId,) = _newClaim(ClaimBinding.Unbound);
-        _permitUpdateBinding({_ownerPK: creditorPK, _operator: operator, _approvalCount: type(uint64).max});
+        _permitUpdateBinding({_userPK: creditorPK, _operator: operator, _approvalCount: type(uint64).max});
 
         vm.prank(operator);
         bullaClaim.updateBindingFrom(creditor, claimId, ClaimBinding.BindingPending);
@@ -390,7 +390,7 @@ contract TestUpdateBinding is Test {
         vm.prank(creditor);
         (uint256 claimId,) = _newClaim(ClaimBinding.Unbound);
 
-        _permitUpdateBinding({_ownerPK: creditorPK, _operator: operator, _approvalCount: 1});
+        _permitUpdateBinding({_userPK: creditorPK, _operator: operator, _approvalCount: 1});
 
         vm.prank(operator);
         bullaClaim.updateBindingFrom(creditor, claimId, ClaimBinding.BindingPending);

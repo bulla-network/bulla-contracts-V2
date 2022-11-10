@@ -16,8 +16,8 @@ import {Test} from "forge-std/Test.sol";
 ///     3. Malicious approval signature from another user
 /// @notice SPEC:
 /// This function can approve an operator to update the binding on claims given the following conditions:
-///     SIG1. The recovered signer from the EIP712 signature == `owner` -> otherwise: reverts
-///     SIG2. `owner` is not the 0 address -> otherwise: reverts
+///     SIG1. The recovered signer from the EIP712 signature == `user` -> otherwise: reverts
+///     SIG2. `user` is not the 0 address -> otherwise: reverts
 ///     SIG3. `extensionRegistry` is not address(0)
 /// This function can approve an operator to update a claim's binding given:
 ///     AB1: 0 < `approvalCount` < type(uint64).max -> otherwise reverts
@@ -32,7 +32,7 @@ contract TestPermitUpdateBinding is Test {
     EIP712Helper internal sigHelper;
     ERC1271WalletMock internal eip1271Wallet;
 
-    event UpdateBindingApproved(address indexed owner, address indexed operator, uint256 approvalCount);
+    event UpdateBindingApproved(address indexed user, address indexed operator, uint256 approvalCount);
 
     function setUp() public {
         (bullaClaim,) = (new Deployer()).deploy_test({
@@ -55,12 +55,12 @@ contract TestPermitUpdateBinding is Test {
         emit UpdateBindingApproved(alice, bob, approvalCount);
 
         bullaClaim.permitUpdateBinding({
-            owner: alice,
+            user: alice,
             operator: bob,
             approvalCount: approvalCount,
             signature: sigHelper.signUpdateBindingPermit({
                 pk: alicePK,
-                owner: alice,
+                user: alice,
                 operator: bob,
                 approvalCount: approvalCount
             })
@@ -77,14 +77,14 @@ contract TestPermitUpdateBinding is Test {
         address bob = address(0xB0b);
 
         bytes32 digest =
-            sigHelper.getPermitUpdateBindingDigest({owner: alice, operator: bob, approvalCount: approvalCount});
+            sigHelper.getPermitUpdateBindingDigest({user: alice, operator: bob, approvalCount: approvalCount});
         eip1271Wallet.sign(digest);
 
         vm.expectEmit(true, true, true, true);
         emit UpdateBindingApproved(alice, bob, approvalCount);
 
         bullaClaim.permitUpdateBinding({
-            owner: alice,
+            user: alice,
             operator: bob,
             approvalCount: approvalCount,
             signature: Signature(0, 0, 0)
@@ -103,20 +103,20 @@ contract TestPermitUpdateBinding is Test {
         address bob = address(0xB0b);
 
         bullaClaim.permitUpdateBinding({
-            owner: alice,
+            user: alice,
             operator: bob,
             approvalCount: 1,
-            signature: sigHelper.signUpdateBindingPermit({pk: alicePK, owner: alice, operator: bob, approvalCount: 1})
+            signature: sigHelper.signUpdateBindingPermit({pk: alicePK, user: alice, operator: bob, approvalCount: 1})
         });
 
         vm.expectEmit(true, true, true, true);
         emit UpdateBindingApproved(alice, bob, 0);
 
         bullaClaim.permitUpdateBinding({
-            owner: alice,
+            user: alice,
             operator: bob,
             approvalCount: 0,
-            signature: sigHelper.signUpdateBindingPermit({pk: alicePK, owner: alice, operator: bob, approvalCount: 0})
+            signature: sigHelper.signUpdateBindingPermit({pk: alicePK, user: alice, operator: bob, approvalCount: 0})
         });
 
         (,, UpdateBindingApproval memory approval,) = bullaClaim.approvals(alice, bob);
@@ -129,18 +129,18 @@ contract TestPermitUpdateBinding is Test {
         address alice = address(eip1271Wallet);
         address bob = address(0xB0b);
 
-        bytes32 digest = sigHelper.getPermitUpdateBindingDigest({owner: alice, operator: bob, approvalCount: 1});
+        bytes32 digest = sigHelper.getPermitUpdateBindingDigest({user: alice, operator: bob, approvalCount: 1});
         eip1271Wallet.sign(digest);
 
-        bullaClaim.permitUpdateBinding({owner: alice, operator: bob, approvalCount: 1, signature: Signature(0, 0, 0)});
+        bullaClaim.permitUpdateBinding({user: alice, operator: bob, approvalCount: 1, signature: Signature(0, 0, 0)});
 
-        digest = sigHelper.getPermitUpdateBindingDigest({owner: alice, operator: bob, approvalCount: 0});
+        digest = sigHelper.getPermitUpdateBindingDigest({user: alice, operator: bob, approvalCount: 0});
         eip1271Wallet.sign(digest);
 
         vm.expectEmit(true, true, true, true);
         emit UpdateBindingApproved(alice, bob, 0);
 
-        bullaClaim.permitUpdateBinding({owner: alice, operator: bob, approvalCount: 0, signature: Signature(0, 0, 0)});
+        bullaClaim.permitUpdateBinding({user: alice, operator: bob, approvalCount: 0, signature: Signature(0, 0, 0)});
 
         (,, UpdateBindingApproval memory approval,) = bullaClaim.approvals(alice, bob);
 
@@ -156,10 +156,10 @@ contract TestPermitUpdateBinding is Test {
         BullaExtensionRegistry(bullaClaim.extensionRegistry()).setExtensionName(bob, "bobby bob");
 
         bullaClaim.permitUpdateBinding({
-            owner: alice,
+            user: alice,
             operator: bob,
             approvalCount: 10,
-            signature: sigHelper.signUpdateBindingPermit({pk: alicePK, owner: alice, operator: bob, approvalCount: 10})
+            signature: sigHelper.signUpdateBindingPermit({pk: alicePK, user: alice, operator: bob, approvalCount: 10})
         });
     }
 
@@ -170,13 +170,13 @@ contract TestPermitUpdateBinding is Test {
         address bob = address(0xB0b);
 
         Signature memory signature =
-            sigHelper.signUpdateBindingPermit({pk: alicePK, owner: alice, operator: bob, approvalCount: 1});
+            sigHelper.signUpdateBindingPermit({pk: alicePK, user: alice, operator: bob, approvalCount: 1});
 
         bullaClaim.setExtensionRegistry(address(0));
 
         // This call to the 0 address will fail
         vm.expectRevert();
-        bullaClaim.permitUpdateBinding({owner: alice, operator: bob, approvalCount: 1, signature: signature});
+        bullaClaim.permitUpdateBinding({user: alice, operator: bob, approvalCount: 1, signature: signature});
     }
 
     /// @notice SPEC.SIG1
@@ -186,11 +186,11 @@ contract TestPermitUpdateBinding is Test {
         address bob = address(0xB0b);
 
         Signature memory signature =
-            sigHelper.signUpdateBindingPermit({pk: alicePK, owner: alice, operator: bob, approvalCount: 1});
+            sigHelper.signUpdateBindingPermit({pk: alicePK, user: alice, operator: bob, approvalCount: 1});
         signature.r = bytes32(uint256(signature.r) + 1);
 
         vm.expectRevert(BullaClaim.InvalidSignature.selector);
-        bullaClaim.permitUpdateBinding({owner: alice, operator: bob, approvalCount: 1, signature: signature});
+        bullaClaim.permitUpdateBinding({user: alice, operator: bob, approvalCount: 1, signature: signature});
     }
 
     /// @notice SPEC.SIG1
@@ -203,14 +203,14 @@ contract TestPermitUpdateBinding is Test {
 
         // build a digest based on alice's approval
         bytes32 digest =
-            sigHelper.getPermitUpdateBindingDigest({owner: alice, operator: bob, approvalCount: approvalCount});
+            sigHelper.getPermitUpdateBindingDigest({user: alice, operator: bob, approvalCount: approvalCount});
 
         // sign the digest with the wrong key
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(badGuyPK, digest);
         Signature memory signature = Signature({v: v, r: r, s: s});
 
         vm.expectRevert(BullaClaim.InvalidSignature.selector);
-        bullaClaim.permitUpdateBinding({owner: alice, operator: bob, approvalCount: approvalCount, signature: signature});
+        bullaClaim.permitUpdateBinding({user: alice, operator: bob, approvalCount: approvalCount, signature: signature});
     }
 
     /// @notice SPEC.SIG1
@@ -222,32 +222,32 @@ contract TestPermitUpdateBinding is Test {
         uint64 approvalCount = 1;
 
         Signature memory signature =
-            sigHelper.signUpdateBindingPermit({pk: alicePK, owner: alice, operator: bob, approvalCount: approvalCount});
+            sigHelper.signUpdateBindingPermit({pk: alicePK, user: alice, operator: bob, approvalCount: approvalCount});
 
-        bullaClaim.permitUpdateBinding({owner: alice, operator: bob, approvalCount: approvalCount, signature: signature});
+        bullaClaim.permitUpdateBinding({user: alice, operator: bob, approvalCount: approvalCount, signature: signature});
 
         // alice then revokes her approval
         bullaClaim.permitUpdateBinding({
-            owner: alice,
+            user: alice,
             operator: bob,
             approvalCount: 0,
-            signature: sigHelper.signUpdateBindingPermit({pk: alicePK, owner: alice, operator: bob, approvalCount: 0})
+            signature: sigHelper.signUpdateBindingPermit({pk: alicePK, user: alice, operator: bob, approvalCount: 0})
         });
 
         // the initial signature can not be used to re-permit
         vm.expectRevert(BullaClaim.InvalidSignature.selector);
-        bullaClaim.permitUpdateBinding({owner: alice, operator: bob, approvalCount: approvalCount, signature: signature});
+        bullaClaim.permitUpdateBinding({user: alice, operator: bob, approvalCount: approvalCount, signature: signature});
     }
 
     /// @notice SPEC.SIG2
     function testCannotPermitThe0Address() public {
-        address owner = address(0);
+        address user = address(0);
         address operator = vm.addr(0xBeefCafe);
         uint64 approvalCount = 1;
 
         Signature memory signature = sigHelper.signUpdateBindingPermit({
             pk: uint256(12345),
-            owner: owner,
+            user: user,
             operator: operator,
             approvalCount: approvalCount
         });
@@ -256,18 +256,18 @@ contract TestPermitUpdateBinding is Test {
 
         assertEq(
             ecrecover(
-                sigHelper.getPermitUpdateBindingDigest(owner, operator, approvalCount),
+                sigHelper.getPermitUpdateBindingDigest(user, operator, approvalCount),
                 signature.v,
                 signature.r,
                 signature.s
             ),
-            owner,
+            user,
             "ecrecover sanity check"
         );
 
         vm.expectRevert(BullaClaim.InvalidSignature.selector);
         bullaClaim.permitUpdateBinding({
-            owner: owner,
+            user: user,
             operator: operator,
             approvalCount: approvalCount,
             signature: signature
@@ -281,12 +281,12 @@ contract TestPermitUpdateBinding is Test {
         address alice = vm.addr(alicePK);
 
         bullaClaim.permitUpdateBinding({
-            owner: alice,
+            user: alice,
             operator: address(operator),
             approvalCount: 1,
             signature: sigHelper.signUpdateBindingPermit({
                 pk: alicePK,
-                owner: alice,
+                user: alice,
                 operator: address(operator),
                 approvalCount: 1
             })
@@ -299,7 +299,7 @@ contract TestPermitUpdateBinding is Test {
         vm.assume(pk != operatorPK);
         vm.assume(privateKeyValidity(pk) && privateKeyValidity(operatorPK));
 
-        address owner = vm.addr(pk);
+        address user = vm.addr(pk);
         address operator = vm.addr(operatorPK);
 
         if (registerContract) {
@@ -307,19 +307,19 @@ contract TestPermitUpdateBinding is Test {
         }
 
         vm.expectEmit(true, true, true, true);
-        emit UpdateBindingApproved(owner, operator, approvalCount);
+        emit UpdateBindingApproved(user, operator, approvalCount);
 
         Signature memory signature =
-            sigHelper.signUpdateBindingPermit({pk: pk, owner: owner, operator: operator, approvalCount: approvalCount});
+            sigHelper.signUpdateBindingPermit({pk: pk, user: user, operator: operator, approvalCount: approvalCount});
 
         bullaClaim.permitUpdateBinding({
-            owner: owner,
+            user: user,
             operator: operator,
             approvalCount: approvalCount,
             signature: signature
         });
 
-        (,, UpdateBindingApproval memory approval,) = bullaClaim.approvals(owner, operator);
+        (,, UpdateBindingApproval memory approval,) = bullaClaim.approvals(user, operator);
 
         assertEq(approval.nonce, 1, "nonce");
         assertEq(approval.approvalCount, approvalCount, "approvalCount");

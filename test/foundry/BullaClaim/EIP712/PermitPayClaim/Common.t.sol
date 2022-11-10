@@ -23,7 +23,7 @@ contract PermitPayClaimTest is Test {
     uint256 OCTOBER_23RD_2022 = 1666560688;
 
     event PayClaimApproved(
-        address indexed owner,
+        address indexed user,
         address indexed operator,
         PayClaimApprovalType indexed approvalType,
         uint256 approvalDeadline,

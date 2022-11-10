@@ -52,7 +52,7 @@ const getDomain = (bullaClaimAddress: string) => ({
 
 export const permitCreateClaimTypes = {
   ApproveCreateClaimExtension: [
-    { name: "owner", type: "address" },
+    { name: "user", type: "address" },
     { name: "operator", type: "address" },
     { name: "message", type: "string" },
     { name: "approvalType", type: "uint8" },
@@ -64,7 +64,7 @@ export const permitCreateClaimTypes = {
 
 export const permitPayClaimTypes = {
   ApprovePayClaimExtension: [
-    { name: "owner", type: "address" },
+    { name: "user", type: "address" },
     { name: "operator", type: "address" },
     { name: "message", type: "string" },
     { name: "approvalType", type: "uint8" },
@@ -81,7 +81,7 @@ export const permitPayClaimTypes = {
 
 export const permitUpdateBindingTypes = {
   ApproveUpdateBindingExtension: [
-    { name: "owner", type: "address" },
+    { name: "user", type: "address" },
     { name: "operator", type: "address" },
     { name: "message", type: "string" },
     { name: "approvalCount", type: "uint256" },
@@ -91,7 +91,7 @@ export const permitUpdateBindingTypes = {
 
 export const permitCancelClaimTypes = {
   ApproveCancelClaimExtension: [
-    { name: "owner", type: "address" },
+    { name: "user", type: "address" },
     { name: "operator", type: "address" },
     { name: "message", type: "string" },
     { name: "approvalCount", type: "uint256" },
@@ -306,7 +306,7 @@ export const generateCreateClaimSignature = async ({
   );
 
   const payClaimPermission = {
-    owner: signer.address,
+    user: signer.address,
     operator: operator,
     message: message,
     approvalType: approvalType,
@@ -353,7 +353,7 @@ export const generatePayClaimSignature = async ({
   );
 
   const payClaimPermission = {
-    owner: signer.address,
+    user: signer.address,
     operator: operator,
     message: message,
     approvalType: approvalType,
@@ -391,7 +391,7 @@ export const generateUpdateClaimSignature = async ({
   );
 
   const updateBindingPermission = {
-    owner: signer.address,
+    user: signer.address,
     operator: operator,
     message: message,
     approvalCount: approvalCount,
@@ -431,7 +431,7 @@ export const generateCancelClaimSignature = async ({
   );
 
   const cancelClaimPermission = {
-    owner: signer.address,
+    user: signer.address,
     operator: operator,
     message: message,
     approvalCount: approvalCount,

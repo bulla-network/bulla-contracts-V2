@@ -102,7 +102,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     event ClaimRescinded(uint256 indexed claimId, address indexed from, string note);
 
     event CreateClaimApproved(
-        address indexed owner,
+        address indexed user,
         address indexed operator,
         CreateClaimApprovalType indexed approvalType,
         uint256 approvalCount,
@@ -110,16 +110,16 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     );
 
     event PayClaimApproved(
-        address indexed owner,
+        address indexed user,
         address indexed operator,
         PayClaimApprovalType indexed approvalType,
         uint256 approvalDeadline,
         ClaimPaymentApprovalParam[] paymentApprovals
     );
 
-    event UpdateBindingApproved(address indexed owner, address indexed operator, uint256 approvalCount);
+    event UpdateBindingApproved(address indexed user, address indexed operator, uint256 approvalCount);
 
-    event CancelClaimApproved(address indexed owner, address indexed operator, uint256 approvalCount);
+    event CancelClaimApproved(address indexed user, address indexed operator, uint256 approvalCount);
 
     constructor(address _feeCollectionAddress, address _extensionRegistry, LockState _lockState)
         ERC721("BullaClaim", "CLAIM")
@@ -336,8 +336,8 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     ///     S1. `operator` has > 0 approvalCount from `from` address -> otherwise: reverts
     ///
     /// Result: If the above is true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return
-    function _spendUpdateBindingApproval(address owner, address operator) internal {
-        UpdateBindingApproval storage approval = approvals[owner][operator].updateBinding;
+    function _spendUpdateBindingApproval(address user, address operator) internal {
+        UpdateBindingApproval storage approval = approvals[user][operator].updateBinding;
 
         if (approval.approvalCount == 0) revert NotApproved();
         if (approval.approvalCount != type(uint64).max) approval.approvalCount--;
@@ -395,8 +395,8 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     ///     S1. `operator` has > 0 approvalCount from `from` address -> otherwise: reverts
     ///
     /// Result: If the above is true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return
-    function _spendCancelClaimApproval(address owner, address operator) internal {
-        CancelClaimApproval storage approval = approvals[owner][operator].cancelClaim;
+    function _spendCancelClaimApproval(address user, address operator) internal {
+        CancelClaimApproval storage approval = approvals[user][operator].cancelClaim;
 
         if (approval.approvalCount == 0) revert NotApproved();
         if (approval.approvalCount != type(uint64).max) approval.approvalCount--;
@@ -625,7 +625,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     /// @notice permits an operator to create claims on user's behalf
     /// @dev see BullaClaimEIP712.permitCreateClaim for spec // TODO: update name
     function permitCreateClaim(
-        address owner, // todo: rename owner -> user?
+        address user,
         address operator,
         CreateClaimApprovalType approvalType,
         uint64 approvalCount,
@@ -633,10 +633,10 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
         Signature calldata signature
     ) public {
         BullaClaimEIP712.permitCreateClaim(
-            approvals[owner][operator],
+            approvals[user][operator],
             extensionRegistry,
             _domainSeparatorV4(),
-            owner,
+            user,
             operator,
             approvalType,
             approvalCount,
@@ -648,7 +648,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     /// @notice permits an operator to pay a claim on user's behalf
     /// @dev see BullaClaimEIP712.permitPayClaim for spec // TODO: update name
     function permitPayClaim(
-        address owner,
+        address user,
         address operator,
         PayClaimApprovalType approvalType,
         uint256 approvalDeadline,
@@ -656,10 +656,10 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
         Signature calldata signature
     ) public {
         BullaClaimEIP712.permitPayClaim(
-            approvals[owner][operator],
+            approvals[user][operator],
             extensionRegistry,
             _domainSeparatorV4(),
-            owner,
+            user,
             operator,
             approvalType,
             approvalDeadline,
@@ -670,33 +670,21 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
 
     /// @notice permits an operator to update claim bindings on user's behalf
     /// @dev see BullaClaimEIP712.permitUpdateBinding for spec // TODO: update name
-    function permitUpdateBinding(address owner, address operator, uint64 approvalCount, Signature calldata signature)
+    function permitUpdateBinding(address user, address operator, uint64 approvalCount, Signature calldata signature)
         public
     {
         BullaClaimEIP712.permitUpdateBinding(
-            approvals[owner][operator],
-            extensionRegistry,
-            _domainSeparatorV4(),
-            owner,
-            operator,
-            approvalCount,
-            signature
+            approvals[user][operator], extensionRegistry, _domainSeparatorV4(), user, operator, approvalCount, signature
         );
     }
 
     /// @notice permits an operator to cancel claims on user's behalf
     /// @dev see BullaClaimEIP712.sol for spec // TODO: update name
-    function permitCancelClaim(address owner, address operator, uint64 approvalCount, Signature calldata signature)
+    function permitCancelClaim(address user, address operator, uint64 approvalCount, Signature calldata signature)
         public
     {
         BullaClaimEIP712.permitCancelClaim(
-            approvals[owner][operator],
-            extensionRegistry,
-            _domainSeparatorV4(),
-            owner,
-            operator,
-            approvalCount,
-            signature
+            approvals[user][operator], extensionRegistry, _domainSeparatorV4(), user, operator, approvalCount, signature
         );
     }
 
