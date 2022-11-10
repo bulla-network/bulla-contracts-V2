@@ -16,7 +16,7 @@ import {Test} from "forge-std/Test.sol";
 ///     3. Replayed signature (after deletion of any storage variables)
 ///     4. Malicious approval signature from another user
 /// @notice SPEC:
-/// Anyone can call this function with a valid signature to modify the `user`'s CreateClaimApproval of `operator` to the provided parameters
+/// Anyone can call this function with a valid signature to modify the `user`'s CreateClaimApproval of `operator` to the provided arguments
 /// This function can _approve_ an operator given:
 ///     A1: The recovered signer from the EIP712 signature == `user`
 ///     A2: `user` is not a 0 address
@@ -28,7 +28,7 @@ import {Test} from "forge-std/Test.sol";
 ///     R3: `approvalCount` == 0
 ///     R4: `extensionRegistry` is not address(0)
 ///
-/// A valid approval signature is defined as: a signed EIP712 hash digest of the following parameters:
+/// A valid approval signature is defined as: a signed EIP712 hash digest of the following arguments:
 ///     S1: The hash of the EIP712 typedef string
 ///     S2: The `user` address
 ///     S3: The `operator` address
@@ -41,7 +41,7 @@ import {Test} from "forge-std/Test.sol";
 /// Result: If the above conditions are met:
 ///     RES1: The nonce is incremented
 ///     RES2: The `user`'s approval of `operator` is updated
-///     RES3: A CreateClaimApproved event is emitted with the approval parameters
+///     RES3: A CreateClaimApproved event is emitted with the approval arguments
 
 contract TestPermitCreateClaim is Test {
     BullaClaim internal bullaClaim;

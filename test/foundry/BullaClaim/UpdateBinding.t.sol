@@ -11,7 +11,11 @@ import {Deployer} from "script/Deployment.s.sol";
 
 /// @notice covers test cases for updateBinding() and updateBindingFrom()
 /// @notice SPEC: updateBinding() TODO
-/// @notice SPEC: updateBindingFrom() TODO
+/// @notice SPEC: _spendUpdateBindingApproval()
+///     A function can call this function to verify and "spend" `from`'s approval of `operator` to update a claim's binding given:
+///         S1. `operator` has > 0 approvalCount from `from` address -> otherwise: reverts
+///
+///     RES1: If the above is true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return
 contract TestUpdateBinding is Test {
     WETH public weth;
     BullaClaim public bullaClaim;
@@ -59,6 +63,7 @@ contract TestUpdateBinding is Test {
         bullaClaim.permitUpdateBinding(vm.addr(_userPK), _operator, _approvalCount, sig);
     }
 
+    /// @notice SPEC._spendUpdateBindingApproval.S1
     function testDebtorBindsSelfToClaim() public {
         // test case: unbound invoice
         vm.prank(creditor);
@@ -94,6 +99,7 @@ contract TestUpdateBinding is Test {
         assertTrue(claim.binding == ClaimBinding.Bound);
     }
 
+    /// @notice SPEC._spendUpdateBindingApproval.S1
     function testDebtorUpdatesToBindingPending() public {
         // test case: strange, but debtor can update to pending
         vm.prank(creditor);
@@ -361,6 +367,7 @@ contract TestUpdateBinding is Test {
         bullaClaim.updateBindingFrom(debtor, claimId, ClaimBinding.Bound);
     }
 
+    /// @notice SPEC._spendUpdateBindingApproval.RES1
     function testUpdateBindingFromDecrementsApprovals() public {
         vm.prank(creditor);
         (uint256 claimId,) = _newClaim(ClaimBinding.Unbound);
@@ -386,6 +393,7 @@ contract TestUpdateBinding is Test {
         assertEq(approval.approvalCount, type(uint64).max);
     }
 
+    /// @notice SPEC._spendUpdateBindingApproval.S1
     function testCannotUpdateBindingFromIfUnauthorized() public {
         vm.prank(creditor);
         (uint256 claimId,) = _newClaim(ClaimBinding.Unbound);

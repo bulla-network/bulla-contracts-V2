@@ -139,12 +139,14 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
      * /// CREATE FUNCTIONS ///
      */
 
-    /// @notice allows a user to create a claim from their address
+    /// @notice allows a user to create a claim
+    /// @notice SPEC:
+    ///     1. create a claim from the msg.sender
     function createClaim(CreateClaimParams calldata params) external returns (uint256) {
         return _createClaim(msg.sender, params);
     }
 
-    /// @notice same as createClaim but allows a caller (operator) to create a claim on behalf of a user
+    /// @notice allows an operator to create a claim on behalf of a user
     /// @notice SPEC:
     ///     1. verify and spend msg.sender's approval to create claims
     ///     2. create a claim on `from`'s behalf
@@ -154,7 +156,9 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
         return _createClaim(from, params);
     }
 
-    /// @notice same as createClaim() but with a token/attachmentURI
+    /// @notice allows a user to create a claim with optional attachmentURI and / or a custom tokenURI
+    /// @notice SPEC:
+    ///     1. create a claim with metadata from the msg.sender
     function createClaimWithMetadata(CreateClaimParams calldata params, ClaimMetadata calldata metadata)
         external
         returns (uint256)
@@ -162,7 +166,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
         return _createClaimWithMetadata(msg.sender, params, metadata);
     }
 
-    /// @notice same as createClaimFrom() but with a token/attachmentURI
+    /// @notice allows an operator to create a claim with optional attachmentURI and / or a custom tokenURI on behalf of a user
     /// @notice SPEC:
     ///     1. verify and spend msg.sender's approval to create claims
     ///     2. create a claim with metadata on `from`'s behalf
@@ -176,15 +180,15 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
         return _createClaimWithMetadata(from, params, metadata);
     }
 
-    /// @notice the same logic as the createClaim function, but stores a link to an attachmentURI (for any attachment), and a tokenURI (custom metadata) - indexed to the claimID
+    /// @notice stores an attachmentURI, and / or a tokenURI indexed to the claimID, and creates a claim
     /// @return The newly created tokenId
     function _createClaimWithMetadata(address from, CreateClaimParams calldata params, ClaimMetadata calldata metadata)
         internal
         returns (uint256)
     {
-        _notLocked();
         uint256 claimId = _createClaim(from, params);
 
+        // TODO: check event order
         claimMetadata[claimId] = metadata;
         emit MetadataAdded(claimId, metadata.tokenURI, metadata.attachmentURI);
 
@@ -193,17 +197,16 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
 
     /// @notice "spends" an operator's create claim approval
     /// @notice SPEC:
-    /// A function can call this function to verify and "spend" `from`'s approval of `operator` to create a claim:
-    ///     S1. `operator` has > 0 approvalCount from `from` address -> otherwise: reverts
-    ///     S2. The creditor and debtor parameters are permissed by the `from` address
-    ///        Meaning:
+    /// A function can call this function to verify and "spend" `from`'s approval of `operator` to create a claim given the following:
+    ///     S1. `operator` has > 0 approvalCount from the `from` address -> otherwise: reverts
+    ///     S2. The creditor and debtor arguments are permissed by the `from` address, meaning:
     ///         - If the approvalType is `CreditorOnly` the `from` address must be the creditor -> otherwise: reverts
     ///         - If the approvalType is `DebtorOnly` the `from` address must be the debtor -> otherwise: reverts
-    ///        Note: If the approvalType is `Approved`, the `operator` may specify the `from` address as the creditor, the debtor, _or neither_
-    ///     S3. If the claimBinding parameter is `Bound`, then the isBindingAllowed permission must be set to true -> otherwise: reverts
-    ///        Note: _createClaim will always revert if the claimBinding parameter is `Bound` and the `from` address is not the debtor
+    ///        Note: If the approvalType is `Approved`, the `operator` may specify the `from` address as the creditor, the debtor, _or neither_ // TODO: will be removed with creditor/debtor restrictions
+    ///     S3. If the claimBinding argument is `Bound`, then the isBindingAllowed permission must be set to true -> otherwise: reverts
+    ///        Note: _createClaim will always revert if the claimBinding argument is `Bound` and the `from` address is not the debtor
     ///
-    /// Result: If the above are true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return
+    /// RES1: If the above are true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return -> otherwise: no-op
     function _spendCreateClaimApproval(
         address from,
         address operator,
@@ -238,7 +241,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     }
 
     /// @notice Creates a claim between two addresses for a certain amount and token
-    /// @notice the claim NFT is minted to the creditor - in other words: the wallet owed money holds the NFT.
+    /// @notice The claim NFT is minted to the creditor - in other words: the wallet owed money holds the NFT.
     ///         The holder of the NFT will receive the payment from the debtor - See `_payClaim()` for more details.
     /// @notice SPEC:
     ///         TODO
@@ -317,130 +320,20 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     }
 
     /**
-     * /// UPDATE BINDING ///
-     */
-
-    function updateBinding(uint256 claimId, ClaimBinding binding) external {
-        _updateBinding(msg.sender, claimId, binding);
-    }
-
-    function updateBindingFrom(address from, uint256 claimId, ClaimBinding binding) external {
-        _spendUpdateBindingApproval(from, msg.sender);
-
-        _updateBinding(from, claimId, binding);
-    }
-
-    /// @notice "spends" an operator's updateBinding approval
-    /// @notice SPEC:
-    /// A function can call this function to verify and "spend" `from`'s approval of `operator` to update a claim's binding given:
-    ///     S1. `operator` has > 0 approvalCount from `from` address -> otherwise: reverts
-    ///
-    /// Result: If the above is true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return
-    function _spendUpdateBindingApproval(address user, address operator) internal {
-        UpdateBindingApproval storage approval = approvals[user][operator].updateBinding;
-
-        if (approval.approvalCount == 0) revert NotApproved();
-        if (approval.approvalCount != type(uint64).max) approval.approvalCount--;
-
-        return;
-    }
-
-    function _updateBinding(address from, uint256 claimId, ClaimBinding binding) internal {
-        _notLocked();
-        Claim memory claim = getClaim(claimId);
-        address creditor = getCreditor(claimId);
-
-        // check if the claim is delegated
-        if (claim.delegator != address(0) && msg.sender != claim.delegator) {
-            revert ClaimDelegated(claimId, claim.delegator);
-        }
-
-        // make sure the sender is authorized
-        if (from != creditor && from != claim.debtor) {
-            revert NotCreditorOrDebtor(from);
-        }
-
-        // make sure the binding is valid
-        if (from == creditor && binding == ClaimBinding.Bound) {
-            revert CannotBindClaim();
-        }
-
-        // make sure the debtor isn't trying to unbind themselves
-        if (from == claim.debtor && claim.binding == ClaimBinding.Bound) {
-            revert ClaimBound(claimId);
-        }
-
-        claims[claimId].binding = binding;
-
-        emit BindingUpdated(claimId, from, binding);
-    }
-
-    /**
-     * /// CANCEL CLAIM ///
-     */
-
-    function cancelClaim(uint256 claimId, string calldata note) external {
-        _cancelClaim(msg.sender, claimId, note);
-    }
-
-    function cancelClaimFrom(address from, uint256 claimId, string calldata note) external {
-        _spendCancelClaimApproval(from, msg.sender);
-
-        _cancelClaim(from, claimId, note);
-    }
-
-    /// @notice "spends" an operator's cancelClaim approval
-    /// @notice SPEC:
-    /// A function can call this function to verify and "spend" `from`'s approval of `operator` to cancel a claim given:
-    ///     S1. `operator` has > 0 approvalCount from `from` address -> otherwise: reverts
-    ///
-    /// Result: If the above is true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return
-    function _spendCancelClaimApproval(address user, address operator) internal {
-        CancelClaimApproval storage approval = approvals[user][operator].cancelClaim;
-
-        if (approval.approvalCount == 0) revert NotApproved();
-        if (approval.approvalCount != type(uint64).max) approval.approvalCount--;
-
-        return;
-    }
-
-    function _cancelClaim(address from, uint256 claimId, string calldata note) internal {
-        _notLocked();
-        // load the claim from storage
-        Claim memory claim = getClaim(claimId);
-
-        if (claim.binding == ClaimBinding.Bound && claim.debtor == from) {
-            revert ClaimBound(claimId);
-        }
-
-        if (claim.delegator != address(0) && msg.sender != claim.delegator) {
-            revert ClaimDelegated(claimId, claim.delegator);
-        }
-
-        // make sure the claim can be rejected (not completed, not rejected, not rescinded)
-        if (claim.status != Status.Pending) {
-            revert ClaimNotPending(claimId);
-        }
-
-        if (from == claim.debtor) {
-            claims[claimId].status = Status.Rejected;
-            emit ClaimRejected(claimId, from, note);
-        } else if (from == getCreditor(claimId)) {
-            claims[claimId].status = Status.Rescinded;
-            emit ClaimRescinded(claimId, from, note);
-        } else {
-            revert NotCreditorOrDebtor(from);
-        }
-    }
-
-    /**
      * /// PAY CLAIM ///
      */
 
+    /// @notice allows any user to pay a claim
+    /// @notice SPEC:
+    ///     1. call payClaim on behalf of the msg.sender
     function payClaim(uint256 claimId, uint256 amount) external payable {
         _payClaim(msg.sender, claimId, amount);
     }
 
+    /// @notice allows an operator to pay a claim on behalf of a user
+    /// @notice SPEC:
+    ///     1. verify and spend msg.sender's approval to pay claims for `from`
+    ///     2. call payClaim on `from`'s behalf
     function payClaimFrom(address from, uint256 claimId, uint256 amount) external payable {
         _spendPayClaimApproval(from, msg.sender, claimId, amount);
 
@@ -449,19 +342,19 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
 
     /// @notice _spendPayClaimApproval() "spends" an operator's pay claim approval
     /// @notice SPEC:
-    /// A function can call this function to verify and "spend" `from`'s approval of `operator` to pay a claim under the following circumstances:
-    ///     S1. The `approvalType` is not `Unapproved` -> otherwise: reverts
-    ///     S2. The contract LockStatus is not `Locked` -> otherwise: reverts
+    /// A function can call this internal function to verify and "spend" `from`'s approval of `operator` to pay a claim under the following circumstances:
+    ///     SA1. The `approvalType` is not `Unapproved` -> otherwise: reverts
+    ///     SA2. The contract LockStatus is not `Locked` -> otherwise: reverts
     ///
     ///     When the `approvalType` is `IsApprovedForSpecific`, then `operator` must be approved to pay that claim meaning:
-    ///         AS1: `from` has approved payment for the `claimId` parameter -> otherwise: reverts
-    ///         AS2: `from` has approved payment for at least the `amount` parameter -> otherwise: reverts
+    ///         AS1: `from` has approved payment for the `claimId` argument -> otherwise: reverts
+    ///         AS2: `from` has approved payment for at least the `amount` argument -> otherwise: reverts
     ///         AS3: `from`'s approval has not expired, meaning:
     ///             AS3.1: If the operator has an "operator" expirary, then the operator expirary must be greater than the current block timestamp -> otherwise: reverts
     ///             AS3.2: If the operator does not have an operator expirary and instead has a claim-specific expirary,
     ///                 then the claim-specific expirary must be greater than the current block timestamp -> otherwise: reverts
     ///
-    ///         AS.RES1: If the `amount` parameter == the pre-approved amount on the permission, spend the permission -> otherwise: decrement the approved amount by `amount`
+    ///         AS.RES1: If the `amount` argument == the pre-approved amount on the permission, spend the permission -> otherwise: decrement the approved amount by `amount`
     ///
     ///     If the `approvalType` is `IsApprovedForAll`, then `operator` must be approved to pay, meaning:
     ///         AA1: `from`'s approval of `operator` has not expired -> otherwise: reverts
@@ -606,10 +499,145 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     }
 
     /**
+     * /// UPDATE BINDING ///
+     */
+
+    /// @notice allows a creditor to unbind a debtor, or a debtor to bind themselves to a claim
+    /// @notice SPEC:
+    ///     1. call updateBinding on behalf of the msg.sender
+    function updateBinding(uint256 claimId, ClaimBinding binding) external {
+        _updateBinding(msg.sender, claimId, binding);
+    }
+
+    /// @notice allows an operator to update the binding of a claim for a creditor or debtor
+    /// @notice SPEC:
+    ///     1. verify and spend msg.sender's approval to update binding
+    ///     2. update the claim's binding on `from`'s behalf
+    function updateBindingFrom(address from, uint256 claimId, ClaimBinding binding) external {
+        _spendUpdateBindingApproval(from, msg.sender);
+
+        _updateBinding(from, claimId, binding);
+    }
+
+    /// @notice "spends" an operator's updateBinding approval
+    /// @notice SPEC:
+    /// A function can call this function to verify and "spend" `from`'s approval of `operator` to update a claim's binding given:
+    ///     S1. `operator` has > 0 approvalCount from `from` address -> otherwise: reverts
+    ///
+    /// RES1: If the above is true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return
+    function _spendUpdateBindingApproval(address user, address operator) internal {
+        UpdateBindingApproval storage approval = approvals[user][operator].updateBinding;
+
+        if (approval.approvalCount == 0) revert NotApproved();
+        if (approval.approvalCount != type(uint64).max) approval.approvalCount--;
+
+        return;
+    }
+
+    /// @notice allows a creditor to unbind a debtor, a debtor to bind themselves to a claim, or for either to move the status to BindingPending.
+    /// @notice SPEC: TODO:
+    function _updateBinding(address from, uint256 claimId, ClaimBinding binding) internal {
+        _notLocked();
+        Claim memory claim = getClaim(claimId);
+        address creditor = getCreditor(claimId);
+
+        // check if the claim is delegated
+        if (claim.delegator != address(0) && msg.sender != claim.delegator) {
+            revert ClaimDelegated(claimId, claim.delegator);
+        }
+
+        // make sure the sender is authorized
+        if (from != creditor && from != claim.debtor) {
+            revert NotCreditorOrDebtor(from);
+        }
+
+        // make sure the binding is valid
+        if (from == creditor && binding == ClaimBinding.Bound) {
+            revert CannotBindClaim();
+        }
+
+        // make sure the debtor isn't trying to unbind themselves
+        if (from == claim.debtor && claim.binding == ClaimBinding.Bound) {
+            revert ClaimBound(claimId);
+        }
+
+        claims[claimId].binding = binding;
+
+        emit BindingUpdated(claimId, from, binding);
+    }
+
+    /**
+     * /// CANCEL CLAIM ///
+     */
+
+    /// @notice allows a creditor to rescind a claim or a debtor to reject a claim
+    /// @notice SPEC:
+    ///     1. call cancelClaim on behalf of the msg.sender
+    function cancelClaim(uint256 claimId, string calldata note) external {
+        _cancelClaim(msg.sender, claimId, note);
+    }
+
+    /// @notice allows an operator to cancel a claim on behalf of a creditor or debtor
+    /// @notice SPEC:
+    ///     1. verify and spend msg.sender's approval to cancel claim
+    ///     2. cancel the claim on `from`'s behalf
+    function cancelClaimFrom(address from, uint256 claimId, string calldata note) external {
+        _spendCancelClaimApproval(from, msg.sender);
+
+        _cancelClaim(from, claimId, note);
+    }
+
+    /// @notice "spends" an operator's cancelClaim approval
+    /// @notice SPEC:
+    /// A function can call this function to verify and "spend" `from`'s approval of `operator` to cancel a claim given:
+    ///     S1. `operator` has > 0 approvalCount from `from` address -> otherwise: reverts
+    ///
+    /// RES1: If the above is true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return
+    function _spendCancelClaimApproval(address user, address operator) internal {
+        CancelClaimApproval storage approval = approvals[user][operator].cancelClaim;
+
+        if (approval.approvalCount == 0) revert NotApproved();
+        if (approval.approvalCount != type(uint64).max) approval.approvalCount--;
+
+        return;
+    }
+
+    /// @notice allows a creditor to rescind a claim or a debtor to reject a claim
+    /// @notice SPEC: TODO:
+    function _cancelClaim(address from, uint256 claimId, string calldata note) internal {
+        _notLocked();
+        // load the claim from storage
+        Claim memory claim = getClaim(claimId);
+
+        if (claim.binding == ClaimBinding.Bound && claim.debtor == from) {
+            revert ClaimBound(claimId);
+        }
+
+        if (claim.delegator != address(0) && msg.sender != claim.delegator) {
+            revert ClaimDelegated(claimId, claim.delegator);
+        }
+
+        // make sure the claim can be rejected (not completed, not rejected, not rescinded)
+        if (claim.status != Status.Pending) {
+            revert ClaimNotPending(claimId);
+        }
+
+        if (from == claim.debtor) {
+            claims[claimId].status = Status.Rejected;
+            emit ClaimRejected(claimId, from, note);
+        } else if (from == getCreditor(claimId)) {
+            claims[claimId].status = Status.Rescinded;
+            emit ClaimRescinded(claimId, from, note);
+        } else {
+            revert NotCreditorOrDebtor(from);
+        }
+    }
+
+    /**
      * /// BURN CLAIM ///
      */
 
-    //TODO: should we require the token is paid here?
+    // TODO: should we require the token is paid here?
     function burn(uint256 tokenId) external {
         if (msg.sender != ownerOf(tokenId)) {
             revert NotOwner();
@@ -623,7 +651,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice permits an operator to create claims on user's behalf
-    /// @dev see BullaClaimPermitLib.permitCreateClaim for spec // TODO: update name
+    /// @dev see BullaClaimPermitLib.permitCreateClaim for spec
     function permitCreateClaim(
         address user,
         address operator,
@@ -646,7 +674,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     }
 
     /// @notice permits an operator to pay a claim on user's behalf
-    /// @dev see BullaClaimPermitLib.permitPayClaim for spec // TODO: update name
+    /// @dev see BullaClaimPermitLib.permitPayClaim for spec
     function permitPayClaim(
         address user,
         address operator,
@@ -669,7 +697,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     }
 
     /// @notice permits an operator to update claim bindings on user's behalf
-    /// @dev see BullaClaimPermitLib.permitUpdateBinding for spec // TODO: update name
+    /// @dev see BullaClaimPermitLib.permitUpdateBinding for spec
     function permitUpdateBinding(address user, address operator, uint64 approvalCount, Signature calldata signature)
         public
     {
@@ -679,7 +707,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     }
 
     /// @notice permits an operator to cancel claims on user's behalf
-    /// @dev see BullaClaimPermitLib.sol for spec // TODO: update name
+    /// @dev see BullaClaimPermitLib.sol for spec
     function permitCancelClaim(address user, address operator, uint64 approvalCount, Signature calldata signature)
         public
     {
@@ -689,41 +717,8 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     }
 
     /*///////////////////////////////////////////////////////////////
-                            OWNER FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    function setFeeCalculator(address _feeCalculator) external onlyOwner {
-        uint256 nextFeeCalculator;
-        unchecked {
-            nextFeeCalculator = ++currentFeeCalculatorId;
-        }
-
-        feeCalculators[nextFeeCalculator] = IBullaFeeCalculator(_feeCalculator);
-    }
-
-    function setExtensionRegistry(address _extensionRegistry) external onlyOwner {
-        extensionRegistry = BullaExtensionRegistry(_extensionRegistry);
-    }
-
-    function setFeeCollectionAddress(address newFeeCollector) external onlyOwner {
-        feeCollectionAddress = newFeeCollector;
-    }
-
-    function setLockState(LockState _lockState) external onlyOwner {
-        lockState = _lockState;
-    }
-
-    /*///////////////////////////////////////////////////////////////
                         VIEW / UTILITY FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
-    function DOMAIN_SEPARATOR() public view returns (bytes32) {
-        return _domainSeparatorV4();
-    }
-
-    function feeCalculator() public view returns (address) {
-        return address(feeCalculators[currentFeeCalculatorId]);
-    }
 
     function getClaim(uint256 claimId) public view returns (Claim memory claim) {
         if (claimId > currentClaimId) {
@@ -758,5 +753,38 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
 
     function getCreditor(uint256 claimId) public view returns (address) {
         return _ownerOf[claimId];
+    }
+
+    function DOMAIN_SEPARATOR() public view returns (bytes32) {
+        return _domainSeparatorV4();
+    }
+
+    function feeCalculator() public view returns (address) {
+        return address(feeCalculators[currentFeeCalculatorId]);
+    }
+
+    /*///////////////////////////////////////////////////////////////
+                            OWNER FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    function setFeeCalculator(address _feeCalculator) external onlyOwner {
+        uint256 nextFeeCalculator;
+        unchecked {
+            nextFeeCalculator = ++currentFeeCalculatorId;
+        }
+
+        feeCalculators[nextFeeCalculator] = IBullaFeeCalculator(_feeCalculator);
+    }
+
+    function setExtensionRegistry(address _extensionRegistry) external onlyOwner {
+        extensionRegistry = BullaExtensionRegistry(_extensionRegistry);
+    }
+
+    function setFeeCollectionAddress(address newFeeCollector) external onlyOwner {
+        feeCollectionAddress = newFeeCollector;
+    }
+
+    function setLockState(LockState _lockState) external onlyOwner {
+        lockState = _lockState;
     }
 }

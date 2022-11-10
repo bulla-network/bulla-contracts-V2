@@ -11,6 +11,17 @@ import {BullaClaim, CreateClaimApprovalType} from "contracts/BullaClaim.sol";
 import {PenalizedClaim} from "contracts/mocks/PenalizedClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
 
+/// @notice SPEC:
+/// A function can call this function to verify and "spend" `from`'s approval of `operator` to create a claim given the following:
+///     S1. `operator` has > 0 approvalCount from the `from` address -> otherwise: reverts
+///     S2. The creditor and debtor arguments are permissed by the `from` address, meaning:
+///         - If the approvalType is `CreditorOnly` the `from` address must be the creditor -> otherwise: reverts
+///         - If the approvalType is `DebtorOnly` the `from` address must be the debtor -> otherwise: reverts
+///        Note: If the approvalType is `Approved`, the `operator` may specify the `from` address as the creditor, the debtor, _or neither_ // TODO: will be removed with creditor/debtor restrictions
+///     S3. If the claimBinding argument is `Bound`, then the isBindingAllowed permission must be set to true -> otherwise: reverts
+///        Note: _createClaim will always revert if the claimBinding argument is `Bound` and the `from` address is not the debtor
+///
+/// RES1: If the above are true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return -> otherwise: no-op
 contract CreateClaimFromTest is Test {
     WETH public weth;
     BullaClaim public bullaClaim;
@@ -126,6 +137,7 @@ contract CreateClaimFromTest is Test {
         _newClaimFrom(user, creditor, debtor);
     }
 
+    /// @notice SPEC.S1
     function testCreateClaim() public {
         // have the creditor permit bob to act as a operator
         _permitCreateClaim({_userPK: userPK, _operator: operator, _approvalCount: 1});
@@ -198,7 +210,7 @@ contract CreateClaimFromTest is Test {
         vm.stopPrank();
     }
 
-    /// @notice SPEC.result
+    /// @notice SPEC.RES1
     function testuint64MaxApprovalDoesNotDecrement() public {
         _permitCreateClaim({_userPK: userPK, _operator: operator, _approvalCount: type(uint64).max});
 
@@ -240,7 +252,7 @@ contract CreateClaimFromTest is Test {
         _newClaimFrom({_from: user, _creditor: user, _debtor: debtor});
     }
 
-    // TODO: remove once BullaClaim only permits creating claims when from == creditor || from == debtor
+    /// @notice SPEC.S2 // TODO: remove once BullaClaim only permits creating claims when from == creditor || from == debtor
     function test_TEMP_canCreateForAnyone() public {
         address rando1 = address(0x1234412577737373733);
         address rando2 = address(0x12faabef8281992);

@@ -10,7 +10,7 @@ import "test/foundry/BullaClaim/EIP712/PermitPayClaim/Common.t.sol";
 ///     AA3: `approvalType` == PayClaimApprovalType.IsApprovedForAll
 ///     AA4: `approvalDeadline` is either 0 (indicating unexpiring approval) or block.timestamp < `approvalDeadline` < type(uint40).max -> otherwise reverts
 ///     AA5: `paymentApprovals.length == 0` -> otherwise: reverts
-///   RESULT: The following call parameters are stored on on `user`'s approval of `operator`
+///   RESULT: The following call arguments are stored on on `user`'s approval of `operator`
 ///     AA.RES1: The approvalType = PayClaimApprovalType.IsApprovedForAll
 ///     AA.RES2: The nonce is incremented by 1
 ///     AA.RES3: If the previous approvalType == PayClaimApprovalType.IsApprovedForSpecific, delete the claimApprovals array -> otherwise: continue

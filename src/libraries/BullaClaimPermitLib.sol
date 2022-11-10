@@ -325,7 +325,7 @@ library BullaClaimPermitLib {
 
     /// @notice allows a user - via a signature - to appove an operator to call createClaim on their behalf
     /// @notice SPEC:
-    /// Anyone can call this function with a valid signature to modify the `user`'s CreateClaimApproval of `operator` to the provided parameters
+    /// Anyone can call this function with a valid signature to modify the `user`'s CreateClaimApproval of `operator` to the provided arguments
     /// In all cases:
     ///     SIG1: The recovered signer from the EIP712 signature == `user`
     ///     SIG2: `user` is not a 0 address
@@ -335,7 +335,7 @@ library BullaClaimPermitLib {
     /// This function can _revoke_ an operator given:
     ///     R1: `approvalCount` == 0
     ///
-    /// A valid approval signature is defined as: a signed EIP712 hash digest of the following parameters:
+    /// A valid approval signature is defined as: a signed EIP712 hash digest of the following arguments:
     ///     S1: The hash of the EIP712 typedef string
     ///     S2: The `user` address
     ///     S3: The `operator` address
@@ -348,7 +348,7 @@ library BullaClaimPermitLib {
     /// Result: If the above conditions are met:
     ///     RES1: The nonce is incremented
     ///     RES2: The `user`'s approval of `operator` is updated
-    ///     RES3: A CreateClaimApproved event is emitted with the approval parameters
+    ///     RES3: A CreateClaimApproved event is emitted with the approval arguments
     function permitCreateClaim(
         Approvals storage approvals,
         BullaExtensionRegistry extensionRegistry,
@@ -396,7 +396,7 @@ library BullaClaimPermitLib {
 
     /// @notice permitPayClaim() allows a user, via a signature, to appove an operator to call payClaim on their behalf
     /// @notice SPEC:
-    /// Anyone can call this function with a valid signature to set `user`'s PayClaimApproval of `operator` to the provided parameters.
+    /// Anyone can call this function with a valid signature to set `user`'s PayClaimApproval of `operator` to the provided arguments.
     /// A user may signal 3 different approval types through this function: "Unapproved", "Approved for specific claims only", and "Approved for all claims".
     /// In all cases:
     ///     SIG1: The recovered signer from the EIP712 signature == `user` -> otherwise: reverts
@@ -409,7 +409,7 @@ library BullaClaimPermitLib {
     ///         AS3.1: `ClaimPaymentApproval.claimId` is < type(uint88).max -> otherwise: reverts
     ///         AS3.2: `ClaimPaymentApproval.approvalDeadline` is either 0 (indicating unexpiring approval) or block.timestamp < `approvalDeadline` < type(uint40).max -> otherwise reverts
     ///         AS3.3: `ClaimPaymentApproval.approvedAmount` < type(uint128).max -> otherwise: reverts
-    ///   RESULT: The following call parameters are stored on on `user`'s approval of `operator`
+    ///   RESULT: The following call arguments are stored on on `user`'s approval of `operator`
     ///     AS.RES1: The approvalType = PayClaimApprovalType.IsApprovedForSpecific
     ///     AS.RES2: The approvalDeadline is stored if not 0
     ///     AS.RES3: The nonce is incremented by 1
@@ -420,7 +420,7 @@ library BullaClaimPermitLib {
     ///     AA1: `approvalType` == PayClaimApprovalType.IsApprovedForAll
     ///     AA2: `approvalDeadline` is either 0 (indicating unexpiring approval) or block.timestamp < `approvalDeadline` < type(uint40).max -> otherwise reverts
     ///     AA3: `paymentApprovals.length == 0` -> otherwise: reverts
-    ///   RESULT: The following call parameters are stored on on `user`'s approval of `operator`
+    ///   RESULT: The following call arguments are stored on on `user`'s approval of `operator`
     ///     AA.RES1: The approvalType = PayClaimApprovalType.IsApprovedForAll
     ///     AA.RES2: The nonce is incremented by 1
     ///     AA.RES3: If the previous approvalType == PayClaimApprovalType.IsApprovedForSpecific, delete the claimApprovals array -> otherwise: continue
@@ -437,7 +437,7 @@ library BullaClaimPermitLib {
     ///     AR.RES4: The claimApprovals array is deleted
     ///     AR.RES5: A PayClaimApproval event is emitted
 
-    /// A valid approval signature is defined as: a signed EIP712 hash digest of the following parameters:
+    /// A valid approval signature is defined as: a signed EIP712 hash digest of the following arguments:
     ///     S1: The hash of the EIP712 typedef string
     ///     S2: The `user` address
     ///     S3: The `operator` address

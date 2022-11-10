@@ -9,6 +9,13 @@ import {BullaClaim} from "contracts/BullaClaim.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {Deployer} from "script/Deployment.s.sol";
 
+/// @notice covers test cases for cancelClaim() and cancelClaimFrom()
+/// @notice SPEC: canceClaim() TODO
+/// @notice SPEC: _spendCancelClaimApproval()
+///     A function can call this internal function to verify and "spend" `from`'s approval of `operator` to cancel a claim given:
+///         S1. `operator` has > 0 approvalCount from `from` address -> otherwise: reverts
+///
+///     RES1: If the above is true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return
 contract TestCancelClaim is Test {
     WETH public weth;
     BullaClaim public bullaClaim;
@@ -64,6 +71,7 @@ contract TestCancelClaim is Test {
         bullaClaim.setLockState(lockState);
     }
 
+    /// @notice SPEC._spendCancelClaimApproval.S1
     function testRejectsIfDebtor() public {
         vm.prank(creditor);
         (uint256 claimId, Claim memory claim) = _newClaim(ClaimBinding.Unbound);
@@ -98,6 +106,7 @@ contract TestCancelClaim is Test {
         assertTrue(claim.status == Status.Rejected);
     }
 
+    /// @notice SPEC._spendCancelClaimApproval.S1
     function testRescindsIfCreditor() public {
         vm.prank(creditor);
         (uint256 claimId, Claim memory claim) = _newClaim(ClaimBinding.Unbound);
@@ -494,6 +503,7 @@ contract TestCancelClaim is Test {
         vm.stopPrank();
     }
 
+    /// @notice SPEC._spendCancelClaimApproval.RES1
     function testCancelClaimFromDecrements(uint64 approvalCount) public {
         string memory note = "Nope";
         vm.assume(approvalCount > 0 && approvalCount < type(uint64).max);
@@ -531,6 +541,7 @@ contract TestCancelClaim is Test {
         assertEq(approval.approvalCount, approvalCount - 1);
     }
 
+    /// @notice SPEC._spendCancelClaimApproval.S1
     function testCancelClaimFromRevertsIfUnapproved() public {
         // make a new claim
         vm.prank(creditor);
@@ -546,6 +557,7 @@ contract TestCancelClaim is Test {
         bullaClaim.cancelClaimFrom(debtor, claimId, "Nope");
     }
 
+    /// @notice SPEC._spendCancelClaimApproval.RES1
     function testCancelClaimFromDoesNotDecrementIfApprovalMaxedOut() public {
         // make a new claim
         vm.prank(creditor);

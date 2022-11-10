@@ -10,19 +10,19 @@ import {BullaClaim} from "contracts/BullaClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
 
 /// @notice SPEC:
-/// A function can call this function to verify and "spend" `from`'s approval of `operator` to pay a claim under the following circumstances:
-///     S1. The `approvalType` is not `Unapproved` -> otherwise: reverts
-///     S2. The contract LockStatus is not `Locked` -> otherwise: reverts
+/// A function can call this internal function to verify and "spend" `from`'s approval of `operator` to pay a claim under the following circumstances:
+///     SA1. The `approvalType` is not `Unapproved` -> otherwise: reverts
+///     SA2. The contract LockStatus is not `Locked` -> otherwise: reverts
 ///
 ///     When the `approvalType` is `IsApprovedForSpecific`, then `operator` must be approved to pay that claim meaning:
-///         AS1: `from` has approved payment for the `claimId` parameter -> otherwise: reverts
-///         AS2: `from` has approved payment for at least the `amount` parameter -> otherwise: reverts
+///         AS1: `from` has approved payment for the `claimId` agrument -> otherwise: reverts
+///         AS2: `from` has approved payment for at least the `amount` agrument -> otherwise: reverts
 ///         AS3: `from`'s approval has not expired, meaning:
 ///             AS3.1: If the operator has an "operator" expirary, then the operator expirary must be greater than the current block timestamp -> otherwise: reverts
 ///             AS3.2: If the operator does not have an operator expirary and instead has a claim-specific expirary,
 ///                 then the claim-specific expirary must be greater than the current block timestamp -> otherwise: reverts
 ///
-///         AS.RES1: If the `amount` parameter == the pre-approved amount on the permission, spend the permission -> otherwise: decrement the approved amount by `amount`
+///         AS.RES1: If the `amount` agrument == the pre-approved amount on the permission, spend the permission -> otherwise: decrement the approved amount by `amount`
 ///
 ///     If the `approvalType` is `IsApprovedForAll`, then `operator` must be approved to pay, meaning:
 ///         AA1: `from`'s approval of `operator` has not expired -> otherwise: reverts
@@ -102,7 +102,10 @@ contract TestPayClaimFrom is Test {
         _permitPayClaim(_userPK, _operator, PayClaimApprovalType.IsApprovedForAll, _approvalDeadline, approvals);
     }
 
+    //
     ///////// PAY CLAIM FROM TESTS /////////
+    //
+
     //// APPROVED FOR SPECIFIC ////
 
     /// @notice SPEC.AS.RES1
@@ -188,7 +191,7 @@ contract TestPayClaimFrom is Test {
         assertFalse(approvalFound, "AS.RES1: claim approval not cleared");
     }
 
-    /// @notice SPEC.S1
+    /// @notice SPEC.SA1
     function testCannotPayClaimFromIfUnapproved() public {
         uint256 claimId = _newClaim({_creditor: user2, _debtor: user});
 
@@ -310,6 +313,7 @@ contract TestPayClaimFrom is Test {
     }
 
     //// APPROVED FOR ALL ////
+
     /// @notice happy path : SPEC.AA.RES1
     function testIsApprovedForAll() public {
         _permitPayClaim({_userPK: userPK, _operator: operator, _approvalDeadline: 0});
@@ -338,7 +342,7 @@ contract TestPayClaimFrom is Test {
     }
 
     //// CONTRACT LOCK ////
-    /// @notice SPEC.S2
+    /// @notice SPEC.SA2
     function testCanPayClaimFromWhenPartiallyLocked() public {
         uint256 claimId = _newClaim({_creditor: user2, _debtor: user});
         _permitPayClaim({_userPK: userPK, _operator: operator, _approvalDeadline: 0});
@@ -352,7 +356,7 @@ contract TestPayClaimFrom is Test {
         bullaClaim.payClaimFrom(user, claimId, 1 ether);
     }
 
-    /// @notice SPEC.S2
+    /// @notice SPEC.SA2
     function testCannotPayClaimFromWhenLocked() public {
         uint256 claimId = _newClaim({_creditor: user2, _debtor: user});
         _permitPayClaim({_userPK: userPK, _operator: operator, _approvalDeadline: 0});
