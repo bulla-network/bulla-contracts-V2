@@ -10,7 +10,7 @@ import {ECDSA} from "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.s
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {SafeCastLib} from "solmate/utils/SafeCastLib.sol";
 import {BoringBatchable} from "contracts/libraries/BoringBatchable.sol";
-import {BullaClaimEIP712} from "contracts/libraries/BullaClaimEIP712.sol";
+import {BullaClaimPermitLib} from "contracts/libraries/BullaClaimPermitLib.sol";
 import {Owned} from "solmate/auth/Owned.sol";
 import {ERC721} from "solmate/tokens/ERC721.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
@@ -623,7 +623,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice permits an operator to create claims on user's behalf
-    /// @dev see BullaClaimEIP712.permitCreateClaim for spec // TODO: update name
+    /// @dev see BullaClaimPermitLib.permitCreateClaim for spec // TODO: update name
     function permitCreateClaim(
         address user,
         address operator,
@@ -632,7 +632,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
         bool isBindingAllowed,
         Signature calldata signature
     ) public {
-        BullaClaimEIP712.permitCreateClaim(
+        BullaClaimPermitLib.permitCreateClaim(
             approvals[user][operator],
             extensionRegistry,
             _domainSeparatorV4(),
@@ -646,7 +646,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     }
 
     /// @notice permits an operator to pay a claim on user's behalf
-    /// @dev see BullaClaimEIP712.permitPayClaim for spec // TODO: update name
+    /// @dev see BullaClaimPermitLib.permitPayClaim for spec // TODO: update name
     function permitPayClaim(
         address user,
         address operator,
@@ -655,7 +655,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
         ClaimPaymentApprovalParam[] calldata paymentApprovals,
         Signature calldata signature
     ) public {
-        BullaClaimEIP712.permitPayClaim(
+        BullaClaimPermitLib.permitPayClaim(
             approvals[user][operator],
             extensionRegistry,
             _domainSeparatorV4(),
@@ -669,21 +669,21 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     }
 
     /// @notice permits an operator to update claim bindings on user's behalf
-    /// @dev see BullaClaimEIP712.permitUpdateBinding for spec // TODO: update name
+    /// @dev see BullaClaimPermitLib.permitUpdateBinding for spec // TODO: update name
     function permitUpdateBinding(address user, address operator, uint64 approvalCount, Signature calldata signature)
         public
     {
-        BullaClaimEIP712.permitUpdateBinding(
+        BullaClaimPermitLib.permitUpdateBinding(
             approvals[user][operator], extensionRegistry, _domainSeparatorV4(), user, operator, approvalCount, signature
         );
     }
 
     /// @notice permits an operator to cancel claims on user's behalf
-    /// @dev see BullaClaimEIP712.sol for spec // TODO: update name
+    /// @dev see BullaClaimPermitLib.sol for spec // TODO: update name
     function permitCancelClaim(address user, address operator, uint64 approvalCount, Signature calldata signature)
         public
     {
-        BullaClaimEIP712.permitCancelClaim(
+        BullaClaimPermitLib.permitCancelClaim(
             approvals[user][operator], extensionRegistry, _domainSeparatorV4(), user, operator, approvalCount, signature
         );
     }

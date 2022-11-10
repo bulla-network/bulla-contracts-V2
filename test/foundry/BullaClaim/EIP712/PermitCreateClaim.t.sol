@@ -32,7 +32,7 @@ import {Test} from "forge-std/Test.sol";
 ///     S1: The hash of the EIP712 typedef string
 ///     S2: The `user` address
 ///     S3: The `operator` address
-///     S4: A verbose approval message: see `BullaClaimEIP712.getPermitCreateClaimMessage()`
+///     S4: A verbose approval message: see `BullaClaimPermitLib.getPermitCreateClaimMessage()`
 ///     S5: The `approvalType` enum as a uint8
 ///     S6: The `approvalCount`
 ///     S7: The `isBindingAllowed` boolean flag

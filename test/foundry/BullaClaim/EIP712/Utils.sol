@@ -29,7 +29,7 @@ contract EIP712Helper {
         bullaClaim = BullaClaim(_bullaClaim);
 
         DOMAIN_SEPARATOR = bullaClaim.DOMAIN_SEPARATOR();
-        CREATE_CLAIM_TYPEHASH = BullaClaimEIP712.CREATE_CLAIM_TYPEHASH;
+        CREATE_CLAIM_TYPEHASH = BullaClaimPermitLib.CREATE_CLAIM_TYPEHASH;
     }
 
     function _hashPermitCreateClaim(
@@ -48,7 +48,7 @@ contract EIP712Helper {
                 operator,
                 keccak256(
                     bytes(
-                        BullaClaimEIP712.getPermitCreateClaimMessage(
+                        BullaClaimPermitLib.getPermitCreateClaimMessage(
                             bullaClaim.extensionRegistry(), operator, approvalType, approvalCount, isBindingAllowed
                         )
                     )
@@ -91,7 +91,7 @@ contract EIP712Helper {
             abi.encodePacked(
                 "\x19\x01",
                 DOMAIN_SEPARATOR,
-                BullaClaimEIP712.getPermitPayClaimDigest(
+                BullaClaimPermitLib.getPermitPayClaimDigest(
                     bullaClaim.extensionRegistry(),
                     user,
                     operator,
@@ -114,7 +114,7 @@ contract EIP712Helper {
             abi.encodePacked(
                 "\x19\x01",
                 DOMAIN_SEPARATOR,
-                BullaClaimEIP712.getPermitUpdateBindingDigest(
+                BullaClaimPermitLib.getPermitUpdateBindingDigest(
                     bullaClaim.extensionRegistry(), user, operator, approvalCount, approval.nonce
                 )
             )
@@ -131,7 +131,7 @@ contract EIP712Helper {
             abi.encodePacked(
                 "\x19\x01",
                 DOMAIN_SEPARATOR,
-                BullaClaimEIP712.getPermitCancelClaimDigest(
+                BullaClaimPermitLib.getPermitCancelClaimDigest(
                     bullaClaim.extensionRegistry(), user, operator, approvalCount, approval.nonce
                 )
             )

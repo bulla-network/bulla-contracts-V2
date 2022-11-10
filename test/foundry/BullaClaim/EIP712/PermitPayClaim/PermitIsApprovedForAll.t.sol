@@ -153,7 +153,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](0);
 
         bytes32 digest = keccak256(
-            bytes(BullaClaimEIP712.getPermitPayClaimMessage(bullaClaim.extensionRegistry(), bob, approvalType, 0))
+            bytes(BullaClaimPermitLib.getPermitPayClaimMessage(bullaClaim.extensionRegistry(), bob, approvalType, 0))
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePK, digest);
         Signature memory signature = Signature({v: v, r: r, s: s});

@@ -7,7 +7,7 @@ import "contracts/BullaClaim.sol";
 import {BullaExtensionRegistry} from "contracts/BullaExtensionRegistry.sol";
 import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
-library BullaClaimEIP712 {
+library BullaClaimPermitLib {
     using Strings for uint256;
     using Strings for address;
 
@@ -214,7 +214,7 @@ library BullaClaimEIP712 {
     ) public view returns (bytes32) {
         return keccak256(
             abi.encode(
-                BullaClaimEIP712.CREATE_CLAIM_TYPEHASH, // spec.S1
+                BullaClaimPermitLib.CREATE_CLAIM_TYPEHASH, // spec.S1
                 user, // spec.S2
                 operator, // spec.S3
                 // spec.S4
@@ -248,7 +248,7 @@ library BullaClaimEIP712 {
         for (uint256 i; i < paymentApprovals.length; ++i) {
             approvalHashes[i] = keccak256(
                 abi.encode(
-                    BullaClaimEIP712.CLAIM_PAYMENT_APPROVAL_TYPEHASH,
+                    BullaClaimPermitLib.CLAIM_PAYMENT_APPROVAL_TYPEHASH,
                     paymentApprovals[i].claimId,
                     paymentApprovals[i].approvalDeadline,
                     paymentApprovals[i].approvedAmount
@@ -290,7 +290,7 @@ library BullaClaimEIP712 {
     ) public view returns (bytes32) {
         return keccak256(
             abi.encode(
-                BullaClaimEIP712.CANCEL_CLAIM_TYPEHASH,
+                BullaClaimPermitLib.CANCEL_CLAIM_TYPEHASH,
                 user,
                 operator,
                 keccak256(bytes(getPermitCancelClaimMessage(extensionRegistry, operator, approvalCount))),
@@ -309,7 +309,7 @@ library BullaClaimEIP712 {
     ) public view returns (bytes32) {
         return keccak256(
             abi.encode(
-                BullaClaimEIP712.UPDATE_BINDING_TYPEHASH,
+                BullaClaimPermitLib.UPDATE_BINDING_TYPEHASH,
                 user,
                 operator,
                 keccak256(bytes(getPermitUpdateBindingMessage(extensionRegistry, operator, approvalCount))),
@@ -339,7 +339,7 @@ library BullaClaimEIP712 {
     ///     S1: The hash of the EIP712 typedef string
     ///     S2: The `user` address
     ///     S3: The `operator` address
-    ///     S4: A verbose approval message: see `BullaClaimEIP712.getPermitCreateClaimMessage()`
+    ///     S4: A verbose approval message: see `BullaClaimPermitLib.getPermitCreateClaimMessage()`
     ///     S5: The `approvalType` enum as a uint8
     ///     S6: The `approvalCount`
     ///     S7: The `isBindingAllowed` boolean flag
@@ -441,7 +441,7 @@ library BullaClaimEIP712 {
     ///     S1: The hash of the EIP712 typedef string
     ///     S2: The `user` address
     ///     S3: The `operator` address
-    ///     S4: A verbose approval message: see `BullaClaimEIP712.getPermitPayClaimMessage()`
+    ///     S4: A verbose approval message: see `BullaClaimPermitLib.getPermitPayClaimMessage()`
     ///     S5: The `approvalType` enum as a uint8
     ///     S6: The `approvalDeadline` as uint256
     ///     S7: The keccak256 hash of the abi.encodePacked array of the keccak256 hashStruct of ClaimPaymentApproval typehash and contents

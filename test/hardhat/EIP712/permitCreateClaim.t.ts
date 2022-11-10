@@ -2,7 +2,7 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import {
-  BullaClaim, BullaClaimEIP712, BullaExtensionRegistry, PenalizedClaim, WETH
+  BullaClaim, BullaClaimPermitLib, BullaExtensionRegistry, PenalizedClaim, WETH
 } from "../../../typechain-types";
 import {
   ClaimBinding,
@@ -17,14 +17,14 @@ describe("permitCreateClaim", async () => {
   let [deployer, alice, bob, wallet4] = declareSignerWithAddress();
 
   let bullaClaim: BullaClaim,
-    bullaClaimEIP712: BullaClaimEIP712,
+    BullaClaimPermitLib: BullaClaimPermitLib,
     penalizedClaim: PenalizedClaim,
     registry: BullaExtensionRegistry,
     weth: WETH;
 
   before(async () => {
     [deployer, alice, bob, wallet4] = await ethers.getSigners();
-    [bullaClaim, bullaClaimEIP712, penalizedClaim, registry, weth] =
+    [bullaClaim, BullaClaimPermitLib, penalizedClaim, registry, weth] =
       await loadFixture(deployContractsFixture(deployer));
     await weth
       .connect(deployer)
@@ -32,7 +32,7 @@ describe("permitCreateClaim", async () => {
   });
 
   it("approves permit", async () => {
-    [bullaClaim, bullaClaimEIP712, penalizedClaim, registry] =
+    [bullaClaim, BullaClaimPermitLib, penalizedClaim, registry] =
       await loadFixture(deployContractsFixture(deployer));
 
     const claim = {
@@ -92,7 +92,7 @@ describe("permitCreateClaim", async () => {
   });
 
   it("revoke approval", async () => {
-    [bullaClaim, bullaClaimEIP712, penalizedClaim, registry] =
+    [bullaClaim, BullaClaimPermitLib, penalizedClaim, registry] =
       await loadFixture(deployContractsFixture(deployer));
 
     let permitCreateClaimSig = await generateCreateClaimSignature({

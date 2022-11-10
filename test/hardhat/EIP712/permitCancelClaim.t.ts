@@ -3,7 +3,7 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import {
   BullaClaim,
-  BullaClaimEIP712,
+  BullaClaimPermitLib,
   BullaExtensionRegistry,
   PenalizedClaim,
   WETH,
@@ -19,14 +19,14 @@ describe("permit cancel claim", async () => {
   let [deployer, alice, bob, wallet4] = declareSignerWithAddress();
 
   let bullaClaim: BullaClaim,
-    bullaClaimEIP712: BullaClaimEIP712,
+    BullaClaimPermitLib: BullaClaimPermitLib,
     penalizedClaim: PenalizedClaim,
     registry: BullaExtensionRegistry,
     weth: WETH;
 
   before(async () => {
     [deployer, alice, bob, wallet4] = await ethers.getSigners();
-    [bullaClaim, bullaClaimEIP712, penalizedClaim, registry, weth] =
+    [bullaClaim, BullaClaimPermitLib, penalizedClaim, registry, weth] =
       await loadFixture(deployContractsFixture(deployer));
     await weth
       .connect(deployer)
@@ -34,7 +34,7 @@ describe("permit cancel claim", async () => {
   });
 
   it("permit approve cancel", async () => {
-    [bullaClaim, bullaClaimEIP712, penalizedClaim, registry] =
+    [bullaClaim, BullaClaimPermitLib, penalizedClaim, registry] =
       await loadFixture(deployContractsFixture(deployer));
 
     const permitCancelClaimSig = await generateCancelClaimSignature({
@@ -68,7 +68,7 @@ describe("permit cancel claim", async () => {
   });
 
   it("limited cancellation approval", async () => {
-    [bullaClaim, bullaClaimEIP712, penalizedClaim, registry] =
+    [bullaClaim, BullaClaimPermitLib, penalizedClaim, registry] =
       await loadFixture(deployContractsFixture(deployer));
 
     const permitCancelClaimSig = await generateCancelClaimSignature({
@@ -102,7 +102,7 @@ describe("permit cancel claim", async () => {
   });
 
   it("revoke cancellations", async () => {
-    [bullaClaim, bullaClaimEIP712, penalizedClaim, registry] =
+    [bullaClaim, BullaClaimPermitLib, penalizedClaim, registry] =
       await loadFixture(deployContractsFixture(deployer));
 
     let permitCancelClaimSig = await generateCancelClaimSignature({

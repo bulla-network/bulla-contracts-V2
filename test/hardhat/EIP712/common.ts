@@ -3,7 +3,7 @@ import {
   BullaClaim,
   PenalizedClaim,
   BullaExtensionRegistry,
-  BullaClaimEIP712,
+  BullaClaimPermitLib,
   WETH,
 } from "../../../typechain-types";
 import { ethers } from "hardhat";
@@ -205,7 +205,7 @@ export const getPermitUpdateBindingMessage = (
 
 export function deployContractsFixture(deployer: SignerWithAddress) {
   return async function fixture(): Promise<
-    [BullaClaim, BullaClaimEIP712, PenalizedClaim, BullaExtensionRegistry, WETH]
+    [BullaClaim, BullaClaimPermitLib, PenalizedClaim, BullaExtensionRegistry, WETH]
   > {
     // deploy metadata library
     const claimMetadataGeneratorFactory = await ethers.getContractFactory(
@@ -215,11 +215,11 @@ export function deployContractsFixture(deployer: SignerWithAddress) {
       await claimMetadataGeneratorFactory.connect(deployer).deploy()
     ).deployed();
 
-    const BullaClaimEIP712Factory = await ethers.getContractFactory(
-      "BullaClaimEIP712"
+    const BullaClaimPermitLibFactory = await ethers.getContractFactory(
+      "BullaClaimPermitLib"
     );
-    const BullaClaimEIP712 = await (
-      await BullaClaimEIP712Factory.connect(deployer).deploy()
+    const BullaClaimPermitLib = await (
+      await BullaClaimPermitLibFactory.connect(deployer).deploy()
     ).deployed();
 
     // deploy the registry
@@ -234,7 +234,7 @@ export function deployContractsFixture(deployer: SignerWithAddress) {
     const bullaClaimFactory = await ethers.getContractFactory("BullaClaim", {
       libraries: {
         ClaimMetadataGenerator: ClaimMetadataGenerator.address,
-        BullaClaimEIP712: BullaClaimEIP712.address,
+        BullaClaimPermitLib: BullaClaimPermitLib.address,
       },
     });
     const BullaClaim = await (
@@ -268,7 +268,7 @@ export function deployContractsFixture(deployer: SignerWithAddress) {
 
     return [
       BullaClaim,
-      BullaClaimEIP712,
+      BullaClaimPermitLib,
       PenalizedClaim,
       BullaExtensionRegistry,
       Weth,
