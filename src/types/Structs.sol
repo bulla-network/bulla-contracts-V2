@@ -74,7 +74,19 @@ struct PayClaimApproval {
     ClaimPaymentApproval[] claimApprovals;
 }
 
+struct UpdateBindingApproval {
+    uint64 approvalCount;
+    uint64 nonce;
+}
+
+struct CancelClaimApproval {
+    uint64 approvalCount;
+    uint64 nonce;
+}
+
 struct Approvals {
     CreateClaimApproval createClaim;
     PayClaimApproval payClaim;
+    UpdateBindingApproval updateBinding;
+    CancelClaimApproval cancelClaim;
 }

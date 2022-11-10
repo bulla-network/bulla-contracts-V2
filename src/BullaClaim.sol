@@ -63,7 +63,6 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     error NotMinted(uint256 claimId);
     error NotApproved();
     error PaymentUnderApproved();
-    error Unauthorized();
     error Locked();
 
     modifier notLocked() {
@@ -117,6 +116,10 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
         uint256 approvalDeadline,
         ClaimPaymentApprovalParam[] paymentApprovals
     );
+
+    event UpdateBindingApproved(address indexed owner, address indexed operator, uint256 approvalCount);
+
+    event CancelClaimApproved(address indexed owner, address indexed operator, uint256 approvalCount);
 
     constructor(address _feeCollectionAddress, address _extensionRegistry, LockState _lockState)
         ERC721("BullaClaim", "CLAIM")
@@ -316,8 +319,32 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     /**
      * /// UPDATE BINDING ///
      */
-
     function updateBinding(uint256 claimId, ClaimBinding binding) external {
+        _updateBinding(msg.sender, claimId, binding);
+    }
+
+    function updateBindingFrom(address from, uint256 claimId, ClaimBinding binding) external {
+        _spendUpdateBindingApproval(from, msg.sender);
+
+        _updateBinding(from, claimId, binding);
+    }
+
+    /// @notice "spends" an operator's updateBinding approval
+    /// @notice SPEC:
+    /// A function can call this function to verify and "spend" `from`'s approval of `operator` to update a claim's binding given:
+    ///     S1. `operator` has > 0 approvalCount from `from` address -> otherwise: reverts
+    ///
+    /// Result: If the above is true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return
+    function _spendUpdateBindingApproval(address owner, address operator) internal {
+        UpdateBindingApproval storage approval = approvals[owner][operator].updateBinding;
+
+        if (approval.approvalCount == 0) revert NotApproved();
+        if (approval.approvalCount != type(uint64).max) approval.approvalCount--;
+
+        return;
+    }
+
+    function _updateBinding(address from, uint256 claimId, ClaimBinding binding) internal notLocked {
         Claim memory claim = getClaim(claimId);
         address creditor = getCreditor(claimId);
 
@@ -327,24 +354,20 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
         }
 
         // make sure the sender is authorized
-        if (msg.sender != creditor && msg.sender != claim.debtor) {
-            revert NotCreditorOrDebtor(msg.sender);
+        if (from != creditor && from != claim.debtor) {
+            revert NotCreditorOrDebtor(from);
         }
 
         // make sure the binding is valid
-        if (msg.sender == creditor && binding == ClaimBinding.Bound) {
+        if (from == creditor && binding == ClaimBinding.Bound) {
             revert CannotBindClaim();
         }
 
         // make sure the debtor isn't trying to unbind themselves
-        if (msg.sender == claim.debtor && claim.binding == ClaimBinding.Bound) {
+        if (from == claim.debtor && claim.binding == ClaimBinding.Bound) {
             revert ClaimBound(claimId);
         }
 
-        _updateBinding(msg.sender, claimId, binding);
-    }
-
-    function _updateBinding(address from, uint256 claimId, ClaimBinding binding) internal notLocked {
         claims[claimId].binding = binding;
 
         emit BindingUpdated(claimId, from, binding);
@@ -355,9 +378,35 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
      */
 
     function cancelClaim(uint256 claimId, string calldata note) external {
+        _cancelClaim(msg.sender, claimId, note);
+    }
+
+    function cancelClaimFrom(address from, uint256 claimId, string calldata note) external {
+        _spendCancelClaimApproval(from, msg.sender);
+
+        _cancelClaim(from, claimId, note);
+    }
+
+    /// @notice "spends" an operator's cancelClaim approval
+    /// @notice SPEC:
+    /// A function can call this function to verify and "spend" `from`'s approval of `operator` to cancel a claim given:
+    ///     S1. `operator` has > 0 approvalCount from `from` address -> otherwise: reverts
+    ///
+    /// Result: If the above is true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return
+    function _spendCancelClaimApproval(address owner, address operator) internal {
+        CancelClaimApproval storage approval = approvals[owner][operator].cancelClaim;
+
+        if (approval.approvalCount == 0) revert NotApproved();
+        if (approval.approvalCount != type(uint64).max) approval.approvalCount--;
+
+        return;
+    }
+
+    function _cancelClaim(address from, uint256 claimId, string calldata note) internal notLocked {
+        // load the claim from storage
         Claim memory claim = getClaim(claimId);
 
-        if (claim.binding == ClaimBinding.Bound && claim.debtor == msg.sender) {
+        if (claim.binding == ClaimBinding.Bound && claim.debtor == from) {
             revert ClaimBound(claimId);
         }
 
@@ -365,24 +414,17 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
             revert ClaimDelegated(claimId, claim.delegator);
         }
 
-        _cancelClaim(msg.sender, claimId, note);
-    }
-
-    function _cancelClaim(address from, uint256 claimId, string calldata note) internal notLocked {
-        // load the claim from storage
-        Claim memory claim = getClaim(claimId);
-
         // make sure the claim can be rejected (not completed, not rejected, not rescinded)
         if (claim.status != Status.Pending) {
             revert ClaimNotPending(claimId);
         }
 
-        if (from == getCreditor(claimId)) {
-            claims[claimId].status = Status.Rescinded;
-            emit ClaimRescinded(claimId, from, note);
-        } else if (from == claims[claimId].debtor) {
+        if (from == claim.debtor) {
             claims[claimId].status = Status.Rejected;
             emit ClaimRejected(claimId, from, note);
+        } else if (from == getCreditor(claimId)) {
+            claims[claimId].status = Status.Rescinded;
+            emit ClaimRescinded(claimId, from, note);
         } else {
             revert NotCreditorOrDebtor(from);
         }
@@ -572,20 +614,88 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
                              PERMIT FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice allows a user - via a signature - to appove an operator to call createClaim on their behalf
+    /// @notice SPEC:
+    /// Anyone can call this function with a valid signature to modify the `owner`'s CreateClaimApproval of `operator` to the provided parameters
+    /// In all cases:
+    ///     SIG1: The recovered signer from the EIP712 signature == `owner` TODO: OR if `owner.code.length` > 0, an EIP-1271 signature lookup is valid
+    ///     SIG2: `owner` is not a 0 address
+    ///     SIG3: `extensionRegistry` is not address(0)
+    /// This function can _approve_ an operator given:
+    ///     A1: 0 < `approvalCount` < type(uint64).max
+    /// This function can _revoke_ an operator given:
+    ///     R1: `approvalCount` == 0
+    ///
+    /// A valid approval signature is defined as: a signed EIP712 hash digest of the following parameters:
+    ///     S1: The hash of the EIP712 typedef string
+    ///     S2: The `owner` address
+    ///     S3: The `operator` address
+    ///     S4: A verbose approval message: see `BullaClaimEIP712.getPermitCreateClaimMessage()`
+    ///     S5: The `approvalType` enum as a uint8
+    ///     S6: The `approvalCount`
+    ///     S7: The `isBindingAllowed` boolean flag
+    ///     S8: The stored signing nonce found in `owner`'s CreateClaimApproval struct for `operator`
+
+    /// Result: If the above conditions are met:
+    ///     RES1: The nonce is incremented
+    ///     RES2: The `owner`'s approval of `operator` is updated
+    ///     RES3: A CreateClaimApproved event is emitted with the approval parameters
+    function permitCreateClaim(
+        address owner, // todo: rename owner -> user?
+        address operator,
+        CreateClaimApprovalType approvalType,
+        uint64 approvalCount,
+        bool isBindingAllowed,
+        Signature calldata signature
+    ) public {
+        // TODO: EIP-1271 smart contract signatures
+        CreateClaimApproval storage approval = approvals[owner][operator].createClaim;
+
+        bytes32 digest = _hashTypedDataV4(
+            BullaClaimEIP712.getPermitCreateClaimDigest(
+                extensionRegistry, owner, operator, approvalType, approvalCount, isBindingAllowed, approval.nonce
+            )
+        );
+
+        address signer = ecrecover(digest, signature.v, signature.r, signature.s);
+        if (
+            signer != owner // spec.A1 // spec.R1
+                || signer == address(0) // spec.A2 // spec.R2
+        ) revert InvalidSignature();
+
+        if (approvalCount > 0) {
+            // spec.A3
+            approval.isBindingAllowed = isBindingAllowed; // spec.RES2
+            approval.approvalType = approvalType; // spec.RES2
+            approval.approvalCount = approvalCount; // spec.RES2
+            approval.nonce++; // spec.RES1
+        } else {
+            // spec.R3
+            delete approval.isBindingAllowed; // spec.RES2
+            delete approval.approvalType; // spec.RES2
+            delete approval.approvalCount; // spec.RES2
+            approval.nonce++; // spec.RES1
+        }
+
+        // spec.RES3
+        emit CreateClaimApproved(owner, operator, approvalType, approvalCount, isBindingAllowed);
+    }
+
     /// @notice permitPayClaim() allows a user, via a signature, to appove an operator to call payClaim on their behalf
     /// @notice SPEC:
     /// Anyone can call this function with a valid signature to set `owner`'s PayClaimApproval of `operator` to the provided parameters.
     /// A user may signal 3 different approval types through this function: "Unapproved", "Approved for specific claims only", and "Approved for all claims".
+    /// In all cases:
+    ///     SIG1: The recovered signer from the EIP712 signature == `owner` -> otherwise: reverts
+    ///     SIG2: `owner` is not the 0 address -> otherwise: reverts
     /// This function can approve an operator to pay _specific_ claims given the following conditions listed below as AS - (Approve Specific 1-5):
-    ///     AS1: The recovered signer from the EIP712 signature == `owner` -> otherwise: reverts
-    ///     AS2: `owner` is not the 0 address -> otherwise: reverts
-    ///     AS3: `approvalType` == PayClaimApprovalType.IsApprovedForSpecific
-    ///     AS4: `approvalDeadline` is either 0 (indicating unexpiring approval) or block.timestamp < `approvalDeadline` < type(uint40).max -> otherwise reverts
-    ///     AS5: `paymentApprovals.length > 0` and contains valid `ClaimPaymentApprovals` -> otherwise: reverts
+    ///     AS1: `approvalType` == PayClaimApprovalType.IsApprovedForSpecific
+    ///     AS2: `approvalDeadline` is either 0 (indicating unexpiring approval) or block.timestamp < `approvalDeadline` < type(uint40).max -> otherwise reverts
+    ///     AS3: `paymentApprovals.length > 0` and contains valid `ClaimPaymentApprovals` -> otherwise: reverts
     ///     A valid ClaimPaymentApproval is defined as the following:
-    ///         AS5.1: `ClaimPaymentApproval.claimId` is < type(uint88).max -> otherwise: reverts
-    ///         AS5.2: `ClaimPaymentApproval.approvalDeadline` is either 0 (indicating unexpiring approval) or block.timestamp < `approvalDeadline` < type(uint40).max -> otherwise reverts
-    ///         AS5.3: `ClaimPaymentApproval.approvedAmount` < type(uint128).max -> otherwise: reverts
+    ///         AS3.1: `ClaimPaymentApproval.claimId` is < type(uint88).max -> otherwise: reverts
+    ///         AS3.2: `ClaimPaymentApproval.approvalDeadline` is either 0 (indicating unexpiring approval) or block.timestamp < `approvalDeadline` < type(uint40).max -> otherwise reverts
+    ///         AS3.3: `ClaimPaymentApproval.approvedAmount` < type(uint128).max -> otherwise: reverts
     ///   RESULT: The following call parameters are stored on on `owner`'s approval of `operator`
     ///     AS.RES1: The approvalType = PayClaimApprovalType.IsApprovedForSpecific
     ///     AS.RES2: The approvalDeadline is stored if not 0
@@ -594,11 +704,9 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     ///     AS.RES5: A PayClaimApproval event is emitted
     ///
     /// This function can approve an operator to pay _all_ claims given the following conditions listed below as AA - (Approve All 1-5):
-    ///     AA1: The recovered signer from the EIP712 signature == `owner` -> otherwise: reverts
-    ///     AA2: `owner` is not the 0 address -> otherwise: reverts
-    ///     AA3: `approvalType` == PayClaimApprovalType.IsApprovedForAll
-    ///     AA4: `approvalDeadline` is either 0 (indicating unexpiring approval) or block.timestamp < `approvalDeadline` < type(uint40).max -> otherwise reverts
-    ///     AA5: `paymentApprovals.length == 0` -> otherwise: reverts
+    ///     AA1: `approvalType` == PayClaimApprovalType.IsApprovedForAll
+    ///     AA2: `approvalDeadline` is either 0 (indicating unexpiring approval) or block.timestamp < `approvalDeadline` < type(uint40).max -> otherwise reverts
+    ///     AA3: `paymentApprovals.length == 0` -> otherwise: reverts
     ///   RESULT: The following call parameters are stored on on `owner`'s approval of `operator`
     ///     AA.RES1: The approvalType = PayClaimApprovalType.IsApprovedForAll
     ///     AA.RES2: The nonce is incremented by 1
@@ -606,11 +714,9 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     ///     AA.RES4: A PayClaimApproval event is emitted
     ///
     /// This function can _revoke_ an operator to pay claims given the following conditions listed below as AR - (Approval Revoked 1-5):
-    ///     AR1: The recovered signer from the EIP712 signature == `owner` -> otherwise: reverts
-    ///     AR2: `owner` is not the 0 address -> otherwise: reverts
-    ///     AR3: `approvalType` == PayClaimApprovalType.Unapproved
-    ///     AR4: `approvalDeadline` == 0 -> otherwise: reverts
-    ///     AR5: `paymentApprovals.length` == 0 -> otherwise: reverts
+    ///     AR1: `approvalType` == PayClaimApprovalType.Unapproved
+    ///     AR2: `approvalDeadline` == 0 -> otherwise: reverts
+    ///     AR3: `paymentApprovals.length` == 0 -> otherwise: reverts
     ///   RESULT: `owner`'s approval of `operator` is updated to the following:
     ///     AR.RES1: approvalType is deleted (equivalent to being set to `Unapproved`)
     ///     AR.RES2: approvalDeadline is deleted
@@ -700,73 +806,72 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
         emit PayClaimApproved(owner, operator, approvalType, approvalDeadline, paymentApprovals);
     }
 
-    /// @notice allows a user - via a signature - to appove an operator to call createClaim on their behalf
+    /// @notice permitUpdateBinding() allows a user, via a signature, to appove an operator to call updateBinding on their behalf
     /// @notice SPEC:
-    /// Anyone can call this function with a valid signature to modify the `owner`'s CreateClaimApproval of `operator` to the provided parameters
-    /// This function can _approve_ an operator given:
-    ///     A1: The recovered signer from the EIP712 signature == `owner` TODO: OR if `owner.code.length` > 0, an EIP-1271 signature lookup is valid
-    ///     A2: `owner` is not a 0 address
-    ///     A3: 0 < `approvalCount` < type(uint64).max
-    ///     A4: `extensionRegistry` is not address(0)
-    /// This function can _revoke_ an operator given:
-    ///     R1: The recovered signer from the EIP712 signature == `owner`
-    ///     R2: `owner` is not a 0 address
-    ///     R3: `approvalCount` == 0
-    ///     R4: `extensionRegistry` is not address(0)
+    /// This function can approve an operator to update the binding on claims given the following conditions:
+    ///     SIG1. The recovered signer from the EIP712 signature == `owner` -> otherwise: reverts
+    ///     SIG2. `owner` is not the 0 address -> otherwise: reverts
+    ///     SIG3. `extensionRegistry` is not address(0)
+    /// This function can approve an operator to update a claim's binding given:
+    ///     AB1: 0 < `approvalCount` < type(uint64).max -> otherwise reverts
+    /// This function can revoke an operator's approval to update a claim's binding given:
+    ///     RB1: approvalCount == 0
     ///
-    /// A valid approval signature is defined as: a signed EIP712 hash digest of the following parameters:
-    ///     S1: The hash of the EIP712 typedef string
-    ///     S2: The `owner` address
-    ///     S3: The `operator` address
-    ///     S4: A verbose approval message: see `BullaClaimEIP712.getPermitCreateClaimMessage()`
-    ///     S5: The `approvalType` enum as a uint8
-    ///     S6: The `approvalCount`
-    ///     S7: The `isBindingAllowed` boolean flag
-    ///     S8: The stored signing nonce found in `owner`'s CreateClaimApproval struct for `operator`
-
-    /// Result: If the above conditions are met:
-    ///     RES1: The nonce is incremented
-    ///     RES2: The `owner`'s approval of `operator` is updated
-    ///     RES3: A CreateClaimApproved event is emitted with the approval parameters
-    function permitCreateClaim(
-        address owner, // todo: rename owner -> user?
-        address operator,
-        CreateClaimApprovalType approvalType,
-        uint64 approvalCount,
-        bool isBindingAllowed,
-        Signature calldata signature
-    ) public {
-        // TODO: EIP-1271 smart contract signatures
-        CreateClaimApproval storage approval = approvals[owner][operator].createClaim;
+    ///     RES1: approvalCount is stored
+    ///     RES2: the nonce is incremented
+    ///     RES3: the UpdateBindingApproved event is emitted
+    function permitUpdateBinding(address owner, address operator, uint64 approvalCount, Signature calldata signature)
+        public
+    {
+        UpdateBindingApproval storage approval = approvals[owner][operator].updateBinding;
 
         bytes32 digest = _hashTypedDataV4(
-            BullaClaimEIP712.getPermitCreateClaimDigest(
-                extensionRegistry, owner, operator, approvalType, approvalCount, isBindingAllowed, approval.nonce
+            BullaClaimEIP712.getPermitUpdateBindingDigest(
+                extensionRegistry, owner, operator, approvalCount, approval.nonce
             )
         );
 
         address signer = ecrecover(digest, signature.v, signature.r, signature.s);
-        if (
-            signer != owner // spec.A1 // spec.R1
-                || signer == address(0) // spec.A2 // spec.R2
-        ) revert InvalidSignature();
+        if (signer != owner || signer == address(0)) revert InvalidSignature();
 
-        if (approvalCount > 0) {
-            // spec.A3
-            approval.isBindingAllowed = isBindingAllowed; // spec.RES2
-            approval.approvalType = approvalType; // spec.RES2
-            approval.approvalCount = approvalCount; // spec.RES2
-            approval.nonce++; // spec.RES1
-        } else {
-            // spec.R3
-            delete approval.isBindingAllowed; // spec.RES2
-            delete approval.approvalType; // spec.RES2
-            delete approval.approvalCount; // spec.RES2
-            approval.nonce++; // spec.RES1
-        }
+        approval.approvalCount = approvalCount;
+        approval.nonce++;
 
-        // spec.RES3
-        emit CreateClaimApproved(owner, operator, approvalType, approvalCount, isBindingAllowed);
+        emit UpdateBindingApproved(owner, operator, approvalCount);
+    }
+
+    /// @notice permitCancelClaim() allows a user, via a signature, to appove an operator to call cancelClaim on their behalf
+    /// @notice SPEC:
+    /// A user can specify an operator address to call `cancelClaim` on their behalf under the following conditions:
+    ///     SIG1. The recovered signer from the EIP712 signature == `owner` -> otherwise: reverts
+    ///     SIG2. `owner` is not the 0 address -> otherwise: reverts
+    ///     SIG3. `extensionRegistry` is not address(0)
+    /// This function can approve an operator to cancel claims given:
+    ///     AC1: 0 < `approvalCount` < type(uint64).max -> otherwise reverts
+    /// This function can revoke an operator's approval to cancel claims given:
+    ///     RC1: approvalCount == 0
+    ///
+    ///     RES1: approvalCount is stored
+    ///     RES2: the nonce is incremented
+    ///     RES3: the CancelClaimApproved event is emitted
+    function permitCancelClaim(address owner, address operator, uint64 approvalCount, Signature calldata signature)
+        public
+    {
+        CancelClaimApproval storage approval = approvals[owner][operator].cancelClaim;
+
+        bytes32 digest = _hashTypedDataV4(
+            BullaClaimEIP712.getPermitCancelClaimDigest(
+                extensionRegistry, owner, operator, approvalCount, approval.nonce
+            )
+        );
+
+        address signer = ecrecover(digest, signature.v, signature.r, signature.s);
+        if (signer != owner || signer == address(0)) revert InvalidSignature();
+
+        approval.approvalCount = approvalCount;
+        approval.nonce++;
+
+        emit CancelClaimApproved(owner, operator, approvalCount);
     }
 
     /*///////////////////////////////////////////////////////////////

@@ -53,7 +53,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
             signature: signature
         });
 
-        (, PayClaimApproval memory approval) = bullaClaim.approvals(alice, bob);
+        (, PayClaimApproval memory approval,,) = bullaClaim.approvals(alice, bob);
 
         assertTrue(approval.approvalType == PayClaimApprovalType.IsApprovedForSpecific, "approvalType");
         assertEq(approval.approvalDeadline, approvalDeadline, "deadline");
@@ -76,8 +76,9 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](1);
         paymentApprovals[0] = ClaimPaymentApprovalParam({claimId: 1, approvedAmount: 12345, approvalDeadline: 0});
 
-        bytes32 digest =
-            BullaClaimEIP712.getPermitPayClaimMessageDigest(bullaClaim.extensionRegistry(), bob, approvalType, 0);
+        bytes32 digest = keccak256(
+            bytes(BullaClaimEIP712.getPermitPayClaimMessage(bullaClaim.extensionRegistry(), bob, approvalType, 0))
+        );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(charliePK, digest);
         Signature memory signature = Signature({v: v, r: r, s: s});
 
@@ -132,8 +133,9 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](1);
         paymentApprovals[0] = ClaimPaymentApprovalParam({claimId: 1, approvedAmount: 12345, approvalDeadline: 0});
 
-        bytes32 digest =
-            BullaClaimEIP712.getPermitPayClaimMessageDigest(bullaClaim.extensionRegistry(), bob, approvalType, 0);
+        bytes32 digest = keccak256(
+            bytes(BullaClaimEIP712.getPermitPayClaimMessage(bullaClaim.extensionRegistry(), bob, approvalType, 0))
+        );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePK, digest);
         Signature memory signature = Signature({v: v, r: r, s: s});
 

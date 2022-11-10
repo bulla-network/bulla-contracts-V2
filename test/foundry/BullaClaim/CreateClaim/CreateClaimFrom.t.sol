@@ -132,12 +132,12 @@ contract CreateClaimFromTest is Test {
         // have the creditor permit bob to act as a operator
         _permitCreateClaim({_ownerPK: ownerPK, _operator: operator, _approvalCount: 1});
 
-        (CreateClaimApproval memory approval,) = bullaClaim.approvals(owner, operator);
+        (CreateClaimApproval memory approval,,,) = bullaClaim.approvals(owner, operator);
         uint256 approvalCount = approval.approvalCount;
 
         vm.prank(operator);
         _newClaimFrom(owner, owner, debtor);
-        (approval,) = bullaClaim.approvals(owner, operator);
+        (approval,,,) = bullaClaim.approvals(owner, operator);
 
         assertEq(approval.approvalCount, approvalCount - 1);
     }
@@ -207,7 +207,7 @@ contract CreateClaimFromTest is Test {
         vm.prank(operator);
         _newClaimFrom(owner, owner, debtor);
 
-        (CreateClaimApproval memory approval,) = bullaClaim.approvals(owner, operator);
+        (CreateClaimApproval memory approval,,,) = bullaClaim.approvals(owner, operator);
 
         assertEq(approval.approvalCount, type(uint64).max);
     }

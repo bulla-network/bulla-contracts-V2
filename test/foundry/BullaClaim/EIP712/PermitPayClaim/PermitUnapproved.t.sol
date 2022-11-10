@@ -69,7 +69,7 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
             signature: signature
         });
 
-        (, PayClaimApproval memory approval) = bullaClaim.approvals(alice, bob);
+        (, PayClaimApproval memory approval,,) = bullaClaim.approvals(alice, bob);
         assertTrue(approval.approvalType == approvalType, "approvalType");
         assertEq(approval.approvalDeadline, 0, "deadline");
         assertEq(approval.nonce, 2, "nonce");
@@ -80,7 +80,7 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
     function testRevokeDeleteSpecificApprovals() public {
         _setUp(PayClaimApprovalType.IsApprovedForSpecific);
 
-        (, PayClaimApproval memory approval) = bullaClaim.approvals(alice, bob);
+        (, PayClaimApproval memory approval,,) = bullaClaim.approvals(alice, bob);
         assertEq(approval.claimApprovals.length, 4, "claim approvals");
 
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](0);
@@ -101,7 +101,7 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
             })
         });
 
-        (, approval) = bullaClaim.approvals(alice, bob);
+        (, approval,,) = bullaClaim.approvals(alice, bob);
         assertEq(approval.claimApprovals.length, 0, "claim approvals");
     }
 
@@ -171,8 +171,9 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
         address owner = address(0);
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](0);
 
-        bytes32 digest =
-            BullaClaimEIP712.getPermitPayClaimMessageDigest(bullaClaim.extensionRegistry(), bob, approvalType, 0);
+        bytes32 digest = keccak256(
+            bytes(BullaClaimEIP712.getPermitPayClaimMessage(bullaClaim.extensionRegistry(), bob, approvalType, 0))
+        );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePK, digest);
         Signature memory signature = Signature({v: v, r: r, s: s});
 

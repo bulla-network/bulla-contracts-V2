@@ -79,6 +79,26 @@ export const permitPayClaimTypes = {
   ],
 };
 
+export const permitUpdateBindingTypes = {
+  ApproveUpdateBindingExtension: [
+    { name: "owner", type: "address" },
+    { name: "operator", type: "address" },
+    { name: "message", type: "string" },
+    { name: "approvalCount", type: "uint256" },
+    { name: "nonce", type: "uint256" },
+  ],
+};
+
+export const permitCancelClaimTypes = {
+  ApproveCancelClaimExtension: [
+    { name: "owner", type: "address" },
+    { name: "operator", type: "address" },
+    { name: "message", type: "string" },
+    { name: "approvalCount", type: "uint256" },
+    { name: "nonce", type: "uint256" },
+  ],
+};
+
 export const getPermitCreateClaimMessage = (
   operatorAddress: string,
   operatorName: string,
@@ -139,6 +159,49 @@ export const getPermitPayClaimMessage = (
       operatorAddress.toLowerCase() +
       ") " +
       "pay claims on my behalf.";
+
+export const getPermitCancelClaimMessage = (
+  operatorAddress: string,
+  operatorName: string,
+  approvalCount: bigint
+) => {
+  return approvalCount > 0n
+    ? "I grant " +
+        (approvalCount != UNLIMITED_APPROVAL_COUNT ? "limited " : "") +
+        "approval to the following contract: " +
+        operatorName +
+        " (" +
+        operatorAddress.toLowerCase() + // note: will _not_ be checksummed
+        ") to cancel claims on my behalf."
+    : // revoke case
+      "I revoke approval for the following contract: " +
+        operatorName +
+        " (" +
+        operatorAddress.toLowerCase() +
+        ") " +
+        "cancel claims on my behalf.";
+};
+
+export const getPermitUpdateBindingMessage = (
+  operatorAddress: string,
+  operatorName: string,
+  approvalCount: bigint
+) => {
+  return approvalCount > 0n
+    ? "I grant " +
+        (approvalCount != UNLIMITED_APPROVAL_COUNT ? "limited " : "") +
+        "approval to the following contract: " +
+        operatorName +
+        " (" +
+        operatorAddress.toLowerCase() + // note: will _not_ be checksummed
+        ") to bind me to claims or unbind my claims."
+    : "I revoke approval for the following contract: " +
+        operatorName +
+        " (" +
+        operatorAddress.toLowerCase() +
+        ") " +
+        "to update claim binding.";
+};
 
 export function deployContractsFixture(deployer: SignerWithAddress) {
   return async function fixture(): Promise<
@@ -301,5 +364,85 @@ export const generatePayClaimSignature = async ({
 
   return ethers.utils.splitSignature(
     await signer._signTypedData(domain, permitPayClaimTypes, payClaimPermission)
+  );
+};
+
+export const generateUpdateClaimSignature = async ({
+  bullaClaimAddress,
+  signer,
+  operatorName,
+  operator,
+  approvalCount = UNLIMITED_APPROVAL_COUNT,
+  nonce = 0,
+}: {
+  bullaClaimAddress: string;
+  signer: SignerWithAddress;
+  operatorName: string;
+  operator: string; // address
+  approvalCount?: BigNumberish;
+  nonce?: number;
+}): Promise<Signature> => {
+  const domain = getDomain(bullaClaimAddress);
+
+  const message = getPermitUpdateBindingMessage(
+    operator,
+    operatorName,
+    BigNumber.from(approvalCount).toBigInt()
+  );
+
+  const updateBindingPermission = {
+    owner: signer.address,
+    operator: operator,
+    message: message,
+    approvalCount: approvalCount,
+    nonce,
+  };
+
+  return ethers.utils.splitSignature(
+    await signer._signTypedData(
+      domain,
+      permitUpdateBindingTypes,
+      updateBindingPermission
+    )
+  );
+};
+
+export const generateCancelClaimSignature = async ({
+  bullaClaimAddress,
+  signer,
+  operatorName,
+  operator,
+  approvalCount = UNLIMITED_APPROVAL_COUNT,
+  nonce = 0,
+}: {
+  bullaClaimAddress: string;
+  signer: SignerWithAddress;
+  operatorName: string;
+  operator: string; // address
+  approvalCount?: BigNumberish;
+  nonce?: number;
+}): Promise<Signature> => {
+  const domain = getDomain(bullaClaimAddress);
+
+  const message = getPermitCancelClaimMessage(
+    operator,
+    operatorName,
+    BigNumber.from(approvalCount).toBigInt()
+  );
+
+  const cancelClaimPermission = {
+    owner: signer.address,
+    operator: operator,
+    message: message,
+    approvalCount: approvalCount,
+    nonce,
+  };
+
+  return ethers.utils.splitSignature(
+    await signer._signTypedData(
+      domain,
+      permitCancelClaimTypes,
+      cancelClaimPermission
+    )
   );
 };
