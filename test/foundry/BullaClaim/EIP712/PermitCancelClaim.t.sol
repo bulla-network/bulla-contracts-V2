@@ -27,7 +27,7 @@ import {Test} from "forge-std/Test.sol";
 ///     RES1: approvalCount is stored
 ///     RES2: the nonce is incremented
 ///     RES3: the CancelClaimApproved event is emitted
-contract TestPermitCreateClaim is Test {
+contract TestPermitCancelClaim is Test {
     BullaClaim internal bullaClaim;
     EIP712Helper internal sigHelper;
     ERC1271WalletMock internal eip1271Wallet;
