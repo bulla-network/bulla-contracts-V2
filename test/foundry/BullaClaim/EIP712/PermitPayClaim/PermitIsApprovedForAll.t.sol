@@ -76,7 +76,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
             approvalType: approvalType,
             approvalDeadline: approvalDeadline,
             paymentApprovals: paymentApprovals,
-            signature: Signature(0, 0, 0)
+            signature: bytes("")
         });
 
         (, PayClaimApproval memory approval,,) = bullaClaim.approvals(alice, bob);
@@ -94,7 +94,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         address user = alice;
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](0);
 
-        Signature memory signature = sigHelper.signPayClaimPermit({
+        bytes memory signature = sigHelper.signPayClaimPermit({
             pk: charliePK, // charlie signs an approval for alice
             user: user,
             operator: bob,
@@ -118,7 +118,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
     function testCannotReplaySig() public {
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](0);
 
-        Signature memory signature = sigHelper.signPayClaimPermit({
+        bytes memory signature = sigHelper.signPayClaimPermit({
             pk: alicePK, // charlie signs an approval for alice
             user: alice,
             operator: bob,
@@ -156,12 +156,13 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
             bytes(BullaClaimPermitLib.getPermitPayClaimMessage(bullaClaim.extensionRegistry(), bob, approvalType, 0))
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePK, digest);
-        Signature memory signature = Signature({v: v, r: r, s: s});
+        bytes memory signature = abi.encodePacked(r, s, v);
 
         // corrupt the signature to get a 0 signer return from the ecrecover call
-        signature.r = bytes32(uint256(signature.v) + 190);
+        signature[64] = bytes1(uint8(signature[64]) + 190);
 
-        assertEq(ecrecover(digest, signature.v, signature.r, signature.s), address(0), "ecrecover sanity check");
+        (v, r, s) = splitSig(signature);
+        assertEq(ecrecover(digest, v, r, s), address(0), "ecrecover sanity check");
 
         vm.expectRevert(BullaClaim.InvalidSignature.selector);
         bullaClaim.permitPayClaim({
@@ -179,7 +180,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         vm.warp(OCTOBER_28TH_2022); // set the block.timestamp to october 28th 2022
         uint256 approvalDeadline = OCTOBER_23RD_2022;
 
-        Signature memory signature = sigHelper.signPayClaimPermit({
+        bytes memory signature = sigHelper.signPayClaimPermit({
             pk: alicePK,
             user: alice,
             operator: bob,
@@ -226,7 +227,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         uint256 tooBigDeadline = uint256(type(uint40).max) + 1;
 
         // deadline > type(uint40).max
-        Signature memory signature = sigHelper.signPayClaimPermit({
+        bytes memory signature = sigHelper.signPayClaimPermit({
             pk: alicePK,
             user: alice,
             operator: bob,
@@ -252,7 +253,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](1);
         paymentApprovals[0] = ClaimPaymentApprovalParam({claimId: 1, approvedAmount: 1 ether, approvalDeadline: 0});
 
-        Signature memory signature = sigHelper.signPayClaimPermit({
+        bytes memory signature = sigHelper.signPayClaimPermit({
             pk: alicePK,
             user: alice,
             operator: bob,
@@ -287,7 +288,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
                 ClaimPaymentApprovalParam({claimId: i, approvedAmount: 143 * i + 1, approvalDeadline: i * 100});
         }
 
-        Signature memory signature = sigHelper.signPayClaimPermit({
+        bytes memory signature = sigHelper.signPayClaimPermit({
             pk: alicePK,
             user: alice,
             operator: bob,

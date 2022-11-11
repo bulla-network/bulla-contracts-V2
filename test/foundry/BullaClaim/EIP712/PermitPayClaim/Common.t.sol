@@ -6,7 +6,7 @@ import {Deployer} from "script/Deployment.s.sol";
 import {ERC1271WalletMock} from "contracts/mocks/ERC1271Wallet.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {Test} from "forge-std/Test.sol";
-import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
+import {EIP712Helper, privateKeyValidity, splitSig} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 
 /// @notice a base boilerplate class to inherit on PermitPayClaim tests
 contract PermitPayClaimTest is Test {

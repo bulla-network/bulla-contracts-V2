@@ -59,7 +59,7 @@ contract TestUpdateBinding is Test {
     }
 
     function _permitUpdateBinding(uint256 _userPK, address _operator, uint64 _approvalCount) internal {
-        Signature memory sig = sigHelper.signUpdateBindingPermit(_userPK, vm.addr(_userPK), _operator, _approvalCount);
+        bytes memory sig = sigHelper.signUpdateBindingPermit(_userPK, vm.addr(_userPK), _operator, _approvalCount);
         bullaClaim.permitUpdateBinding(vm.addr(_userPK), _operator, _approvalCount, sig);
     }
 

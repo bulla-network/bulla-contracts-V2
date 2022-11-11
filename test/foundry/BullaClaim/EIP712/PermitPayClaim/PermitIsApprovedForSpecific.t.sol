@@ -32,7 +32,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
         paymentApprovals[0] = ClaimPaymentApprovalParam({claimId: 1, approvedAmount: 12345, approvalDeadline: 0});
         paymentApprovals[1] = ClaimPaymentApprovalParam({claimId: 2, approvedAmount: 98765, approvalDeadline: 25122});
 
-        Signature memory signature = sigHelper.signPayClaimPermit({
+        bytes memory signature = sigHelper.signPayClaimPermit({
             pk: alicePK,
             user: alice,
             operator: bob,
@@ -96,7 +96,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
             approvalType: approvalType,
             approvalDeadline: approvalDeadline,
             paymentApprovals: paymentApprovals,
-            signature: Signature(0, 0, 0)
+            signature: bytes("")
         });
 
         (, PayClaimApproval memory approval,,) = bullaClaim.approvals(alice, bob);
@@ -126,7 +126,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
             bytes(BullaClaimPermitLib.getPermitPayClaimMessage(bullaClaim.extensionRegistry(), bob, approvalType, 0))
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(charliePK, digest);
-        Signature memory signature = Signature({v: v, r: r, s: s});
+        bytes memory signature = abi.encodePacked(r, s, v);
 
         vm.expectRevert(BullaClaim.InvalidSignature.selector);
         bullaClaim.permitPayClaim({
@@ -144,7 +144,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](1);
         paymentApprovals[0] = ClaimPaymentApprovalParam({claimId: 1, approvedAmount: 12345, approvalDeadline: 0});
 
-        Signature memory signature = sigHelper.signPayClaimPermit({
+        bytes memory signature = sigHelper.signPayClaimPermit({
             pk: alicePK,
             user: alice,
             operator: bob,
@@ -183,12 +183,13 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
             bytes(BullaClaimPermitLib.getPermitPayClaimMessage(bullaClaim.extensionRegistry(), bob, approvalType, 0))
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePK, digest);
-        Signature memory signature = Signature({v: v, r: r, s: s});
+        bytes memory signature = abi.encodePacked(r, s, v);
 
         // corrupt the signature to get a 0 signer return from the ecrecover call
-        signature.r = bytes32(uint256(signature.v) + 190);
+        signature[64] = bytes1(uint8(signature[64]) + 190);
 
-        assertEq(ecrecover(digest, signature.v, signature.r, signature.s), address(0), "ecrecover sanity check");
+        (v, r, s) = splitSig(signature);
+        assertEq(ecrecover(digest, v, r, s), address(0), "ecrecover sanity check");
 
         vm.expectRevert(BullaClaim.InvalidSignature.selector);
         bullaClaim.permitPayClaim({
@@ -207,7 +208,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](1);
         paymentApprovals[0] = ClaimPaymentApprovalParam({claimId: 1, approvedAmount: 12345, approvalDeadline: 0});
 
-        Signature memory signature = sigHelper.signPayClaimPermit({
+        bytes memory signature = sigHelper.signPayClaimPermit({
             pk: alicePK,
             user: alice,
             operator: bob,
@@ -231,7 +232,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
     function testCannotApproveForSpecificIfNoClaimsSpecified() public {
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](0);
 
-        Signature memory signature = sigHelper.signPayClaimPermit({
+        bytes memory signature = sigHelper.signPayClaimPermit({
             pk: alicePK,
             user: alice,
             operator: bob,
@@ -257,7 +258,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
 
         paymentApprovals[2].claimId = uint256(type(uint88).max) + 1;
 
-        Signature memory signature = sigHelper.signPayClaimPermit({
+        bytes memory signature = sigHelper.signPayClaimPermit({
             pk: alicePK,
             user: alice,
             operator: bob,
@@ -284,7 +285,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
         ClaimPaymentApprovalParam[] memory paymentApprovals = _generateClaimPaymentApprovals(4);
         paymentApprovals[2].approvalDeadline = badApprovalDeadline;
 
-        Signature memory signature = sigHelper.signPayClaimPermit({
+        bytes memory signature = sigHelper.signPayClaimPermit({
             pk: alicePK,
             user: alice,
             operator: bob,
@@ -312,7 +313,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
         ClaimPaymentApprovalParam[] memory paymentApprovals = _generateClaimPaymentApprovals(4);
         paymentApprovals[2].approvalDeadline = badApprovalDeadline;
 
-        Signature memory signature = sigHelper.signPayClaimPermit({
+        bytes memory signature = sigHelper.signPayClaimPermit({
             pk: alicePK,
             user: alice,
             operator: bob,
@@ -339,7 +340,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
         ClaimPaymentApprovalParam[] memory paymentApprovals = _generateClaimPaymentApprovals(4);
         paymentApprovals[2].approvalDeadline = OCTOBER_23RD_2022; // october 23rd - invalid deadline
 
-        Signature memory signature = sigHelper.signPayClaimPermit({
+        bytes memory signature = sigHelper.signPayClaimPermit({
             pk: alicePK,
             user: alice,
             operator: bob,
@@ -364,7 +365,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
         ClaimPaymentApprovalParam[] memory paymentApprovals = _generateClaimPaymentApprovals(4);
         paymentApprovals[2].approvedAmount = uint256(type(uint128).max) + 1;
 
-        Signature memory signature = sigHelper.signPayClaimPermit({
+        bytes memory signature = sigHelper.signPayClaimPermit({
             pk: alicePK,
             user: alice,
             operator: bob,

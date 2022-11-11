@@ -106,7 +106,7 @@ contract CreateClaimFromTest is Test {
         CreateClaimApprovalType _approvalType,
         bool _isBindingAllowed
     ) private {
-        Signature memory sig = sigHelper.signCreateClaimPermit(
+        bytes memory sig = sigHelper.signCreateClaimPermit(
             _userPK, vm.addr(_userPK), _operator, _approvalType, _approvalCount, _isBindingAllowed
         );
         bullaClaim.permitCreateClaim(vm.addr(_userPK), _operator, _approvalType, _approvalCount, _isBindingAllowed, sig);

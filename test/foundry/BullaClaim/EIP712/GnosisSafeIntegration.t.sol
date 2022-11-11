@@ -16,14 +16,17 @@ import {Test} from "forge-std/Test.sol";
 
 contract TestGnosisSafeSignatures is Test {
     uint256 alicePK = uint256(12345);
+    uint256 bobPK = uint256(98765);
+
     address alice = vm.addr(alicePK);
+    address bob = vm.addr(bobPK);
 
     BullaClaim internal bullaClaim;
     EIP712Helper internal sigHelper;
     GnosisSafe internal safe;
     SignMessageLib internal signMessageLib;
 
-    function setUp() public {
+    function _setup(address[] memory _owners) internal {
         (bullaClaim,) = (new Deployer()).deploy_test({
             _deployer: address(this),
             _feeReceiver: address(0xfee),
@@ -39,12 +42,9 @@ contract TestGnosisSafeSignatures is Test {
 
         safe = GnosisSafe(payable(proxyFactory.createProxy(address(singleton), "")));
 
-        address[] memory owners = new address[](1);
-        owners[0] = alice;
-
         safe.setup({
-            _owners: owners,
-            _threshold: 1,
+            _owners: _owners,
+            _threshold: _owners.length,
             to: address(0),
             data: "",
             fallbackHandler: address(handler),
@@ -55,6 +55,11 @@ contract TestGnosisSafeSignatures is Test {
     }
 
     function testCreateClaimPermit() public {
+        address[] memory owners = new address[](1);
+        owners[0] = alice;
+
+        _setup(owners);
+
         address safeAddress = address(safe);
         address operator = address(0xB0b);
 
@@ -110,11 +115,56 @@ contract TestGnosisSafeSignatures is Test {
             approvalType: approvalType,
             approvalCount: approvalCount,
             isBindingAllowed: isBindingAllowed,
-            signature: Signature(0, 0, 0)
+            signature: bytes("")
         });
 
         (CreateClaimApproval memory approval,,,) = bullaClaim.approvals(safeAddress, operator);
 
+        assertEq(approval.approvalCount, approvalCount);
+    }
+
+    function testPermitWithSigsOnly() public {
+        address[] memory owners = new address[](2);
+        owners[0] = alice;
+        owners[1] = bob;
+        _setup(owners);
+
+        address safeAddress = address(safe);
+        address operator = address(0xB0b);
+
+        CreateClaimApprovalType approvalType = CreateClaimApprovalType.Approved;
+        uint64 approvalCount = 1;
+        bool isBindingAllowed = true;
+
+        bytes32 digest = sigHelper.getPermitCreateClaimDigest({
+            user: safeAddress,
+            operator: operator,
+            approvalType: approvalType,
+            approvalCount: approvalCount,
+            isBindingAllowed: isBindingAllowed
+        });
+
+        bytes32 safeDigest =
+            CompatibilityFallbackHandler_patch(safeAddress).getMessageHashForSafe(safe, abi.encodePacked(digest));
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePK, safeDigest);
+        bytes memory aliceSig = abi.encodePacked(r, s, v);
+
+        (v, r, s) = vm.sign(bobPK, safeDigest);
+
+        bytes memory bobSig = abi.encodePacked(r, s, v);
+        bytes memory signature = alice < bob ? bytes.concat(aliceSig, bobSig) : bytes.concat(bobSig, aliceSig);
+
+        bullaClaim.permitCreateClaim({
+            user: safeAddress,
+            operator: operator,
+            approvalType: approvalType,
+            approvalCount: approvalCount,
+            isBindingAllowed: isBindingAllowed,
+            signature: signature
+        });
+
+        (CreateClaimApproval memory approval,,,) = bullaClaim.approvals(safeAddress, operator);
         assertEq(approval.approvalCount, approvalCount);
     }
 }

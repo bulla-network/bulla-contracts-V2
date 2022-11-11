@@ -91,7 +91,7 @@ contract TestPayClaimFrom is Test {
         uint256 _approvalDeadline,
         ClaimPaymentApprovalParam[] memory _paymentApprovals
     ) private {
-        Signature memory sig = sigHelper.signPayClaimPermit(
+        bytes memory sig = sigHelper.signPayClaimPermit(
             _userPK, vm.addr(_userPK), _operator, _approvalType, _approvalDeadline, _paymentApprovals
         );
         bullaClaim.permitPayClaim(vm.addr(_userPK), _operator, _approvalType, _approvalDeadline, _paymentApprovals, sig);

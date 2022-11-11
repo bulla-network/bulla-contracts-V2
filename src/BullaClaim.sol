@@ -658,7 +658,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
         CreateClaimApprovalType approvalType,
         uint64 approvalCount,
         bool isBindingAllowed,
-        Signature calldata signature
+        bytes calldata signature
     ) public {
         BullaClaimPermitLib.permitCreateClaim(
             approvals[user][operator],
@@ -681,7 +681,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
         PayClaimApprovalType approvalType,
         uint256 approvalDeadline,
         ClaimPaymentApprovalParam[] calldata paymentApprovals,
-        Signature calldata signature
+        bytes calldata signature
     ) public {
         BullaClaimPermitLib.permitPayClaim(
             approvals[user][operator],
@@ -698,7 +698,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
 
     /// @notice permits an operator to update claim bindings on user's behalf
     /// @dev see BullaClaimPermitLib.permitUpdateBinding for spec
-    function permitUpdateBinding(address user, address operator, uint64 approvalCount, Signature calldata signature)
+    function permitUpdateBinding(address user, address operator, uint64 approvalCount, bytes calldata signature)
         public
     {
         BullaClaimPermitLib.permitUpdateBinding(
@@ -708,9 +708,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
 
     /// @notice permits an operator to cancel claims on user's behalf
     /// @dev see BullaClaimPermitLib.sol for spec
-    function permitCancelClaim(address user, address operator, uint64 approvalCount, Signature calldata signature)
-        public
-    {
+    function permitCancelClaim(address user, address operator, uint64 approvalCount, bytes calldata signature) public {
         BullaClaimPermitLib.permitCancelClaim(
             approvals[user][operator], extensionRegistry, _domainSeparatorV4(), user, operator, approvalCount, signature
         );

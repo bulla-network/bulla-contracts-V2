@@ -62,7 +62,7 @@ contract TestCancelClaim is Test {
     }
 
     function _permitCancelClaim(uint256 _userPK, address _operator, uint64 _approvalCount) internal {
-        Signature memory sig = sigHelper.signCancelClaimPermit(_userPK, vm.addr(_userPK), _operator, _approvalCount);
+        bytes memory sig = sigHelper.signCancelClaimPermit(_userPK, vm.addr(_userPK), _operator, _approvalCount);
         bullaClaim.permitCancelClaim(vm.addr(_userPK), _operator, _approvalCount, sig);
     }
 

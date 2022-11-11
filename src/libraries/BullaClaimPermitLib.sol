@@ -6,6 +6,7 @@ import "contracts/interfaces/IERC1271.sol";
 import "contracts/BullaClaim.sol";
 import {BullaExtensionRegistry} from "contracts/BullaExtensionRegistry.sol";
 import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
+import {SignatureChecker} from "openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol";
 
 library BullaClaimPermitLib {
     using Strings for uint256;
@@ -57,31 +58,6 @@ library BullaClaimPermitLib {
             "ApproveUpdateBindingExtension(address user,address operator,string message,uint256 approvalCount,uint256 nonce)"
         )
     );
-
-    /// @dev copied and modified from OpenZeppelin's SignatureChecker
-    function _validateSignature(address signer, bytes32 digest, Signature calldata signature)
-        internal
-        view
-        returns (bool)
-    {
-        address recoveredAddress = ecrecover(digest, signature.v, signature.r, signature.s);
-
-        if (recoveredAddress != signer || recoveredAddress == address(0)) {
-            bytes memory byteSig = signature.r == bytes32(0) && signature.s == bytes32(0) && signature.v == 0
-                ? bytes("")
-                : abi.encodePacked(signature.r, signature.s, signature.v);
-
-            (bool success, bytes memory result) =
-                signer.staticcall(abi.encodeWithSelector(IERC1271.isValidSignature.selector, digest, byteSig));
-
-            return (
-                success && result.length == 32
-                    && abi.decode(result, (bytes32)) == bytes32(IERC1271.isValidSignature.selector)
-            );
-        } else {
-            return true;
-        }
-    }
 
     /*
     ////// PERMIT MESSAGES //////
@@ -358,7 +334,7 @@ library BullaClaimPermitLib {
         CreateClaimApprovalType approvalType,
         uint64 approvalCount,
         bool isBindingAllowed,
-        Signature calldata signature
+        bytes calldata signature
     ) public {
         uint64 nonce = approvals.createClaim.nonce;
 
@@ -373,7 +349,7 @@ library BullaClaimPermitLib {
         );
 
         if (
-            !_validateSignature(user, digest, signature) // spec.A1, spec.A2, spec.R1, spec.R2
+            !SignatureChecker.isValidSignatureNow(user, digest, signature) // spec.A1, spec.A2, spec.R1, spec.R2
         ) revert BullaClaim.InvalidSignature();
 
         if (approvalCount > 0) {
@@ -455,7 +431,7 @@ library BullaClaimPermitLib {
         PayClaimApprovalType approvalType,
         uint256 approvalDeadline,
         ClaimPaymentApprovalParam[] calldata paymentApprovals,
-        Signature calldata signature
+        bytes calldata signature
     ) public {
         uint64 nonce = approvals.payClaim.nonce;
 
@@ -469,7 +445,7 @@ library BullaClaimPermitLib {
             )
         );
 
-        if (!_validateSignature(user, digest, signature)) revert BullaClaim.InvalidSignature();
+        if (!SignatureChecker.isValidSignatureNow(user, digest, signature)) revert BullaClaim.InvalidSignature();
         if (approvalDeadline != 0 && (approvalDeadline < block.timestamp || approvalDeadline > type(uint40).max)) {
             revert BullaClaim.InvalidTimestamp(approvalDeadline);
         }
@@ -545,7 +521,7 @@ library BullaClaimPermitLib {
         address user,
         address operator,
         uint64 approvalCount,
-        Signature calldata signature
+        bytes calldata signature
     ) public {
         uint64 nonce = approvals.updateBinding.nonce;
 
@@ -557,7 +533,7 @@ library BullaClaimPermitLib {
             )
         );
 
-        if (!_validateSignature(user, digest, signature)) revert BullaClaim.InvalidSignature();
+        if (!SignatureChecker.isValidSignatureNow(user, digest, signature)) revert BullaClaim.InvalidSignature();
 
         approvals.updateBinding.approvalCount = approvalCount;
         approvals.updateBinding.nonce++;
@@ -586,7 +562,7 @@ library BullaClaimPermitLib {
         address user,
         address operator,
         uint64 approvalCount,
-        Signature calldata signature
+        bytes calldata signature
     ) public {
         bytes32 digest = keccak256(
             abi.encodePacked(
@@ -598,7 +574,7 @@ library BullaClaimPermitLib {
             )
         );
 
-        if (!_validateSignature(user, digest, signature)) revert BullaClaim.InvalidSignature();
+        if (!SignatureChecker.isValidSignatureNow(user, digest, signature)) revert BullaClaim.InvalidSignature();
 
         approvals.cancelClaim.approvalCount = approvalCount;
         approvals.cancelClaim.nonce++;

@@ -15,6 +15,14 @@ function privateKeyValidity(uint256 pk) pure returns (bool) {
     return pk != 0 && pk < 115792089237316195423570985008687907852837564279074904382605163141518161494337;
 }
 
+function splitSig(bytes memory sig) pure returns (uint8 v, bytes32 r, bytes32 s) {
+    assembly {
+        r := mload(add(sig, 0x20))
+        s := mload(add(sig, 0x40))
+        v := byte(0, mload(add(sig, 0x60)))
+    }
+}
+
 contract EIP712Helper {
     using Strings for *;
 
@@ -145,11 +153,11 @@ contract EIP712Helper {
         CreateClaimApprovalType approvalType,
         uint64 approvalCount,
         bool isBindingAllowed
-    ) public returns (Signature memory) {
+    ) public returns (bytes memory) {
         bytes32 digest = getPermitCreateClaimDigest(user, operator, approvalType, approvalCount, isBindingAllowed);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
-        return Signature({v: v, r: r, s: s});
+        return abi.encodePacked(r, s, v);
     }
 
     function signPayClaimPermit(
@@ -159,31 +167,31 @@ contract EIP712Helper {
         PayClaimApprovalType approvalType,
         uint256 approvalDeadline,
         ClaimPaymentApprovalParam[] calldata paymentApprovals
-    ) public returns (Signature memory) {
+    ) public returns (bytes memory) {
         bytes32 digest = getPermitPayClaimDigest(user, operator, approvalType, approvalDeadline, paymentApprovals);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
-        return Signature({v: v, r: r, s: s});
+        return abi.encodePacked(r, s, v);
     }
 
     function signUpdateBindingPermit(uint256 pk, address user, address operator, uint64 approvalCount)
         public
-        returns (Signature memory)
+        returns (bytes memory)
     {
         bytes32 digest = getPermitUpdateBindingDigest(user, operator, approvalCount);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
-        return Signature({v: v, r: r, s: s});
+        return abi.encodePacked(r, s, v);
     }
 
     function signCancelClaimPermit(uint256 pk, address user, address operator, uint64 approvalCount)
         public
-        returns (Signature memory)
+        returns (bytes memory)
     {
         bytes32 digest = getPermitCancelClaimDigest(user, operator, approvalCount);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
-        return Signature({v: v, r: r, s: s});
+        return abi.encodePacked(r, s, v);
     }
 }
 
@@ -203,7 +211,7 @@ contract CompatibilityFallbackHandler_patch is DefaultCallbackHandler, ISignatur
      * Implementation of ISignatureValidator (see `interfaces/ISignatureValidator.sol`)
      * @dev Should return whether the signature provided is valid for the provided data.
      * @param _data Arbitrary length data signed on the behalf of address(msg.sender)
-     * @param _signature Signature byte array associated with _data
+     * @param _signature bytes byte array associated with _data
      * @return a bool upon valid or invalid signature with corresponding _data
      */
     function isValidSignature(bytes memory _data, bytes memory _signature) public view override returns (bytes4) {
@@ -240,7 +248,7 @@ contract CompatibilityFallbackHandler_patch is DefaultCallbackHandler, ISignatur
      *       The save does not implement the interface since `checkSignatures` is not a view method.
      *       The method will not perform any state changes (see parameters of `checkSignatures`)
      * @param _dataHash Hash of the data signed on the behalf of address(msg.sender)
-     * @param _signature Signature byte array associated with _dataHash
+     * @param _signature bytes byte array associated with _dataHash
      * @return a bool upon valid or invalid signature with corresponding _dataHash
      * @notice See https://github.com/gnosis/util-contracts/blob/bb5fe5fb5df6d8400998094fb1b32a178a47c3a1/contracts/StorageAccessible.sol
      */

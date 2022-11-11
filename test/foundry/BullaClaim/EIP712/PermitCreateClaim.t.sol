@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.15;
 
-import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
+import {EIP712Helper, privateKeyValidity, splitSig} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import "contracts/BullaClaim.sol";
 import "contracts/mocks/PenalizedClaim.sol";
@@ -130,7 +130,7 @@ contract TestPermitCreateClaim is Test {
             approvalType: approvalType,
             approvalCount: approvalCount,
             isBindingAllowed: isBindingAllowed,
-            signature: Signature(0, 0, 0)
+            signature: bytes("")
         });
 
         (CreateClaimApproval memory approval,,,) = bullaClaim.approvals(alice, bob);
@@ -212,7 +212,7 @@ contract TestPermitCreateClaim is Test {
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 1,
             isBindingAllowed: true,
-            signature: Signature(0, 0, 0)
+            signature: bytes("")
         });
 
         vm.expectEmit(true, true, true, true);
@@ -239,7 +239,7 @@ contract TestPermitCreateClaim is Test {
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 0,
             isBindingAllowed: true,
-            signature: Signature(0, 0, 0)
+            signature: bytes("")
         });
 
         (CreateClaimApproval memory approval,,,) = bullaClaim.approvals(alice, bob);
@@ -283,7 +283,7 @@ contract TestPermitCreateClaim is Test {
         uint64 approvalCount = 1;
         bool isBindingAllowed = true;
 
-        Signature memory signature = sigHelper.signCreateClaimPermit({
+        bytes memory signature = sigHelper.signCreateClaimPermit({
             pk: alicePK,
             user: bob,
             operator: bob,
@@ -315,7 +315,7 @@ contract TestPermitCreateClaim is Test {
         CreateClaimApprovalType approvalType = CreateClaimApprovalType.Approved;
         uint64 approvalCount = 1;
 
-        Signature memory signature = sigHelper.signCreateClaimPermit({
+        bytes memory signature = sigHelper.signCreateClaimPermit({
             pk: alicePK,
             user: alice,
             operator: bob,
@@ -323,7 +323,7 @@ contract TestPermitCreateClaim is Test {
             approvalCount: approvalCount,
             isBindingAllowed: true
         });
-        signature.r = bytes32(uint256(signature.r) + 1);
+        signature[64] = bytes1(uint8(signature[64]) + 1);
 
         vm.expectRevert(BullaClaim.InvalidSignature.selector);
 
@@ -357,7 +357,7 @@ contract TestPermitCreateClaim is Test {
 
         // sign the digest with the wrong key
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(badGuyPK, digest);
-        Signature memory signature = Signature({v: v, r: r, s: s});
+        bytes memory signature = abi.encodePacked(r, s, v);
 
         vm.expectRevert(BullaClaim.InvalidSignature.selector);
         bullaClaim.permitCreateClaim({
@@ -379,7 +379,7 @@ contract TestPermitCreateClaim is Test {
         CreateClaimApprovalType approvalType = CreateClaimApprovalType.Approved;
         uint64 approvalCount = 1;
 
-        Signature memory signature = sigHelper.signCreateClaimPermit({
+        bytes memory signature = sigHelper.signCreateClaimPermit({
             pk: alicePK,
             user: alice,
             operator: bob,
@@ -433,7 +433,7 @@ contract TestPermitCreateClaim is Test {
         CreateClaimApprovalType approvalType = CreateClaimApprovalType.Approved;
         uint64 approvalCount = 1;
 
-        Signature memory signature = sigHelper.signCreateClaimPermit({
+        bytes memory signature = sigHelper.signCreateClaimPermit({
             pk: uint256(12345),
             user: user,
             operator: operator,
@@ -441,16 +441,13 @@ contract TestPermitCreateClaim is Test {
             approvalCount: approvalCount,
             isBindingAllowed: true
         });
-        signature.r = bytes32(uint256(signature.s) + 90);
+        signature[64] = bytes1(uint8(signature[64]) + 90);
         // the above corrupt signature will return a 0 from ecrecover
 
+        (uint8 v, bytes32 r, bytes32 s) = splitSig(signature);
+
         assertEq(
-            ecrecover(
-                sigHelper.getPermitCreateClaimDigest(user, operator, approvalType, approvalCount, true),
-                signature.v,
-                signature.r,
-                signature.s
-            ),
+            ecrecover(sigHelper.getPermitCreateClaimDigest(user, operator, approvalType, approvalCount, true), v, r, s),
             user,
             "ecrecover sanity check"
         );
@@ -512,7 +509,7 @@ contract TestPermitCreateClaim is Test {
         vm.expectEmit(true, true, true, true);
         emit CreateClaimApproved(user, operator, approvalType, approvalCount, isBindingAllowed);
 
-        Signature memory sig = sigHelper.signCreateClaimPermit({
+        bytes memory sig = sigHelper.signCreateClaimPermit({
             pk: pk,
             user: user,
             operator: operator,

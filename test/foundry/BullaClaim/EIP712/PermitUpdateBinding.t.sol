@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.15;
 
-import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
+import {EIP712Helper, privateKeyValidity, splitSig} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import "contracts/BullaClaim.sol";
 import "contracts/mocks/PenalizedClaim.sol";
@@ -83,12 +83,7 @@ contract TestPermitUpdateBinding is Test {
         vm.expectEmit(true, true, true, true);
         emit UpdateBindingApproved(alice, bob, approvalCount);
 
-        bullaClaim.permitUpdateBinding({
-            user: alice,
-            operator: bob,
-            approvalCount: approvalCount,
-            signature: Signature(0, 0, 0)
-        });
+        bullaClaim.permitUpdateBinding({user: alice, operator: bob, approvalCount: approvalCount, signature: bytes("")});
 
         (,, UpdateBindingApproval memory approval,) = bullaClaim.approvals(alice, bob);
 
@@ -132,7 +127,7 @@ contract TestPermitUpdateBinding is Test {
         bytes32 digest = sigHelper.getPermitUpdateBindingDigest({user: alice, operator: bob, approvalCount: 1});
         eip1271Wallet.sign(digest);
 
-        bullaClaim.permitUpdateBinding({user: alice, operator: bob, approvalCount: 1, signature: Signature(0, 0, 0)});
+        bullaClaim.permitUpdateBinding({user: alice, operator: bob, approvalCount: 1, signature: bytes("")});
 
         digest = sigHelper.getPermitUpdateBindingDigest({user: alice, operator: bob, approvalCount: 0});
         eip1271Wallet.sign(digest);
@@ -140,7 +135,7 @@ contract TestPermitUpdateBinding is Test {
         vm.expectEmit(true, true, true, true);
         emit UpdateBindingApproved(alice, bob, 0);
 
-        bullaClaim.permitUpdateBinding({user: alice, operator: bob, approvalCount: 0, signature: Signature(0, 0, 0)});
+        bullaClaim.permitUpdateBinding({user: alice, operator: bob, approvalCount: 0, signature: bytes("")});
 
         (,, UpdateBindingApproval memory approval,) = bullaClaim.approvals(alice, bob);
 
@@ -169,7 +164,7 @@ contract TestPermitUpdateBinding is Test {
         address alice = vm.addr(alicePK);
         address bob = address(0xB0b);
 
-        Signature memory signature =
+        bytes memory signature =
             sigHelper.signUpdateBindingPermit({pk: alicePK, user: alice, operator: bob, approvalCount: 1});
 
         bullaClaim.setExtensionRegistry(address(0));
@@ -185,9 +180,9 @@ contract TestPermitUpdateBinding is Test {
         address alice = vm.addr(alicePK);
         address bob = address(0xB0b);
 
-        Signature memory signature =
+        bytes memory signature =
             sigHelper.signUpdateBindingPermit({pk: alicePK, user: alice, operator: bob, approvalCount: 1});
-        signature.r = bytes32(uint256(signature.r) + 1);
+        signature[64] = bytes1(uint8(signature[64]) + 1);
 
         vm.expectRevert(BullaClaim.InvalidSignature.selector);
         bullaClaim.permitUpdateBinding({user: alice, operator: bob, approvalCount: 1, signature: signature});
@@ -207,7 +202,7 @@ contract TestPermitUpdateBinding is Test {
 
         // sign the digest with the wrong key
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(badGuyPK, digest);
-        Signature memory signature = Signature({v: v, r: r, s: s});
+        bytes memory signature = abi.encodePacked(r, s, v);
 
         vm.expectRevert(BullaClaim.InvalidSignature.selector);
         bullaClaim.permitUpdateBinding({user: alice, operator: bob, approvalCount: approvalCount, signature: signature});
@@ -221,7 +216,7 @@ contract TestPermitUpdateBinding is Test {
 
         uint64 approvalCount = 1;
 
-        Signature memory signature =
+        bytes memory signature =
             sigHelper.signUpdateBindingPermit({pk: alicePK, user: alice, operator: bob, approvalCount: approvalCount});
 
         bullaClaim.permitUpdateBinding({user: alice, operator: bob, approvalCount: approvalCount, signature: signature});
@@ -245,22 +240,18 @@ contract TestPermitUpdateBinding is Test {
         address operator = vm.addr(0xBeefCafe);
         uint64 approvalCount = 1;
 
-        Signature memory signature = sigHelper.signUpdateBindingPermit({
+        bytes memory signature = sigHelper.signUpdateBindingPermit({
             pk: uint256(12345),
             user: user,
             operator: operator,
             approvalCount: approvalCount
         });
-        signature.r = bytes32(uint256(signature.s) + 10);
+        signature[64] = bytes1(uint8(signature[64]) + 10);
         // the above corrupt signature will return a 0 from ecrecover
 
+        (uint8 v, bytes32 r, bytes32 s) = splitSig(signature);
         assertEq(
-            ecrecover(
-                sigHelper.getPermitUpdateBindingDigest(user, operator, approvalCount),
-                signature.v,
-                signature.r,
-                signature.s
-            ),
+            ecrecover(sigHelper.getPermitUpdateBindingDigest(user, operator, approvalCount), v, r, s),
             user,
             "ecrecover sanity check"
         );
@@ -309,7 +300,7 @@ contract TestPermitUpdateBinding is Test {
         vm.expectEmit(true, true, true, true);
         emit UpdateBindingApproved(user, operator, approvalCount);
 
-        Signature memory signature =
+        bytes memory signature =
             sigHelper.signUpdateBindingPermit({pk: pk, user: user, operator: operator, approvalCount: approvalCount});
 
         bullaClaim.permitUpdateBinding({
