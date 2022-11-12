@@ -129,6 +129,7 @@ describe("permitCreateClaim", async () => {
       approvalCount: 0,
       isBindingAllowed: false,
       nonce: 1,
+      approvalType: CreateClaimApprovalType.Unapproved,
     });
 
     await expect(
@@ -137,7 +138,7 @@ describe("permitCreateClaim", async () => {
         .permitCreateClaim(
           alice.address,
           penalizedClaim.address,
-          CreateClaimApprovalType.Approved,
+          CreateClaimApprovalType.Unapproved,
           0,
           false,
           permitCreateClaimSig
