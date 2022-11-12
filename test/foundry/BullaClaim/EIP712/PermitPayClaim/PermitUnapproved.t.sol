@@ -252,7 +252,7 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
             paymentApprovals: paymentApprovals
         });
 
-        vm.expectRevert(BullaClaim.InvalidPaymentApproval.selector);
+        vm.expectRevert(BullaClaim.InvalidApproval.selector);
         bullaClaim.permitPayClaim({
             user: alice,
             operator: bob,
@@ -278,7 +278,7 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
             paymentApprovals: paymentApprovals
         });
 
-        vm.expectRevert(BullaClaim.InvalidPaymentApproval.selector);
+        vm.expectRevert(BullaClaim.InvalidApproval.selector);
         bullaClaim.permitPayClaim({
             user: alice,
             operator: bob,

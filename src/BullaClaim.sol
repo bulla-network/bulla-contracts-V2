@@ -54,8 +54,8 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     error CannotBindClaim();
     error InvalidSignature();
     error InvalidTimestamp(uint256 timestamp);
+    error InvalidApproval();
     error PastApprovalDeadline();
-    error InvalidPaymentApproval();
     error NotCreditorOrDebtor(address sender);
     error OverPaying(uint256 paymentAmount);
     error ClaimNotPending(uint256 claimId);
@@ -207,6 +207,7 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     ///        Note: _createClaim will always revert if the claimBinding argument is `Bound` and the `from` address is not the debtor
     ///
     /// RES1: If the above are true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return -> otherwise: no-op
+    /// RES2: If the approval count will be 0, then also set the approval to unapproved
     function _spendCreateClaimApproval(
         address from,
         address operator,
@@ -232,8 +233,11 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
             revert CannotBindClaim();
         }
 
-        // result
         if (approval.approvalCount != type(uint64).max) {
+            // spec.RES1, spec.RES2
+            if (approval.approvalCount == 1) {
+                approvals[from][operator].createClaim.approvalType = CreateClaimApprovalType.Unapproved;
+            }
             approvals[from][operator].createClaim.approvalCount -= 1;
         }
 

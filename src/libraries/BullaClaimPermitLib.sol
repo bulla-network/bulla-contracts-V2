@@ -197,7 +197,7 @@ library BullaClaimPermitLib {
                 keccak256(
                     bytes(
                         getPermitCreateClaimMessage(
-                            extensionRegistry, // spec.A4 // spec.R4 /// WARNING: this could revert!
+                            extensionRegistry, // spec.SIG3 /// WARNING: this could revert!
                             operator,
                             approvalType,
                             approvalCount,
@@ -307,9 +307,22 @@ library BullaClaimPermitLib {
     ///     SIG2: `user` is not a 0 address
     ///     SIG3: `extensionRegistry` is not address(0)
     /// This function can _approve_ an operator given:
-    ///     A1: 0 < `approvalCount` < type(uint64).max
+    ///     A1: approvalType is either CreditorOnly, DebtorOnly, or Approved
+    ///     A2: 0 < `approvalCount` < type(uint64).max -> otherwise: reverts
+    ///
+    ///     A.RES1: The nonce is incremented
+    ///     A.RES2: the isBindingAllowed argument is stored
+    ///     A.RES3: the approvalType argument is stored
+    ///     A.RES4: the approvalCount argument is stored
     /// This function can _revoke_ an operator given:
-    ///     R1: `approvalCount` == 0
+    ///     R1: approvalType is Unapproved
+    ///     R2: `approvalCount` == 0 -> otherwise: reverts
+    ///     R3: `isBindingAllowed` == false -> otherwise: reverts
+    ///
+    ///     R.RES1: The nonce is incremented
+    ///     R.RES2: the isBindingAllowed argument is deleted
+    ///     R.RES3: the approvalType argument is set to unapproved
+    ///     R.RES4: the approvalCount argument is deleted
     ///
     /// A valid approval signature is defined as: a signed EIP712 hash digest of the following arguments:
     ///     S1: The hash of the EIP712 typedef string
@@ -320,11 +333,6 @@ library BullaClaimPermitLib {
     ///     S6: The `approvalCount`
     ///     S7: The `isBindingAllowed` boolean flag
     ///     S8: The stored signing nonce found in `user`'s CreateClaimApproval struct for `operator`
-
-    /// Result: If the above conditions are met:
-    ///     RES1: The nonce is incremented
-    ///     RES2: The `user`'s approval of `operator` is updated
-    ///     RES3: A CreateClaimApproved event is emitted with the approval arguments
     function permitCreateClaim(
         Approvals storage approvals,
         BullaExtensionRegistry extensionRegistry,
@@ -349,21 +357,24 @@ library BullaClaimPermitLib {
         );
 
         if (
-            !SignatureChecker.isValidSignatureNow(user, digest, signature) // spec.A1, spec.A2, spec.R1, spec.R2
+            !SignatureChecker.isValidSignatureNow(user, digest, signature) // spec.SIG1, spec.SIG2
         ) revert BullaClaim.InvalidSignature();
 
-        if (approvalCount > 0) {
-            // spec.A3
-            approvals.createClaim.isBindingAllowed = isBindingAllowed; // spec.RES2
-            approvals.createClaim.approvalType = approvalType; // spec.RES2
-            approvals.createClaim.approvalCount = approvalCount; // spec.RES2
-            approvals.createClaim.nonce++; // spec.RES1
+        if (approvalType == CreateClaimApprovalType.Unapproved) {
+            if (approvalCount > 0 || isBindingAllowed) revert BullaClaim.InvalidApproval(); // spec.R2, spec.R3
+
+            approvals.createClaim.nonce++; // spec.R.RES1
+            delete approvals.createClaim.isBindingAllowed; // spec.R.RES2
+            delete approvals.createClaim.approvalType; // spec.R.RES3
+            delete approvals.createClaim.approvalCount; // spec.R.RES4
         } else {
-            // spec.R3
-            delete approvals.createClaim.isBindingAllowed; // spec.RES2
-            delete approvals.createClaim.approvalType; // spec.RES2
-            delete approvals.createClaim.approvalCount; // spec.RES2
-            approvals.createClaim.nonce++; // spec.RES1
+            // spec.A1
+            if (approvalCount == 0) revert BullaClaim.InvalidApproval(); // spec.A2
+
+            approvals.createClaim.nonce++; // spec.A.RES1
+            approvals.createClaim.isBindingAllowed = isBindingAllowed; // spec.A.RES2
+            approvals.createClaim.approvalType = approvalType; // spec.A.RES3
+            approvals.createClaim.approvalCount = approvalCount; // spec.A.RES4
         }
 
         // spec.RES3
@@ -451,19 +462,19 @@ library BullaClaimPermitLib {
         }
 
         if (approvalType == PayClaimApprovalType.IsApprovedForAll) {
-            if (paymentApprovals.length > 0) revert BullaClaim.InvalidPaymentApproval();
+            if (paymentApprovals.length > 0) revert BullaClaim.InvalidApproval();
 
             approvals.payClaim.approvalType = PayClaimApprovalType.IsApprovedForAll;
             approvals.payClaim.approvalDeadline = uint40(approvalDeadline); // cast is safe because we check it above
             delete approvals.payClaim.claimApprovals;
         } else if (approvalType == PayClaimApprovalType.IsApprovedForSpecific) {
-            if (paymentApprovals.length == 0) revert BullaClaim.InvalidPaymentApproval();
+            if (paymentApprovals.length == 0) revert BullaClaim.InvalidApproval();
 
             for (uint256 i; i < paymentApprovals.length; ++i) {
                 if (
                     paymentApprovals[i].claimId > type(uint88).max
                         || paymentApprovals[i].approvedAmount > type(uint128).max
-                ) revert BullaClaim.InvalidPaymentApproval();
+                ) revert BullaClaim.InvalidApproval();
                 if (
                     paymentApprovals[i].approvalDeadline != 0
                         && (
@@ -487,7 +498,7 @@ library BullaClaimPermitLib {
             approvals.payClaim.approvalDeadline = uint40(approvalDeadline);
         } else {
             if (approvalDeadline != 0 || paymentApprovals.length > 0) {
-                revert BullaClaim.InvalidPaymentApproval();
+                revert BullaClaim.InvalidApproval();
             }
 
             delete approvals.payClaim.approvalType; // will reset back to 0, which is unapproved

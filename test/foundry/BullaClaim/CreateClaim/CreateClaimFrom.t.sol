@@ -210,6 +210,22 @@ contract CreateClaimFromTest is Test {
         vm.stopPrank();
     }
 
+    /// @notice SPEC.RES2
+    function testOperatorWillBeUnapprovedWhenApprovalRunsOut() public {
+        _permitCreateClaim({_userPK: userPK, _operator: operator, _approvalCount: 2});
+
+        vm.prank(operator);
+        _newClaimFrom(user, user, debtor);
+
+        vm.prank(operator);
+        _newClaimFrom(user, user, debtor);
+
+        (CreateClaimApproval memory approval,,,) = bullaClaim.approvals(user, operator);
+
+        assertEq(approval.approvalCount, 0);
+        assertTrue(approval.approvalType == CreateClaimApprovalType.Unapproved);
+    }
+
     /// @notice SPEC.RES1
     function testuint64MaxApprovalDoesNotDecrement() public {
         _permitCreateClaim({_userPK: userPK, _operator: operator, _approvalCount: type(uint64).max});
@@ -306,10 +322,11 @@ contract CreateClaimFromTest is Test {
         bool _isBindingAllowed,
         bool isInvoice
     ) public {
-        vm.assume(privateKeyValidity(pk));
-        vm.assume(_approvalCount > 0);
+        CreateClaimApprovalType approvalType = CreateClaimApprovalType(_approvalType % 3);
 
-        CreateClaimApprovalType approvalType = CreateClaimApprovalType(_approvalType % 2);
+        vm.assume(privateKeyValidity(pk));
+        vm.assume(_approvalCount > 0 && approvalType != CreateClaimApprovalType.Unapproved);
+
         address _user = vm.addr(pk);
         _permitCreateClaim({
             _userPK: pk,
