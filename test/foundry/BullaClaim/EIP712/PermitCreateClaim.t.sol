@@ -17,16 +17,27 @@ import {Test} from "forge-std/Test.sol";
 ///     4. Malicious approval signature from another user
 /// @notice SPEC:
 /// Anyone can call this function with a valid signature to modify the `user`'s CreateClaimApproval of `operator` to the provided arguments
+/// In all cases:
+///     SIG1: The recovered signer from the EIP712 signature == `user`
+///     SIG2: `user` is not a 0 address
+///     SIG3: `extensionRegistry` is not address(0)
 /// This function can _approve_ an operator given:
-///     A1: The recovered signer from the EIP712 signature == `user`
-///     A2: `user` is not a 0 address
-///     A3: 0 < `approvalCount` < type(uint64).max
-///     A4: `extensionRegistry` is not address(0)
+///     A1: approvalType is either CreditorOnly, DebtorOnly, or Approved
+///     A2: 0 < `approvalCount` < type(uint64).max -> otherwise: reverts
+///
+///     A.RES1: The nonce is incremented
+///     A.RES2: the isBindingAllowed argument is stored
+///     A.RES3: the approvalType argument is stored
+///     A.RES4: the approvalCount argument is stored
 /// This function can _revoke_ an operator given:
-///     R1: The recovered signer from the EIP712 signature == `user`
-///     R2: `user` is not a 0 address
-///     R3: `approvalCount` == 0
-///     R4: `extensionRegistry` is not address(0)
+///     R1: approvalType is Unapproved
+///     R2: `approvalCount` == 0 -> otherwise: reverts
+///     R3: `isBindingAllowed` == false -> otherwise: reverts
+///
+///     R.RES1: The nonce is incremented
+///     R.RES2: the isBindingAllowed argument is deleted
+///     R.RES3: the approvalType argument is set to unapproved
+///     R.RES4: the approvalCount argument is deleted
 ///
 /// A valid approval signature is defined as: a signed EIP712 hash digest of the following arguments:
 ///     S1: The hash of the EIP712 typedef string
@@ -37,12 +48,6 @@ import {Test} from "forge-std/Test.sol";
 ///     S6: The `approvalCount`
 ///     S7: The `isBindingAllowed` boolean flag
 ///     S8: The stored signing nonce found in `user`'s CreateClaimApproval struct for `operator`
-
-/// Result: If the above conditions are met:
-///     RES1: The nonce is incremented
-///     RES2: The `user`'s approval of `operator` is updated
-///     RES3: A CreateClaimApproved event is emitted with the approval arguments
-
 contract TestPermitCreateClaim is Test {
     BullaClaim internal bullaClaim;
     EIP712Helper internal sigHelper;
@@ -141,7 +146,7 @@ contract TestPermitCreateClaim is Test {
         assertTrue(approval.nonce == 1, "approvalCount");
     }
 
-    /// @notice SPEC.R1
+    /// @notice happy path: R.RES1, R.RES2, R.RES3
     function testRevoke() public {
         uint256 alicePK = uint256(0xA11c3);
 
@@ -338,6 +343,7 @@ contract TestPermitCreateClaim is Test {
         });
     }
 
+    /// @notice SPEC.A2
     function testCannotPermitIfApprovalCountIs0() public {
         uint256 alicePK = uint256(0xA11c3);
 
@@ -462,7 +468,7 @@ contract TestPermitCreateClaim is Test {
         });
     }
 
-    /// @notice SPEC.A1
+    /// @notice SPEC.SIG1
     function testCannotUseCorruptSig() public {
         uint256 alicePK = uint256(0xA11c3);
 
@@ -493,7 +499,7 @@ contract TestPermitCreateClaim is Test {
         });
     }
 
-    /// @notice SPEC.A1
+    /// @notice SPEC.SIG1
     function testCannotUseWrongSig() public {
         uint256 badGuyPK = uint256(0xBEEF);
 
@@ -526,7 +532,7 @@ contract TestPermitCreateClaim is Test {
         });
     }
 
-    /// @notice SPEC.A1
+    /// @notice SPEC.SIG1
     function testCannotReplaySig() public {
         uint256 alicePK = uint256(0xA11c3);
 
@@ -582,7 +588,7 @@ contract TestPermitCreateClaim is Test {
         });
     }
 
-    /// @notice SPEC.A2
+    /// @notice SPEC.SIG2
     function testCannotPermitThe0Address() public {
         address user = address(0);
         address operator = vm.addr(0xBeefCafe);
