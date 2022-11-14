@@ -3,7 +3,7 @@ import {
   BullaClaim,
   PenalizedClaim,
   BullaExtensionRegistry,
-  BullaClaimEIP712,
+  BullaClaimPermitLib,
   WETH,
 } from "../../../typechain-types";
 import { ethers } from "hardhat";
@@ -11,9 +11,10 @@ import { BigNumber, BigNumberish, Signature } from "ethers";
 import { ClaimPaymentApprovalStruct } from "../../../typechain-types/src/BullaClaim";
 
 export enum CreateClaimApprovalType {
-  Approved,
+  Unapproved,
   CreditorOnly,
   DebtorOnly,
+  Approved,
 }
 
 export enum PayClaimApprovalType {
@@ -52,7 +53,7 @@ const getDomain = (bullaClaimAddress: string) => ({
 
 export const permitCreateClaimTypes = {
   ApproveCreateClaimExtension: [
-    { name: "owner", type: "address" },
+    { name: "user", type: "address" },
     { name: "operator", type: "address" },
     { name: "message", type: "string" },
     { name: "approvalType", type: "uint8" },
@@ -64,7 +65,7 @@ export const permitCreateClaimTypes = {
 
 export const permitPayClaimTypes = {
   ApprovePayClaimExtension: [
-    { name: "owner", type: "address" },
+    { name: "user", type: "address" },
     { name: "operator", type: "address" },
     { name: "message", type: "string" },
     { name: "approvalType", type: "uint8" },
@@ -81,7 +82,7 @@ export const permitPayClaimTypes = {
 
 export const permitUpdateBindingTypes = {
   ApproveUpdateBindingExtension: [
-    { name: "owner", type: "address" },
+    { name: "user", type: "address" },
     { name: "operator", type: "address" },
     { name: "message", type: "string" },
     { name: "approvalCount", type: "uint256" },
@@ -91,7 +92,7 @@ export const permitUpdateBindingTypes = {
 
 export const permitCancelClaimTypes = {
   ApproveCancelClaimExtension: [
-    { name: "owner", type: "address" },
+    { name: "user", type: "address" },
     { name: "operator", type: "address" },
     { name: "message", type: "string" },
     { name: "approvalCount", type: "uint256" },
@@ -205,7 +206,13 @@ export const getPermitUpdateBindingMessage = (
 
 export function deployContractsFixture(deployer: SignerWithAddress) {
   return async function fixture(): Promise<
-    [BullaClaim, BullaClaimEIP712, PenalizedClaim, BullaExtensionRegistry, WETH]
+    [
+      BullaClaim,
+      BullaClaimPermitLib,
+      PenalizedClaim,
+      BullaExtensionRegistry,
+      WETH
+    ]
   > {
     // deploy metadata library
     const claimMetadataGeneratorFactory = await ethers.getContractFactory(
@@ -215,11 +222,11 @@ export function deployContractsFixture(deployer: SignerWithAddress) {
       await claimMetadataGeneratorFactory.connect(deployer).deploy()
     ).deployed();
 
-    const BullaClaimEIP712Factory = await ethers.getContractFactory(
-      "BullaClaimEIP712"
+    const BullaClaimPermitLibFactory = await ethers.getContractFactory(
+      "BullaClaimPermitLib"
     );
-    const BullaClaimEIP712 = await (
-      await BullaClaimEIP712Factory.connect(deployer).deploy()
+    const BullaClaimPermitLib = await (
+      await BullaClaimPermitLibFactory.connect(deployer).deploy()
     ).deployed();
 
     // deploy the registry
@@ -234,7 +241,7 @@ export function deployContractsFixture(deployer: SignerWithAddress) {
     const bullaClaimFactory = await ethers.getContractFactory("BullaClaim", {
       libraries: {
         ClaimMetadataGenerator: ClaimMetadataGenerator.address,
-        BullaClaimEIP712: BullaClaimEIP712.address,
+        BullaClaimPermitLib: BullaClaimPermitLib.address,
       },
     });
     const BullaClaim = await (
@@ -268,7 +275,7 @@ export function deployContractsFixture(deployer: SignerWithAddress) {
 
     return [
       BullaClaim,
-      BullaClaimEIP712,
+      BullaClaimPermitLib,
       PenalizedClaim,
       BullaExtensionRegistry,
       Weth,
@@ -294,7 +301,7 @@ export const generateCreateClaimSignature = async ({
   approvalCount?: BigNumberish;
   isBindingAllowed?: boolean;
   nonce?: number;
-}): Promise<Signature> => {
+}): Promise<string> => {
   const domain = getDomain(bullaClaimAddress);
 
   const message = getPermitCreateClaimMessage(
@@ -306,7 +313,7 @@ export const generateCreateClaimSignature = async ({
   );
 
   const payClaimPermission = {
-    owner: signer.address,
+    user: signer.address,
     operator: operator,
     message: message,
     approvalType: approvalType,
@@ -315,12 +322,10 @@ export const generateCreateClaimSignature = async ({
     nonce,
   };
 
-  return ethers.utils.splitSignature(
-    await signer._signTypedData(
-      domain,
-      permitCreateClaimTypes,
-      payClaimPermission
-    )
+  return await signer._signTypedData(
+    domain,
+    permitCreateClaimTypes,
+    payClaimPermission
   );
 };
 
@@ -342,7 +347,7 @@ export const generatePayClaimSignature = async ({
   approvalDeadline?: number;
   paymentApprovals?: ClaimPaymentApprovalStruct[];
   nonce?: number;
-}): Promise<Signature> => {
+}): Promise<string> => {
   const domain = getDomain(bullaClaimAddress);
 
   const message = getPermitPayClaimMessage(
@@ -353,7 +358,7 @@ export const generatePayClaimSignature = async ({
   );
 
   const payClaimPermission = {
-    owner: signer.address,
+    user: signer.address,
     operator: operator,
     message: message,
     approvalType: approvalType,
@@ -362,8 +367,10 @@ export const generatePayClaimSignature = async ({
     nonce,
   };
 
-  return ethers.utils.splitSignature(
-    await signer._signTypedData(domain, permitPayClaimTypes, payClaimPermission)
+  return await signer._signTypedData(
+    domain,
+    permitPayClaimTypes,
+    payClaimPermission
   );
 };
 
@@ -381,7 +388,7 @@ export const generateUpdateClaimSignature = async ({
   operator: string; // address
   approvalCount?: BigNumberish;
   nonce?: number;
-}): Promise<Signature> => {
+}): Promise<string> => {
   const domain = getDomain(bullaClaimAddress);
 
   const message = getPermitUpdateBindingMessage(
@@ -391,19 +398,17 @@ export const generateUpdateClaimSignature = async ({
   );
 
   const updateBindingPermission = {
-    owner: signer.address,
+    user: signer.address,
     operator: operator,
     message: message,
     approvalCount: approvalCount,
     nonce,
   };
 
-  return ethers.utils.splitSignature(
-    await signer._signTypedData(
-      domain,
-      permitUpdateBindingTypes,
-      updateBindingPermission
-    )
+  return await signer._signTypedData(
+    domain,
+    permitUpdateBindingTypes,
+    updateBindingPermission
   );
 };
 
@@ -421,7 +426,7 @@ export const generateCancelClaimSignature = async ({
   operator: string; // address
   approvalCount?: BigNumberish;
   nonce?: number;
-}): Promise<Signature> => {
+}): Promise<string> => {
   const domain = getDomain(bullaClaimAddress);
 
   const message = getPermitCancelClaimMessage(
@@ -431,18 +436,16 @@ export const generateCancelClaimSignature = async ({
   );
 
   const cancelClaimPermission = {
-    owner: signer.address,
+    user: signer.address,
     operator: operator,
     message: message,
     approvalCount: approvalCount,
     nonce,
   };
 
-  return ethers.utils.splitSignature(
-    await signer._signTypedData(
-      domain,
-      permitCancelClaimTypes,
-      cancelClaimPermission
-    )
+  return await signer._signTypedData(
+    domain,
+    permitCancelClaimTypes,
+    cancelClaimPermission
   );
 };

@@ -21,9 +21,10 @@ enum FeePayer {
 }
 
 enum CreateClaimApprovalType {
-    Approved, // an addresss is allowed to create any kind of claim
+    Unapproved,
     CreditorOnly, // an addresss is allowed only to create claims where the user is the creditor
-    DebtorOnly // an addresss is allowed only to create claims where the user is the debtor
+    DebtorOnly, // an addresss is allowed only to create claims where the user is the debtor
+    Approved // an addresss is allowed to create any kind of claim
 }
 
 enum PayClaimApprovalType {
