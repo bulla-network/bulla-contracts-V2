@@ -18,11 +18,11 @@ const config: HardhatUserConfig = {
     version: "0.8.15",
     settings: { optimizer: { enabled: true, runs: 2_000_000 } },
   },
-  networks: {
-    hardhat: {
-      allowUnlimitedContractSize: true,
-    },
-  },
+  // networks: {
+  //   hardhat: {
+  //     allowUnlimitedContractSize: true,
+  //   },
+  // },
   paths: { cache: "cache/hardhat", sources: "src", artifacts: "out/hardhat" },
   preprocess: {
     eachLine: () => ({
