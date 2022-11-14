@@ -189,7 +189,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
             paymentApprovals: new ClaimPaymentApprovalParam[](0)
         });
 
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.InvalidTimestamp.selector, approvalDeadline));
+        vm.expectRevert(BullaClaim.InvalidTimestamp.selector);
         bullaClaim.permitPayClaim({
             user: alice,
             operator: bob,
@@ -211,7 +211,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
             paymentApprovals: new ClaimPaymentApprovalParam[](0)
         });
 
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.InvalidTimestamp.selector, tooBigDeadline));
+        vm.expectRevert(BullaClaim.InvalidTimestamp.selector);
         bullaClaim.permitPayClaim({
             user: alice,
             operator: bob,
@@ -236,7 +236,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
             paymentApprovals: new ClaimPaymentApprovalParam[](0)
         });
 
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.InvalidTimestamp.selector, tooBigDeadline));
+        vm.expectRevert(BullaClaim.InvalidTimestamp.selector);
         bullaClaim.permitPayClaim({
             user: alice,
             operator: bob,

@@ -148,11 +148,11 @@ contract TestUpdateBinding is Test {
         bullaClaim.updateBinding(claimId, ClaimBinding.Bound);
 
         // in the case of trying to set the claim to unbound
-        vm.expectRevert(abi.encodeWithSignature("ClaimBound(uint256)", claimId));
+        vm.expectRevert(BullaClaim.ClaimBound.selector);
         bullaClaim.updateBinding(claimId, ClaimBinding.Unbound);
 
         // in the case of trying to set the claim to binding pending
-        vm.expectRevert(abi.encodeWithSignature("ClaimBound(uint256)", claimId));
+        vm.expectRevert(BullaClaim.ClaimBound.selector);
         bullaClaim.updateBinding(claimId, ClaimBinding.BindingPending);
         vm.stopPrank();
 
@@ -169,10 +169,10 @@ contract TestUpdateBinding is Test {
 
         // an operator cannot unbind a debtor
         vm.startPrank(operator);
-        vm.expectRevert(abi.encodeWithSignature("ClaimBound(uint256)", claimId));
+        vm.expectRevert(BullaClaim.ClaimBound.selector);
         bullaClaim.updateBindingFrom(debtor, claimId, ClaimBinding.Unbound);
 
-        vm.expectRevert(abi.encodeWithSignature("ClaimBound(uint256)", claimId));
+        vm.expectRevert(BullaClaim.ClaimBound.selector);
         bullaClaim.updateBindingFrom(debtor, claimId, ClaimBinding.BindingPending);
     }
 
@@ -326,7 +326,7 @@ contract TestUpdateBinding is Test {
         vm.prank(creditor);
         (uint256 claimId,) = _newClaim(ClaimBinding.BindingPending);
 
-        vm.expectRevert(abi.encodeWithSignature("NotCreditorOrDebtor(address)", caller));
+        vm.expectRevert(BullaClaim.NotCreditorOrDebtor.selector);
 
         vm.prank(caller);
         bullaClaim.updateBinding(claimId, newBinding);
@@ -353,12 +353,12 @@ contract TestUpdateBinding is Test {
 
         // creditor can't update the binding directly
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSignature("ClaimDelegated(uint256,address)", claimId, delegatorAddress));
+        vm.expectRevert(BullaClaim.ClaimDelegated.selector);
         bullaClaim.updateBinding(claimId, ClaimBinding.Unbound);
 
         // neither can the debtor
         vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSignature("ClaimDelegated(uint256,address)", claimId, delegatorAddress));
+        vm.expectRevert(BullaClaim.ClaimDelegated.selector);
         bullaClaim.updateBinding(claimId, ClaimBinding.Bound);
 
         // the delegator must be approved
