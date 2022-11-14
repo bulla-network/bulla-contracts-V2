@@ -46,16 +46,20 @@ contract PenalizedClaim {
         bullaClaim.payClaimFrom{value: claim.token == address(0) ? amountToPay : 0}(msg.sender, claimId, amountToPay);
     }
 
-    function cancelClaim(uint256 claimId, string calldata note) public {
-        Claim memory claim = bullaClaim.getClaim(claimId);
-        _checkDelegator(claim.delegator);
+    // function cancelClaim(uint256 claimId, string calldata note) public {
+    //     Claim memory claim = bullaClaim.getClaim(claimId);
+    //     _checkDelegator(claim.delegator);
 
-        bullaClaim.cancelClaimFrom(msg.sender, claimId, note);
-    }
+    //     if (claim.binding == ClaimBinding.Bound && claim.debtor == msg.sender) {
+    //         revert BullaClaim.ClaimBound(claimId);
+    //     }
 
-    function acceptClaim(uint256 claimId) public {
-        bullaClaim.updateBindingFrom(msg.sender, claimId, ClaimBinding.Bound);
-    }
+    //     bullaClaim.cancelClaimFrom(msg.sender, claimId, note);
+    // }
+
+    // function acceptClaim(uint256 claimId) public {
+    //     bullaClaim.updateBindingFrom(msg.sender, claimId, ClaimBinding.Bound);
+    // }
 
     function _checkDelegator(address _delegator) internal view {
         if (_delegator != address(this)) {

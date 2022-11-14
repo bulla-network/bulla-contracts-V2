@@ -10,7 +10,7 @@ env:
 
 jobs:
   check:
-    name: "Forge Tests + Gas 🧪"
+    name: "Foundry: Tests + Coverage 🧪"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -33,3 +33,11 @@ jobs:
         
       - name: Run tests with fuzzing
         run: forge test -vvv --gas-report
+
+      - name: Generate coverage report
+        run: |
+          forge coverage --report lcov
+          ex -c 'g/SF:src\/mocks/.-1,/end_of_record/d' -c 'wq' lcov.info
+          ex -c 'g/SF:test/.-1,/end_of_record/d' -c 'wq' lcov.info
+        id: coverage
+      - uses: codecov/codecov-action@v3

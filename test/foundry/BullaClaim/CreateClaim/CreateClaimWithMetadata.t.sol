@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 import "forge-std/Vm.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {
+    Signature,
     Claim,
     Status,
     ClaimBinding,
@@ -29,8 +30,8 @@ contract CreateClaimTest is Test {
     address debtor = address(0x02);
     address feeReceiver = address(0xFEE);
 
-    uint256 userPK = uint256(0xA11c3);
-    address user = vm.addr(userPK);
+    uint256 ownerPK = uint256(0xA11c3);
+    address owner = vm.addr(ownerPK);
     address operator = address(0xb0b);
 
     string tokenURI = "https://mytokenURI.com/1234";
@@ -97,32 +98,34 @@ contract CreateClaimTest is Test {
     }
 
     function _permitCreateClaim(
-        uint256 _userPK,
+        uint256 _ownerPK,
         address _operator,
         uint64 _approvalCount,
         CreateClaimApprovalType _approvalType,
         bool _isBindingAllowed
     ) private {
-        bytes memory sig = sigHelper.signCreateClaimPermit(
-            _userPK, vm.addr(_userPK), _operator, _approvalType, _approvalCount, _isBindingAllowed
+        Signature memory sig = sigHelper.signCreateClaimPermit(
+            _ownerPK, vm.addr(_ownerPK), _operator, _approvalType, _approvalCount, _isBindingAllowed
         );
-        bullaClaim.permitCreateClaim(vm.addr(_userPK), _operator, _approvalType, _approvalCount, _isBindingAllowed, sig);
+        bullaClaim.permitCreateClaim(
+            vm.addr(_ownerPK), _operator, _approvalType, _approvalCount, _isBindingAllowed, sig
+        );
     }
 
-    function _permitCreateClaim(uint256 _userPK, address _operator, uint64 _approvalCount) private {
-        _permitCreateClaim(_userPK, _operator, _approvalCount, CreateClaimApprovalType.Approved, true);
+    function _permitCreateClaim(uint256 _ownerPK, address _operator, uint64 _approvalCount) private {
+        _permitCreateClaim(_ownerPK, _operator, _approvalCount, CreateClaimApprovalType.Approved, true);
     }
 
     function testCannotCreateClaimWhenContractIsLocked() public {
         bullaClaim.setLockState(LockState.Locked);
 
-        _permitCreateClaim({_userPK: userPK, _operator: address(this), _approvalCount: type(uint64).max});
+        _permitCreateClaim({_ownerPK: ownerPK, _operator: address(this), _approvalCount: type(uint64).max});
 
         vm.expectRevert(BullaClaim.Locked.selector);
         _newClaim(creditor, debtor);
 
         vm.expectRevert(BullaClaim.Locked.selector);
-        _newClaimFrom(user, creditor, debtor);
+        _newClaimFrom(owner, creditor, debtor);
 
         bullaClaim.setLockState(LockState.NoNewClaims);
 
@@ -130,7 +133,7 @@ contract CreateClaimTest is Test {
         _newClaim(creditor, debtor);
 
         vm.expectRevert(BullaClaim.Locked.selector);
-        _newClaimFrom(user, creditor, debtor);
+        _newClaimFrom(owner, creditor, debtor);
     }
 
     function testCreateClaimWithMetadata() public {
@@ -145,11 +148,11 @@ contract CreateClaimTest is Test {
     }
 
     function testCreateClaimWithMetadataFrom() public {
-        _permitCreateClaim({_userPK: userPK, _operator: address(this), _approvalCount: type(uint64).max});
+        _permitCreateClaim({_ownerPK: ownerPK, _operator: address(this), _approvalCount: type(uint64).max});
 
         vm.expectEmit(true, true, true, true);
         emit MetadataAdded(1, tokenURI, attachmentURI);
-        uint256 claimId = _newClaimFrom(user, user, debtor);
+        uint256 claimId = _newClaimFrom(owner, owner, debtor);
 
         (string memory _tokenURI, string memory _attachmentURI) = bullaClaim.claimMetadata(claimId);
         assertEq(claimId, 1);
@@ -159,17 +162,17 @@ contract CreateClaimTest is Test {
     }
 
     function testCreateClaimWithMetadataFromSpendsApproval() public {
-        _permitCreateClaim({_userPK: userPK, _operator: address(this), _approvalCount: 1});
+        _permitCreateClaim({_ownerPK: ownerPK, _operator: address(this), _approvalCount: 1});
 
-        _newClaimFrom(user, user, debtor);
+        _newClaimFrom(owner, owner, debtor);
 
         vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector));
-        _newClaimFrom(user, user, debtor);
+        _newClaimFrom(owner, owner, debtor);
     }
 
     function testCreateClaimWithMetadataFromFollowsSpec_binding() public {
         _permitCreateClaim({
-            _userPK: userPK,
+            _ownerPK: ownerPK,
             _operator: address(this),
             _approvalCount: type(uint64).max,
             _approvalType: CreateClaimApprovalType.Approved,
@@ -178,10 +181,10 @@ contract CreateClaimTest is Test {
 
         vm.expectRevert(abi.encodeWithSelector(BullaClaim.CannotBindClaim.selector));
         bullaClaim.createClaimWithMetadataFrom(
-            user,
+            owner,
             CreateClaimParams({
                 creditor: debtor,
-                debtor: user,
+                debtor: owner,
                 description: "",
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
@@ -196,7 +199,7 @@ contract CreateClaimTest is Test {
 
     function testCreateClaimWithMetadataFromFollowsSpec_creditorOnly() public {
         _permitCreateClaim({
-            _userPK: userPK,
+            _ownerPK: ownerPK,
             _operator: address(this),
             _approvalCount: type(uint64).max,
             _approvalType: CreateClaimApprovalType.CreditorOnly,
@@ -205,10 +208,10 @@ contract CreateClaimTest is Test {
 
         vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector));
         bullaClaim.createClaimWithMetadataFrom(
-            user,
+            owner,
             CreateClaimParams({
                 creditor: debtor,
-                debtor: user,
+                debtor: owner,
                 description: "",
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
@@ -223,7 +226,7 @@ contract CreateClaimTest is Test {
 
     function testCreateClaimWithMetadataFromFollowsSpec_debtorOnly() public {
         _permitCreateClaim({
-            _userPK: userPK,
+            _ownerPK: ownerPK,
             _operator: address(this),
             _approvalCount: type(uint64).max,
             _approvalType: CreateClaimApprovalType.DebtorOnly,
@@ -232,9 +235,9 @@ contract CreateClaimTest is Test {
 
         vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector));
         bullaClaim.createClaimWithMetadataFrom(
-            user,
+            owner,
             CreateClaimParams({
-                creditor: user,
+                creditor: owner,
                 debtor: creditor,
                 description: "",
                 claimAmount: 1 ether,

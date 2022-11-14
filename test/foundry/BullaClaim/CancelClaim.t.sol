@@ -9,13 +9,6 @@ import {BullaClaim} from "contracts/BullaClaim.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {Deployer} from "script/Deployment.s.sol";
 
-/// @notice covers test cases for cancelClaim() and cancelClaimFrom()
-/// @notice SPEC: canceClaim() TODO
-/// @notice SPEC: _spendCancelClaimApproval()
-///     A function can call this internal function to verify and "spend" `from`'s approval of `operator` to cancel a claim given:
-///         S1. `operator` has > 0 approvalCount from `from` address -> otherwise: reverts
-///
-///     RES1: If the above is true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return
 contract TestCancelClaim is Test {
     WETH public weth;
     BullaClaim public bullaClaim;
@@ -61,9 +54,9 @@ contract TestCancelClaim is Test {
         claim = bullaClaim.getClaim(claimId);
     }
 
-    function _permitCancelClaim(uint256 _userPK, address _operator, uint64 _approvalCount) internal {
-        bytes memory sig = sigHelper.signCancelClaimPermit(_userPK, vm.addr(_userPK), _operator, _approvalCount);
-        bullaClaim.permitCancelClaim(vm.addr(_userPK), _operator, _approvalCount, sig);
+    function _permitCancelClaim(uint256 _ownerPK, address _operator, uint64 _approvalCount) internal {
+        Signature memory sig = sigHelper.signCancelClaimPermit(_ownerPK, vm.addr(_ownerPK), _operator, _approvalCount);
+        bullaClaim.permitCancelClaim(vm.addr(_ownerPK), _operator, _approvalCount, sig);
     }
 
     function _setLockState(LockState lockState) internal {
@@ -71,7 +64,6 @@ contract TestCancelClaim is Test {
         bullaClaim.setLockState(lockState);
     }
 
-    /// @notice SPEC._spendCancelClaimApproval.S1
     function testRejectsIfDebtor() public {
         vm.prank(creditor);
         (uint256 claimId, Claim memory claim) = _newClaim(ClaimBinding.Unbound);
@@ -94,7 +86,7 @@ contract TestCancelClaim is Test {
         assertTrue(claimId == 2);
 
         // permit an operator
-        _permitCancelClaim({_userPK: debtorPK, _operator: operator, _approvalCount: type(uint64).max});
+        _permitCancelClaim({_ownerPK: debtorPK, _operator: operator, _approvalCount: type(uint64).max});
 
         vm.expectEmit(true, true, true, true);
         emit ClaimRejected(claimId, debtor, note);
@@ -106,7 +98,6 @@ contract TestCancelClaim is Test {
         assertTrue(claim.status == Status.Rejected);
     }
 
-    /// @notice SPEC._spendCancelClaimApproval.S1
     function testRescindsIfCreditor() public {
         vm.prank(creditor);
         (uint256 claimId, Claim memory claim) = _newClaim(ClaimBinding.Unbound);
@@ -128,7 +119,7 @@ contract TestCancelClaim is Test {
         assertTrue(claimId == 2);
 
         // permit an operator
-        _permitCancelClaim({_userPK: creditorPK, _operator: operator, _approvalCount: type(uint64).max});
+        _permitCancelClaim({_ownerPK: creditorPK, _operator: operator, _approvalCount: type(uint64).max});
 
         vm.expectEmit(true, true, true, true);
         emit ClaimRescinded(claimId, creditor, note);
@@ -153,7 +144,7 @@ contract TestCancelClaim is Test {
         bullaClaim.cancelClaim(claimId, note);
 
         // test with operator
-        _permitCancelClaim({_userPK: callerPK, _operator: operator, _approvalCount: type(uint64).max});
+        _permitCancelClaim({_ownerPK: callerPK, _operator: operator, _approvalCount: type(uint64).max});
 
         vm.prank(operator);
         vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotCreditorOrDebtor.selector, randomAddress));
@@ -175,8 +166,8 @@ contract TestCancelClaim is Test {
         bullaClaim.cancelClaim(claimId, "No thanks");
 
         // test with operator
-        _permitCancelClaim({_userPK: debtorPK, _operator: operator, _approvalCount: type(uint64).max});
-        _permitCancelClaim({_userPK: creditorPK, _operator: operator, _approvalCount: type(uint64).max});
+        _permitCancelClaim({_ownerPK: debtorPK, _operator: operator, _approvalCount: type(uint64).max});
+        _permitCancelClaim({_ownerPK: creditorPK, _operator: operator, _approvalCount: type(uint64).max});
 
         vm.expectRevert(BullaClaim.Locked.selector);
         vm.prank(operator);
@@ -214,8 +205,8 @@ contract TestCancelClaim is Test {
     }
 
     function testOperatorCanCancelIfPartiallyLocked() public {
-        _permitCancelClaim({_userPK: debtorPK, _operator: operator, _approvalCount: type(uint64).max});
-        _permitCancelClaim({_userPK: creditorPK, _operator: operator, _approvalCount: type(uint64).max});
+        _permitCancelClaim({_ownerPK: debtorPK, _operator: operator, _approvalCount: type(uint64).max});
+        _permitCancelClaim({_ownerPK: creditorPK, _operator: operator, _approvalCount: type(uint64).max});
 
         // creditor creates and operator rejects for debtor
         vm.prank(creditor);
@@ -264,7 +255,7 @@ contract TestCancelClaim is Test {
         assertTrue(claimId == 2);
 
         // permit an operator
-        _permitCancelClaim({_userPK: debtorPK, _operator: operator, _approvalCount: type(uint64).max});
+        _permitCancelClaim({_ownerPK: debtorPK, _operator: operator, _approvalCount: type(uint64).max});
 
         vm.expectEmit(true, true, true, true);
         emit ClaimRejected(claimId, debtor, note);
@@ -293,7 +284,7 @@ contract TestCancelClaim is Test {
         assertTrue(claimId == 4);
 
         // permit an operator
-        _permitCancelClaim({_userPK: creditorPK, _operator: operator, _approvalCount: type(uint64).max});
+        _permitCancelClaim({_ownerPK: creditorPK, _operator: operator, _approvalCount: type(uint64).max});
 
         vm.expectEmit(true, true, true, true);
         emit ClaimRescinded(claimId, creditor, note);
@@ -323,7 +314,7 @@ contract TestCancelClaim is Test {
         vm.stopPrank();
 
         // test with operator
-        _permitCancelClaim({_userPK: debtorPK, _operator: operator, _approvalCount: type(uint64).max});
+        _permitCancelClaim({_ownerPK: debtorPK, _operator: operator, _approvalCount: type(uint64).max});
 
         vm.prank(operator);
         vm.expectRevert(abi.encodeWithSelector(BullaClaim.ClaimBound.selector, claimId));
@@ -348,14 +339,14 @@ contract TestCancelClaim is Test {
     function testCannotCancelIfClaimIsDelegatedAndCallerIsNotDelegator() public {
         // allow the delegator to create a claim for the creditor
         bullaClaim.permitCreateClaim({
-            user: creditor,
+            owner: creditor,
             operator: operator,
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 1,
             isBindingAllowed: true,
             signature: sigHelper.signCreateClaimPermit({
                 pk: creditorPK,
-                user: creditor,
+                owner: creditor,
                 operator: operator,
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
@@ -388,14 +379,14 @@ contract TestCancelClaim is Test {
     function testCanCallIfDelegatedAndCallerIsDelegator() public {
         // allow the delegator to create a claim for the creditor
         bullaClaim.permitCreateClaim({
-            user: creditor,
+            owner: creditor,
             operator: operator,
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 1,
             isBindingAllowed: true,
             signature: sigHelper.signCreateClaimPermit({
                 pk: creditorPK,
-                user: creditor,
+                owner: creditor,
                 operator: operator,
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
@@ -420,7 +411,7 @@ contract TestCancelClaim is Test {
             })
         );
 
-        _permitCancelClaim({_userPK: creditorPK, _operator: operator, _approvalCount: type(uint64).max});
+        _permitCancelClaim({_ownerPK: creditorPK, _operator: operator, _approvalCount: type(uint64).max});
 
         vm.prank(operator);
         bullaClaim.cancelClaimFrom(creditor, claimId, "No thanks");
@@ -503,7 +494,6 @@ contract TestCancelClaim is Test {
         vm.stopPrank();
     }
 
-    /// @notice SPEC._spendCancelClaimApproval.RES1
     function testCancelClaimFromDecrements(uint64 approvalCount) public {
         string memory note = "Nope";
         vm.assume(approvalCount > 0 && approvalCount < type(uint64).max);
@@ -513,7 +503,7 @@ contract TestCancelClaim is Test {
         vm.prank(creditor);
         (uint256 claimId,) = _newClaim(ClaimBinding.Unbound);
         // permit an operator
-        _permitCancelClaim({_userPK: debtorPK, _operator: operator, _approvalCount: approvalCount});
+        _permitCancelClaim({_ownerPK: debtorPK, _operator: operator, _approvalCount: approvalCount});
 
         vm.expectEmit(true, true, true, true);
         emit ClaimRejected(claimId, debtor, note);
@@ -529,7 +519,7 @@ contract TestCancelClaim is Test {
         vm.prank(creditor);
         (claimId,) = _newClaim(ClaimBinding.Unbound);
         // permit an operator
-        _permitCancelClaim({_userPK: creditorPK, _operator: operator, _approvalCount: approvalCount});
+        _permitCancelClaim({_ownerPK: creditorPK, _operator: operator, _approvalCount: approvalCount});
 
         vm.expectEmit(true, true, true, true);
         emit ClaimRescinded(claimId, creditor, note);
@@ -541,29 +531,27 @@ contract TestCancelClaim is Test {
         assertEq(approval.approvalCount, approvalCount - 1);
     }
 
-    /// @notice SPEC._spendCancelClaimApproval.S1
     function testCancelClaimFromRevertsIfUnapproved() public {
         // make a new claim
         vm.prank(creditor);
         (uint256 claimId,) = _newClaim(ClaimBinding.Unbound);
         // permit an operator
-        _permitCancelClaim({_userPK: debtorPK, _operator: operator, _approvalCount: 5});
+        _permitCancelClaim({_ownerPK: debtorPK, _operator: operator, _approvalCount: 5});
 
         // revokes approval
-        _permitCancelClaim({_userPK: debtorPK, _operator: operator, _approvalCount: 0});
+        _permitCancelClaim({_ownerPK: debtorPK, _operator: operator, _approvalCount: 0});
 
         vm.prank(operator);
         vm.expectRevert(BullaClaim.NotApproved.selector);
         bullaClaim.cancelClaimFrom(debtor, claimId, "Nope");
     }
 
-    /// @notice SPEC._spendCancelClaimApproval.RES1
     function testCancelClaimFromDoesNotDecrementIfApprovalMaxedOut() public {
         // make a new claim
         vm.prank(creditor);
         (uint256 claimId,) = _newClaim(ClaimBinding.Unbound);
         // permit an operator
-        _permitCancelClaim({_userPK: debtorPK, _operator: operator, _approvalCount: type(uint64).max});
+        _permitCancelClaim({_ownerPK: debtorPK, _operator: operator, _approvalCount: type(uint64).max});
 
         vm.prank(operator);
         bullaClaim.cancelClaimFrom(debtor, claimId, "Nope");

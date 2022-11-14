@@ -3,7 +3,7 @@ import { expect } from "chai";
 import { BigNumber } from "ethers";
 import { ethers } from "hardhat";
 import {
-    BullaClaim, BullaClaimPermitLib, BullaExtensionRegistry, PenalizedClaim, WETH
+    BullaClaim, BullaClaimEIP712, BullaExtensionRegistry, PenalizedClaim, WETH
 } from "../../../typechain-types";
 import {
     ClaimPaymentApprovalStruct
@@ -19,14 +19,14 @@ describe("permitPayClaim", async () => {
   let [deployer, alice, bob, wallet4] = declareSignerWithAddress();
 
   let bullaClaim: BullaClaim,
-    BullaClaimPermitLib: BullaClaimPermitLib,
+    bullaClaimEIP712: BullaClaimEIP712,
     penalizedClaim: PenalizedClaim,
     registry: BullaExtensionRegistry,
     weth: WETH;
 
   before(async () => {
     [deployer, alice, bob, wallet4] = await ethers.getSigners();
-    [bullaClaim, BullaClaimPermitLib, penalizedClaim, registry, weth] =
+    [bullaClaim, bullaClaimEIP712, penalizedClaim, registry, weth] =
       await loadFixture(deployContractsFixture(deployer));
     await weth
       .connect(deployer)
@@ -34,7 +34,7 @@ describe("permitPayClaim", async () => {
   });
 
   it("IsApprovedForAll", async () => {
-    [bullaClaim, BullaClaimPermitLib, penalizedClaim, registry] =
+    [bullaClaim, bullaClaimEIP712, penalizedClaim, registry] =
       await loadFixture(deployContractsFixture(deployer));
 
     const APPROVAL_TYPE = PayClaimApprovalType.IsApprovedForAll;
@@ -79,7 +79,7 @@ describe("permitPayClaim", async () => {
   });
 
   it("IsApprovedForSpecific", async () => {
-    [bullaClaim, BullaClaimPermitLib, penalizedClaim, registry] =
+    [bullaClaim, bullaClaimEIP712, penalizedClaim, registry] =
       await loadFixture(deployContractsFixture(deployer));
 
     const accountant = wallet4;
@@ -163,7 +163,7 @@ describe("permitPayClaim", async () => {
   });
 
   it("Unapproved (revoke)", async () => {
-    [bullaClaim, BullaClaimPermitLib, penalizedClaim, registry] =
+    [bullaClaim, bullaClaimEIP712, penalizedClaim, registry] =
       await loadFixture(deployContractsFixture(deployer));
 
     const APPROVAL_TYPE = PayClaimApprovalType.Unapproved;

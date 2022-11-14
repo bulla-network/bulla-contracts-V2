@@ -2,7 +2,7 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import {
-  BullaClaim, BullaClaimPermitLib, BullaExtensionRegistry, PenalizedClaim, WETH
+  BullaClaim, BullaClaimEIP712, BullaExtensionRegistry, PenalizedClaim, WETH
 } from "../../../typechain-types";
 import {
   ClaimBinding,
@@ -17,14 +17,14 @@ describe("permitCreateClaim", async () => {
   let [deployer, alice, bob, wallet4] = declareSignerWithAddress();
 
   let bullaClaim: BullaClaim,
-    BullaClaimPermitLib: BullaClaimPermitLib,
+    bullaClaimEIP712: BullaClaimEIP712,
     penalizedClaim: PenalizedClaim,
     registry: BullaExtensionRegistry,
     weth: WETH;
 
   before(async () => {
     [deployer, alice, bob, wallet4] = await ethers.getSigners();
-    [bullaClaim, BullaClaimPermitLib, penalizedClaim, registry, weth] =
+    [bullaClaim, bullaClaimEIP712, penalizedClaim, registry, weth] =
       await loadFixture(deployContractsFixture(deployer));
     await weth
       .connect(deployer)
@@ -32,7 +32,7 @@ describe("permitCreateClaim", async () => {
   });
 
   it("approves permit", async () => {
-    [bullaClaim, BullaClaimPermitLib, penalizedClaim, registry] =
+    [bullaClaim, bullaClaimEIP712, penalizedClaim, registry] =
       await loadFixture(deployContractsFixture(deployer));
 
     const claim = {
@@ -92,7 +92,7 @@ describe("permitCreateClaim", async () => {
   });
 
   it("revoke approval", async () => {
-    [bullaClaim, BullaClaimPermitLib, penalizedClaim, registry] =
+    [bullaClaim, bullaClaimEIP712, penalizedClaim, registry] =
       await loadFixture(deployContractsFixture(deployer));
 
     let permitCreateClaimSig = await generateCreateClaimSignature({
@@ -129,7 +129,6 @@ describe("permitCreateClaim", async () => {
       approvalCount: 0,
       isBindingAllowed: false,
       nonce: 1,
-      approvalType: CreateClaimApprovalType.Unapproved,
     });
 
     await expect(
@@ -138,7 +137,7 @@ describe("permitCreateClaim", async () => {
         .permitCreateClaim(
           alice.address,
           penalizedClaim.address,
-          CreateClaimApprovalType.Unapproved,
+          CreateClaimApprovalType.Approved,
           0,
           false,
           permitCreateClaimSig
