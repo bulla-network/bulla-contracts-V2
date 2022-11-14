@@ -88,9 +88,9 @@ contract TestInvariants is Test {
         } else if (state == BullaClaimState.WithFeeCalculator) {
             bullaClaim.setFeeCalculator(address(new BullaFeeCalculator(500)));
         } else if (state == BullaClaimState.NoOwner && bullaClaim.owner() != address(0)) {
-            bullaClaim.setOwner(address(0));
+            bullaClaim.renounceOwnership();
         } else if (state == BullaClaimState.HasOwner) {
-            bullaClaim.setOwner(contractOwner);
+            bullaClaim.transferOwnership(contractOwner);
         } else if (state == BullaClaimState.NoFeeReceiver) {
             bullaClaim.setFeeCollectionAddress(address(0));
         } else if (state == BullaClaimState.HasFeeReceiver) {

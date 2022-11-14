@@ -34,7 +34,7 @@ contract TestFeeCalculator is Test {
 
         BullaFeeCalculator feeCalculator2 = new BullaFeeCalculator(100);
 
-        vm.expectRevert("UNAUTHORIZED");
+        vm.expectRevert("Ownable: caller is not the owner");
         // alice is not the contract owner
         vm.prank(alice);
         bullaClaim.setFeeCalculator(address(feeCalculator2));
