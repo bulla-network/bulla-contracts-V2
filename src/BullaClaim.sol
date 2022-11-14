@@ -7,17 +7,17 @@ import {IERC1271} from "contracts/interfaces/IERC1271.sol";
 import {BullaExtensionRegistry} from "contracts/BullaExtensionRegistry.sol";
 import {EIP712} from "openzeppelin-contracts/contracts/utils/cryptography/EIP712.sol";
 import {ECDSA} from "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
+import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {SafeCastLib} from "solmate/utils/SafeCastLib.sol";
 import {BoringBatchable} from "contracts/libraries/BoringBatchable.sol";
 import {BullaClaimPermitLib} from "contracts/libraries/BullaClaimPermitLib.sol";
-import {Owned} from "solmate/auth/Owned.sol";
 import {ERC721} from "solmate/tokens/ERC721.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {ClaimMetadataGenerator} from "contracts/ClaimMetadataGenerator.sol";
 import "forge-std/console.sol";
 
-contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
+contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     using SafeTransferLib for ERC20;
     using SafeTransferLib for address;
     using SafeCastLib for uint256;
@@ -124,7 +124,6 @@ contract BullaClaim is ERC721, EIP712, Owned, BoringBatchable {
     constructor(address _feeCollectionAddress, address _extensionRegistry, LockState _lockState)
         ERC721("BullaClaim", "CLAIM")
         EIP712("BullaClaim", "1")
-        Owned(msg.sender)
     {
         feeCollectionAddress = _feeCollectionAddress;
         extensionRegistry = BullaExtensionRegistry(_extensionRegistry);
