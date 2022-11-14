@@ -1,9 +1,9 @@
 //SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.15;
 
+import "contracts/types/Types.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
-import {Claim, ClaimBinding} from "contracts/types/Structs.sol";
 import {BullaClaim, CreateClaimParams, BullaClaim} from "contracts/BullaClaim.sol";
 
 // naive implementation of a bullaExtension and a delegator that penalizes users for paying late:
