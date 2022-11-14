@@ -144,13 +144,13 @@ contract PenalizedClaimTest is Test {
 
         vm.startPrank(debtor);
 
-        vm.expectRevert(abi.encodeWithSignature("ClaimDelegated(uint256,address)", claimId, address(penalizedClaim)));
+        vm.expectRevert(BullaClaim.ClaimDelegated.selector);
         bullaClaim.updateBinding(claimId, ClaimBinding.Bound);
 
-        vm.expectRevert(abi.encodeWithSignature("ClaimDelegated(uint256,address)", claimId, address(penalizedClaim)));
+        vm.expectRevert(BullaClaim.ClaimDelegated.selector);
         bullaClaim.payClaim{value: 0.5 ether}(claimId, 0.5 ether);
 
-        vm.expectRevert(abi.encodeWithSignature("ClaimDelegated(uint256,address)", claimId, address(penalizedClaim)));
+        vm.expectRevert(BullaClaim.ClaimDelegated.selector);
         bullaClaim.cancelClaim(claimId, "Nahhhh");
     }
 }

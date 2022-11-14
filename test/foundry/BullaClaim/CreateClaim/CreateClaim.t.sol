@@ -123,7 +123,7 @@ contract CreateClaimTest is Test {
         PenalizedClaim delegator = new PenalizedClaim(address(bullaClaim));
 
         vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSignature("NotDelegator(address)", debtor));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotDelegator.selector, debtor));
         bullaClaim.createClaim(
             CreateClaimParams({
                 creditor: creditor,
@@ -227,7 +227,7 @@ contract CreateClaimTest is Test {
         address delegator = address(0xDECAFC0FFEE);
 
         vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSignature("NotDelegator(address)", debtor));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotDelegator.selector, debtor));
 
         bullaClaim.createClaim(
             CreateClaimParams({
@@ -261,7 +261,7 @@ contract CreateClaimTest is Test {
             })
         );
 
-        vm.expectRevert(abi.encodeWithSignature("CannotBindClaim()"));
+        vm.expectRevert(BullaClaim.CannotBindClaim.selector);
         bullaClaim.createClaim(
             CreateClaimParams({
                 creditor: creditor,
@@ -300,7 +300,7 @@ contract CreateClaimTest is Test {
         vm.warp(block.timestamp + 6 days);
 
         uint256 dueBy = block.timestamp - 1 days;
-        vm.expectRevert(abi.encodeWithSignature("InvalidTimestamp(uint256)", dueBy));
+        vm.expectRevert(BullaClaim.InvalidTimestamp.selector);
         bullaClaim.createClaim(
             CreateClaimParams({
                 creditor: creditor,
@@ -317,7 +317,7 @@ contract CreateClaimTest is Test {
     }
 
     function testCannotCreateBoundClaim() public {
-        vm.expectRevert(abi.encodeWithSignature("CannotBindClaim()"));
+        vm.expectRevert(BullaClaim.CannotBindClaim.selector);
         bullaClaim.createClaim(
             CreateClaimParams({
                 creditor: creditor,

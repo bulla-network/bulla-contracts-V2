@@ -149,14 +149,14 @@ contract TestCancelClaim is Test {
         string memory note = "No thanks";
 
         vm.prank(randomAddress);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotCreditorOrDebtor.selector, randomAddress));
+        vm.expectRevert(BullaClaim.NotCreditorOrDebtor.selector);
         bullaClaim.cancelClaim(claimId, note);
 
         // test with operator
         _permitCancelClaim({_userPK: callerPK, _operator: operator, _approvalCount: type(uint64).max});
 
         vm.prank(operator);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotCreditorOrDebtor.selector, randomAddress));
+        vm.expectRevert(BullaClaim.NotCreditorOrDebtor.selector);
         bullaClaim.cancelClaimFrom(randomAddress, claimId, note);
     }
 
@@ -307,7 +307,7 @@ contract TestCancelClaim is Test {
 
     function testCannotCancelIfNotMinted() public {
         vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotMinted.selector, 1));
+        vm.expectRevert(BullaClaim.NotMinted.selector);
         bullaClaim.cancelClaim(1, "Reject");
     }
 
@@ -318,7 +318,7 @@ contract TestCancelClaim is Test {
 
         vm.startPrank(debtor);
         bullaClaim.updateBinding(claimId, ClaimBinding.Bound);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.ClaimBound.selector, claimId));
+        vm.expectRevert(BullaClaim.ClaimBound.selector);
         bullaClaim.cancelClaim(claimId, note);
         vm.stopPrank();
 
@@ -326,7 +326,7 @@ contract TestCancelClaim is Test {
         _permitCancelClaim({_userPK: debtorPK, _operator: operator, _approvalCount: type(uint64).max});
 
         vm.prank(operator);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.ClaimBound.selector, claimId));
+        vm.expectRevert(BullaClaim.ClaimBound.selector);
         bullaClaim.cancelClaimFrom(debtor, claimId, note);
     }
 
@@ -381,7 +381,7 @@ contract TestCancelClaim is Test {
         );
 
         vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.ClaimDelegated.selector, 1, operator));
+        vm.expectRevert(BullaClaim.ClaimDelegated.selector);
         bullaClaim.cancelClaim(claimId, "No thanks");
     }
 
@@ -439,7 +439,7 @@ contract TestCancelClaim is Test {
 
         assertTrue(bullaClaim.getClaim(claimId).status == Status.Repaying);
 
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.ClaimNotPending.selector, claimId));
+        vm.expectRevert(BullaClaim.ClaimNotPending.selector);
         bullaClaim.cancelClaim(claimId, "No thanks");
         vm.stopPrank();
     }
@@ -453,7 +453,7 @@ contract TestCancelClaim is Test {
         vm.prank(creditor);
         bullaClaim.cancelClaim(claimId, "nah");
 
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.ClaimNotPending.selector, claimId));
+        vm.expectRevert(BullaClaim.ClaimNotPending.selector);
         vm.prank(creditor);
         bullaClaim.cancelClaim(claimId, "No thanks");
 
@@ -462,7 +462,7 @@ contract TestCancelClaim is Test {
         vm.prank(debtor);
         bullaClaim.cancelClaim(claimId, "nah");
 
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.ClaimNotPending.selector, claimId));
+        vm.expectRevert(BullaClaim.ClaimNotPending.selector);
         vm.prank(debtor);
         bullaClaim.cancelClaim(claimId, "No thanks");
 
@@ -471,7 +471,7 @@ contract TestCancelClaim is Test {
         vm.prank(debtor);
         bullaClaim.cancelClaim(claimId, "nah");
 
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.ClaimNotPending.selector, claimId));
+        vm.expectRevert(BullaClaim.ClaimNotPending.selector);
         vm.prank(creditor);
         bullaClaim.cancelClaim(claimId, "No thanks");
 
@@ -480,7 +480,7 @@ contract TestCancelClaim is Test {
         vm.prank(creditor);
         bullaClaim.cancelClaim(claimId, "nah");
 
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.ClaimNotPending.selector, claimId));
+        vm.expectRevert(BullaClaim.ClaimNotPending.selector);
         vm.prank(debtor);
         bullaClaim.cancelClaim(claimId, "No thanks");
     }
@@ -498,7 +498,7 @@ contract TestCancelClaim is Test {
 
         assertTrue(bullaClaim.getClaim(claimId).status == Status.Paid);
 
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.ClaimNotPending.selector, claimId));
+        vm.expectRevert(BullaClaim.ClaimNotPending.selector);
         bullaClaim.cancelClaim(claimId, "No thanks");
         vm.stopPrank();
     }

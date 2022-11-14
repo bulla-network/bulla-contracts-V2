@@ -458,7 +458,7 @@ library BullaClaimPermitLib {
 
         if (!SignatureChecker.isValidSignatureNow(user, digest, signature)) revert BullaClaim.InvalidSignature();
         if (approvalDeadline != 0 && (approvalDeadline < block.timestamp || approvalDeadline > type(uint40).max)) {
-            revert BullaClaim.InvalidTimestamp(approvalDeadline);
+            revert BullaClaim.InvalidTimestamp();
         }
 
         if (approvalType == PayClaimApprovalType.IsApprovedForAll) {
@@ -482,7 +482,7 @@ library BullaClaimPermitLib {
                                 || paymentApprovals[i].approvalDeadline > type(uint40).max
                         )
                 ) {
-                    revert BullaClaim.InvalidTimestamp(paymentApprovals[i].approvalDeadline);
+                    revert BullaClaim.InvalidTimestamp();
                 }
 
                 approvals.payClaim.claimApprovals.push(

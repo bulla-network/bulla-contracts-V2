@@ -48,23 +48,23 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
                             ERRORS / MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
-    error PayingZero();
-    error ClaimBound(uint256 claimId);
-    error NotOwner();
-    error CannotBindClaim();
-    error InvalidSignature();
-    error InvalidTimestamp(uint256 timestamp);
-    error InvalidApproval();
-    error PastApprovalDeadline();
-    error NotCreditorOrDebtor(address sender);
-    error OverPaying(uint256 paymentAmount);
-    error ClaimNotPending(uint256 claimId);
-    error ClaimDelegated(uint256 claimId, address delegator);
-    error NotDelegator(address sender);
-    error NotMinted(uint256 claimId);
-    error NotApproved();
-    error PaymentUnderApproved();
     error Locked();
+    error CannotBindClaim();
+    error InvalidApproval();
+    error InvalidSignature();
+    error InvalidTimestamp();
+    error PastApprovalDeadline();
+    error NotOwner();
+    error NotCreditorOrDebtor();
+    error NotDelegator(address sender);
+    error ClaimBound();
+    error ClaimDelegated();
+    error ClaimNotPending();
+    error NotMinted();
+    error NotApproved();
+    error PayingZero();
+    error PaymentUnderApproved();
+    error OverPaying(uint256 paymentAmount);
 
     function _notLocked() internal view {
         if (lockState == LockState.Locked) {
@@ -262,7 +262,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         // we allow dueBy to be 0 in the case of an "open" claim, or we allow a reasonable timestamp
         if (params.dueBy != 0 && params.dueBy < block.timestamp && params.dueBy < type(uint40).max) {
             //todo: fix
-            revert InvalidTimestamp(params.dueBy);
+            revert InvalidTimestamp();
         }
 
         // you need the permission of the debtor to bind a claim
@@ -429,7 +429,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         //      custom logic, then call these functions. We check the msg.sender against the delegator to make sure a user
         //      isn't trying to bypass delegator specific logic (eg: late fees) and by going to this contract directly.
         if (claim.delegator != address(0) && msg.sender != claim.delegator) {
-            revert ClaimDelegated(claimId, claim.delegator);
+            revert ClaimDelegated();
         }
 
         // load the claim from storage
@@ -442,7 +442,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
 
         // make sure the claim can be paid (not completed, not rejected, not rescinded)
         if (claim.status != Status.Pending && claim.status != Status.Repaying) {
-            revert ClaimNotPending(claimId);
+            revert ClaimNotPending();
         }
 
         uint256 fee = claim.feeCalculatorId != 0
@@ -546,12 +546,12 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
 
         // check if the claim is delegated
         if (claim.delegator != address(0) && msg.sender != claim.delegator) {
-            revert ClaimDelegated(claimId, claim.delegator);
+            revert ClaimDelegated();
         }
 
         // make sure the sender is authorized
         if (from != creditor && from != claim.debtor) {
-            revert NotCreditorOrDebtor(from);
+            revert NotCreditorOrDebtor();
         }
 
         // make sure the binding is valid
@@ -561,7 +561,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
 
         // make sure the debtor isn't trying to unbind themselves
         if (from == claim.debtor && claim.binding == ClaimBinding.Bound) {
-            revert ClaimBound(claimId);
+            revert ClaimBound();
         }
 
         claims[claimId].binding = binding;
@@ -613,16 +613,16 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         Claim memory claim = getClaim(claimId);
 
         if (claim.binding == ClaimBinding.Bound && claim.debtor == from) {
-            revert ClaimBound(claimId);
+            revert ClaimBound();
         }
 
         if (claim.delegator != address(0) && msg.sender != claim.delegator) {
-            revert ClaimDelegated(claimId, claim.delegator);
+            revert ClaimDelegated();
         }
 
         // make sure the claim can be rejected (not completed, not rejected, not rescinded)
         if (claim.status != Status.Pending) {
-            revert ClaimNotPending(claimId);
+            revert ClaimNotPending();
         }
 
         if (from == claim.debtor) {
@@ -632,7 +632,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
             claims[claimId].status = Status.Rescinded;
             emit ClaimRescinded(claimId, from, note);
         } else {
-            revert NotCreditorOrDebtor(from);
+            revert NotCreditorOrDebtor();
         }
     }
 
@@ -722,9 +722,8 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     //////////////////////////////////////////////////////////////*/
 
     function getClaim(uint256 claimId) public view returns (Claim memory claim) {
-        if (claimId > currentClaimId) {
-            revert NotMinted(claimId);
-        }
+        if (claimId > currentClaimId) revert NotMinted();
+
         ClaimStorage memory claimStorage = claims[claimId];
         claim = Claim({
             claimAmount: uint256(claimStorage.claimAmount),

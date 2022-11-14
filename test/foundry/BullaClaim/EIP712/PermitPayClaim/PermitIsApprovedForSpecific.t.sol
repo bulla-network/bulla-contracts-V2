@@ -217,7 +217,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
             paymentApprovals: paymentApprovals
         });
 
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.InvalidTimestamp.selector, approvalDeadline));
+        vm.expectRevert(BullaClaim.InvalidTimestamp.selector);
         bullaClaim.permitPayClaim({
             user: alice,
             operator: bob,
@@ -294,7 +294,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
             paymentApprovals: paymentApprovals
         });
 
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.InvalidTimestamp.selector, badApprovalDeadline));
+        vm.expectRevert(BullaClaim.InvalidTimestamp.selector);
         bullaClaim.permitPayClaim({
             user: alice,
             operator: bob,
@@ -322,7 +322,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
             paymentApprovals: paymentApprovals
         });
 
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.InvalidTimestamp.selector, badApprovalDeadline));
+        vm.expectRevert(BullaClaim.InvalidTimestamp.selector);
         bullaClaim.permitPayClaim({
             user: alice,
             operator: bob,
@@ -349,7 +349,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
             paymentApprovals: paymentApprovals
         });
 
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.InvalidTimestamp.selector, OCTOBER_23RD_2022));
+        vm.expectRevert(BullaClaim.InvalidTimestamp.selector);
         bullaClaim.permitPayClaim({
             user: alice,
             operator: bob,
