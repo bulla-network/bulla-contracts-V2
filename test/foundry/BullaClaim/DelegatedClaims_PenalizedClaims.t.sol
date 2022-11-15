@@ -11,7 +11,7 @@ import {BullaClaim} from "contracts/BullaClaim.sol";
 import {PenalizedClaim} from "contracts/mocks/PenalizedClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
 
-contract PenalizedClaimTest is Test {
+contract TestPenalizedClaim is Test {
     WETH public weth;
     BullaClaim public bullaClaim;
     EIP712Helper public sigHelper;

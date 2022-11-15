@@ -20,7 +20,7 @@ import {BullaFeeCalculator} from "contracts/BullaFeeCalculator.sol";
 import {Claim, Status, ClaimBinding, FeePayer, CreateClaimParams, LockState} from "contracts/types/Types.sol";
 import {Deployer} from "script/Deployment.s.sol";
 
-contract PayClaimWithWeirdTokens is Test {
+contract TestPayClaimWithWeirdTokens is Test {
     using Strings for uint256;
 
     MockERC20 erc20;
@@ -107,6 +107,7 @@ contract PayClaimWithWeirdTokens is Test {
         for (uint256 i = 0; i < tokens.length; i++) {
             ERC20 token = tokens[i];
 
+            vm.prank(creditor);
             uint256 claimId = _newClaim(address(token), FeePayer.Creditor, CLAIM_AMOUNT);
 
             uint256 creditorBalanceBefore = token.balanceOf(creditor);
@@ -147,6 +148,7 @@ contract PayClaimWithWeirdTokens is Test {
         feeToken.mint(debtor, CLAIM_AMOUNT * 2);
         tokenFeeAmount = (CLAIM_AMOUNT * feeToken.FEE_BPS()) / 10000;
 
+        vm.prank(creditor);
         uint256 claimId_creditorFee = _newClaim(address(feeToken), FeePayer.Creditor, CLAIM_AMOUNT);
 
         creditorBalanceBefore = feeToken.balanceOf(creditor);
@@ -174,6 +176,7 @@ contract PayClaimWithWeirdTokens is Test {
         assertEq(uint256(claim.status), uint256(Status.Paid));
 
         // ensure debtor fee
+        vm.prank(creditor);
         uint256 claimId_debtorFee = _newClaim(address(feeToken), FeePayer.Debtor, CLAIM_AMOUNT);
 
         creditorBalanceBefore = feeToken.balanceOf(creditor);
@@ -226,6 +229,7 @@ contract PayClaimWithWeirdTokens is Test {
         vm.prank(debtor);
         feeToken.approve(address(bullaClaim), CLAIM_AMOUNT * 10);
 
+        vm.prank(creditor);
         uint256 claimId_creditorFee = _newClaim(address(feeToken), FeePayer.Creditor, CLAIM_AMOUNT);
 
         creditorBalanceBefore = feeToken.balanceOf(creditor);
@@ -255,6 +259,7 @@ contract PayClaimWithWeirdTokens is Test {
         assertEq(uint256(claim.status), uint256(Status.Paid));
 
         // ensure debtor fee
+        vm.prank(creditor);
         uint256 claimId_debtorFee = _newClaim(address(feeToken), FeePayer.Debtor, CLAIM_AMOUNT);
 
         claim = bullaClaim.getClaim(claimId_debtorFee);

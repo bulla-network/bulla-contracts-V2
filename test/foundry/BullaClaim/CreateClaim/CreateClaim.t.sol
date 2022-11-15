@@ -9,10 +9,9 @@ import {BullaFeeCalculator} from "contracts/BullaFeeCalculator.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {PenalizedClaim} from "contracts/mocks/PenalizedClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
+import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 
-contract CreateClaimTest is Test {
-    WETH public weth;
-    BullaClaim public bullaClaim;
+contract TestCreateClaim is BullaClaimTestHelper {
     BullaFeeCalculator feeCalculator;
 
     address creditor = address(0x01);
@@ -41,7 +40,7 @@ contract CreateClaimTest is Test {
             _initialLockState: LockState.Unlocked,
             _feeBPS: 0
         });
-        _newClaim(creditor, debtor);
+        _newClaim(creditor, creditor, debtor);
     }
 
     /*///////// HELPERS /////////*/
@@ -50,30 +49,15 @@ contract CreateClaimTest is Test {
         bullaClaim.setFeeCalculator(address(feeCalculator));
     }
 
-    function _newClaim(address _creditor, address _debtor) private returns (uint256 claimId) {
-        claimId = bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: _creditor,
-                debtor: _debtor,
-                description: "",
-                claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
-                token: address(weth),
-                delegator: address(0),
-                feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Unbound
-            })
-        );
-    }
-
     /*///////////////////// CREATE CLAIM TESTS /////////////////////*/
 
     //baseline gas report after 1 mint
     function testBaselineGas__createClaim() public {
-        _newClaim(creditor, debtor);
+        _newClaim(creditor, creditor, debtor);
     }
 
     function testCreateNativeClaim() public {
+        vm.prank(creditor);
         uint256 claimId = bullaClaim.createClaim(
             CreateClaimParams({
                 creditor: creditor,
@@ -95,15 +79,33 @@ contract CreateClaimTest is Test {
         bullaClaim.setLockState(LockState.Locked);
 
         vm.expectRevert(BullaClaim.Locked.selector);
-        _newClaim(creditor, debtor);
+        _newClaim(creditor, creditor, debtor);
 
         bullaClaim.setLockState(LockState.NoNewClaims);
         vm.expectRevert(BullaClaim.Locked.selector);
-        _newClaim(creditor, debtor);
+        _newClaim(creditor, creditor, debtor);
     }
 
     function testCannotCreateClaimLargerThanMaxUint128() public {
         vm.expectRevert();
+        vm.prank(creditor);
+        bullaClaim.createClaim(
+            CreateClaimParams({
+                creditor: creditor,
+                debtor: debtor,
+                description: "",
+                claimAmount: uint256(type(uint128).max) + 1,
+                dueBy: block.timestamp + 1 days,
+                token: address(0),
+                delegator: address(0),
+                feePayer: FeePayer.Debtor,
+                binding: ClaimBinding.Unbound
+            })
+        );
+    }
+
+    function testCannotCreateClaimWhenNotCreditorOrDebtor() public {
+        vm.expectRevert(BullaClaim.NotCreditorOrDebtor.selector);
         bullaClaim.createClaim(
             CreateClaimParams({
                 creditor: creditor,
@@ -141,6 +143,7 @@ contract CreateClaimTest is Test {
 
     function testCreateBoundClaim() public {
         // test creation of a pending bound claim
+        vm.prank(creditor);
         uint256 claimId = bullaClaim.createClaim(
             CreateClaimParams({
                 creditor: creditor,
@@ -178,13 +181,14 @@ contract CreateClaimTest is Test {
 
     function testCreateEdgeCase_ZeroDebtor() public {
         uint256 beforeClaimCreation = bullaClaim.currentClaimId();
-        uint256 claimId = _newClaim(creditor, address(0));
+        uint256 claimId = _newClaim(creditor, creditor, address(0));
         assertEq(bullaClaim.currentClaimId(), claimId);
         assertEq(bullaClaim.currentClaimId(), beforeClaimCreation + 1);
     }
 
     function testCreateEdgeCase_ZeroAmount() public {
         uint256 beforeClaimCreation = bullaClaim.currentClaimId();
+        vm.prank(creditor);
         uint256 claimId = bullaClaim.createClaim(
             CreateClaimParams({
                 creditor: creditor,
@@ -206,6 +210,7 @@ contract CreateClaimTest is Test {
 
     function testCreateEdgeCase_ZeroDueBy() public {
         uint256 beforeClaimCreation = bullaClaim.currentClaimId();
+        vm.prank(creditor);
         uint256 claimId = bullaClaim.createClaim(
             CreateClaimParams({
                 creditor: creditor,
@@ -262,6 +267,7 @@ contract CreateClaimTest is Test {
         );
 
         vm.expectRevert(BullaClaim.CannotBindClaim.selector);
+        vm.prank(creditor);
         bullaClaim.createClaim(
             CreateClaimParams({
                 creditor: creditor,
@@ -301,6 +307,7 @@ contract CreateClaimTest is Test {
 
         uint256 dueBy = block.timestamp - 1 days;
         vm.expectRevert(BullaClaim.InvalidTimestamp.selector);
+        vm.prank(creditor);
         bullaClaim.createClaim(
             CreateClaimParams({
                 creditor: creditor,
@@ -318,6 +325,7 @@ contract CreateClaimTest is Test {
 
     function testCannotCreateBoundClaim() public {
         vm.expectRevert(BullaClaim.CannotBindClaim.selector);
+        vm.prank(creditor);
         bullaClaim.createClaim(
             CreateClaimParams({
                 creditor: creditor,
@@ -334,6 +342,7 @@ contract CreateClaimTest is Test {
     }
 
     function test_FUZZ_createClaim(
+        bool isInvoice,
         address _creditor,
         address _debtor,
         string calldata description,
@@ -342,21 +351,20 @@ contract CreateClaimTest is Test {
         uint40 dueBy,
         uint8 binding
     ) public {
-        uint256 blockTime = block.timestamp + 6 days;
-
-        vm.assume(dueBy > blockTime);
+        vm.assume(dueBy > block.timestamp + 6 days);
         vm.assume(_creditor != address(0));
         vm.assume(binding <= 1); // assumes a fuzz can only produce unbound or binding pending claims
-        vm.warp(blockTime);
+        vm.warp(block.timestamp + 6 days);
         vm.roll(10_000);
         uint256 expectedClaimId = bullaClaim.currentClaimId() + 1;
 
         uint256 creditorBalanceBefore = bullaClaim.balanceOf(_creditor);
 
+        address creator = isInvoice ? _creditor : _debtor;
         vm.expectEmit(true, true, true, true);
         emit ClaimCreated(
             expectedClaimId,
-            address(this),
+            creator,
             _creditor,
             _debtor,
             description,
@@ -367,6 +375,7 @@ contract CreateClaimTest is Test {
             bullaClaim.currentFeeCalculatorId()
             );
 
+        vm.prank(creator);
         uint256 claimId = bullaClaim.createClaim(
             CreateClaimParams({
                 creditor: _creditor,
@@ -381,29 +390,31 @@ contract CreateClaimTest is Test {
             })
         );
 
-        assertEq(bullaClaim.currentClaimId(), claimId);
-        Claim memory claim = bullaClaim.getClaim(claimId);
-        assertEq(bullaClaim.ownerOf(claimId), _creditor);
-        assertEq(claim.paidAmount, 0);
-        assertTrue(claim.status == Status.Pending);
-        assertEq(claim.claimAmount, claimAmount);
-        assertEq(claim.debtor, _debtor);
-        assertEq(uint256(claim.feeCalculatorId), 0);
-        assertEq(claim.dueBy, dueBy);
-        assertTrue(claim.binding == ClaimBinding(binding));
-        assertEq(claim.token, token);
-        assertEq(bullaClaim.balanceOf(_creditor), creditorBalanceBefore + 1);
-        assertEq(bullaClaim.ownerOf(claimId), _creditor);
+        {
+            assertEq(bullaClaim.currentClaimId(), claimId);
+            Claim memory claim = bullaClaim.getClaim(claimId);
+            assertEq(bullaClaim.ownerOf(claimId), _creditor);
+            assertEq(claim.paidAmount, 0);
+            assertTrue(claim.status == Status.Pending);
+            assertEq(claim.claimAmount, claimAmount);
+            assertEq(claim.debtor, _debtor);
+            assertEq(uint256(claim.feeCalculatorId), 0);
+            assertEq(claim.dueBy, dueBy);
+            assertTrue(claim.binding == ClaimBinding(binding));
+            assertEq(claim.token, token);
+            assertEq(bullaClaim.balanceOf(_creditor), creditorBalanceBefore + 1);
+            assertEq(bullaClaim.ownerOf(claimId), _creditor);
 
-        vm.prank(_creditor);
-        bullaClaim.safeTransferFrom(_creditor, address(0xB0B), claimId);
+            vm.prank(_creditor);
+            bullaClaim.safeTransferFrom(_creditor, address(0xB0B), claimId);
 
-        assertEq(bullaClaim.ownerOf(claimId), address(0xB0B));
+            assertEq(bullaClaim.ownerOf(claimId), address(0xB0B));
+        }
     }
 
     function testCreateClaimEnsureFeeCalculator() public {
         _enableFee();
-        uint256 claimId = _newClaim(creditor, debtor);
+        uint256 claimId = _newClaim(creditor, creditor, debtor);
         Claim memory claim = bullaClaim.getClaim(claimId);
         assertEq(claim.feeCalculatorId, uint256(claim.feeCalculatorId));
     }

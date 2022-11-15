@@ -124,7 +124,7 @@ contract TestInvariants is Test {
         vm.expectEmit(true, true, true, true);
         emit ClaimCreated(
             bullaClaim.currentClaimId() + 1,
-            address(this),
+            creditor,
             creditor,
             debtor,
             "",
@@ -135,6 +135,7 @@ contract TestInvariants is Test {
             initialFeeCalculator
             );
 
+        vm.prank(creditor);
         claimId = bullaClaim.createClaim(
             CreateClaimParams({
                 creditor: creditor,

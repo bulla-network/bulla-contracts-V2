@@ -10,6 +10,7 @@ import {BullaFeeCalculator} from "contracts/BullaFeeCalculator.sol";
 import {BullaClaim, CreateClaimApprovalType} from "contracts/BullaClaim.sol";
 import {PenalizedClaim} from "contracts/mocks/PenalizedClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
+import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 
 /// @notice SPEC:
 /// A function can call this function to verify and "spend" `from`'s approval of `operator` to create a claim given the following:
@@ -17,15 +18,12 @@ import {Deployer} from "script/Deployment.s.sol";
 ///     S2. The creditor and debtor arguments are permissed by the `from` address, meaning:
 ///         - If the approvalType is `CreditorOnly` the `from` address must be the creditor -> otherwise: reverts
 ///         - If the approvalType is `DebtorOnly` the `from` address must be the debtor -> otherwise: reverts
-///        Note: If the approvalType is `Approved`, the `operator` may specify the `from` address as the creditor, the debtor, _or neither_ // TODO: will be removed with creditor/debtor restrictions
+///        Note: If the approvalType is `Approved`, the `operator` may specify the `from` address as the creditor, or the debtor.
 ///     S3. If the claimBinding argument is `Bound`, then the isBindingAllowed permission must be set to true -> otherwise: reverts
 ///        Note: _createClaim will always revert if the claimBinding argument is `Bound` and the `from` address is not the debtor
 ///
 /// RES1: If the above are true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return -> otherwise: no-op
-contract CreateClaimFromTest is Test {
-    WETH public weth;
-    BullaClaim public bullaClaim;
-    EIP712Helper public sigHelper;
+contract TestCreateClaimFrom is BullaClaimTestHelper {
     BullaFeeCalculator feeCalculator;
 
     uint256 creditorPK = uint256(0x01);
@@ -61,59 +59,7 @@ contract CreateClaimFromTest is Test {
             _feeBPS: 0
         });
         sigHelper = new EIP712Helper(address(bullaClaim));
-        _newClaim(creditor, debtor);
-    }
-
-    ///////// HELPERS /////////
-
-    function _newClaim(address _creditor, address _debtor) private returns (uint256 claimId) {
-        claimId = bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: _creditor,
-                debtor: _debtor,
-                description: "",
-                claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
-                token: address(weth),
-                delegator: address(0),
-                feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Unbound
-            })
-        );
-    }
-
-    function _newClaimFrom(address _from, address _creditor, address _debtor) private returns (uint256 claimId) {
-        claimId = bullaClaim.createClaimFrom(
-            _from,
-            CreateClaimParams({
-                creditor: _creditor,
-                debtor: _debtor,
-                description: "",
-                claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
-                token: address(weth),
-                delegator: address(0),
-                feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Unbound
-            })
-        );
-    }
-
-    function _permitCreateClaim(
-        uint256 _userPK,
-        address _operator,
-        uint64 _approvalCount,
-        CreateClaimApprovalType _approvalType,
-        bool _isBindingAllowed
-    ) private {
-        bytes memory sig = sigHelper.signCreateClaimPermit(
-            _userPK, vm.addr(_userPK), _operator, _approvalType, _approvalCount, _isBindingAllowed
-        );
-        bullaClaim.permitCreateClaim(vm.addr(_userPK), _operator, _approvalType, _approvalCount, _isBindingAllowed, sig);
-    }
-
-    function _permitCreateClaim(uint256 _userPK, address _operator, uint64 _approvalCount) private {
-        _permitCreateClaim(_userPK, _operator, _approvalCount, CreateClaimApprovalType.Approved, true);
+        _newClaim(creditor, creditor, debtor);
     }
 
     ///////// CREATE CLAIM FROM TESTS /////////
@@ -124,14 +70,14 @@ contract CreateClaimFromTest is Test {
         _permitCreateClaim({_userPK: userPK, _operator: address(this), _approvalCount: type(uint64).max});
 
         vm.expectRevert(BullaClaim.Locked.selector);
-        _newClaim(creditor, debtor);
+        _newClaim(creditor, creditor, debtor);
 
         vm.expectRevert(BullaClaim.Locked.selector);
         _newClaimFrom(user, creditor, debtor);
 
         bullaClaim.setLockState(LockState.NoNewClaims);
         vm.expectRevert(BullaClaim.Locked.selector);
-        _newClaim(creditor, debtor);
+        _newClaim(creditor, creditor, debtor);
 
         vm.expectRevert(BullaClaim.Locked.selector);
         _newClaimFrom(user, creditor, debtor);
@@ -266,24 +212,6 @@ contract CreateClaimFromTest is Test {
         vm.prank(operator);
         vm.expectRevert(BullaClaim.NotApproved.selector);
         _newClaimFrom({_from: user, _creditor: user, _debtor: debtor});
-    }
-
-    /// @notice SPEC.S2 // TODO: remove once BullaClaim only permits creating claims when from == creditor || from == debtor
-    function test_TEMP_canCreateForAnyone() public {
-        address rando1 = address(0x1234412577737373733);
-        address rando2 = address(0x12faabef8281992);
-
-        _permitCreateClaim({
-            _userPK: userPK,
-            _operator: operator,
-            _approvalCount: type(uint64).max,
-            _approvalType: CreateClaimApprovalType.Approved,
-            _isBindingAllowed: true
-        });
-
-        // create a claim between rando1 and rando2
-        vm.prank(operator);
-        _newClaimFrom({_from: user, _creditor: rando1, _debtor: rando2});
     }
 
     /// @notice SPEC.S3

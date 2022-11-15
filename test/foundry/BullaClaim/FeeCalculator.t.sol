@@ -69,6 +69,7 @@ contract TestFeeCalculator is Test {
 
         uint256 feeReceiverBalanceBefore = weth.balanceOf(feeReceiver);
 
+        vm.prank(alice);
         uint256 claimId = bullaClaim.createClaim(
             CreateClaimParams({
                 creditor: alice,
@@ -96,6 +97,7 @@ contract TestFeeCalculator is Test {
         vm.prank(contractOwner);
         bullaClaim.setFeeCalculator(address(0));
 
+        vm.prank(alice);
         uint256 claimId__noFee = bullaClaim.createClaim(
             CreateClaimParams({
                 creditor: alice,

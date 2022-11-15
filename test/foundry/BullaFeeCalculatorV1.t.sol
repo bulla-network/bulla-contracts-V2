@@ -88,6 +88,7 @@ contract TestBullaFeeCalculatorV1 is Test {
         vm.prank(contractOwner);
         feeCalculator = new BullaFeeCalculator(FEE_BPS);
 
+        vm.prank(creditor);
         uint256 claimId = bullaClaim.createClaim(
             CreateClaimParams({
                 creditor: creditor,
@@ -154,6 +155,7 @@ contract TestBullaFeeCalculatorV1 is Test {
         vm.prank(contractOwner);
         feeCalculator = new BullaFeeCalculator(FEE_BPS);
 
+        vm.prank(creditor);
         uint256 claimId = bullaClaim.createClaim(
             CreateClaimParams({
                 creditor: creditor,
