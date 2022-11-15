@@ -141,9 +141,9 @@ interface IBullaClaim {
 
     function payClaimFrom(address from, uint256 claimId, uint256 amount) external payable;
 
-    function updateBinding(uint256 claimId, uint8 binding) external;
+    function updateBinding(uint256 claimId, ClaimBinding binding) external;
 
-    function updateBindingFrom(address from, uint256 claimId, uint8 binding) external;
+    function updateBindingFrom(address from, uint256 claimId, ClaimBinding binding) external;
 
     function cancelClaim(uint256 claimId, string memory note) external;
 
@@ -154,7 +154,7 @@ interface IBullaClaim {
     function permitCreateClaim(
         address user,
         address operator,
-        uint8 approvalType,
+        CreateClaimApprovalType approvalType,
         uint64 approvalCount,
         bool isBindingAllowed,
         bytes memory signature
@@ -163,7 +163,7 @@ interface IBullaClaim {
     function permitPayClaim(
         address user,
         address operator,
-        uint8 approvalType,
+        PayClaimApprovalType approvalType,
         uint256 approvalDeadline,
         ClaimPaymentApprovalParam[] memory paymentApprovals,
         bytes memory signature
@@ -199,7 +199,7 @@ interface IBullaClaim {
 
     function setFeeCollectionAddress(address newFeeCollector) external;
 
-    function setLockState(uint8 _lockState) external;
+    function setLockState(LockState _lockState) external;
 
     // UTILITY FUNCTIONS //
     function permitToken(
