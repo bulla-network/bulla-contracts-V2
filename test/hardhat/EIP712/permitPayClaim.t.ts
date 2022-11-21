@@ -91,7 +91,7 @@ describe("permitPayClaim", async () => {
       dueBy: Math.floor(Date.now() / 1000) + 100,
       description: `claim description ${Math.random()}`,
       token: weth.address,
-      delegator: ethers.constants.AddressZero,
+      controller: ethers.constants.AddressZero,
       feePayer: FeePayer.Debtor,
       binding: ClaimBinding.Unbound,
     };

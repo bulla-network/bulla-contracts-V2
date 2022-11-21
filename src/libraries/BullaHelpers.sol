@@ -8,7 +8,7 @@ import {IBullaFeeCalculator} from "../interfaces/IBullaFeeCalculator.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 
 library BullaHelpers {
-    // todo: add checks for delegators and route this request through their logic
+    // todo: add checks for controllers and route this request through their logic
     /// @notice gets the paymentAmount required for a claim to be fully paid
     function fullPaymentAmount(BullaClaim bullaClaim, address payer, uint256 claimId) public view returns (uint256) {
         Claim memory claim = bullaClaim.getClaim(claimId);

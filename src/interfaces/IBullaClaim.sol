@@ -18,9 +18,8 @@ interface IBullaClaim {
     error PastApprovalDeadline();
     error NotOwner();
     error NotCreditorOrDebtor();
-    error NotDelegator(address sender);
+    error NotController(address sender);
     error ClaimBound();
-    error ClaimDelegated();
     error ClaimNotPending();
     error NotMinted();
     error NotApproved();

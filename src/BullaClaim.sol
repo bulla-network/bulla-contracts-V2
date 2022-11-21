@@ -58,9 +58,8 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     error PastApprovalDeadline();
     error NotOwner();
     error NotCreditorOrDebtor();
-    error NotDelegator(address sender);
+    error NotController(address sender);
     error ClaimBound();
-    error ClaimDelegated();
     error ClaimNotPending();
     error NotMinted();
     error NotApproved();
@@ -257,8 +256,8 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
             revert Locked();
         }
 
-        if (params.delegator != address(0) && params.delegator != msg.sender) {
-            revert NotDelegator(msg.sender);
+        if (params.controller != address(0) && params.controller != msg.sender) {
+            revert NotController(msg.sender);
         }
 
         if (from != params.debtor && from != params.creditor) {
@@ -299,8 +298,8 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         if (params.token != address(0)) {
             claim.token = params.token;
         }
-        if (params.delegator != address(0)) {
-            claim.delegator = params.delegator;
+        if (params.controller != address(0)) {
+            claim.controller = params.controller;
         }
         if (params.feePayer == FeePayer.Debtor) {
             claim.feePayer = params.feePayer;
@@ -431,11 +430,11 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         _notLocked();
         Claim memory claim = getClaim(claimId);
 
-        // We allow for claims to be "delegated". Meaning, it is another smart contract's responsibility to implement
-        //      custom logic, then call these functions. We check the msg.sender against the delegator to make sure a user
-        //      isn't trying to bypass delegator specific logic (eg: late fees) and by going to this contract directly.
-        if (claim.delegator != address(0) && msg.sender != claim.delegator) {
-            revert ClaimDelegated();
+        // We allow for claims to be "controlled". Meaning, it is another smart contract's responsibility to implement
+        //      custom logic, then call these functions. We check the msg.sender against the controller to make sure a user
+        //      isn't trying to bypass controller specific logic (eg: late fees) and by going to this contract directly.
+        if (claim.controller != address(0) && msg.sender != claim.controller) {
+            revert NotController(msg.sender);
         }
 
         // load the claim from storage
@@ -550,9 +549,9 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         Claim memory claim = getClaim(claimId);
         address creditor = getCreditor(claimId);
 
-        // check if the claim is delegated
-        if (claim.delegator != address(0) && msg.sender != claim.delegator) {
-            revert ClaimDelegated();
+        // check if the claim is controlled
+        if (claim.controller != address(0) && msg.sender != claim.controller) {
+            revert NotController(msg.sender);
         }
 
         // make sure the sender is authorized
@@ -622,8 +621,8 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
             revert ClaimBound();
         }
 
-        if (claim.delegator != address(0) && msg.sender != claim.delegator) {
-            revert ClaimDelegated();
+        if (claim.controller != address(0) && msg.sender != claim.controller) {
+            revert NotController(msg.sender);
         }
 
         // make sure the claim can be rejected (not completed, not rejected, not rescinded)
@@ -741,7 +740,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
             feeCalculatorId: claimStorage.feeCalculatorId,
             dueBy: uint256(claimStorage.dueBy),
             token: claimStorage.token,
-            delegator: claimStorage.delegator
+            controller: claimStorage.controller
         });
     }
 

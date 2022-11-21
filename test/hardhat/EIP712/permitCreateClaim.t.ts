@@ -42,7 +42,7 @@ describe("permitCreateClaim", async () => {
       dueBy: Math.floor(Date.now() / 1000) + 100,
       description: `claim description ${Math.random()}`,
       token: ethers.constants.AddressZero, // native token
-      delegator: penalizedClaim.address,
+      controller: penalizedClaim.address,
       feePayer: FeePayer.Debtor,
       binding: ClaimBinding.Unbound,
     };

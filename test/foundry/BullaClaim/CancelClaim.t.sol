@@ -51,7 +51,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                delegator: address(0),
+                controller: address(0),
                 feePayer: FeePayer.Creditor,
                 binding: binding
             })
@@ -338,8 +338,8 @@ contract TestCancelClaim is BullaClaimTestHelper {
         bullaClaim.cancelClaim(claimId, note);
     }
 
-    function testCannotCancelIfClaimIsDelegatedAndCallerIsNotDelegator() public {
-        // allow the delegator to create a claim for the creditor
+    function testCannotCancelIfClaimIsDelegatedAndCallerIsNotController() public {
+        // allow the controller to create a claim for the creditor
         bullaClaim.permitCreateClaim({
             user: creditor,
             operator: operator,
@@ -367,19 +367,19 @@ contract TestCancelClaim is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                delegator: operator, // operator is the delegator
+                controller: operator, // operator is the controller
                 feePayer: FeePayer.Creditor,
                 binding: ClaimBinding.Unbound
             })
         );
 
         vm.prank(debtor);
-        vm.expectRevert(BullaClaim.ClaimDelegated.selector);
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, debtor));
         bullaClaim.cancelClaim(claimId, "No thanks");
     }
 
-    function testCanCallIfDelegatedAndCallerIsDelegator() public {
-        // allow the delegator to create a claim for the creditor
+    function testCanCallIfDelegatedAndCallerIsController() public {
+        // allow the controller to create a claim for the creditor
         bullaClaim.permitCreateClaim({
             user: creditor,
             operator: operator,
@@ -407,7 +407,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                delegator: operator, // operator is the delegator
+                controller: operator, // operator is the controller
                 feePayer: FeePayer.Creditor,
                 binding: ClaimBinding.Unbound
             })
