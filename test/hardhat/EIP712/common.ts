@@ -240,7 +240,6 @@ export function deployContractsFixture(deployer: SignerWithAddress) {
     // deploy Bulla Claim
     const bullaClaimFactory = await ethers.getContractFactory("BullaClaim", {
       libraries: {
-        ClaimMetadataGenerator: ClaimMetadataGenerator.address,
         BullaClaimPermitLib: BullaClaimPermitLib.address,
       },
     });
@@ -253,6 +252,10 @@ export function deployContractsFixture(deployer: SignerWithAddress) {
           LockState.Unlocked
         )
     ).deployed();
+
+    await BullaClaim.connect(deployer).setClaimMetadataGenerator(
+      ClaimMetadataGenerator.address
+    );
 
     // deploy penalized claim mock
     const penalizedClaimFactory = await ethers.getContractFactory(

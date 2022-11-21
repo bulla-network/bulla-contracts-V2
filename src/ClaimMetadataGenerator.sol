@@ -6,8 +6,8 @@ import {Base64} from "contracts/libraries/Base64.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 
 /// @notice a barebones on-chain svg generator showing a claim's status
-library ClaimMetadataGenerator {
-    function getStatusText(Status status) public pure returns (string memory) {
+contract ClaimMetadataGenerator {
+    function getStatusText(Status status) internal pure returns (string memory) {
         if (status == Status.Pending) {
             return "Pending";
         } else if (status == Status.Repaying) {
@@ -23,7 +23,7 @@ library ClaimMetadataGenerator {
         }
     }
 
-    function getImage(Claim memory claim, uint256 claimId, address creditor) public pure returns (string memory) {
+    function getImage(Claim memory claim, uint256 claimId, address creditor) internal pure returns (string memory) {
         return string(
             abi.encodePacked(
                 '<svg class="svgBody"width="300"height="300"viewBox="0 0 300 300"xmlns="http://www.w3.org/2000/svg">',
@@ -45,7 +45,7 @@ library ClaimMetadataGenerator {
         );
     }
 
-    function describe(Claim memory claim, uint256 claimId, address creditor) public pure returns (string memory) {
+    function tokenURI(Claim memory claim, uint256 claimId, address creditor) public pure returns (string memory) {
         string memory image = Base64.encode(bytes(getImage(claim, claimId, creditor)));
 
         return string(

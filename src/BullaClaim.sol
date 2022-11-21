@@ -43,6 +43,8 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     uint256 public currentClaimId;
     /// a registry of extension names vetted by Bulla Network
     BullaExtensionRegistry public extensionRegistry;
+    /// a contract to generate an on-chain SVG with a claim's status
+    ClaimMetadataGenerator public claimMetadataGenerator;
 
     /*///////////////////////////////////////////////////////////////
                             ERRORS / MODIFIERS
@@ -747,7 +749,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         } else {
             Claim memory claim = getClaim(_claimId);
             address creditor = getCreditor(_claimId);
-            return ClaimMetadataGenerator.describe(claim, _claimId, creditor);
+            return claimMetadataGenerator.tokenURI(claim, _claimId, creditor);
         }
     }
 
@@ -778,6 +780,10 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
 
     function setExtensionRegistry(address _extensionRegistry) external onlyOwner {
         extensionRegistry = BullaExtensionRegistry(_extensionRegistry);
+    }
+
+    function setClaimMetadataGenerator(address _metadataGenerator) external onlyOwner {
+        claimMetadataGenerator = ClaimMetadataGenerator(_metadataGenerator);
     }
 
     function setFeeCollectionAddress(address newFeeCollector) external onlyOwner {
