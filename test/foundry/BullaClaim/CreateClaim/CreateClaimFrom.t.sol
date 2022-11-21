@@ -99,17 +99,17 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
     }
 
     function testCreateDelegatedClaim() public {
-        PenalizedClaim delegator = new PenalizedClaim(address(bullaClaim));
+        PenalizedClaim controller = new PenalizedClaim(address(bullaClaim));
         bullaClaim.permitCreateClaim({
             user: creditor,
-            operator: address(delegator),
+            operator: address(controller),
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 1,
             isBindingAllowed: true,
             signature: sigHelper.signCreateClaimPermit({
                 pk: creditorPK,
                 user: creditor,
-                operator: address(delegator),
+                operator: address(controller),
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
                 isBindingAllowed: true
@@ -117,7 +117,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
         });
 
         vm.prank(creditor);
-        uint256 claimId = delegator.createClaim(
+        uint256 claimId = controller.createClaim(
             CreateClaimParams({
                 creditor: creditor,
                 debtor: debtor,
@@ -125,13 +125,13 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                delegator: address(delegator),
+                controller: address(controller),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound
             })
         );
         Claim memory claim = bullaClaim.getClaim(claimId);
-        assertEq(claim.delegator, address(delegator));
+        assertEq(claim.controller, address(controller));
     }
 
     /// @notice SPEC.S1
@@ -235,7 +235,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                delegator: address(0),
+                controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Bound // binding is set to bound
             })
@@ -281,7 +281,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
-                delegator: address(0),
+                controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: _isBindingAllowed && !isInvoice ? ClaimBinding.Bound : ClaimBinding.Unbound
             })

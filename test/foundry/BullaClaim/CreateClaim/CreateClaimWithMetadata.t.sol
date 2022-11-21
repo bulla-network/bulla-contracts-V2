@@ -89,7 +89,7 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                delegator: address(0),
+                controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound
             }),
@@ -144,7 +144,7 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
-                delegator: address(0),
+                controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Bound
             }),
@@ -171,7 +171,7 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
-                delegator: address(0),
+                controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound
             }),
@@ -198,7 +198,7 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
-                delegator: address(0),
+                controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound
             }),

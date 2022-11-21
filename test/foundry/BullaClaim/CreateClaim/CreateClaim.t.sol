@@ -66,7 +66,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
-                delegator: address(0),
+                controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound
             })
@@ -97,7 +97,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 claimAmount: uint256(type(uint128).max) + 1,
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
-                delegator: address(0),
+                controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound
             })
@@ -114,7 +114,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 claimAmount: uint256(type(uint128).max) + 1,
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
-                delegator: address(0),
+                controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound
             })
@@ -122,10 +122,10 @@ contract TestCreateClaim is BullaClaimTestHelper {
     }
 
     function testCannotDelegateClaimsManually() public {
-        PenalizedClaim delegator = new PenalizedClaim(address(bullaClaim));
+        PenalizedClaim controller = new PenalizedClaim(address(bullaClaim));
 
         vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotDelegator.selector, debtor));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, debtor));
         bullaClaim.createClaim(
             CreateClaimParams({
                 creditor: creditor,
@@ -134,7 +134,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
-                delegator: address(delegator),
+                controller: address(controller),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound
             })
@@ -152,7 +152,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                delegator: address(0),
+                controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.BindingPending
             })
@@ -170,7 +170,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                delegator: address(0),
+                controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Bound
             })
@@ -197,7 +197,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 claimAmount: 0,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                delegator: address(0),
+                controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound
             })
@@ -219,7 +219,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: 0,
                 token: address(weth),
-                delegator: address(0),
+                controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound
             })
@@ -228,11 +228,11 @@ contract TestCreateClaim is BullaClaimTestHelper {
         assertEq(bullaClaim.currentClaimId(), beforeClaimCreation + 1);
     }
 
-    function testCannotCreateDelegatedClaimWithBadDelegator() public {
-        address delegator = address(0xDECAFC0FFEE);
+    function testCannotCreateDelegatedClaimWithBadController() public {
+        address controller = address(0xDECAFC0FFEE);
 
         vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotDelegator.selector, debtor));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, debtor));
 
         bullaClaim.createClaim(
             CreateClaimParams({
@@ -242,7 +242,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                delegator: address(delegator),
+                controller: address(controller),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Bound
             })
@@ -260,7 +260,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                delegator: address(0),
+                controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Bound
             })
@@ -276,7 +276,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                delegator: address(0),
+                controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Bound
             })
@@ -295,7 +295,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 claimAmount: claimAmount,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                delegator: address(0),
+                controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound
             })
@@ -316,7 +316,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: dueBy,
                 token: address(weth),
-                delegator: address(0),
+                controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound
             })
@@ -334,7 +334,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                delegator: address(0),
+                controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Bound
             })
@@ -384,7 +384,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 claimAmount: claimAmount,
                 dueBy: dueBy,
                 token: token,
-                delegator: address(0),
+                controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding(binding)
             })

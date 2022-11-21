@@ -50,7 +50,7 @@ struct CreateClaimParams {
     uint256 dueBy;
     string description;
     address token;
-    address delegator;
+    address controller;
     FeePayer feePayer;
     ClaimBinding binding;
 }
@@ -74,7 +74,7 @@ struct ClaimStorage {
     uint40 dueBy;
     address debtor;
     address token; // the token address that the claim is denominated in. NOTE: if this token is address(0), we treat this as a native token
-    address delegator;
+    address controller;
 } // takes 4 storage slots
 
 // a cheaper struct for working / manipulating memory (unpacked is cheapter)
@@ -88,7 +88,7 @@ struct Claim {
     uint256 feeCalculatorId;
     uint256 dueBy;
     address token;
-    address delegator;
+    address controller;
 }
 
 ////// APPROVALS //////

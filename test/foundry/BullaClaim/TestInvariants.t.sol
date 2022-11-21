@@ -144,7 +144,7 @@ contract TestInvariants is Test {
                 claimAmount: _claimAmount,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                delegator: address(0),
+                controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound
             })
@@ -160,7 +160,7 @@ contract TestInvariants is Test {
             assertTrue(claim.status == Status.Pending);
             assertTrue(claim.binding == ClaimBinding.Unbound);
             assertEq(claim.feeCalculatorId, initialFeeCalculator);
-            assertEq(claim.delegator, address(0));
+            assertEq(claim.controller, address(0));
             assertEq(claim.token, address(weth));
 
             assertEq(bullaClaim.balanceOf(creditor), 1);
@@ -211,7 +211,7 @@ contract TestInvariants is Test {
             assertTrue(claim.status == Status.Repaying);
             assertTrue(claim.binding == ClaimBinding.Unbound);
             assertEq(claim.feeCalculatorId, initialFeeCalculator);
-            assertEq(claim.delegator, address(0));
+            assertEq(claim.controller, address(0));
             assertEq(claim.token, address(weth));
 
             assertEq(weth.balanceOf(alice), creditorBalanceBefore + paymentAmount - feeAmount);
@@ -254,7 +254,7 @@ contract TestInvariants is Test {
             assertTrue(claim.status == Status.Paid);
             assertTrue(claim.binding == ClaimBinding.Unbound);
             assertEq(claim.feeCalculatorId, initialFeeCalculator);
-            assertEq(claim.delegator, address(0));
+            assertEq(claim.controller, address(0));
             assertEq(claim.token, address(weth));
             assertEq(claim.claimAmount, claim.paidAmount);
 

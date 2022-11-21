@@ -65,7 +65,7 @@ contract TestPenalizedClaim is Test {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
-                delegator: address(penalizedClaim),
+                controller: address(penalizedClaim),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.BindingPending
             })
@@ -110,7 +110,7 @@ contract TestPenalizedClaim is Test {
         assertTrue(bullaClaim.getClaim(claimId).status == Status.Paid);
     }
 
-    function testCannotBypassDelegator() public {
+    function testCannotBypassController() public {
         bullaClaim.permitCreateClaim({
             user: creditor,
             operator: address(penalizedClaim),
@@ -136,7 +136,7 @@ contract TestPenalizedClaim is Test {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
-                delegator: address(penalizedClaim),
+                controller: address(penalizedClaim),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.BindingPending
             })
@@ -144,13 +144,13 @@ contract TestPenalizedClaim is Test {
 
         vm.startPrank(debtor);
 
-        vm.expectRevert(BullaClaim.ClaimDelegated.selector);
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, debtor));
         bullaClaim.updateBinding(claimId, ClaimBinding.Bound);
 
-        vm.expectRevert(BullaClaim.ClaimDelegated.selector);
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, debtor));
         bullaClaim.payClaim{value: 0.5 ether}(claimId, 0.5 ether);
 
-        vm.expectRevert(BullaClaim.ClaimDelegated.selector);
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, debtor));
         bullaClaim.cancelClaim(claimId, "Nahhhh");
     }
 }

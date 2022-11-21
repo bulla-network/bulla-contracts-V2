@@ -40,6 +40,7 @@ contract TestTokenURI is Test {
     function testTokenURIReturnsSetMetadata() public {
         string memory tokenURI = "tokenURI.com";
 
+        vm.prank(creditor);
         uint256 claimId = bullaClaim.createClaimWithMetadata(
             CreateClaimParams({
                 creditor: creditor,
@@ -48,7 +49,7 @@ contract TestTokenURI is Test {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
-                delegator: address(0),
+                controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound
             }),
@@ -62,6 +63,7 @@ contract TestTokenURI is Test {
         address metadataGenerator = address(new ClaimMetadataGenerator());
         bullaClaim.setClaimMetadataGenerator(metadataGenerator);
 
+        vm.prank(creditor);
         uint256 claimId = bullaClaim.createClaim(
             CreateClaimParams({
                 creditor: creditor,
@@ -70,7 +72,7 @@ contract TestTokenURI is Test {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
-                delegator: address(0),
+                controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound
             })
@@ -88,6 +90,7 @@ contract TestTokenURI is Test {
     }
 
     function testRevertsIfNoMetadataGenerator() public {
+        vm.prank(creditor);
         uint256 claimId = bullaClaim.createClaim(
             CreateClaimParams({
                 creditor: creditor,
@@ -96,7 +99,7 @@ contract TestTokenURI is Test {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
-                delegator: address(0),
+                controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound
             })

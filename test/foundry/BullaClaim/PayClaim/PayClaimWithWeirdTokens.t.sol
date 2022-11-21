@@ -76,7 +76,7 @@ contract TestPayClaimWithWeirdTokens is Test {
                 claimAmount: claimAmount,
                 dueBy: block.timestamp + 1 days,
                 token: token,
-                delegator: address(0),
+                controller: address(0),
                 feePayer: feePayer,
                 binding: ClaimBinding.Unbound
             })

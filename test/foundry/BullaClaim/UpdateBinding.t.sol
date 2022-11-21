@@ -47,7 +47,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                delegator: address(0),
+                controller: address(0),
                 feePayer: FeePayer.Creditor,
                 binding: binding
             })
@@ -326,10 +326,10 @@ contract TestUpdateBinding is BullaClaimTestHelper {
 
     function testCannotUpdateIfDelegated() public {
         // test case: a creditor or a debtor cannot update a claim's binding if it's delegated
-        address delegatorAddress = address(0xDEADCAFE);
-        _permitCreateClaim(creditorPK, delegatorAddress, 1, CreateClaimApprovalType.Approved, false);
+        address controllerAddress = address(0xDEADCAFE);
+        _permitCreateClaim(creditorPK, controllerAddress, 1, CreateClaimApprovalType.Approved, false);
 
-        vm.prank(delegatorAddress);
+        vm.prank(controllerAddress);
         uint256 claimId = bullaClaim.createClaimFrom(
             creditor,
             CreateClaimParams({
@@ -339,7 +339,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                delegator: delegatorAddress,
+                controller: controllerAddress,
                 feePayer: FeePayer.Creditor,
                 binding: ClaimBinding.BindingPending
             })
@@ -347,17 +347,17 @@ contract TestUpdateBinding is BullaClaimTestHelper {
 
         // creditor can't update the binding directly
         vm.prank(creditor);
-        vm.expectRevert(BullaClaim.ClaimDelegated.selector);
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, creditor));
         bullaClaim.updateBinding(claimId, ClaimBinding.Unbound);
 
         // neither can the debtor
         vm.prank(debtor);
-        vm.expectRevert(BullaClaim.ClaimDelegated.selector);
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, debtor));
         bullaClaim.updateBinding(claimId, ClaimBinding.Bound);
 
-        // the delegator must be approved
-        _permitUpdateBinding({_userPK: debtorPK, _operator: delegatorAddress, _approvalCount: type(uint64).max});
-        vm.prank(delegatorAddress);
+        // the controller must be approved
+        _permitUpdateBinding({_userPK: debtorPK, _operator: controllerAddress, _approvalCount: type(uint64).max});
+        vm.prank(controllerAddress);
         bullaClaim.updateBindingFrom(debtor, claimId, ClaimBinding.Bound);
     }
 
