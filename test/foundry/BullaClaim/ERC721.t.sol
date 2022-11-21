@@ -24,6 +24,7 @@ contract ERC721Test is DSTestPlus {
     }
 
     function _mint() private returns (uint256 claimId) {
+        hevm.prank(creditor);
         claimId = token.createClaim(
             CreateClaimParams({
                 creditor: creditor,
@@ -39,7 +40,8 @@ contract ERC721Test is DSTestPlus {
         );
     }
 
-    function _mint(address _creditor) private returns (uint256 claimId) {
+    function _mint(address _creator, address _creditor) private returns (uint256 claimId) {
+        hevm.prank(_creator);
         claimId = token.createClaim(
             CreateClaimParams({
                 creditor: _creditor,
@@ -236,7 +238,7 @@ contract ERC721Test is DSTestPlus {
             to = address(0xBEEF);
         }
 
-        uint256 tokenId = _mint(to);
+        uint256 tokenId = _mint(to, to);
 
         assertEq(token.balanceOf(to), 1);
         assertEq(token.ownerOf(tokenId), to);
@@ -247,7 +249,7 @@ contract ERC721Test is DSTestPlus {
             to = address(0xBEEF);
         }
 
-        uint256 tokenId = _mint(to);
+        uint256 tokenId = _mint(to, to);
 
         hevm.prank(to);
         token.burn(tokenId);
@@ -262,7 +264,7 @@ contract ERC721Test is DSTestPlus {
         if (to == address(0)) {
             to = address(0xBEEF);
         }
-        uint256 tokenId = _mint(to);
+        uint256 tokenId = _mint(to, to);
 
         hevm.prank(to);
         token.approve(to, tokenId);
@@ -274,7 +276,7 @@ contract ERC721Test is DSTestPlus {
         if (to == address(0)) {
             to = address(0xBEEF);
         }
-        uint256 tokenId = _mint(to);
+        uint256 tokenId = _mint(to, to);
 
         hevm.startPrank(to);
         token.approve(address(to), tokenId);
@@ -301,7 +303,7 @@ contract ERC721Test is DSTestPlus {
             to = address(0xBEEF);
         }
 
-        uint256 tokenId = _mint(from);
+        uint256 tokenId = _mint(from, from);
 
         hevm.prank(from);
         token.approve(address(this), tokenId);
@@ -319,7 +321,7 @@ contract ERC721Test is DSTestPlus {
             to = address(0xBEEF);
         }
 
-        uint256 tokenId = _mint(address(this));
+        uint256 tokenId = _mint(address(this), address(this));
 
         token.transferFrom(address(this), to, tokenId);
 
@@ -336,7 +338,7 @@ contract ERC721Test is DSTestPlus {
             to = address(0xBEEF);
         }
 
-        uint256 tokenId = _mint(from);
+        uint256 tokenId = _mint(from, from);
 
         hevm.prank(from);
         token.setApprovalForAll(address(this), true);
@@ -360,7 +362,7 @@ contract ERC721Test is DSTestPlus {
             return;
         }
 
-        uint256 tokenId = _mint(from);
+        uint256 tokenId = _mint(from, from);
 
         hevm.prank(from);
         token.setApprovalForAll(address(this), true);

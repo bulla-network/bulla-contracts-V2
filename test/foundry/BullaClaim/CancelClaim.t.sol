@@ -8,6 +8,7 @@ import {WETH} from "contracts/mocks/weth.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {Deployer} from "script/Deployment.s.sol";
+import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 
 /// @notice covers test cases for cancelClaim() and cancelClaimFrom()
 /// @notice SPEC: canceClaim() TODO
@@ -16,10 +17,7 @@ import {Deployer} from "script/Deployment.s.sol";
 ///         S1. `operator` has > 0 approvalCount from `from` address -> otherwise: reverts
 ///
 ///     RES1: If the above is true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return
-contract TestCancelClaim is Test {
-    WETH public weth;
-    BullaClaim public bullaClaim;
-    EIP712Helper public sigHelper;
+contract TestCancelClaim is BullaClaimTestHelper {
     address public deployer = address(0xB0b);
 
     uint256 creditorPK = uint256(0x012345);
@@ -59,11 +57,6 @@ contract TestCancelClaim is Test {
             })
         );
         claim = bullaClaim.getClaim(claimId);
-    }
-
-    function _permitCancelClaim(uint256 _userPK, address _operator, uint64 _approvalCount) internal {
-        bytes memory sig = sigHelper.signCancelClaimPermit(_userPK, vm.addr(_userPK), _operator, _approvalCount);
-        bullaClaim.permitCancelClaim(vm.addr(_userPK), _operator, _approvalCount, sig);
     }
 
     function _setLockState(LockState lockState) internal {
@@ -458,27 +451,30 @@ contract TestCancelClaim is Test {
         bullaClaim.cancelClaim(claimId, "No thanks");
 
         // test double reject
+        vm.startPrank(creditor);
         (claimId,) = _newClaim(ClaimBinding.Unbound);
-        vm.prank(debtor);
         bullaClaim.cancelClaim(claimId, "nah");
+        vm.stopPrank();
 
         vm.expectRevert(BullaClaim.ClaimNotPending.selector);
         vm.prank(debtor);
         bullaClaim.cancelClaim(claimId, "No thanks");
 
         // test reject then rescind
+        vm.startPrank(debtor);
         (claimId,) = _newClaim(ClaimBinding.Unbound);
-        vm.prank(debtor);
         bullaClaim.cancelClaim(claimId, "nah");
+        vm.stopPrank();
 
         vm.expectRevert(BullaClaim.ClaimNotPending.selector);
         vm.prank(creditor);
         bullaClaim.cancelClaim(claimId, "No thanks");
 
         // test rescind then reject
+        vm.startPrank(creditor);
         (claimId,) = _newClaim(ClaimBinding.Unbound);
-        vm.prank(creditor);
         bullaClaim.cancelClaim(claimId, "nah");
+        vm.stopPrank();
 
         vm.expectRevert(BullaClaim.ClaimNotPending.selector);
         vm.prank(debtor);

@@ -203,7 +203,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     ///     S2. The creditor and debtor arguments are permissed by the `from` address, meaning:
     ///         - If the approvalType is `CreditorOnly` the `from` address must be the creditor -> otherwise: reverts
     ///         - If the approvalType is `DebtorOnly` the `from` address must be the debtor -> otherwise: reverts
-    ///        Note: If the approvalType is `Approved`, the `operator` may specify the `from` address as the creditor, the debtor, _or neither_ // TODO: will be removed with creditor/debtor restrictions
+    ///        Note: If the approvalType is `Approved`, the `operator` may specify the `from` address as the creditor, or the debtor
     ///     S3. If the claimBinding argument is `Bound`, then the isBindingAllowed permission must be set to true -> otherwise: reverts
     ///        Note: _createClaim will always revert if the claimBinding argument is `Bound` and the `from` address is not the debtor
     ///
@@ -259,6 +259,10 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
 
         if (params.delegator != address(0) && params.delegator != msg.sender) {
             revert NotDelegator(msg.sender);
+        }
+
+        if (from != params.debtor && from != params.creditor) {
+            revert NotCreditorOrDebtor();
         }
 
         // we allow dueBy to be 0 in the case of an "open" claim, or we allow a reasonable timestamp

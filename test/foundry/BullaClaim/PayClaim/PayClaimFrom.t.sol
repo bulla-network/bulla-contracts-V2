@@ -2,12 +2,12 @@
 pragma solidity ^0.8.14;
 
 import "forge-std/Vm.sol";
-import "forge-std/Test.sol";
 import "contracts/types/Types.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {EIP712Helper} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
+import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 
 /// @notice SPEC:
 /// A function can call this internal function to verify and "spend" `from`'s approval of `operator` to pay a claim under the following circumstances:
@@ -28,11 +28,7 @@ import {Deployer} from "script/Deployment.s.sol";
 ///         AA1: `from`'s approval of `operator` has not expired -> otherwise: reverts
 ///
 ///         AA.RES1: This function allows execution to continue - (no storage needs to be updated)
-contract TestPayClaimFrom is Test {
-    WETH public weth;
-    BullaClaim public bullaClaim;
-    EIP712Helper public sigHelper;
-
+contract TestPayClaimFrom is BullaClaimTestHelper {
     uint256 OCTOBER_28TH_2022 = 1666980688;
     uint256 OCTOBER_23RD_2022 = 1666560688;
 
@@ -58,45 +54,6 @@ contract TestPayClaimFrom is Test {
         weth.transferFrom(address(this), user2, 1000 ether);
     }
 
-    function _newClaim(address _creditor, address _debtor) private returns (uint256 claimId) {
-        claimId = bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: _creditor,
-                debtor: _debtor,
-                description: "",
-                claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
-                token: address(weth),
-                delegator: address(0),
-                feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Unbound
-            })
-        );
-    }
-
-    function _generateClaimPaymentApprovals(uint8 count) internal returns (ClaimPaymentApprovalParam[] memory) {
-        ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](count);
-        for (uint256 i = 0; i < count; i++) {
-            uint256 claimId = _newClaim({_creditor: user2, _debtor: operator});
-            paymentApprovals[i] =
-                ClaimPaymentApprovalParam({claimId: claimId, approvedAmount: 1 ether, approvalDeadline: 0});
-        }
-        return paymentApprovals;
-    }
-
-    function _permitPayClaim(
-        uint256 _userPK,
-        address _operator,
-        PayClaimApprovalType _approvalType,
-        uint256 _approvalDeadline,
-        ClaimPaymentApprovalParam[] memory _paymentApprovals
-    ) private {
-        bytes memory sig = sigHelper.signPayClaimPermit(
-            _userPK, vm.addr(_userPK), _operator, _approvalType, _approvalDeadline, _paymentApprovals
-        );
-        bullaClaim.permitPayClaim(vm.addr(_userPK), _operator, _approvalType, _approvalDeadline, _paymentApprovals, sig);
-    }
-
     function _permitPayClaim(uint256 _userPK, address _operator, uint256 _approvalDeadline) private {
         ClaimPaymentApprovalParam[] memory approvals = new ClaimPaymentApprovalParam[](0);
         _permitPayClaim(_userPK, _operator, PayClaimApprovalType.IsApprovedForAll, _approvalDeadline, approvals);
@@ -110,7 +67,7 @@ contract TestPayClaimFrom is Test {
 
     /// @notice SPEC.AS.RES1
     function testApprovedForSpecificFullPayment() public {
-        uint256 claimId = _newClaim({_creditor: user2, _debtor: user});
+        uint256 claimId = _newClaim({_creator: user2, _creditor: user2, _debtor: user});
         ClaimPaymentApprovalParam[] memory approvals = new ClaimPaymentApprovalParam[](1);
         approvals[0] = ClaimPaymentApprovalParam({claimId: claimId, approvedAmount: 1 ether, approvalDeadline: 0});
 
@@ -134,7 +91,7 @@ contract TestPayClaimFrom is Test {
 
     /// @notice SPEC.AS.RES1
     function testApprovedForSpecificPartialPayment() public {
-        uint256 claimId = _newClaim({_creditor: user2, _debtor: user});
+        uint256 claimId = _newClaim({_creator: user2, _creditor: user2, _debtor: user});
         ClaimPaymentApprovalParam[] memory approvals = new ClaimPaymentApprovalParam[](1);
         approvals[0] = ClaimPaymentApprovalParam({claimId: claimId, approvedAmount: 1 ether, approvalDeadline: 0});
 
@@ -165,7 +122,7 @@ contract TestPayClaimFrom is Test {
         vm.assume(approvalCount > 1 && claimIdToPay > 0);
         vm.assume(claimIdToPay < approvalCount);
 
-        ClaimPaymentApprovalParam[] memory approvals = _generateClaimPaymentApprovals(approvalCount);
+        ClaimPaymentApprovalParam[] memory approvals = _generateClaimPaymentApprovals(approvalCount, user, user2);
 
         _permitPayClaim({
             _userPK: userPK,
@@ -193,7 +150,7 @@ contract TestPayClaimFrom is Test {
 
     /// @notice SPEC.SA1
     function testCannotPayClaimFromIfUnapproved() public {
-        uint256 claimId = _newClaim({_creditor: user2, _debtor: user});
+        uint256 claimId = _newClaim({_creator: user2, _creditor: user2, _debtor: user});
 
         vm.prank(user);
         weth.approve(address(bullaClaim), 1 ether);
@@ -206,8 +163,8 @@ contract TestPayClaimFrom is Test {
 
     /// @notice SPEC.AS1
     function testCannotPayWhenClaimHasNotBeenSpecified() public {
-        _newClaim({_creditor: user2, _debtor: user});
-        _newClaim({_creditor: user2, _debtor: user});
+        _newClaim({_creator: user2, _creditor: user2, _debtor: user});
+        _newClaim({_creator: user2, _creditor: user2, _debtor: user});
 
         ClaimPaymentApprovalParam[] memory approvals = new ClaimPaymentApprovalParam[](1);
         approvals[0] = ClaimPaymentApprovalParam({claimId: 1, approvedAmount: 1 ether, approvalDeadline: 0});
@@ -232,7 +189,7 @@ contract TestPayClaimFrom is Test {
 
     /// @notice SPEC.AS2
     function testCannotPayWhenSpecificClaimIsUnderApproved() public {
-        _newClaim({_creditor: user2, _debtor: user});
+        _newClaim({_creator: user2, _creditor: user2, _debtor: user});
 
         ClaimPaymentApprovalParam[] memory approvals = new ClaimPaymentApprovalParam[](1);
         approvals[0] = ClaimPaymentApprovalParam({claimId: 1, approvedAmount: 0.5 ether, approvalDeadline: 0});
@@ -257,7 +214,7 @@ contract TestPayClaimFrom is Test {
 
     /// @notice SPEC.AS3.1
     function testCannotPayWhenApprovedForSpecificAndOperatorApprovalHasExpired() public {
-        uint256 claimId = _newClaim({_creditor: user2, _debtor: user});
+        uint256 claimId = _newClaim({_creator: user2, _creditor: user2, _debtor: user});
 
         ClaimPaymentApprovalParam[] memory approvals = new ClaimPaymentApprovalParam[](1);
         // this is an unexpiring approval
@@ -285,7 +242,7 @@ contract TestPayClaimFrom is Test {
 
     /// @notice SPEC.AS3.2
     function testCannotPayWhenApprovedForSpecificAndClaimApprovalHasExpired() public {
-        uint256 claimId = _newClaim({_creditor: user2, _debtor: user});
+        uint256 claimId = _newClaim({_creator: user2, _creditor: user2, _debtor: user});
 
         ClaimPaymentApprovalParam[] memory approvals = new ClaimPaymentApprovalParam[](1);
         // approval for claimId 1 expires on the 23rd
@@ -317,7 +274,7 @@ contract TestPayClaimFrom is Test {
     /// @notice happy path : SPEC.AA.RES1
     function testIsApprovedForAll() public {
         _permitPayClaim({_userPK: userPK, _operator: operator, _approvalDeadline: 0});
-        uint256 claimId = _newClaim({_creditor: user2, _debtor: user});
+        uint256 claimId = _newClaim({_creator: user2, _creditor: user2, _debtor: user});
 
         vm.prank(user);
         weth.approve(address(bullaClaim), 1 ether);
@@ -329,7 +286,7 @@ contract TestPayClaimFrom is Test {
     /// @notice SPEC.AA1
     function testCannotPayWhenApprovedForAllAndOperatorApprovalExpired() public {
         _permitPayClaim({_userPK: userPK, _operator: operator, _approvalDeadline: OCTOBER_23RD_2022});
-        uint256 claimId = _newClaim({_creditor: user2, _debtor: user});
+        uint256 claimId = _newClaim({_creator: user2, _creditor: user2, _debtor: user});
 
         vm.warp(OCTOBER_28TH_2022);
 
@@ -344,7 +301,7 @@ contract TestPayClaimFrom is Test {
     //// CONTRACT LOCK ////
     /// @notice SPEC.SA2
     function testCanPayClaimFromWhenPartiallyLocked() public {
-        uint256 claimId = _newClaim({_creditor: user2, _debtor: user});
+        uint256 claimId = _newClaim({_creator: user2, _creditor: user2, _debtor: user});
         _permitPayClaim({_userPK: userPK, _operator: operator, _approvalDeadline: 0});
 
         bullaClaim.setLockState(LockState.NoNewClaims);
@@ -358,7 +315,7 @@ contract TestPayClaimFrom is Test {
 
     /// @notice SPEC.SA2
     function testCannotPayClaimFromWhenLocked() public {
-        uint256 claimId = _newClaim({_creditor: user2, _debtor: user});
+        uint256 claimId = _newClaim({_creator: user2, _creditor: user2, _debtor: user});
         _permitPayClaim({_userPK: userPK, _operator: operator, _approvalDeadline: 0});
 
         bullaClaim.setLockState(LockState.Locked);
@@ -375,6 +332,7 @@ contract TestPayClaimFrom is Test {
     function testPayClaimFromWithNativeToken() public {
         vm.deal(operator, 1 ether);
 
+        vm.prank(user2);
         uint256 claimId = bullaClaim.createClaim(
             CreateClaimParams({
                 creditor: user2,

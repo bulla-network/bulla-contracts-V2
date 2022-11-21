@@ -8,6 +8,7 @@ import {WETH} from "contracts/mocks/weth.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {EIP712Helper} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {Deployer} from "script/Deployment.s.sol";
+import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 
 /// @notice covers test cases for updateBinding() and updateBindingFrom()
 /// @notice SPEC: updateBinding() TODO
@@ -16,11 +17,7 @@ import {Deployer} from "script/Deployment.s.sol";
 ///         S1. `operator` has > 0 approvalCount from `from` address -> otherwise: reverts
 ///
 ///     RES1: If the above is true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return
-contract TestUpdateBinding is Test {
-    WETH public weth;
-    BullaClaim public bullaClaim;
-    EIP712Helper public sigHelper;
-
+contract TestUpdateBinding is BullaClaimTestHelper {
     uint256 creditorPK = uint256(0x012345);
     uint256 debtorPK = uint256(0x09876);
 
@@ -56,11 +53,6 @@ contract TestUpdateBinding is Test {
             })
         );
         claim = bullaClaim.getClaim(claimId);
-    }
-
-    function _permitUpdateBinding(uint256 _userPK, address _operator, uint64 _approvalCount) internal {
-        bytes memory sig = sigHelper.signUpdateBindingPermit(_userPK, vm.addr(_userPK), _operator, _approvalCount);
-        bullaClaim.permitUpdateBinding(vm.addr(_userPK), _operator, _approvalCount, sig);
     }
 
     /// @notice SPEC._spendUpdateBindingApproval.S1
@@ -335,9 +327,11 @@ contract TestUpdateBinding is Test {
     function testCannotUpdateIfDelegated() public {
         // test case: a creditor or a debtor cannot update a claim's binding if it's delegated
         address delegatorAddress = address(0xDEADCAFE);
+        _permitCreateClaim(creditorPK, delegatorAddress, 1, CreateClaimApprovalType.Approved, false);
 
         vm.prank(delegatorAddress);
-        uint256 claimId = bullaClaim.createClaim(
+        uint256 claimId = bullaClaim.createClaimFrom(
+            creditor,
             CreateClaimParams({
                 creditor: creditor,
                 debtor: debtor,
@@ -381,7 +375,7 @@ contract TestUpdateBinding is Test {
         assertEq(approval.approvalCount, 11);
 
         // doesn't decrement if approvalCount is uint64.max
-
+        vm.prank(creditor);
         (claimId,) = _newClaim(ClaimBinding.Unbound);
         _permitUpdateBinding({_userPK: creditorPK, _operator: operator, _approvalCount: type(uint64).max});
 

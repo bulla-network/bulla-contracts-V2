@@ -17,10 +17,9 @@ import {BullaFeeCalculator} from "contracts/BullaFeeCalculator.sol";
 import {BullaClaim, CreateClaimApprovalType} from "contracts/BullaClaim.sol";
 import {PenalizedClaim} from "contracts/mocks/PenalizedClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
+import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 
-contract CreateClaimTest is Test {
-    BullaClaim public bullaClaim;
-    EIP712Helper public sigHelper;
+contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
     BullaFeeCalculator feeCalculator;
 
     uint256 creditorPK = uint256(0x01);
@@ -32,9 +31,6 @@ contract CreateClaimTest is Test {
     uint256 userPK = uint256(0xA11c3);
     address user = vm.addr(userPK);
     address operator = address(0xb0b);
-
-    string tokenURI = "https://mytokenURI.com/1234";
-    string attachmentURI = "https://coolcatpics.com/1234";
 
     event MetadataAdded(uint256 indexed claimId, string tokenURI, string attachmentURI);
 
@@ -61,82 +57,44 @@ contract CreateClaimTest is Test {
         sigHelper = new EIP712Helper(address(bullaClaim));
     }
 
-    function _newClaim(address _creditor, address _debtor) private returns (uint256 claimId) {
-        claimId = bullaClaim.createClaimWithMetadata(
-            CreateClaimParams({
-                creditor: _creditor,
-                debtor: _debtor,
-                description: "",
-                claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
-                token: address(0),
-                delegator: address(0),
-                feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Unbound
-            }),
-            ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
-        );
-    }
-
-    function _newClaimFrom(address _from, address _creditor, address _debtor) private returns (uint256 claimId) {
-        claimId = bullaClaim.createClaimWithMetadataFrom(
-            _from,
-            CreateClaimParams({
-                creditor: _creditor,
-                debtor: _debtor,
-                description: "",
-                claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
-                token: address(0),
-                delegator: address(0),
-                feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Unbound
-            }),
-            ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
-        );
-    }
-
-    function _permitCreateClaim(
-        uint256 _userPK,
-        address _operator,
-        uint64 _approvalCount,
-        CreateClaimApprovalType _approvalType,
-        bool _isBindingAllowed
-    ) private {
-        bytes memory sig = sigHelper.signCreateClaimPermit(
-            _userPK, vm.addr(_userPK), _operator, _approvalType, _approvalCount, _isBindingAllowed
-        );
-        bullaClaim.permitCreateClaim(vm.addr(_userPK), _operator, _approvalType, _approvalCount, _isBindingAllowed, sig);
-    }
-
-    function _permitCreateClaim(uint256 _userPK, address _operator, uint64 _approvalCount) private {
-        _permitCreateClaim(_userPK, _operator, _approvalCount, CreateClaimApprovalType.Approved, true);
-    }
-
     function testCannotCreateClaimWhenContractIsLocked() public {
         bullaClaim.setLockState(LockState.Locked);
 
         _permitCreateClaim({_userPK: userPK, _operator: address(this), _approvalCount: type(uint64).max});
 
         vm.expectRevert(BullaClaim.Locked.selector);
-        _newClaim(creditor, debtor);
+        _newClaim(creditor, creditor, debtor);
 
         vm.expectRevert(BullaClaim.Locked.selector);
-        _newClaimFrom(user, creditor, debtor);
+        _newClaimWithMetadataFrom(user, creditor, debtor);
 
         bullaClaim.setLockState(LockState.NoNewClaims);
 
         vm.expectRevert(BullaClaim.Locked.selector);
-        _newClaim(creditor, debtor);
+        _newClaim(creditor, creditor, debtor);
 
         vm.expectRevert(BullaClaim.Locked.selector);
-        _newClaimFrom(user, creditor, debtor);
+        _newClaimWithMetadataFrom(user, creditor, debtor);
     }
 
     function testCreateClaimWithMetadata() public {
         vm.expectEmit(true, true, true, true);
         emit MetadataAdded(1, tokenURI, attachmentURI);
-        uint256 claimId = _newClaim(creditor, debtor);
+        vm.prank(creditor);
+        uint256 claimId = bullaClaim.createClaimWithMetadata(
+            CreateClaimParams({
+                creditor: creditor,
+                debtor: debtor,
+                description: "",
+                claimAmount: 1 ether,
+                dueBy: block.timestamp + 1 days,
+                token: address(weth),
+                delegator: address(0),
+                feePayer: FeePayer.Debtor,
+                binding: ClaimBinding.Unbound
+            }),
+            ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
+        );
 
         (string memory _tokenURI, string memory _attachmentURI) = bullaClaim.claimMetadata(claimId);
         assertEq(_tokenURI, tokenURI);
@@ -149,7 +107,7 @@ contract CreateClaimTest is Test {
 
         vm.expectEmit(true, true, true, true);
         emit MetadataAdded(1, tokenURI, attachmentURI);
-        uint256 claimId = _newClaimFrom(user, user, debtor);
+        uint256 claimId = _newClaimWithMetadataFrom(user, user, debtor);
 
         (string memory _tokenURI, string memory _attachmentURI) = bullaClaim.claimMetadata(claimId);
         assertEq(claimId, 1);
@@ -161,10 +119,10 @@ contract CreateClaimTest is Test {
     function testCreateClaimWithMetadataFromSpendsApproval() public {
         _permitCreateClaim({_userPK: userPK, _operator: address(this), _approvalCount: 1});
 
-        _newClaimFrom(user, user, debtor);
+        _newClaimWithMetadataFrom(user, user, debtor);
 
         vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector));
-        _newClaimFrom(user, user, debtor);
+        _newClaimWithMetadataFrom(user, user, debtor);
     }
 
     function testCreateClaimWithMetadataFromFollowsSpec_binding() public {

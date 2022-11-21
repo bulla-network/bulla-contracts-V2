@@ -9,7 +9,7 @@ import {BullaFeeCalculator} from "contracts/BullaFeeCalculator.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
 
-contract PayClaimWithFee is Test {
+contract TestPayClaimWithFee is Test {
     WETH public weth;
     BullaClaim public bullaClaim;
     BullaFeeCalculator public feeCalculator;
@@ -49,7 +49,11 @@ contract PayClaimWithFee is Test {
         bullaClaim.setFeeCalculator(address(feeCalculator));
     }
 
-    function _newClaim(bool isNative, FeePayer feePayer, uint256 claimAmount) private returns (uint256 claimId) {
+    function _newClaim(address creator, bool isNative, FeePayer feePayer, uint256 claimAmount)
+        private
+        returns (uint256 claimId)
+    {
+        vm.prank(creator);
         claimId = bullaClaim.createClaim(
             CreateClaimParams({
                 creditor: creditor,
@@ -67,7 +71,7 @@ contract PayClaimWithFee is Test {
 
     function testPaymentNoFee() public {
         uint256 CLAIM_AMOUNT = 100 ether;
-        uint256 claimId = _newClaim(false, FeePayer.Creditor, CLAIM_AMOUNT);
+        uint256 claimId = _newClaim(creditor, false, FeePayer.Creditor, CLAIM_AMOUNT);
 
         // store the balance of all parties beforehand
         uint256 creditorBalanceBefore = weth.balanceOf(creditor);
@@ -105,7 +109,7 @@ contract PayClaimWithFee is Test {
     // same as above but payable for native token transfers
     function testPaymentNoFee_native() public {
         uint256 CLAIM_AMOUNT = 100 ether;
-        uint256 claimId = _newClaim(true, FeePayer.Creditor, CLAIM_AMOUNT);
+        uint256 claimId = _newClaim(creditor, true, FeePayer.Creditor, CLAIM_AMOUNT);
 
         uint256 creditorBalanceBefore = creditor.balance;
         uint256 debtorBalanceBefore = debtor.balance;
@@ -139,7 +143,7 @@ contract PayClaimWithFee is Test {
             0, address(0), address(0), address(0), CLAIM_AMOUNT, CLAIM_AMOUNT, 0, 0, ClaimBinding.Unbound, feePayer
         );
 
-        uint256 claimId = _newClaim(false, feePayer, CLAIM_AMOUNT);
+        uint256 claimId = _newClaim(creditor, false, feePayer, CLAIM_AMOUNT);
         // record balances before
         uint256 creditorBalanceBefore = weth.balanceOf(creditor);
         uint256 debtorBalanceBefore = weth.balanceOf(debtor);
@@ -181,7 +185,7 @@ contract PayClaimWithFee is Test {
             0, address(0), address(0), address(0), CLAIM_AMOUNT, CLAIM_AMOUNT, 0, 0, ClaimBinding.Unbound, feePayer
         );
 
-        uint256 claimId = _newClaim(true, feePayer, CLAIM_AMOUNT);
+        uint256 claimId = _newClaim(creditor, true, feePayer, CLAIM_AMOUNT);
         uint256 creditorBalanceBefore = creditor.balance;
         uint256 debtorBalanceBefore = debtor.balance;
         uint256 feeReceiverBalanceBefore = feeReceiver.balance;
@@ -215,7 +219,7 @@ contract PayClaimWithFee is Test {
         );
         uint256 FEE_AMOUNT = paymentAmount - CLAIM_AMOUNT;
 
-        uint256 claimId = _newClaim(false, FeePayer.Debtor, CLAIM_AMOUNT);
+        uint256 claimId = _newClaim(creditor, false, FeePayer.Debtor, CLAIM_AMOUNT);
 
         uint256 creditorBalanceBefore = weth.balanceOf(creditor);
         uint256 debtorBalanceBefore = weth.balanceOf(debtor);
@@ -252,7 +256,7 @@ contract PayClaimWithFee is Test {
         FeePayer feePayer = FeePayer.Debtor;
         uint256 CLAIM_AMOUNT = 100 ether;
 
-        uint256 claimId = _newClaim(true, feePayer, CLAIM_AMOUNT);
+        uint256 claimId = _newClaim(creditor, true, feePayer, CLAIM_AMOUNT);
         Claim memory claim = bullaClaim.getClaim(claimId);
 
         uint256 paymentAmount = feeCalculator.fullPaymentAmount(
@@ -286,7 +290,7 @@ contract PayClaimWithFee is Test {
         // spec: pay 1/2 of a 100 ether claim with a 5% fee
         _enableFee();
 
-        uint256 claimId = _newClaim(false, debtorPaysFee ? FeePayer.Debtor : FeePayer.Creditor, 100 ether);
+        uint256 claimId = _newClaim(creditor, false, debtorPaysFee ? FeePayer.Debtor : FeePayer.Creditor, 100 ether);
         uint256 creditorBalanceBefore = weth.balanceOf(creditor);
         uint256 debtorBalanceBefore = weth.balanceOf(debtor);
         uint256 feeReceiverBalanceBefore = weth.balanceOf(feeReceiver);
@@ -320,7 +324,7 @@ contract PayClaimWithFee is Test {
         vm.assume(numberOfPayments > 0);
 
         uint256 CLAIM_AMOUNT = 100 ether;
-        uint256 claimId = _newClaim(false, FeePayer.Creditor, CLAIM_AMOUNT);
+        uint256 claimId = _newClaim(creditor, false, FeePayer.Creditor, CLAIM_AMOUNT);
         Claim memory claim = bullaClaim.getClaim(claimId);
 
         vm.prank(debtor);
@@ -389,7 +393,7 @@ contract PayClaimWithFee is Test {
         vm.assume(numberOfPayments > 0);
         uint256 CLAIM_AMOUNT = 100 ether;
 
-        uint256 claimId = _newClaim(false, FeePayer.Debtor, CLAIM_AMOUNT);
+        uint256 claimId = _newClaim(creditor, false, FeePayer.Debtor, CLAIM_AMOUNT);
         Claim memory claim = bullaClaim.getClaim(claimId);
 
         vm.prank(debtor);
@@ -457,7 +461,7 @@ contract PayClaimWithFee is Test {
     function testPayNotYourClaimEnsureDebtorFee() public {
         _enableFee();
         uint256 CLAIM_AMOUNT = 1 ether;
-        uint256 claimId = _newClaim(false, FeePayer.Debtor, CLAIM_AMOUNT);
+        uint256 claimId = _newClaim(creditor, false, FeePayer.Debtor, CLAIM_AMOUNT);
         Claim memory claim = bullaClaim.getClaim(claimId);
 
         uint256 amountOwed = feeCalculator.fullPaymentAmount(
