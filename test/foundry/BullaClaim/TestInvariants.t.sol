@@ -40,19 +40,26 @@ contract TestInvariants is Test {
 
     event ClaimCreated(
         uint256 indexed claimId,
-        address caller,
+        address from,
         address indexed creditor,
         address indexed debtor,
-        string description,
         uint256 claimAmount,
-        address claimToken,
-        ClaimBinding binding,
         uint256 dueBy,
+        string description,
+        address token,
+        address controller,
+        FeePayer feePayer,
+        ClaimBinding binding,
         uint256 feeCalculatorId
     );
 
-    event ClaimPayment(uint256 indexed claimId, address indexed paidBy, uint256 paymentAmount, uint256 feeAmountPaid);
-
+    event ClaimPayment(
+        uint256 indexed claimId,
+        address indexed paidBy,
+        uint256 paymentAmount,
+        uint256 totalPaidAmount,
+        uint256 feePaymentAmount
+    );
     event ClaimRescinded(uint256 indexed claimId, address indexed from, string note);
 
     function setUp() public {
@@ -127,11 +134,13 @@ contract TestInvariants is Test {
             creditor,
             creditor,
             debtor,
-            "",
             uint256(_claimAmount),
-            address(weth),
-            ClaimBinding(ClaimBinding.Unbound),
             uint256(block.timestamp + 1 days),
+            "",
+            address(weth),
+            address(0),
+            FeePayer.Debtor,
+            ClaimBinding(ClaimBinding.Unbound),
             initialFeeCalculator
             );
 
@@ -202,7 +211,7 @@ contract TestInvariants is Test {
             weth.approve(address(bullaClaim), paymentAmount);
 
             vm.expectEmit(true, true, true, true, address(bullaClaim));
-            emit ClaimPayment(claimId, debtor, paymentAmount - feeAmount, feeAmount);
+            emit ClaimPayment(claimId, debtor, paymentAmount - feeAmount, paymentAmount - feeAmount, feeAmount);
 
             bullaClaim.payClaim(claimId, paymentAmount);
             vm.stopPrank();
@@ -243,7 +252,7 @@ contract TestInvariants is Test {
             uint256 paymentAmount = (claim.claimAmount - claim.paidAmount) + feeAmount;
 
             vm.expectEmit(true, true, true, true, address(bullaClaim));
-            emit ClaimPayment(claimId, debtor, paymentAmount - feeAmount, feeAmount);
+            emit ClaimPayment(claimId, debtor, paymentAmount - feeAmount, _claimAmount, feeAmount);
 
             vm.startPrank(debtor);
             weth.approve(address(bullaClaim), paymentAmount);

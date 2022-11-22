@@ -20,14 +20,16 @@ contract TestCreateClaim is BullaClaimTestHelper {
 
     event ClaimCreated(
         uint256 indexed claimId,
-        address caller,
+        address from,
         address indexed creditor,
         address indexed debtor,
-        string description,
         uint256 claimAmount,
-        address claimToken,
-        ClaimBinding binding,
         uint256 dueBy,
+        string description,
+        address token,
+        address controller,
+        FeePayer feePayer,
+        ClaimBinding binding,
         uint256 feeCalculatorId
     );
 
@@ -381,11 +383,13 @@ contract TestCreateClaim is BullaClaimTestHelper {
             creator,
             _creditor,
             _debtor,
-            "test description",
             uint256(claimAmount),
-            token,
-            ClaimBinding(binding),
             uint256(dueBy),
+            "test description",
+            token,
+            address(0),
+            FeePayer.Debtor,
+            ClaimBinding(binding),
             bullaClaim.currentFeeCalculatorId()
             );
 

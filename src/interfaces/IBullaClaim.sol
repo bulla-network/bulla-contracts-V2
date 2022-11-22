@@ -34,18 +34,24 @@ interface IBullaClaim {
         address from,
         address indexed creditor,
         address indexed debtor,
-        string description,
         uint256 claimAmount,
-        address claimToken,
-        ClaimBinding binding,
         uint256 dueBy,
+        string description,
+        address token,
+        address controller,
+        FeePayer feePayer,
+        ClaimBinding binding,
         uint256 feeCalculatorId
     );
 
     event MetadataAdded(uint256 indexed claimId, string tokenURI, string attachmentURI);
 
     event ClaimPayment(
-        uint256 indexed claimId, address indexed paidBy, uint256 paymentAmount, uint256 feePaymentAmount
+        uint256 indexed claimId,
+        address indexed paidBy,
+        uint256 paymentAmount,
+        uint256 totalPaidAmount,
+        uint256 feePaymentAmount
     );
 
     event BindingUpdated(uint256 indexed claimId, address indexed from, ClaimBinding indexed binding);

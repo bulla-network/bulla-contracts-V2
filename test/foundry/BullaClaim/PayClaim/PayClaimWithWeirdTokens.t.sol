@@ -60,7 +60,13 @@ contract TestPayClaimWithWeirdTokens is Test {
     }
 
     // contract events
-    event ClaimPayment(uint256 indexed claimId, address indexed paidBy, uint256 paymentAmount, uint256 feeAmount);
+    event ClaimPayment(
+        uint256 indexed claimId,
+        address indexed paidBy,
+        uint256 paymentAmount,
+        uint256 totalPaidAmount,
+        uint256 feePaymentAmount
+    );
 
     function _enableFee() private {
         feeCalculator = new BullaFeeCalculator(500);
@@ -161,7 +167,7 @@ contract TestPayClaimWithWeirdTokens is Test {
 
         // expect amountPaid in the event to equal the amount transferred from the debtor
         vm.expectEmit(true, true, true, true, address(bullaClaim));
-        emit ClaimPayment(claimId_creditorFee, debtor, CLAIM_AMOUNT, 0);
+        emit ClaimPayment(claimId_creditorFee, debtor, CLAIM_AMOUNT, CLAIM_AMOUNT, 0);
 
         vm.prank(debtor);
         bullaClaim.payClaim(claimId_creditorFee, CLAIM_AMOUNT);
@@ -186,7 +192,7 @@ contract TestPayClaimWithWeirdTokens is Test {
 
         // expect amountPaid in the event to equal the amount transferred from the debtor
         vm.expectEmit(true, true, true, true, address(bullaClaim));
-        emit ClaimPayment(claimId_debtorFee, debtor, CLAIM_AMOUNT, 0);
+        emit ClaimPayment(claimId_debtorFee, debtor, CLAIM_AMOUNT, CLAIM_AMOUNT, 0);
 
         vm.prank(debtor);
         bullaClaim.payClaim(claimId_debtorFee, CLAIM_AMOUNT);
@@ -238,7 +244,7 @@ contract TestPayClaimWithWeirdTokens is Test {
         feeReceiverBalanceBefore = feeToken.balanceOf(feeReceiver);
 
         vm.expectEmit(true, true, true, true, address(bullaClaim));
-        emit ClaimPayment(claimId_creditorFee, debtor, CLAIM_AMOUNT, bullaFeeAmount);
+        emit ClaimPayment(claimId_creditorFee, debtor, CLAIM_AMOUNT, CLAIM_AMOUNT, bullaFeeAmount);
 
         vm.prank(debtor);
         bullaClaim.payClaim(claimId_creditorFee, CLAIM_AMOUNT);
@@ -293,7 +299,7 @@ contract TestPayClaimWithWeirdTokens is Test {
         feeReceiverBalanceBefore = feeToken.balanceOf(feeReceiver);
 
         vm.expectEmit(true, true, true, true, address(bullaClaim));
-        emit ClaimPayment(claimId_debtorFee, debtor, CLAIM_AMOUNT, bullaFeeAmount);
+        emit ClaimPayment(claimId_debtorFee, debtor, CLAIM_AMOUNT, CLAIM_AMOUNT, bullaFeeAmount);
 
         vm.prank(debtor);
         bullaClaim.payClaim(claimId_debtorFee, fullPaymentAmount);

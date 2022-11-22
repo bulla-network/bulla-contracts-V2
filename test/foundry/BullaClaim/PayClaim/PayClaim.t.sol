@@ -42,7 +42,13 @@ contract TestPayClaimWithFee is Test {
     }
 
     // contract events
-    event ClaimPayment(uint256 indexed claimId, address indexed paidBy, uint256 paymentAmount, uint256 feeAmountPaid);
+    event ClaimPayment(
+        uint256 indexed claimId,
+        address indexed paidBy,
+        uint256 paymentAmount,
+        uint256 totalPaidAmount,
+        uint256 feePaymentAmount
+    );
 
     function _enableFee() private {
         feeCalculator = new BullaFeeCalculator(500);
@@ -85,7 +91,7 @@ contract TestPayClaimWithFee is Test {
 
         // expect a payment event with 0 fee
         vm.expectEmit(true, true, true, true, address(bullaClaim));
-        emit ClaimPayment(claimId, debtor, CLAIM_AMOUNT, 0);
+        emit ClaimPayment(claimId, debtor, CLAIM_AMOUNT, CLAIM_AMOUNT, 0);
 
         // call pay claim
         uint256 paymentAmount = CLAIM_AMOUNT;
@@ -141,7 +147,7 @@ contract TestPayClaimWithFee is Test {
         uint256 feeReceiverBalanceBefore = feeReceiver.balance;
 
         vm.expectEmit(true, true, true, true, address(bullaClaim));
-        emit ClaimPayment(claimId, debtor, CLAIM_AMOUNT, 0);
+        emit ClaimPayment(claimId, debtor, CLAIM_AMOUNT, CLAIM_AMOUNT, 0);
 
         vm.prank(debtor);
         uint256 paymentAmount = CLAIM_AMOUNT;
@@ -181,7 +187,7 @@ contract TestPayClaimWithFee is Test {
 
         // expect the fee event to be emitted also
         vm.expectEmit(true, true, true, true, address(bullaClaim));
-        emit ClaimPayment(claimId, debtor, paymentAmount, FEE_AMOUNT);
+        emit ClaimPayment(claimId, debtor, paymentAmount, paymentAmount, FEE_AMOUNT);
 
         // pay the claim
         vm.prank(debtor);
@@ -216,7 +222,7 @@ contract TestPayClaimWithFee is Test {
         uint256 feeReceiverBalanceBefore = feeReceiver.balance;
 
         vm.expectEmit(true, true, true, true, address(bullaClaim));
-        emit ClaimPayment(claimId, debtor, CLAIM_AMOUNT, FEE_AMOUNT);
+        emit ClaimPayment(claimId, debtor, CLAIM_AMOUNT, CLAIM_AMOUNT, FEE_AMOUNT);
 
         uint256 paymentAmount = CLAIM_AMOUNT;
 
@@ -255,7 +261,7 @@ contract TestPayClaimWithFee is Test {
 
         // the event emits the paymentAmount as the amount refected on the claim, not the actual amount paid by the debtor
         vm.expectEmit(true, true, true, true, address(bullaClaim));
-        emit ClaimPayment(claimId, debtor, paymentAmount - FEE_AMOUNT, FEE_AMOUNT);
+        emit ClaimPayment(claimId, debtor, paymentAmount - FEE_AMOUNT, paymentAmount - FEE_AMOUNT, FEE_AMOUNT);
 
         vm.prank(debtor);
         // note: the debtor is passing the total claim amount _plus_ the fee into the pay claim function in order to yield a completely paid fee.
@@ -294,7 +300,7 @@ contract TestPayClaimWithFee is Test {
         uint256 feeReceiverBalanceBefore = feeReceiver.balance;
 
         vm.expectEmit(true, true, true, true, address(bullaClaim));
-        emit ClaimPayment(claimId, debtor, CLAIM_AMOUNT, FEE_AMOUNT);
+        emit ClaimPayment(claimId, debtor, CLAIM_AMOUNT, CLAIM_AMOUNT, FEE_AMOUNT);
 
         vm.prank(debtor);
         bullaClaim.payClaim{value: paymentAmount}(claimId, paymentAmount);
@@ -328,7 +334,13 @@ contract TestPayClaimWithFee is Test {
         weth.approve(address(bullaClaim), 1000 ether);
 
         vm.expectEmit(true, true, true, true, address(bullaClaim));
-        emit ClaimPayment(claimId, debtor, debtorPaysFee ? PAYMENT_AMOUNT - EXPECTED_FEE : PAYMENT_AMOUNT, EXPECTED_FEE);
+        emit ClaimPayment(
+            claimId,
+            debtor,
+            debtorPaysFee ? PAYMENT_AMOUNT - EXPECTED_FEE : PAYMENT_AMOUNT,
+            debtorPaysFee ? PAYMENT_AMOUNT - EXPECTED_FEE : PAYMENT_AMOUNT,
+            EXPECTED_FEE
+            );
 
         vm.prank(debtor);
         bullaClaim.payClaim(claimId, PAYMENT_AMOUNT);
@@ -391,20 +403,21 @@ contract TestPayClaimWithFee is Test {
             );
 
             vm.expectEmit(true, true, true, true, address(bullaClaim));
-            emit ClaimPayment(claimId, debtor, paymentAmount, fee);
+            emit ClaimPayment(claimId, debtor, paymentAmount, paidAmountBefore + paymentAmount, fee);
 
             vm.prank(debtor);
             bullaClaim.payClaim(claimId, paymentAmount);
+            {
+                claim = bullaClaim.getClaim(claimId);
 
-            claim = bullaClaim.getClaim(claimId);
+                assertEq(weth.balanceOf(debtor), debtorBalanceBefore - (paymentAmount));
 
-            assertEq(weth.balanceOf(debtor), debtorBalanceBefore - (paymentAmount));
+                assertEq(weth.balanceOf(feeReceiver), feeReceiverBalanceBefore + fee);
 
-            assertEq(weth.balanceOf(feeReceiver), feeReceiverBalanceBefore + fee);
+                assertEq(weth.balanceOf(creditor), creditorBalanceBefore + (paymentAmount - fee));
 
-            assertEq(weth.balanceOf(creditor), creditorBalanceBefore + (paymentAmount - fee));
-
-            assertEq(claim.paidAmount, paidAmountBefore + paymentAmount);
+                assertEq(claim.paidAmount, paidAmountBefore + paymentAmount);
+            }
         }
 
         // even after multiple installment payments, expect the claim to still be paid
@@ -424,6 +437,7 @@ contract TestPayClaimWithFee is Test {
         vm.prank(debtor);
         weth.approve(address(bullaClaim), type(uint256).max);
 
+        uint256 paymentTotal;
         for (uint256 payments = 0; payments < numberOfPayments; payments++) {
             uint256 creditorBalanceBefore = weth.balanceOf(creditor);
             uint256 debtorBalanceBefore = weth.balanceOf(debtor);
@@ -459,9 +473,10 @@ contract TestPayClaimWithFee is Test {
                 ClaimBinding.Unbound,
                 FeePayer.Debtor
             );
+            paymentTotal += paymentAmount - fee;
 
             vm.expectEmit(true, true, true, true, address(bullaClaim));
-            emit ClaimPayment(claimId, debtor, paymentAmount - fee, fee);
+            emit ClaimPayment(claimId, debtor, paymentAmount - fee, paymentTotal, fee);
 
             vm.prank(debtor);
             bullaClaim.payClaim(claimId, paymentAmount);
@@ -476,7 +491,7 @@ contract TestPayClaimWithFee is Test {
 
             assertEq(claim.paidAmount, paidAmountBefore + paymentAmount - fee);
         }
-
+        assertEq(paymentTotal, CLAIM_AMOUNT);
         assertEq(bullaClaim.ownerOf(claimId), address(debtor));
         assertEq(uint256(claim.status), uint256(Status.Paid));
     }

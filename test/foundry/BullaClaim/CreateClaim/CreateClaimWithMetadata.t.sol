@@ -34,19 +34,6 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
 
     event MetadataAdded(uint256 indexed claimId, string tokenURI, string attachmentURI);
 
-    event ClaimCreated(
-        uint256 indexed claimId,
-        address caller,
-        address indexed creditor,
-        address indexed debtor,
-        string description,
-        uint256 claimAmount,
-        address claimToken,
-        ClaimBinding binding,
-        uint256 dueBy,
-        uint256 feeCalculatorId
-    );
-
     function setUp() public {
         (bullaClaim,) = (new Deployer()).deploy_test({
             _deployer: address(this),
