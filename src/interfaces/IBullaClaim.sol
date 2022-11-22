@@ -21,6 +21,7 @@ interface IBullaClaim {
     error NotController(address sender);
     error ClaimBound();
     error ClaimNotPending();
+    error ClaimPending();
     error NotMinted();
     error NotApproved();
     error PayingZero();

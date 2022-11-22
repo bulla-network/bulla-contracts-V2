@@ -64,18 +64,6 @@ contract ERC721Test is DSTestPlus {
         assertEq(token.ownerOf(tokenId), creditor);
     }
 
-    function testBurn() public {
-        uint256 tokenId = _mint();
-
-        hevm.prank(creditor);
-        token.burn(tokenId);
-
-        assertEq(token.balanceOf(creditor), 0);
-
-        hevm.expectRevert("NOT_MINTED");
-        token.ownerOf(tokenId);
-    }
-
     function testApprove() public {
         uint256 tokenId = _mint();
 
@@ -83,21 +71,6 @@ contract ERC721Test is DSTestPlus {
         token.approve(creditor, tokenId);
 
         assertEq(token.getApproved(tokenId), creditor);
-    }
-
-    function testApproveBurn() public {
-        uint256 tokenId = _mint();
-
-        hevm.startPrank(creditor);
-        token.approve(creditor, tokenId);
-        token.burn(tokenId);
-        hevm.stopPrank();
-
-        assertEq(token.balanceOf(address(this)), 0);
-        assertEq(token.getApproved(tokenId), address(0));
-
-        hevm.expectRevert("NOT_MINTED");
-        token.ownerOf(tokenId);
     }
 
     function testApproveAll() public {
@@ -244,22 +217,6 @@ contract ERC721Test is DSTestPlus {
         assertEq(token.ownerOf(tokenId), to);
     }
 
-    function testBurn(address to) public {
-        if (to == address(0)) {
-            to = address(0xBEEF);
-        }
-
-        uint256 tokenId = _mint(to, to);
-
-        hevm.prank(to);
-        token.burn(tokenId);
-
-        assertEq(token.balanceOf(to), 0);
-
-        hevm.expectRevert("NOT_MINTED");
-        token.ownerOf(tokenId);
-    }
-
     function testApprove(address to) public {
         if (to == address(0)) {
             to = address(0xBEEF);
@@ -270,24 +227,6 @@ contract ERC721Test is DSTestPlus {
         token.approve(to, tokenId);
 
         assertEq(token.getApproved(tokenId), to);
-    }
-
-    function testApproveBurn(address to) public {
-        if (to == address(0)) {
-            to = address(0xBEEF);
-        }
-        uint256 tokenId = _mint(to, to);
-
-        hevm.startPrank(to);
-        token.approve(address(to), tokenId);
-        token.burn(tokenId);
-        hevm.stopPrank();
-
-        assertEq(token.balanceOf(address(this)), 0);
-        assertEq(token.getApproved(tokenId), address(0));
-
-        hevm.expectRevert("NOT_MINTED");
-        token.ownerOf(tokenId);
     }
 
     function testApproveAll(address to, bool approved) public {
