@@ -81,18 +81,24 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         address from,
         address indexed creditor,
         address indexed debtor,
-        string description,
         uint256 claimAmount,
-        address claimToken,
-        ClaimBinding binding,
         uint256 dueBy,
+        string description,
+        address token,
+        address controller,
+        FeePayer feePayer,
+        ClaimBinding binding,
         uint256 feeCalculatorId
     );
 
     event MetadataAdded(uint256 indexed claimId, string tokenURI, string attachmentURI);
 
     event ClaimPayment(
-        uint256 indexed claimId, address indexed paidBy, uint256 paymentAmount, uint256 feePaymentAmount
+        uint256 indexed claimId,
+        address indexed paidBy,
+        uint256 paymentAmount,
+        uint256 newPaidAmount,
+        uint256 feePaymentAmount
     );
 
     event BindingUpdated(uint256 indexed claimId, address indexed from, ClaimBinding indexed binding);
@@ -187,7 +193,6 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     {
         uint256 claimId = _createClaim(from, params);
 
-        // TODO: check event order
         claimMetadata[claimId] = metadata;
         emit MetadataAdded(claimId, metadata.tokenURI, metadata.attachmentURI);
 
@@ -274,40 +279,42 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
             revert CannotBindClaim();
         }
 
-        uint256 claimId;
-        unchecked {
-            claimId = ++currentClaimId;
-        }
-
-        ClaimStorage storage claim = claims[claimId];
-
-        claim.claimAmount = params.claimAmount.safeCastTo128(); //TODO: is this necessary?
-        claim.debtor = params.debtor;
-
-        uint256 _currentFeeCalculatorId = currentFeeCalculatorId;
         uint16 feeCalculatorId;
-        // we store the fee calculator id on the claim to make
-        // sure the payer pays the fee amount when the claim was created
-        if (_currentFeeCalculatorId != 0 && address(feeCalculators[_currentFeeCalculatorId]) != address(0)) {
-            claim.feeCalculatorId = feeCalculatorId = uint16(_currentFeeCalculatorId);
-        }
-        if (params.dueBy != 0) {
-            claim.dueBy = uint40(params.dueBy);
-        }
-        if (params.token != address(0)) {
-            claim.token = params.token;
-        }
-        if (params.controller != address(0)) {
-            claim.controller = params.controller;
-        }
-        if (params.feePayer == FeePayer.Debtor) {
-            claim.feePayer = params.feePayer;
-        }
-        if (params.binding != ClaimBinding.Unbound) {
-            claim.binding = params.binding;
-        }
-        if (params.payerReceivesClaimOnPayment) {
-            claim.payerReceivesClaimOnPayment = true;
+        uint256 claimId;
+        {
+            unchecked {
+                claimId = ++currentClaimId;
+            }
+
+            ClaimStorage storage claim = claims[claimId];
+
+            claim.claimAmount = params.claimAmount.safeCastTo128(); //TODO: is this necessary?
+            claim.debtor = params.debtor;
+
+            uint256 _currentFeeCalculatorId = currentFeeCalculatorId;
+            // we store the fee calculator id on the claim to make
+            // sure the payer pays the fee amount when the claim was created
+            if (_currentFeeCalculatorId != 0 && address(feeCalculators[_currentFeeCalculatorId]) != address(0)) {
+                claim.feeCalculatorId = feeCalculatorId = uint16(_currentFeeCalculatorId);
+            }
+            if (params.dueBy != 0) {
+                claim.dueBy = uint40(params.dueBy);
+            }
+            if (params.token != address(0)) {
+                claim.token = params.token;
+            }
+            if (params.controller != address(0)) {
+                claim.controller = params.controller;
+            }
+            if (params.feePayer == FeePayer.Debtor) {
+                claim.feePayer = params.feePayer;
+            }
+            if (params.binding != ClaimBinding.Unbound) {
+                claim.binding = params.binding;
+            }
+            if (params.payerReceivesClaimOnPayment) {
+                claim.payerReceivesClaimOnPayment = true;
+            }
         }
 
         emit ClaimCreated(
@@ -315,11 +322,13 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
             from,
             params.creditor,
             params.debtor,
-            params.description,
             params.claimAmount,
-            params.token,
-            params.binding,
             params.dueBy,
+            params.description,
+            params.token,
+            params.controller,
+            params.feePayer,
+            params.binding,
             feeCalculatorId
             );
 
@@ -495,12 +504,11 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
                 : ERC20(claim.token).safeTransferFrom(from, feeCollectionAddress, fee);
         }
 
-        // TODO: this should happen after transfer
-        emit ClaimPayment(claimId, from, claimPaymentAmount, fee);
-
         claim.token == address(0)
             ? creditor.safeTransferETH(amountToTransferCreditor)
             : ERC20(claim.token).safeTransferFrom(from, creditor, amountToTransferCreditor);
+
+        emit ClaimPayment(claimId, from, claimPaymentAmount, newPaidAmount, fee);
 
         // transfer the ownership of the claim NFT to the payee as a receipt of their completed payment
         if (claim.payerReceivesClaimOnPayment && claimPaid) {

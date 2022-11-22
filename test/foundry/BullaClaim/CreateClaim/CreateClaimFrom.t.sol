@@ -38,14 +38,16 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
 
     event ClaimCreated(
         uint256 indexed claimId,
-        address caller,
+        address from,
         address indexed creditor,
         address indexed debtor,
-        string description,
         uint256 claimAmount,
-        address claimToken,
-        ClaimBinding binding,
         uint256 dueBy,
+        string description,
+        address token,
+        address controller,
+        FeePayer feePayer,
+        ClaimBinding binding,
         uint256 feeCalculatorId
     );
 
@@ -271,6 +273,22 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
                 || (approvalType == CreateClaimApprovalType.DebtorOnly && isInvoice)
         ) {
             vm.expectRevert(BullaClaim.NotApproved.selector);
+        } else {
+            vm.expectEmit(true, true, true, true);
+            emit ClaimCreated(
+                bullaClaim.currentClaimId() + 1,
+                _user,
+                isInvoice ? _user : debtor,
+                isInvoice ? debtor : _user,
+                1 ether,
+                block.timestamp + 1 days,
+                "fuzzzin",
+                address(0),
+                address(0),
+                FeePayer.Debtor,
+                _isBindingAllowed && !isInvoice ? ClaimBinding.Bound : ClaimBinding.Unbound,
+                0
+                );
         }
 
         vm.prank(_operator);
