@@ -68,7 +68,7 @@ contract TestPenalizedClaim is Test {
                 controller: address(penalizedClaim),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.BindingPending,
-                transferOnPayment: true
+                payerReceivesClaimOnPayment: true
             })
         );
 
@@ -140,7 +140,7 @@ contract TestPenalizedClaim is Test {
                 controller: address(penalizedClaim),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.BindingPending,
-                transferOnPayment: true
+                payerReceivesClaimOnPayment: true
             })
         );
 

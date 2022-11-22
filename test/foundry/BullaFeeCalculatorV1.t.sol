@@ -100,7 +100,7 @@ contract TestBullaFeeCalculatorV1 is Test {
                 controller: address(0),
                 feePayer: feePayer,
                 binding: ClaimBinding.Unbound,
-                transferOnPayment: true
+                payerReceivesClaimOnPayment: true
             })
         );
 
@@ -168,7 +168,7 @@ contract TestBullaFeeCalculatorV1 is Test {
                 controller: address(0),
                 feePayer: feePayer,
                 binding: ClaimBinding.Unbound,
-                transferOnPayment: true
+                payerReceivesClaimOnPayment: true
             })
         );
 
