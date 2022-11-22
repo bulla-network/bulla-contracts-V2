@@ -146,7 +146,8 @@ contract TestInvariants is Test {
                 token: address(weth),
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Unbound
+                binding: ClaimBinding.Unbound,
+                transferOnPayment: true
             })
         );
 

@@ -68,7 +68,8 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 token: address(0),
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Unbound
+                binding: ClaimBinding.Unbound,
+                transferOnPayment: true
             })
         );
         Claim memory claim = bullaClaim.getClaim(claimId);
@@ -99,7 +100,8 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 token: address(0),
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Unbound
+                binding: ClaimBinding.Unbound,
+                transferOnPayment: true
             })
         );
     }
@@ -116,7 +118,8 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 token: address(0),
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Unbound
+                binding: ClaimBinding.Unbound,
+                transferOnPayment: true
             })
         );
     }
@@ -136,7 +139,8 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 token: address(0),
                 controller: address(controller),
                 feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Unbound
+                binding: ClaimBinding.Unbound,
+                transferOnPayment: true
             })
         );
     }
@@ -154,7 +158,8 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 token: address(weth),
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.BindingPending
+                binding: ClaimBinding.BindingPending,
+                transferOnPayment: true
             })
         );
         Claim memory claim = bullaClaim.getClaim(claimId);
@@ -172,7 +177,8 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 token: address(weth),
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Bound
+                binding: ClaimBinding.Bound,
+                transferOnPayment: true
             })
         );
         Claim memory boundClaim = bullaClaim.getClaim(boundClaimId);
@@ -199,7 +205,8 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 token: address(weth),
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Unbound
+                binding: ClaimBinding.Unbound,
+                transferOnPayment: true
             })
         );
         Claim memory claim = bullaClaim.getClaim(claimId);
@@ -221,7 +228,8 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 token: address(weth),
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Unbound
+                binding: ClaimBinding.Unbound,
+                transferOnPayment: true
             })
         );
         assertEq(bullaClaim.currentClaimId(), claimId);
@@ -244,7 +252,8 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 token: address(weth),
                 controller: address(controller),
                 feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Bound
+                binding: ClaimBinding.Bound,
+                transferOnPayment: true
             })
         );
     }
@@ -262,7 +271,8 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 token: address(weth),
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Bound
+                binding: ClaimBinding.Bound,
+                transferOnPayment: true
             })
         );
 
@@ -278,7 +288,8 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 token: address(weth),
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Bound
+                binding: ClaimBinding.Bound,
+                transferOnPayment: true
             })
         );
     }
@@ -297,7 +308,8 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 token: address(weth),
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Unbound
+                binding: ClaimBinding.Unbound,
+                transferOnPayment: true
             })
         );
     }
@@ -318,7 +330,8 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 token: address(weth),
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Unbound
+                binding: ClaimBinding.Unbound,
+                transferOnPayment: true
             })
         );
     }
@@ -336,7 +349,8 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 token: address(weth),
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Bound
+                binding: ClaimBinding.Bound,
+                transferOnPayment: true
             })
         );
     }
@@ -345,11 +359,11 @@ contract TestCreateClaim is BullaClaimTestHelper {
         bool isInvoice,
         address _creditor,
         address _debtor,
-        string calldata description,
         uint128 claimAmount,
         address token,
         uint40 dueBy,
-        uint8 binding
+        uint8 binding,
+        bool transferOnPayment
     ) public {
         vm.assume(dueBy > block.timestamp + 6 days);
         vm.assume(_creditor != address(0));
@@ -367,7 +381,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
             creator,
             _creditor,
             _debtor,
-            description,
+            "test description",
             uint256(claimAmount),
             token,
             ClaimBinding(binding),
@@ -380,13 +394,14 @@ contract TestCreateClaim is BullaClaimTestHelper {
             CreateClaimParams({
                 creditor: _creditor,
                 debtor: _debtor,
-                description: description,
+                description: "test description",
                 claimAmount: claimAmount,
                 dueBy: dueBy,
                 token: token,
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
-                binding: ClaimBinding(binding)
+                binding: ClaimBinding(binding),
+                transferOnPayment: transferOnPayment
             })
         );
 
@@ -400,6 +415,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
             assertEq(claim.debtor, _debtor);
             assertEq(uint256(claim.feeCalculatorId), 0);
             assertEq(claim.dueBy, dueBy);
+            assertEq(claim.transferOnPayment, transferOnPayment);
             assertTrue(claim.binding == ClaimBinding(binding));
             assertEq(claim.token, token);
             assertEq(bullaClaim.balanceOf(_creditor), creditorBalanceBefore + 1);

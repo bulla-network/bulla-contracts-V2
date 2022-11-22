@@ -53,6 +53,7 @@ struct CreateClaimParams {
     address controller;
     FeePayer feePayer;
     ClaimBinding binding;
+    bool transferOnPayment;
 }
 
 struct ClaimMetadata {
@@ -66,6 +67,7 @@ struct ClaimStorage {
     Status status;
     ClaimBinding binding; // the debtor can allow themselves to be bound to a claim, which makes a claim unrejectable
     FeePayer feePayer;
+    bool transferOnPayment; // an optional flag which allows the token to be transferred to the payer, acting as a "receipt NFT"
     // if feePayer = Debtor:
     //      the payer pays the fee and the creditor receives claimAmount
     // if feePayer = Creditor:
@@ -84,6 +86,7 @@ struct Claim {
     Status status;
     ClaimBinding binding;
     FeePayer feePayer;
+    bool transferOnPayment;
     address debtor;
     uint256 feeCalculatorId;
     uint256 dueBy;

@@ -54,7 +54,8 @@ contract TestFeeCalculator is Test {
                 token: address(weth),
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Unbound
+                binding: ClaimBinding.Unbound,
+                transferOnPayment: true
             })
         );
 
@@ -80,7 +81,8 @@ contract TestFeeCalculator is Test {
                 token: address(weth),
                 controller: address(0),
                 feePayer: FeePayer.Creditor,
-                binding: ClaimBinding.Unbound
+                binding: ClaimBinding.Unbound,
+                transferOnPayment: true
             })
         );
 
@@ -108,7 +110,8 @@ contract TestFeeCalculator is Test {
                 token: address(weth),
                 controller: address(0),
                 feePayer: FeePayer.Creditor,
-                binding: ClaimBinding.Unbound
+                binding: ClaimBinding.Unbound,
+                transferOnPayment: true
             })
         );
 
