@@ -403,23 +403,25 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         if (!approvalFound) revert NotApproved();
     }
 
-    /// @notice pay a claim with tokens (WETH -> ETH included)
+    /// @notice Allows any user to pay a claim with the token the claim is denominated in
     /// @notice NOTE: if the claim token is address(0) (eth) then we use the eth transferred to the contract. If this function is called via PayClaimFrom,
-    ///     then the calling function must either escrow `from`'s eth or transfer it to the contract while calling this function.
-    /// @notice NOTE: we transfer the NFT back to whomever makes the final payment of the claim. This represents a receipt of their payment
+    ///     then the calling function must handle the sending of `from`'s eth to contract and then call this function.
     /// @notice NOTE: The actual amount "paid off" of the claim may be less if our fee is enabled
     ///     In other words, we treat this `amount` param as the amount the user wants to spend, and then deduct a fee from that amount
+    /// @notice SPEC:
+    ///     Allow a user to pay a claim given:
+    ///         1. The contract is not locked
+    ///         2. The claim is minted and not burned
+    ///         ... TODO
     function _payClaim(address from, uint256 claimId, uint256 paymentAmount) internal {
         _notLocked();
         Claim memory claim = getClaim(claimId);
+        address creditor = _ownerOf[claimId];
 
         // We allow for claims to be "controlled". Meaning, it is another smart contract's responsibility to implement
         //      custom logic, then call these functions. We check the msg.sender against the controller to make sure a user
         //      isn't trying to bypass controller specific logic (eg: late fees) and by going to this contract directly.
         if (claim.controller != address(0) && msg.sender != claim.controller) revert NotController(msg.sender);
-
-        // load the claim from storage
-        address creditor = getCreditor(claimId);
 
         // make sure the the amount requested is not 0 // TODO: claimAmount could be 0
         if (paymentAmount == 0) revert PayingZero();
@@ -515,14 +517,20 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     }
 
     /// @notice allows a creditor to unbind a debtor, a debtor to bind themselves to a claim, or for either to move the status to BindingPending.
-    /// @notice SPEC: TODO:
+    /// @notice SPEC:
+    ///     This will update the status given the following:
+    ///     1. The contract is not locked
+    ///     2. The claim exists and is not burned
+    ///     ...TODO:
     function _updateBinding(address from, uint256 claimId, ClaimBinding binding) internal {
         _notLocked();
         Claim memory claim = getClaim(claimId);
-        address creditor = getCreditor(claimId);
+        address creditor = _ownerOf[claimId];
 
         // check if the claim is controlled
         if (claim.controller != address(0) && msg.sender != claim.controller) revert NotController(msg.sender);
+        // make sure the claim is in pending status
+        if (claim.status != Status.Pending && claim.status != Status.Repaying) revert ClaimNotPending();
         // make sure the sender is authorized
         if (from != creditor && from != claim.debtor) revert NotCreditorOrDebtor();
         // make sure the binding is valid
@@ -572,7 +580,11 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     }
 
     /// @notice allows a creditor to rescind a claim or a debtor to reject a claim
-    /// @notice SPEC: TODO:
+    /// @notice SPEC:
+    ///     this function will rescind or reject a claim given:
+    ///     1. The contract is not locked
+    ///     2. The claim exists and is not burned
+    ///     ...TODO
     function _cancelClaim(address from, uint256 claimId, string calldata note) internal {
         _notLocked();
         // load the claim from storage
@@ -580,13 +592,14 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
 
         if (claim.binding == ClaimBinding.Bound && claim.debtor == from) revert ClaimBound();
         if (claim.controller != address(0) && msg.sender != claim.controller) revert NotController(msg.sender);
-        // make sure the claim can be rejected (not completed, not rejected, not rescinded)
+        // make sure the claim can be rejected (not completed, rejected, rescinded, or repaying)
+        // TODO: what if the debtor starts paying, but the creditor wants to rescind
         if (claim.status != Status.Pending) revert ClaimNotPending();
 
         if (from == claim.debtor) {
             claims[claimId].status = Status.Rejected;
             emit ClaimRejected(claimId, from, note);
-        } else if (from == getCreditor(claimId)) {
+        } else if (from == _ownerOf[claimId]) {
             claims[claimId].status = Status.Rescinded;
             emit ClaimRescinded(claimId, from, note);
         } else {
@@ -698,19 +711,15 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     }
 
     /// @notice get the tokenURI generated for this claim
-    function tokenURI(uint256 _claimId) public view override returns (string memory) {
-        string memory uri = claimMetadata[_claimId].tokenURI;
+    function tokenURI(uint256 claimId) public view override returns (string memory) {
+        string memory uri = claimMetadata[claimId].tokenURI;
         if (bytes(uri).length > 0) {
             return uri;
         } else {
-            Claim memory claim = getClaim(_claimId);
-            address creditor = getCreditor(_claimId);
-            return claimMetadataGenerator.tokenURI(claim, _claimId, creditor);
+            Claim memory claim = getClaim(claimId);
+            address owner = _ownerOf[claimId];
+            return claimMetadataGenerator.tokenURI(claim, claimId, owner);
         }
-    }
-
-    function getCreditor(uint256 claimId) public view returns (address) {
-        return _ownerOf[claimId];
     }
 
     function DOMAIN_SEPARATOR() public view returns (bytes32) {

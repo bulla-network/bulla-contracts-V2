@@ -62,6 +62,7 @@ library BullaClaimPermitLib {
     /*
     ////// PERMIT MESSAGES //////
     */
+
     function getPermitCreateClaimMessage(
         BullaExtensionRegistry extensionRegistry,
         address operator,

@@ -4,7 +4,7 @@ pragma solidity ^0.8.14;
 import "forge-std/Vm.sol";
 import "forge-std/Test.sol";
 import {WETH} from "contracts/mocks/weth.sol";
-import {Claim, Status, ClaimBinding, FeePayer, CreateClaimParams, LockState} from "contracts/types/Types.sol";
+import "contracts/types/Types.sol";
 import {BullaFeeCalculator} from "contracts/BullaFeeCalculator.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
@@ -314,6 +314,27 @@ contract TestPayClaimWithFee is Test {
         // the NFT is transferred to the payer
         assertEq(bullaClaim.ownerOf(claimId), address(debtor));
         assertEq(uint256(claim.status), uint256(Status.Paid));
+    }
+
+    function testCannotPayAClaimThatDoesntExist() public {
+        vm.prank(debtor);
+        vm.expectRevert(BullaClaim.NotMinted.selector);
+        bullaClaim.payClaim{value: 1 ether}(1, 1 ether);
+    }
+
+    function testCannotPayABurnedClaim() public {
+        uint256 CLAIM_AMOUNT = 1 ether;
+
+        uint256 claimId = _newClaim(creditor, true, FeePayer.Creditor, CLAIM_AMOUNT);
+        vm.prank(debtor);
+        bullaClaim.payClaim{value: CLAIM_AMOUNT}(claimId, CLAIM_AMOUNT);
+
+        vm.prank(debtor);
+        bullaClaim.burn(claimId);
+
+        vm.prank(debtor);
+        vm.expectRevert(BullaClaim.ClaimNotPending.selector);
+        bullaClaim.payClaim{value: CLAIM_AMOUNT}(claimId, CLAIM_AMOUNT);
     }
 
     // hardcoded, but simple implementation of a half payment
