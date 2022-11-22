@@ -52,7 +52,7 @@ contract TestTokenURI is Test {
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound,
-                transferOnPayment: true
+                payerReceivesClaimOnPayment: true
             }),
             ClaimMetadata({tokenURI: tokenURI, attachmentURI: "test1234"})
         );
@@ -76,7 +76,7 @@ contract TestTokenURI is Test {
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound,
-                transferOnPayment: true
+                payerReceivesClaimOnPayment: true
             })
         );
 
@@ -104,7 +104,7 @@ contract TestTokenURI is Test {
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound,
-                transferOnPayment: true
+                payerReceivesClaimOnPayment: true
             })
         );
 

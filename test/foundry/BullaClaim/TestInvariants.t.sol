@@ -147,7 +147,7 @@ contract TestInvariants is Test {
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound,
-                transferOnPayment: true
+                payerReceivesClaimOnPayment: true
             })
         );
 

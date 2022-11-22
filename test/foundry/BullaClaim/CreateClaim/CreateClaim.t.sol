@@ -69,7 +69,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound,
-                transferOnPayment: true
+                payerReceivesClaimOnPayment: true
             })
         );
         Claim memory claim = bullaClaim.getClaim(claimId);
@@ -101,7 +101,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound,
-                transferOnPayment: true
+                payerReceivesClaimOnPayment: true
             })
         );
     }
@@ -119,7 +119,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound,
-                transferOnPayment: true
+                payerReceivesClaimOnPayment: true
             })
         );
     }
@@ -140,7 +140,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 controller: address(controller),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound,
-                transferOnPayment: true
+                payerReceivesClaimOnPayment: true
             })
         );
     }
@@ -159,7 +159,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.BindingPending,
-                transferOnPayment: true
+                payerReceivesClaimOnPayment: true
             })
         );
         Claim memory claim = bullaClaim.getClaim(claimId);
@@ -178,7 +178,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Bound,
-                transferOnPayment: true
+                payerReceivesClaimOnPayment: true
             })
         );
         Claim memory boundClaim = bullaClaim.getClaim(boundClaimId);
@@ -206,7 +206,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound,
-                transferOnPayment: true
+                payerReceivesClaimOnPayment: true
             })
         );
         Claim memory claim = bullaClaim.getClaim(claimId);
@@ -229,7 +229,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound,
-                transferOnPayment: true
+                payerReceivesClaimOnPayment: true
             })
         );
         assertEq(bullaClaim.currentClaimId(), claimId);
@@ -253,7 +253,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 controller: address(controller),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Bound,
-                transferOnPayment: true
+                payerReceivesClaimOnPayment: true
             })
         );
     }
@@ -272,7 +272,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Bound,
-                transferOnPayment: true
+                payerReceivesClaimOnPayment: true
             })
         );
 
@@ -289,7 +289,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Bound,
-                transferOnPayment: true
+                payerReceivesClaimOnPayment: true
             })
         );
     }
@@ -309,7 +309,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound,
-                transferOnPayment: true
+                payerReceivesClaimOnPayment: true
             })
         );
     }
@@ -331,7 +331,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound,
-                transferOnPayment: true
+                payerReceivesClaimOnPayment: true
             })
         );
     }
@@ -350,7 +350,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Bound,
-                transferOnPayment: true
+                payerReceivesClaimOnPayment: true
             })
         );
     }
@@ -363,7 +363,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
         address token,
         uint40 dueBy,
         uint8 binding,
-        bool transferOnPayment
+        bool payerReceivesClaimOnPayment
     ) public {
         vm.assume(dueBy > block.timestamp + 6 days);
         vm.assume(_creditor != address(0));
@@ -401,7 +401,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding(binding),
-                transferOnPayment: transferOnPayment
+                payerReceivesClaimOnPayment: payerReceivesClaimOnPayment
             })
         );
 
@@ -415,7 +415,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
             assertEq(claim.debtor, _debtor);
             assertEq(uint256(claim.feeCalculatorId), 0);
             assertEq(claim.dueBy, dueBy);
-            assertEq(claim.transferOnPayment, transferOnPayment);
+            assertEq(claim.payerReceivesClaimOnPayment, payerReceivesClaimOnPayment);
             assertTrue(claim.binding == ClaimBinding(binding));
             assertEq(claim.token, token);
             assertEq(bullaClaim.balanceOf(_creditor), creditorBalanceBefore + 1);

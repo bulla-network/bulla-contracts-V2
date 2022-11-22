@@ -65,7 +65,7 @@ contract TestPayClaimWithFee is Test {
                 controller: address(0),
                 feePayer: feePayer,
                 binding: ClaimBinding.Unbound,
-                transferOnPayment: true
+                payerReceivesClaimOnPayment: true
             })
         );
     }
@@ -120,7 +120,7 @@ contract TestPayClaimWithFee is Test {
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound,
-                transferOnPayment: false
+                payerReceivesClaimOnPayment: false
             })
         );
 

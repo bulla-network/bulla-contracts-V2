@@ -50,7 +50,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
                 controller: address(0),
                 feePayer: FeePayer.Creditor,
                 binding: binding,
-                transferOnPayment: true
+                payerReceivesClaimOnPayment: true
             })
         );
         claim = bullaClaim.getClaim(claimId);
@@ -343,7 +343,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
                 controller: controllerAddress,
                 feePayer: FeePayer.Creditor,
                 binding: ClaimBinding.BindingPending,
-                transferOnPayment: true
+                payerReceivesClaimOnPayment: true
             })
         );
 

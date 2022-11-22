@@ -54,7 +54,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
                 controller: address(0),
                 feePayer: FeePayer.Creditor,
                 binding: binding,
-                transferOnPayment: true
+                payerReceivesClaimOnPayment: true
             })
         );
         claim = bullaClaim.getClaim(claimId);
@@ -371,7 +371,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
                 controller: operator, // operator is the controller
                 feePayer: FeePayer.Creditor,
                 binding: ClaimBinding.Unbound,
-                transferOnPayment: true
+                payerReceivesClaimOnPayment: true
             })
         );
 
@@ -412,7 +412,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
                 controller: operator, // operator is the controller
                 feePayer: FeePayer.Creditor,
                 binding: ClaimBinding.Unbound,
-                transferOnPayment: true
+                payerReceivesClaimOnPayment: true
             })
         );
 

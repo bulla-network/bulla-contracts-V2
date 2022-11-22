@@ -344,7 +344,7 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound,
-                transferOnPayment: true
+                payerReceivesClaimOnPayment: true
             })
         );
 
