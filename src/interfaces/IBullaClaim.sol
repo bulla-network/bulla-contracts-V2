@@ -21,6 +21,7 @@ interface IBullaClaim {
     error NotController(address sender);
     error ClaimBound();
     error ClaimNotPending();
+    error ClaimPending();
     error NotMinted();
     error NotApproved();
     error PayingZero();
@@ -181,8 +182,6 @@ interface IBullaClaim {
 
     // ADMIN FUNCTIONS //
     function currentFeeCalculatorId() external view returns (uint256);
-
-    function feeCalculator() external view returns (address);
 
     function feeCalculators(uint256) external view returns (address);
 

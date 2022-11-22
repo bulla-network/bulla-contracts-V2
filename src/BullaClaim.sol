@@ -61,6 +61,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     error NotController(address sender);
     error ClaimBound();
     error ClaimNotPending();
+    error ClaimPending();
     error NotMinted();
     error NotApproved();
     error PayingZero();
@@ -68,9 +69,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     error OverPaying(uint256 paymentAmount);
 
     function _notLocked() internal view {
-        if (lockState == LockState.Locked) {
-            revert Locked();
-        }
+        if (lockState == LockState.Locked) revert Locked();
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -656,11 +655,10 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
      * /// BURN CLAIM ///
      */
 
-    // TODO: should we require the token is paid here?
     function burn(uint256 tokenId) external {
-        if (msg.sender != ownerOf(tokenId)) {
-            revert NotOwner();
-        }
+        _notLocked();
+        if (msg.sender != ownerOf(tokenId)) revert NotOwner();
+        if (getClaim(tokenId).status != Status.Paid) revert ClaimPending();
 
         _burn(tokenId);
     }
@@ -774,10 +772,6 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
 
     function DOMAIN_SEPARATOR() public view returns (bytes32) {
         return _domainSeparatorV4();
-    }
-
-    function feeCalculator() public view returns (address) {
-        return address(feeCalculators[currentFeeCalculatorId]);
     }
 
     /*///////////////////////////////////////////////////////////////
