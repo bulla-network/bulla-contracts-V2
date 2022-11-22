@@ -78,7 +78,8 @@ contract TestPayClaimWithWeirdTokens is Test {
                 token: token,
                 controller: address(0),
                 feePayer: feePayer,
-                binding: ClaimBinding.Unbound
+                binding: ClaimBinding.Unbound,
+                transferOnPayment: true
             })
         );
     }
