@@ -198,6 +198,63 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         assertTrue(bullaClaim.getClaim(claimId).binding == ClaimBinding.BindingPending);
     }
 
+    function testCannotUpdateBindingIfNotMinted() public {
+        vm.prank(debtor);
+        vm.expectRevert(BullaClaim.NotMinted.selector);
+        bullaClaim.updateBinding(1, ClaimBinding.Unbound);
+    }
+
+    function testCannotUpdateBindingIfBurned() public {
+        vm.prank(creditor);
+        (uint256 claimId,) = _newClaim(ClaimBinding.BindingPending);
+        vm.prank(creditor);
+        _newClaim(ClaimBinding.BindingPending);
+
+        vm.deal(debtor, 1 ether);
+
+        vm.startPrank(debtor);
+        weth.deposit{value: 1 ether}();
+        weth.approve(address(bullaClaim), 1 ether);
+        bullaClaim.payClaim(claimId, 1 ether);
+        bullaClaim.burn(claimId);
+
+        vm.expectRevert(BullaClaim.ClaimNotPending.selector);
+        bullaClaim.updateBinding(claimId, ClaimBinding.Unbound);
+        vm.stopPrank();
+    }
+
+    function testCannotUpdateBindingNotPending(uint8 _claimStatus) public {
+        Status claimStatus = Status(_claimStatus % 4);
+        vm.prank(creditor);
+        (uint256 claimId,) = _newClaim(ClaimBinding.BindingPending);
+
+        vm.deal(debtor, 1 ether);
+        vm.startPrank(debtor);
+        weth.deposit{value: 1 ether}();
+        weth.approve(address(bullaClaim), 1 ether);
+        vm.stopPrank();
+
+        if (claimStatus == Status.Paid) {
+            vm.prank(debtor);
+            bullaClaim.payClaim(claimId, 1 ether);
+        } else if (claimStatus == Status.Repaying) {
+            vm.prank(debtor);
+            bullaClaim.payClaim(claimId, 0.5 ether);
+        } else if (claimStatus == Status.Rescinded) {
+            vm.prank(creditor);
+            bullaClaim.cancelClaim(claimId, "rescind");
+        } else if (claimStatus == Status.Rejected) {
+            vm.prank(debtor);
+            bullaClaim.cancelClaim(claimId, "reject");
+        }
+
+        if (claimStatus != Status.Repaying && claimStatus != Status.Pending) {
+            vm.expectRevert(BullaClaim.ClaimNotPending.selector);
+        }
+        vm.prank(debtor);
+        bullaClaim.updateBinding(claimId, ClaimBinding.Unbound);
+    }
+
     function testCreditorCanUpdateToUnbound() public {
         // test case: creditor can "free" a debtor from a claim
         vm.prank(creditor);

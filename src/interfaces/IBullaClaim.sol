@@ -119,8 +119,6 @@ interface IBullaClaim {
 
     function claimMetadata(uint256) external view returns (string memory tokenURI, string memory attachmentURI);
 
-    function getCreditor(uint256 claimId) external view returns (address);
-
     function approvals(address, address)
         external
         view
