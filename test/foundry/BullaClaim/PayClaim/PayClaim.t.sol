@@ -46,7 +46,7 @@ contract TestPayClaimWithFee is Test {
         uint256 indexed claimId,
         address indexed paidBy,
         uint256 paymentAmount,
-        uint256 newPaidAmount,
+        uint256 totalPaidAmount,
         uint256 feePaymentAmount
     );
 

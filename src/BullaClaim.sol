@@ -61,6 +61,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     error NotController(address sender);
     error ClaimBound();
     error ClaimNotPending();
+    error ClaimPending();
     error NotMinted();
     error NotApproved();
     error PayingZero();
@@ -96,7 +97,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         uint256 indexed claimId,
         address indexed paidBy,
         uint256 paymentAmount,
-        uint256 newPaidAmount,
+        uint256 totalPaidAmount,
         uint256 feePaymentAmount
     );
 
@@ -449,14 +450,14 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         // if FeePayer == Debtor (payer)
         uint256 claimPaymentAmount = claim.feePayer == FeePayer.Debtor ? paymentAmount - fee : paymentAmount;
 
-        uint256 newPaidAmount = claim.paidAmount + claimPaymentAmount;
-        bool claimPaid = newPaidAmount == claim.claimAmount;
+        uint256 totalPaidAmount = claim.paidAmount + claimPaymentAmount;
+        bool claimPaid = totalPaidAmount == claim.claimAmount;
 
-        if (newPaidAmount > claim.claimAmount) revert OverPaying(paymentAmount);
+        if (totalPaidAmount > claim.claimAmount) revert OverPaying(paymentAmount);
 
         ClaimStorage storage claimStorage = claims[claimId];
 
-        claimStorage.paidAmount = uint128(newPaidAmount);
+        claimStorage.paidAmount = uint128(totalPaidAmount);
         // if the claim is now fully paid, update the status to paid
         // if the claim is still not fully paid, update the status to repaying
         claimStorage.status = claimPaid ? Status.Paid : Status.Repaying;
@@ -471,7 +472,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
             ? creditor.safeTransferETH(amountToTransferCreditor)
             : ERC20(claim.token).safeTransferFrom(from, creditor, amountToTransferCreditor);
 
-        emit ClaimPayment(claimId, from, claimPaymentAmount, newPaidAmount, fee);
+        emit ClaimPayment(claimId, from, claimPaymentAmount, totalPaidAmount, fee);
 
         // transfer the ownership of the claim NFT to the payee as a receipt of their completed payment
         if (claim.payerReceivesClaimOnPayment && claimPaid) _transferFrom(creditor, from, claimId);
@@ -597,11 +598,10 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
      * /// BURN CLAIM ///
      */
 
-    // TODO: should we require the token is paid here?
     function burn(uint256 tokenId) external {
-        if (msg.sender != ownerOf(tokenId)) {
-            revert NotOwner();
-        }
+        _notLocked();
+        if (msg.sender != ownerOf(tokenId)) revert NotOwner();
+        if (getClaim(tokenId).status != Status.Paid) revert ClaimPending();
 
         _burn(tokenId);
     }
@@ -715,10 +715,6 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
 
     function DOMAIN_SEPARATOR() public view returns (bytes32) {
         return _domainSeparatorV4();
-    }
-
-    function feeCalculator() public view returns (address) {
-        return address(feeCalculators[currentFeeCalculatorId]);
     }
 
     /*///////////////////////////////////////////////////////////////
