@@ -49,7 +49,8 @@ contract TestUpdateBinding is BullaClaimTestHelper {
                 token: address(weth),
                 controller: address(0),
                 feePayer: FeePayer.Creditor,
-                binding: binding
+                binding: binding,
+                payerReceivesClaimOnPayment: true
             })
         );
         claim = bullaClaim.getClaim(claimId);
@@ -341,7 +342,8 @@ contract TestUpdateBinding is BullaClaimTestHelper {
                 token: address(weth),
                 controller: controllerAddress,
                 feePayer: FeePayer.Creditor,
-                binding: ClaimBinding.BindingPending
+                binding: ClaimBinding.BindingPending,
+                payerReceivesClaimOnPayment: true
             })
         );
 

@@ -64,7 +64,8 @@ contract TestPayClaimWithFee is Test {
                 token: isNative ? address(0) : address(weth),
                 controller: address(0),
                 feePayer: feePayer,
-                binding: ClaimBinding.Unbound
+                binding: ClaimBinding.Unbound,
+                payerReceivesClaimOnPayment: true
             })
         );
     }
@@ -104,6 +105,30 @@ contract TestPayClaimWithFee is Test {
         assertEq(bullaClaim.ownerOf(claimId), address(debtor));
         // assert we change the status to paid
         assertEq(uint256(claim.status), uint256(Status.Paid));
+    }
+
+    function testPayClaimWithNoTransferFlag() public {
+        vm.prank(creditor);
+        uint256 claimId = bullaClaim.createClaim(
+            CreateClaimParams({
+                creditor: creditor,
+                debtor: debtor,
+                description: "",
+                claimAmount: 1 ether,
+                dueBy: block.timestamp + 1 days,
+                token: address(0),
+                controller: address(0),
+                feePayer: FeePayer.Debtor,
+                binding: ClaimBinding.Unbound,
+                payerReceivesClaimOnPayment: false
+            })
+        );
+
+        vm.prank(debtor);
+        bullaClaim.payClaim{value: 1 ether}(claimId, 1 ether);
+
+        assertEq(bullaClaim.balanceOf(creditor), 1);
+        assertEq(bullaClaim.ownerOf(claimId), creditor);
     }
 
     // same as above but payable for native token transfers

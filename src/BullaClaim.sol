@@ -307,6 +307,9 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         if (params.binding != ClaimBinding.Unbound) {
             claim.binding = params.binding;
         }
+        if (params.payerReceivesClaimOnPayment) {
+            claim.payerReceivesClaimOnPayment = true;
+        }
 
         emit ClaimCreated(
             claimId,
@@ -440,7 +443,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         // load the claim from storage
         address creditor = getCreditor(claimId);
 
-        // make sure the the amount requested is not 0
+        // make sure the the amount requested is not 0 // TODO: claimAmount could be 0
         if (paymentAmount == 0) {
             revert PayingZero();
         }
@@ -501,7 +504,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
             : ERC20(claim.token).safeTransferFrom(from, creditor, amountToTransferCreditor);
 
         // transfer the ownership of the claim NFT to the payee as a receipt of their completed payment
-        if (claimPaid) {
+        if (claim.payerReceivesClaimOnPayment && claimPaid) {
             _transferFrom(creditor, from, claimId);
         }
     }
@@ -736,6 +739,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
             status: claimStorage.status,
             binding: claimStorage.binding,
             feePayer: claimStorage.feePayer,
+            payerReceivesClaimOnPayment: claimStorage.payerReceivesClaimOnPayment,
             debtor: claimStorage.debtor,
             feeCalculatorId: claimStorage.feeCalculatorId,
             dueBy: uint256(claimStorage.dueBy),

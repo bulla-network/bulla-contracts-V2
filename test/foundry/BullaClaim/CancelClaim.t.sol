@@ -53,7 +53,8 @@ contract TestCancelClaim is BullaClaimTestHelper {
                 token: address(weth),
                 controller: address(0),
                 feePayer: FeePayer.Creditor,
-                binding: binding
+                binding: binding,
+                payerReceivesClaimOnPayment: true
             })
         );
         claim = bullaClaim.getClaim(claimId);
@@ -369,7 +370,8 @@ contract TestCancelClaim is BullaClaimTestHelper {
                 token: address(weth),
                 controller: operator, // operator is the controller
                 feePayer: FeePayer.Creditor,
-                binding: ClaimBinding.Unbound
+                binding: ClaimBinding.Unbound,
+                payerReceivesClaimOnPayment: true
             })
         );
 
@@ -409,7 +411,8 @@ contract TestCancelClaim is BullaClaimTestHelper {
                 token: address(weth),
                 controller: operator, // operator is the controller
                 feePayer: FeePayer.Creditor,
-                binding: ClaimBinding.Unbound
+                binding: ClaimBinding.Unbound,
+                payerReceivesClaimOnPayment: true
             })
         );
 

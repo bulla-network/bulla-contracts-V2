@@ -67,7 +67,8 @@ contract TestPenalizedClaim is Test {
                 token: address(0),
                 controller: address(penalizedClaim),
                 feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.BindingPending
+                binding: ClaimBinding.BindingPending,
+                payerReceivesClaimOnPayment: true
             })
         );
 
@@ -138,7 +139,8 @@ contract TestPenalizedClaim is Test {
                 token: address(0),
                 controller: address(penalizedClaim),
                 feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.BindingPending
+                binding: ClaimBinding.BindingPending,
+                payerReceivesClaimOnPayment: true
             })
         );
 

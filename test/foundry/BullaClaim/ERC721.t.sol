@@ -35,7 +35,8 @@ contract ERC721Test is DSTestPlus {
                 token: address(0),
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Unbound
+                binding: ClaimBinding.Unbound,
+                payerReceivesClaimOnPayment: true
             })
         );
     }
@@ -52,7 +53,8 @@ contract ERC721Test is DSTestPlus {
                 token: address(0),
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Unbound
+                binding: ClaimBinding.Unbound,
+                payerReceivesClaimOnPayment: true
             })
         );
     }
@@ -175,7 +177,8 @@ contract ERC721Test is DSTestPlus {
                 token: address(0),
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Unbound
+                binding: ClaimBinding.Unbound,
+                payerReceivesClaimOnPayment: true
             })
         );
     }

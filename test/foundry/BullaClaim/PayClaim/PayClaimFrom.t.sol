@@ -343,7 +343,8 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
                 token: address(0), // native token
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Unbound
+                binding: ClaimBinding.Unbound,
+                payerReceivesClaimOnPayment: true
             })
         );
 

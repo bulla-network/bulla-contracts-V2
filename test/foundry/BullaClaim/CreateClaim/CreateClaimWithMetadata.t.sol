@@ -91,7 +91,8 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
                 token: address(weth),
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Unbound
+                binding: ClaimBinding.Unbound,
+                payerReceivesClaimOnPayment: true
             }),
             ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
         );
@@ -146,7 +147,8 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
                 token: address(0),
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Bound
+                binding: ClaimBinding.Bound,
+                payerReceivesClaimOnPayment: true
             }),
             ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
         );
@@ -173,7 +175,8 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
                 token: address(0),
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Unbound
+                binding: ClaimBinding.Unbound,
+                payerReceivesClaimOnPayment: true
             }),
             ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
         );
@@ -200,7 +203,8 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
                 token: address(0),
                 controller: address(0),
                 feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Unbound
+                binding: ClaimBinding.Unbound,
+                payerReceivesClaimOnPayment: true
             }),
             ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
         );
