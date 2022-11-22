@@ -7,11 +7,10 @@ import {WETH} from "contracts/mocks/weth.sol";
 import "contracts/types/Types.sol";
 import {BullaFeeCalculator} from "contracts/BullaFeeCalculator.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
+import {BullaClaimTestHelper, EIP712Helper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {Deployer} from "script/Deployment.s.sol";
 
-contract TestPayClaimWithFee is Test {
-    WETH public weth;
-    BullaClaim public bullaClaim;
+contract TestPayClaimWithFee is BullaClaimTestHelper {
     BullaFeeCalculator public feeCalculator;
 
     address feeReceiver = address(0xFEE);
@@ -31,6 +30,7 @@ contract TestPayClaimWithFee is Test {
         vm.label(charlie, "CHARLIE");
 
         (bullaClaim,) = (new Deployer()).deploy_test(address(this), feeReceiver, LockState.Unlocked, 0);
+        sigHelper = new EIP712Helper(address(bullaClaim));
 
         weth.transferFrom(address(this), creditor, 1000 ether);
         weth.transferFrom(address(this), debtor, 1000 ether);
@@ -335,6 +335,77 @@ contract TestPayClaimWithFee is Test {
         vm.prank(debtor);
         vm.expectRevert(BullaClaim.ClaimNotPending.selector);
         bullaClaim.payClaim{value: CLAIM_AMOUNT}(claimId, CLAIM_AMOUNT);
+    }
+
+    function testNonControllerCannotPayClaim() public {
+        uint256 userPK = 12345686543;
+        address userAddress = vm.addr(userPK);
+        address controller = charlie;
+
+        _permitCreateClaim(userPK, controller, 1, CreateClaimApprovalType.Approved, true);
+
+        vm.prank(controller);
+        bullaClaim.createClaimFrom(
+            userAddress,
+            CreateClaimParams({
+                creditor: userAddress,
+                debtor: debtor,
+                description: "",
+                claimAmount: 1 ether,
+                dueBy: block.timestamp + 1 days,
+                token: address(0),
+                controller: controller,
+                feePayer: FeePayer.Debtor,
+                binding: ClaimBinding.Unbound,
+                payerReceivesClaimOnPayment: false
+            })
+        );
+
+        vm.prank(debtor);
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, debtor));
+        bullaClaim.payClaim{value: 1 ether}(1, 1 ether);
+    }
+
+    function testCannotPayZero() public {
+        uint256 CLAIM_AMOUNT = 1 ether;
+        uint256 claimId = _newClaim(creditor, true, FeePayer.Creditor, CLAIM_AMOUNT);
+
+        vm.expectRevert(BullaClaim.PayingZero.selector);
+        bullaClaim.payClaim{value: 0}(claimId, 0);
+    }
+
+    function testCannotPayARejectedClaim() public {
+        uint256 CLAIM_AMOUNT = 1 ether;
+        uint256 claimId = _newClaim(creditor, true, FeePayer.Creditor, CLAIM_AMOUNT);
+
+        vm.prank(debtor);
+        bullaClaim.cancelClaim(claimId, "no. Regards, the debtor");
+
+        vm.expectRevert(BullaClaim.ClaimNotPending.selector);
+        bullaClaim.payClaim{value: CLAIM_AMOUNT}(claimId, CLAIM_AMOUNT);
+    }
+
+    function testCannotPayARescindedClaim() public {
+        uint256 CLAIM_AMOUNT = 1 ether;
+        uint256 claimId = _newClaim(creditor, true, FeePayer.Creditor, CLAIM_AMOUNT);
+
+        vm.prank(creditor);
+        bullaClaim.cancelClaim(claimId, "no. Yours truly, the creditor");
+
+        vm.expectRevert(BullaClaim.ClaimNotPending.selector);
+        bullaClaim.payClaim{value: CLAIM_AMOUNT}(claimId, CLAIM_AMOUNT);
+    }
+
+    function testCannotPayAPaidClaim() public {
+        uint256 CLAIM_AMOUNT = 1 ether;
+        uint256 claimId = _newClaim(creditor, true, FeePayer.Creditor, CLAIM_AMOUNT);
+
+        vm.prank(debtor);
+        bullaClaim.payClaim{value: CLAIM_AMOUNT}(claimId, CLAIM_AMOUNT);
+
+        vm.prank(debtor);
+        vm.expectRevert(BullaClaim.ClaimNotPending.selector);
+        bullaClaim.payClaim{value: 1 ether}(claimId, 1 ether);
     }
 
     // hardcoded, but simple implementation of a half payment
