@@ -374,6 +374,68 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
         bullaClaim.payClaim{value: 0}(claimId, 0);
     }
 
+    function testCannotPayClaimWhenLocked() public {
+        uint256 CLAIM_AMOUNT = 1 ether;
+        uint256 claimId = _newClaim(creditor, true, FeePayer.Creditor, CLAIM_AMOUNT);
+
+        bullaClaim.setLockState(LockState.Locked);
+
+        vm.prank(debtor);
+        vm.expectRevert(BullaClaim.Locked.selector);
+        bullaClaim.payClaim{value: CLAIM_AMOUNT}(claimId, CLAIM_AMOUNT);
+    }
+
+    function testCannotOverpay() public {
+        _enableFee();
+        uint256 CLAIM_AMOUNT = 1 ether;
+        uint256 claimId = _newClaim(creditor, true, FeePayer.Creditor, CLAIM_AMOUNT);
+
+        vm.prank(debtor);
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.OverPaying.selector, 2 ether));
+        bullaClaim.payClaim{value: 2 ether}(claimId, 2 ether);
+    }
+
+    function testEnsureExternalCallToFeeCalculator() public {
+        _enableFee();
+        uint256 CLAIM_AMOUNT = 1 ether;
+        uint256 claimId = _newClaim(creditor, true, FeePayer.Creditor, CLAIM_AMOUNT);
+
+        vm.prank(debtor);
+        vm.expectCall(
+            address(feeCalculator),
+            abi.encodeWithSelector(
+                BullaFeeCalculator.calculateFee.selector,
+                claimId,
+                debtor,
+                creditor,
+                debtor,
+                CLAIM_AMOUNT,
+                CLAIM_AMOUNT,
+                0,
+                block.timestamp + 1 days,
+                ClaimBinding.Unbound,
+                FeePayer.Creditor
+            )
+        );
+        bullaClaim.payClaim{value: CLAIM_AMOUNT}(claimId, CLAIM_AMOUNT);
+    }
+
+    function testDisabledFeeCalculatorDoesntCalculateFee() public {
+        _enableFee();
+        bullaClaim.setFeeCalculator(address(0)); // disable
+
+        uint256 CLAIM_AMOUNT = 1 ether;
+        uint256 claimId = _newClaim(creditor, true, FeePayer.Debtor, CLAIM_AMOUNT);
+        Claim memory claim = bullaClaim.getClaim(claimId);
+
+        assertEq(claim.feeCalculatorId, 0);
+
+        vm.prank(debtor);
+        bullaClaim.payClaim{value: CLAIM_AMOUNT}(claimId, CLAIM_AMOUNT);
+        claim = bullaClaim.getClaim(claimId);
+        assertTrue(claim.status == Status.Paid);
+    }
+
     function testCannotPayARejectedClaim() public {
         uint256 CLAIM_AMOUNT = 1 ether;
         uint256 claimId = _newClaim(creditor, true, FeePayer.Creditor, CLAIM_AMOUNT);
