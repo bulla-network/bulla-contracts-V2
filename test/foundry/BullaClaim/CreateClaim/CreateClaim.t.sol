@@ -194,29 +194,6 @@ contract TestCreateClaim is BullaClaimTestHelper {
         assertEq(bullaClaim.currentClaimId(), beforeClaimCreation + 1);
     }
 
-    function testCreateEdgeCase_ZeroAmount() public {
-        uint256 beforeClaimCreation = bullaClaim.currentClaimId();
-        vm.prank(creditor);
-        uint256 claimId = bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: 0,
-                dueBy: block.timestamp + 1 days,
-                token: address(weth),
-                controller: address(0),
-                feePayer: FeePayer.Debtor,
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
-        );
-        Claim memory claim = bullaClaim.getClaim(claimId);
-        assertEq(bullaClaim.currentClaimId(), beforeClaimCreation + 1);
-        assertEq(bullaClaim.currentClaimId(), claimId);
-        assertEq(claim.claimAmount, 0);
-    }
-
     function testCreateEdgeCase_ZeroDueBy() public {
         uint256 beforeClaimCreation = bullaClaim.currentClaimId();
         vm.prank(creditor);
@@ -338,6 +315,25 @@ contract TestCreateClaim is BullaClaimTestHelper {
         );
     }
 
+    function testCannotCreateZeroAmountClaim() public {
+        vm.expectRevert(BullaClaim.ZeroAmount.selector);
+        vm.prank(creditor);
+        bullaClaim.createClaim(
+            CreateClaimParams({
+                creditor: creditor,
+                debtor: debtor,
+                description: "",
+                claimAmount: 0,
+                dueBy: 1 days,
+                token: address(weth),
+                controller: address(0),
+                feePayer: FeePayer.Debtor,
+                binding: ClaimBinding.Unbound,
+                payerReceivesClaimOnPayment: true
+            })
+        );
+    }
+
     function testCannotCreateBoundClaim() public {
         vm.expectRevert(BullaClaim.CannotBindClaim.selector);
         vm.prank(creditor);
@@ -369,6 +365,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
     ) public {
         vm.assume(dueBy > block.timestamp + 6 days);
         vm.assume(_creditor != address(0));
+        vm.assume(claimAmount > 0);
         vm.assume(binding <= 1); // assumes a fuzz can only produce unbound or binding pending claims
         vm.warp(block.timestamp + 6 days);
         vm.roll(10_000);
