@@ -113,6 +113,18 @@ interface IBullaClaim {
 
     function DOMAIN_SEPARATOR() external view returns (bytes32);
 
+    function currentFeeCalculatorId() external view returns (uint256);
+
+    function feeCalculators(uint256) external view returns (address);
+
+    function feeCollectionAddress() external view returns (address);
+
+    function extensionRegistry() external view returns (address);
+
+    function owner() external view returns (address);
+
+    function lockState() external view returns (LockState);
+
     function currentClaimId() external view returns (uint256);
 
     function getClaim(uint256 claimId) external view returns (Claim memory claim);
@@ -179,21 +191,9 @@ interface IBullaClaim {
     function permitCancelClaim(address user, address operator, uint64 approvalCount, bytes memory signature) external;
 
     // ADMIN FUNCTIONS //
-    function currentFeeCalculatorId() external view returns (uint256);
-
-    function feeCalculators(uint256) external view returns (address);
-
-    function feeCollectionAddress() external view returns (address);
-
-    function extensionRegistry() external view returns (address);
-
-    function owner() external view returns (address);
-
     function transferOwnership(address newOwner) external;
 
     function renounceOwnership() external;
-
-    function lockState() external view returns (LockState);
 
     function setExtensionRegistry(address _extensionRegistry) external;
 

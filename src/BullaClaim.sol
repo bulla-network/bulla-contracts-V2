@@ -749,8 +749,8 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         claimMetadataGenerator = ClaimMetadataGenerator(_metadataGenerator);
     }
 
-    function setFeeCollectionAddress(address newFeeCollector) external onlyOwner {
-        feeCollectionAddress = newFeeCollector;
+    function setFeeCollectionAddress(address _feeCollectionAddress) external onlyOwner {
+        feeCollectionAddress = _feeCollectionAddress;
     }
 
     function setLockState(LockState _lockState) external onlyOwner {
