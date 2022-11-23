@@ -65,6 +65,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     error NotMinted();
     error NotApproved();
     error PayingZero();
+    error ZeroAmount();
     error PaymentUnderApproved();
     error OverPaying(uint256 paymentAmount);
 
@@ -262,6 +263,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         }
         // you need the permission of the debtor to bind a claim
         if (params.binding == ClaimBinding.Bound && from != params.debtor) revert CannotBindClaim();
+        if (params.claimAmount == 0) revert ZeroAmount();
 
         uint16 feeCalculatorId;
         uint256 claimId;
@@ -423,7 +425,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         //      isn't trying to bypass controller specific logic (eg: late fees) and by going to this contract directly.
         if (claim.controller != address(0) && msg.sender != claim.controller) revert NotController(msg.sender);
 
-        // make sure the the amount requested is not 0 // TODO: claimAmount could be 0
+        // make sure the the amount requested is not 0
         if (paymentAmount == 0) revert PayingZero();
 
         // make sure the claim can be paid (not completed, not rejected, not rescinded)
