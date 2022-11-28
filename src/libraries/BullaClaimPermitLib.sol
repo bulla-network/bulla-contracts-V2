@@ -389,6 +389,7 @@ library BullaClaimPermitLib {
     /// In all cases:
     ///     SIG1: The recovered signer from the EIP712 signature == `user` -> otherwise: reverts
     ///     SIG2: `user` is not the 0 address -> otherwise: reverts
+    ///     SIG3: `extensionRegistry` is not address(0)
     /// This function can approve an operator to pay _specific_ claims given the following conditions listed below as AS - (Approve Specific 1-5):
     ///     AS1: `approvalType` == PayClaimApprovalType.IsApprovedForSpecific
     ///     AS2: `approvalDeadline` is either 0 (indicating unexpiring approval) or block.timestamp < `approvalDeadline` < type(uint40).max -> otherwise reverts
