@@ -1,6 +1,5 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity 0.8.15;
-// TODO update license
 
 import {FeePayer, Claim} from "../types/Types.sol";
 import {BullaClaim} from "../BullaClaim.sol";
