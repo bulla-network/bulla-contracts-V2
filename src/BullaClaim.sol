@@ -17,6 +17,13 @@ import {ERC20} from "solmate/tokens/ERC20.sol";
 import {ClaimMetadataGenerator} from "contracts/ClaimMetadataGenerator.sol";
 import "forge-std/console.sol";
 
+// todo
+// core concepts doc:
+//      1. claim:
+//      2. controller
+//      3. binding
+//      4. approvals / operators
+//      5. Fee Payer
 contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     using SafeTransferLib for ERC20;
     using SafeTransferLib for address;
@@ -26,9 +33,9 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
 
-    /// a mapping of claimId to a packed struct
+    /// a mapping of claimId to a packed struct: use getClaim to query an individual claim that is suitable for usage in memory
     mapping(uint256 => ClaimStorage) private claims;
-    /// a mapping of claimId to token metadata if exists - both attachmentURIs and tokenURIs
+    /// a mapping of claimId to OPTIONAL token metadata - both attachmentURIs and tokenURIs
     mapping(uint256 => ClaimMetadata) public claimMetadata;
     /// a mapping of users to operators to approvals for specific actions
     mapping(address => mapping(address => Approvals)) public approvals;
@@ -69,6 +76,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     error PaymentUnderApproved();
     error OverPaying(uint256 paymentAmount);
 
+    /// modifier style function, used to ensure the contract is not locked (modifiers took up unnecessary runtime code)
     function _notLocked() internal view {
         if (lockState == LockState.Locked) revert Locked();
     }
@@ -225,7 +233,9 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         // spec.S1
         if (approval.approvalCount == 0) revert NotApproved();
         // spec.S3
-        if (binding == ClaimBinding.Bound && !approval.isBindingAllowed) revert CannotBindClaim();
+        if (binding == ClaimBinding.Bound && !approval.isBindingAllowed) {
+            revert CannotBindClaim();
+        }
         // spec.S2
         if (
             (approval.approvalType == CreateClaimApprovalType.CreditorOnly && from != creditor)
@@ -249,20 +259,48 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     /// @notice The claim NFT is minted to the creditor - in other words: the wallet owed money holds the NFT.
     ///         The holder of the NFT will receive the payment from the debtor - See `_payClaim()` for more details.
     /// @notice SPEC:
-    ///         TODO
+    /// A function can call this internal function to create a bulla "claim" given the following:
+    ///
+    ///     S1. The contract is not in the locked state -> otherwise, revert
+    ///     S2. If the callee has specified a controller (see "Controller" in Core Concepts), ensure that the controller is the msg.sender -> otherwise, revert
+    ///     S3. The `from` address (the `msg.sender`, or the `operator`) is either the creditor or debtor
+    ///     S4. Verify that the dueBy parameter is either 0 (representing an "open" claim) or a valid timestamp greater than the current block timestamp -> otherwise, revert
+    ///     S5. If the callee has specified a claim binding, the from address _must_ be the debtor (you cannot bind others to claims) -> otherwise, revert
+    ///     S6. 0 < `claimAmount` < type(uint128).max - 1 -> otherwise, revert
+    ///
+    /// RES1. Increment the currentClaimId by 1
+    /// RES2. Store the claim details in the claims mapping, keyed by the new id. This mapping should include the callee's params, including:
+    ///     - the `claimAmount`
+    ///     - the `debtor`
+    ///     - the id of the fee calculator contract used at creation time of the contract (if a fee calculator is enabled)
+    ///     - the `dueBy` timestamp
+    ///     - the `controller` address
+    ///     - the `feePayer` (see "Fee Payer" in Core Concepts)
+    ///     - the `binding` parameter (see "Claim Binding" in Core Concepts)
+    ///     - a `payerReceivesClaimOnPayment` flag, indicating whether the payer or the payee receives the claim on payment as a receipt
+    /// RES3. Emit a ClaimCreated event with the claim details.
+    /// RES4. Mint an NFT to the creditor address, with the tokenId being the new claimId
+    /// RES5. Return the claimId
+    ///
     /// @dev if the `token` param is address(0) then we consider the claim to be denominated in ETH - (native token)
     /// @return The newly created tokenId
     function _createClaim(address from, CreateClaimParams calldata params) internal returns (uint256) {
         if (lockState != LockState.Unlocked) revert Locked();
-        if (params.controller != address(0) && params.controller != msg.sender) revert NotController(msg.sender);
-        if (from != params.debtor && from != params.creditor) revert NotCreditorOrDebtor();
+        if (params.controller != address(0) && params.controller != msg.sender) {
+            revert NotController(msg.sender);
+        }
+        if (from != params.debtor && from != params.creditor) {
+            revert NotCreditorOrDebtor();
+        }
         // we allow dueBy to be 0 in the case of an "open" claim, or we allow a reasonable timestamp
         if (params.dueBy != 0 && (params.dueBy < block.timestamp && params.dueBy < type(uint40).max)) {
             //todo fix
             revert InvalidTimestamp();
         }
         // you need the permission of the debtor to bind a claim
-        if (params.binding == ClaimBinding.Bound && from != params.debtor) revert CannotBindClaim();
+        if (params.binding == ClaimBinding.Bound && from != params.debtor) {
+            revert CannotBindClaim();
+        }
         if (params.claimAmount == 0) revert ZeroAmount();
 
         uint16 feeCalculatorId;
@@ -285,10 +323,18 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
             }
             if (params.dueBy != 0) claim.dueBy = uint40(params.dueBy);
             if (params.token != address(0)) claim.token = params.token;
-            if (params.controller != address(0)) claim.controller = params.controller;
-            if (params.feePayer == FeePayer.Debtor) claim.feePayer = params.feePayer;
-            if (params.binding != ClaimBinding.Unbound) claim.binding = params.binding;
-            if (params.payerReceivesClaimOnPayment) claim.payerReceivesClaimOnPayment = true;
+            if (params.controller != address(0)) {
+                claim.controller = params.controller;
+            }
+            if (params.feePayer == FeePayer.Debtor) {
+                claim.feePayer = params.feePayer;
+            }
+            if (params.binding != ClaimBinding.Unbound) {
+                claim.binding = params.binding;
+            }
+            if (params.payerReceivesClaimOnPayment) {
+                claim.payerReceivesClaimOnPayment = true;
+            }
         }
 
         emit ClaimCreated(
@@ -304,7 +350,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
             params.feePayer,
             params.binding,
             feeCalculatorId
-            );
+        );
 
         // mint the NFT to the creditor
         _mint(params.creditor, claimId);
@@ -356,12 +402,16 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     function _spendPayClaimApproval(address from, address operator, uint256 claimId, uint256 amount) internal {
         PayClaimApproval storage approval = approvals[from][operator].payClaim;
 
-        if (approval.approvalType == PayClaimApprovalType.Unapproved) revert NotApproved();
+        if (approval.approvalType == PayClaimApprovalType.Unapproved) {
+            revert NotApproved();
+        }
         if (approval.approvalDeadline != 0 && block.timestamp > approval.approvalDeadline) {
             revert PastApprovalDeadline();
         }
         // no-op, because `operator` is approved
-        if (approval.approvalType == PayClaimApprovalType.IsApprovedForAll) return;
+        if (approval.approvalType == PayClaimApprovalType.IsApprovedForAll) {
+            return;
+        }
 
         uint256 i;
         ClaimPaymentApproval[] memory _paymentApprovals = approval.claimApprovals;
@@ -381,7 +431,9 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
                 ) {
                     revert PastApprovalDeadline();
                 }
-                if (amount > _paymentApprovals[i].approvedAmount) revert PaymentUnderApproved();
+                if (amount > _paymentApprovals[i].approvedAmount) {
+                    revert PaymentUnderApproved();
+                }
 
                 // if the approval is fully spent, we can delete it
                 if (amount == _paymentApprovals[i].approvedAmount) {
@@ -423,13 +475,17 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         // We allow for claims to be "controlled". Meaning, it is another smart contract's responsibility to implement
         //      custom logic, then call these functions. We check the msg.sender against the controller to make sure a user
         //      isn't trying to bypass controller specific logic (eg: late fees) and by going to this contract directly.
-        if (claim.controller != address(0) && msg.sender != claim.controller) revert NotController(msg.sender);
+        if (claim.controller != address(0) && msg.sender != claim.controller) {
+            revert NotController(msg.sender);
+        }
 
         // make sure the the amount requested is not 0
         if (paymentAmount == 0) revert PayingZero();
 
         // make sure the claim can be paid (not completed, not rejected, not rescinded)
-        if (claim.status != Status.Pending && claim.status != Status.Repaying) revert ClaimNotPending();
+        if (claim.status != Status.Pending && claim.status != Status.Repaying) {
+            revert ClaimNotPending();
+        }
 
         uint256 fee = claim.feeCalculatorId != 0
             ? IBullaFeeCalculator(feeCalculators[claim.feeCalculatorId]).calculateFee(
@@ -457,7 +513,9 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         uint256 totalPaidAmount = claim.paidAmount + claimPaymentAmount;
         bool claimPaid = totalPaidAmount == claim.claimAmount;
 
-        if (totalPaidAmount > claim.claimAmount) revert OverPaying(paymentAmount);
+        if (totalPaidAmount > claim.claimAmount) {
+            revert OverPaying(paymentAmount);
+        }
 
         ClaimStorage storage claimStorage = claims[claimId];
 
@@ -479,7 +537,9 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         emit ClaimPayment(claimId, from, claimPaymentAmount, totalPaidAmount, fee);
 
         // transfer the ownership of the claim NFT to the payee as a receipt of their completed payment
-        if (claim.payerReceivesClaimOnPayment && claimPaid) _transferFrom(creditor, from, claimId);
+        if (claim.payerReceivesClaimOnPayment && claimPaid) {
+            _transferFrom(creditor, from, claimId);
+        }
     }
 
     /**
@@ -513,7 +573,9 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         UpdateBindingApproval storage approval = approvals[user][operator].updateBinding;
 
         if (approval.approvalCount == 0) revert NotApproved();
-        if (approval.approvalCount != type(uint64).max) approval.approvalCount--;
+        if (approval.approvalCount != type(uint64).max) {
+            approval.approvalCount--;
+        }
 
         return;
     }
@@ -530,15 +592,25 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         address creditor = _ownerOf[claimId];
 
         // check if the claim is controlled
-        if (claim.controller != address(0) && msg.sender != claim.controller) revert NotController(msg.sender);
+        if (claim.controller != address(0) && msg.sender != claim.controller) {
+            revert NotController(msg.sender);
+        }
         // make sure the claim is in pending status
-        if (claim.status != Status.Pending && claim.status != Status.Repaying) revert ClaimNotPending();
+        if (claim.status != Status.Pending && claim.status != Status.Repaying) {
+            revert ClaimNotPending();
+        }
         // make sure the sender is authorized
-        if (from != creditor && from != claim.debtor) revert NotCreditorOrDebtor();
+        if (from != creditor && from != claim.debtor) {
+            revert NotCreditorOrDebtor();
+        }
         // make sure the binding is valid
-        if (from == creditor && binding == ClaimBinding.Bound) revert CannotBindClaim();
+        if (from == creditor && binding == ClaimBinding.Bound) {
+            revert CannotBindClaim();
+        }
         // make sure the debtor isn't trying to unbind themselves
-        if (from == claim.debtor && claim.binding == ClaimBinding.Bound) revert ClaimBound();
+        if (from == claim.debtor && claim.binding == ClaimBinding.Bound) {
+            revert ClaimBound();
+        }
 
         claims[claimId].binding = binding;
 
@@ -576,7 +648,9 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         CancelClaimApproval storage approval = approvals[user][operator].cancelClaim;
 
         if (approval.approvalCount == 0) revert NotApproved();
-        if (approval.approvalCount != type(uint64).max) approval.approvalCount--;
+        if (approval.approvalCount != type(uint64).max) {
+            approval.approvalCount--;
+        }
 
         return;
     }
@@ -592,8 +666,12 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         // load the claim from storage
         Claim memory claim = getClaim(claimId);
 
-        if (claim.binding == ClaimBinding.Bound && claim.debtor == from) revert ClaimBound();
-        if (claim.controller != address(0) && msg.sender != claim.controller) revert NotController(msg.sender);
+        if (claim.binding == ClaimBinding.Bound && claim.debtor == from) {
+            revert ClaimBound();
+        }
+        if (claim.controller != address(0) && msg.sender != claim.controller) {
+            revert NotController(msg.sender);
+        }
         // make sure the claim can be rejected (not completed, rejected, rescinded, or repaying)
         // TODO: what if the debtor starts paying, but the creditor wants to rescind
         if (claim.status != Status.Pending) revert ClaimNotPending();
