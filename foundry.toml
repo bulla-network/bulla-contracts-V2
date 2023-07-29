@@ -2,11 +2,21 @@
 src = 'src'
 cache_path = 'cache/foundry'
 out = 'out/foundry'
-libs = ['lib']
+libs = ['lib', 'node-modules']
 optimizer = true
 optimizer_runs = 2_000_000
 fuzz_runs = 256
 gas_reports = ['BullaClaim']
+remappings = [
+    'openzeppelin-contracts=lib/openzeppelin-contracts',
+    'ds-test=lib/ds-test/src',
+    'forge-std=lib/forge-std/src',
+    'solmate=lib/solmate/src',
+    'safe-contracts=lib/safe-contracts/contracts',
+    'contracts=src',
+    'test=test',
+    'script=script',
+]
 
 # See more config options https://github.com/gakonst/foundry/tree/master/config
 [profile.ci]

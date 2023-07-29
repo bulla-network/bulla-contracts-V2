@@ -304,7 +304,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
             params.feePayer,
             params.binding,
             feeCalculatorId
-            );
+        );
 
         // mint the NFT to the creditor
         _mint(params.creditor, claimId);

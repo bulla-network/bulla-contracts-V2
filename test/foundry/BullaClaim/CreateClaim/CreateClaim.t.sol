@@ -388,7 +388,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
             FeePayer.Debtor,
             ClaimBinding(binding),
             bullaClaim.currentFeeCalculatorId()
-            );
+        );
 
         vm.prank(creator);
         uint256 claimId = bullaClaim.createClaim(
