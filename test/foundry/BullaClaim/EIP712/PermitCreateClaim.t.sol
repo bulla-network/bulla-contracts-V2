@@ -176,7 +176,7 @@ contract TestPermitCreateClaim is Test {
             CreateClaimApprovalType.Unapproved,
             0, // revoke case
             false
-            );
+        );
         bullaClaim.permitCreateClaim({
             user: alice,
             operator: bob,
@@ -231,7 +231,7 @@ contract TestPermitCreateClaim is Test {
             CreateClaimApprovalType.Unapproved,
             0, // revoke case
             false
-            );
+        );
 
         digest = sigHelper.getPermitCreateClaimDigest({
             user: alice,

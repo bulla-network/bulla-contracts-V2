@@ -494,7 +494,7 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
             debtorPaysFee ? PAYMENT_AMOUNT - EXPECTED_FEE : PAYMENT_AMOUNT,
             debtorPaysFee ? PAYMENT_AMOUNT - EXPECTED_FEE : PAYMENT_AMOUNT,
             EXPECTED_FEE
-            );
+        );
 
         vm.prank(debtor);
         bullaClaim.payClaim(claimId, PAYMENT_AMOUNT);

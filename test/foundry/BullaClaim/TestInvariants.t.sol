@@ -142,7 +142,7 @@ contract TestInvariants is Test {
             FeePayer.Debtor,
             ClaimBinding(ClaimBinding.Unbound),
             initialFeeCalculator
-            );
+        );
 
         vm.prank(creditor);
         claimId = bullaClaim.createClaim(

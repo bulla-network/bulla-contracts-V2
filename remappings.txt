@@ -1,8 +1,0 @@
-openzeppelin-contracts/=lib/openzeppelin-contracts/
-ds-test/=lib/ds-test/src/
-forge-std/=lib/forge-std/src/
-solmate/=lib/solmate/src/
-safe-contracts/=lib/safe-contracts/contracts/
-contracts/=src/
-test/=test/
-script/=script/
