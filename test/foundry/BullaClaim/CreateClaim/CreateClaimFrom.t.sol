@@ -288,7 +288,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
                 FeePayer.Debtor,
                 _isBindingAllowed && !isInvoice ? ClaimBinding.Bound : ClaimBinding.Unbound,
                 0
-                );
+            );
         }
 
         vm.prank(_operator);
