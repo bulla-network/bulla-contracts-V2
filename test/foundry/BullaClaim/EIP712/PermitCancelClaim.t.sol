@@ -49,6 +49,13 @@ contract TestPermitCancelClaim is Test {
         address alice = vm.addr(alicePK);
         address bob = address(0xB0b);
 
+        bytes memory signature = sigHelper.signCancelClaimPermit({
+            pk: alicePK,
+            user: alice,
+            operator: bob,
+            approvalCount: approvalCount
+        });
+
         vm.expectEmit(true, true, true, true);
         emit CancelClaimApproved(alice, bob, approvalCount);
 
@@ -56,12 +63,7 @@ contract TestPermitCancelClaim is Test {
             user: alice,
             operator: bob,
             approvalCount: approvalCount,
-            signature: sigHelper.signCancelClaimPermit({
-                pk: alicePK,
-                user: alice,
-                operator: bob,
-                approvalCount: approvalCount
-            })
+            signature: signature
         });
 
         (,,, CancelClaimApproval memory approval) = bullaClaim.approvals(alice, bob);
@@ -102,6 +104,8 @@ contract TestPermitCancelClaim is Test {
             signature: sigHelper.signCancelClaimPermit({pk: alicePK, user: alice, operator: bob, approvalCount: 1})
         });
 
+        bytes memory signature = sigHelper.signCancelClaimPermit({pk: alicePK, user: alice, operator: bob, approvalCount: 0});
+
         vm.expectEmit(true, true, true, true);
         emit CancelClaimApproved(alice, bob, 0);
 
@@ -109,7 +113,7 @@ contract TestPermitCancelClaim is Test {
             user: alice,
             operator: bob,
             approvalCount: 0,
-            signature: sigHelper.signCancelClaimPermit({pk: alicePK, user: alice, operator: bob, approvalCount: 0})
+            signature: signature
         });
 
         (,,, CancelClaimApproval memory approval) = bullaClaim.approvals(alice, bob);
@@ -128,12 +132,12 @@ contract TestPermitCancelClaim is Test {
 
         bullaClaim.permitCancelClaim({user: alice, operator: bob, approvalCount: 1, signature: bytes("")});
 
-        vm.expectEmit(true, true, true, true);
-        emit CancelClaimApproved(alice, bob, 0);
-
         digest = sigHelper.getPermitCancelClaimDigest({user: alice, operator: bob, approvalCount: 0});
 
         eip1271Wallet.sign(digest);
+
+        vm.expectEmit(true, true, true, true);
+        emit CancelClaimApproved(alice, bob, 0);        
 
         bullaClaim.permitCancelClaim({user: alice, operator: bob, approvalCount: 0, signature: bytes("")});
 
@@ -300,11 +304,11 @@ contract TestPermitCancelClaim is Test {
             BullaExtensionRegistry(bullaClaim.extensionRegistry()).setExtensionName(operator, "BullaFake");
         }
 
-        vm.expectEmit(true, true, true, true);
-        emit CancelClaimApproved(user, operator, approvalCount);
-
         bytes memory signature =
             sigHelper.signCancelClaimPermit({pk: pk, user: user, operator: operator, approvalCount: approvalCount});
+
+        vm.expectEmit(true, true, true, true);
+        emit CancelClaimApproved(user, operator, approvalCount);
 
         bullaClaim.permitCancelClaim({
             user: user,

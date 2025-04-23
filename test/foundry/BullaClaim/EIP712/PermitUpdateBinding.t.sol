@@ -49,6 +49,13 @@ contract TestPermitUpdateBinding is Test {
         address alice = vm.addr(alicePK);
         address bob = address(0xB0b);
 
+        bytes memory signature = sigHelper.signUpdateBindingPermit({
+                pk: alicePK,
+                user: alice,
+                operator: bob,
+                approvalCount: approvalCount
+            });
+            
         vm.expectEmit(true, true, true, true);
         emit UpdateBindingApproved(alice, bob, approvalCount);
 
@@ -56,12 +63,7 @@ contract TestPermitUpdateBinding is Test {
             user: alice,
             operator: bob,
             approvalCount: approvalCount,
-            signature: sigHelper.signUpdateBindingPermit({
-                pk: alicePK,
-                user: alice,
-                operator: bob,
-                approvalCount: approvalCount
-            })
+            signature: signature
         });
 
         (,, UpdateBindingApproval memory approval,) = bullaClaim.approvals(alice, bob);
@@ -102,6 +104,8 @@ contract TestPermitUpdateBinding is Test {
             signature: sigHelper.signUpdateBindingPermit({pk: alicePK, user: alice, operator: bob, approvalCount: 1})
         });
 
+        bytes memory signature = sigHelper.signUpdateBindingPermit({pk: alicePK, user: alice, operator: bob, approvalCount: 0});
+
         vm.expectEmit(true, true, true, true);
         emit UpdateBindingApproved(alice, bob, 0);
 
@@ -109,7 +113,7 @@ contract TestPermitUpdateBinding is Test {
             user: alice,
             operator: bob,
             approvalCount: 0,
-            signature: sigHelper.signUpdateBindingPermit({pk: alicePK, user: alice, operator: bob, approvalCount: 0})
+            signature: signature
         });
 
         (,, UpdateBindingApproval memory approval,) = bullaClaim.approvals(alice, bob);
@@ -295,11 +299,11 @@ contract TestPermitUpdateBinding is Test {
             BullaExtensionRegistry(bullaClaim.extensionRegistry()).setExtensionName(operator, "BullaFake");
         }
 
-        vm.expectEmit(true, true, true, true);
-        emit UpdateBindingApproved(user, operator, approvalCount);
-
         bytes memory signature =
             sigHelper.signUpdateBindingPermit({pk: pk, user: user, operator: operator, approvalCount: approvalCount});
+
+        vm.expectEmit(true, true, true, true);
+        emit UpdateBindingApproved(user, operator, approvalCount);
 
         bullaClaim.permitUpdateBinding({
             user: user,
