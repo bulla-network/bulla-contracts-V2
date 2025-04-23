@@ -2,7 +2,6 @@
 pragma solidity 0.8.15;
 
 import "contracts/types/Types.sol";
-import "contracts/interfaces/IBullaFeeCalculator.sol";
 import "contracts/BullaExtensionRegistry.sol";
 import {IERC721} from "openzeppelin-contracts/contracts/interfaces/IERC721.sol";
 import {IERC20Permit} from "openzeppelin-contracts/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
@@ -40,9 +39,7 @@ interface IBullaClaim {
         string description,
         address token,
         address controller,
-        FeePayer feePayer,
-        ClaimBinding binding,
-        uint256 feeCalculatorId
+        ClaimBinding binding
     );
 
     event MetadataAdded(uint256 indexed claimId, string tokenURI, string attachmentURI);
@@ -51,8 +48,7 @@ interface IBullaClaim {
         uint256 indexed claimId,
         address indexed paidBy,
         uint256 paymentAmount,
-        uint256 totalPaidAmount,
-        uint256 feePaymentAmount
+        uint256 totalPaidAmount
     );
 
     event BindingUpdated(uint256 indexed claimId, address indexed from, ClaimBinding indexed binding);
@@ -113,11 +109,6 @@ interface IBullaClaim {
 
     function DOMAIN_SEPARATOR() external view returns (bytes32);
 
-    function currentFeeCalculatorId() external view returns (uint256);
-
-    function feeCalculators(uint256) external view returns (address);
-
-    function feeCollectionAddress() external view returns (address);
 
     function extensionRegistry() external view returns (address);
 
@@ -197,9 +188,6 @@ interface IBullaClaim {
 
     function setExtensionRegistry(address _extensionRegistry) external;
 
-    function setFeeCalculator(address _feeCalculator) external;
-
-    function setFeeCollectionAddress(address newFeeCollector) external;
 
     function setLockState(uint8 _lockState) external;
 

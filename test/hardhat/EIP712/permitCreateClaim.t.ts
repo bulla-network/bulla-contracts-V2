@@ -2,15 +2,19 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import {
-  BullaClaim, BullaClaimPermitLib, BullaExtensionRegistry, PenalizedClaim, WETH
+  BullaClaim,
+  BullaClaimPermitLib,
+  BullaExtensionRegistry,
+  PenalizedClaim,
+  WETH,
 } from "../../../typechain-types";
 import {
   ClaimBinding,
   CreateClaimApprovalType,
   declareSignerWithAddress,
   deployContractsFixture,
-  FeePayer,
-  generateCreateClaimSignature, UNLIMITED_APPROVAL_COUNT
+  generateCreateClaimSignature,
+  UNLIMITED_APPROVAL_COUNT,
 } from "./common";
 
 describe("permitCreateClaim", async () => {
@@ -43,7 +47,6 @@ describe("permitCreateClaim", async () => {
       description: `claim description ${Math.random()}`,
       token: ethers.constants.AddressZero, // native token
       controller: penalizedClaim.address,
-      feePayer: FeePayer.Debtor,
       binding: ClaimBinding.Unbound,
     };
 

@@ -6,7 +6,6 @@ import {
     Claim,
     Status,
     ClaimBinding,
-    FeePayer,
     LockState,
     CreateClaimParams,
     ClaimMetadata
@@ -29,11 +28,9 @@ contract TestBurnClaim is Test {
         vm.label(debtor, "DEBTOR");
         vm.label(alice, "ALICE");
 
-        (bullaClaim,) = (new Deployer()).deploy_test({
+        bullaClaim = (new Deployer()).deploy_test({
             _deployer: address(this),
-            _feeReceiver: address(0xFEE),
-            _initialLockState: LockState.Unlocked,
-            _feeBPS: 0
+            _initialLockState: LockState.Unlocked
         });
         vm.deal(debtor, 1 ether);
     }
@@ -48,7 +45,6 @@ contract TestBurnClaim is Test {
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
                 controller: address(0),
-                feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             })

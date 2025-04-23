@@ -46,7 +46,7 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
         vm.label(operator, "OPERATOR");
         vm.label(user2, "USER2");
 
-        (bullaClaim,) = (new Deployer()).deploy_test(address(this), address(0xFEE), LockState.Unlocked, 0);
+        bullaClaim = (new Deployer()).deploy_test(address(this), LockState.Unlocked);
         sigHelper = new EIP712Helper(address(bullaClaim));
 
         weth.transferFrom(address(this), user, 1000 ether);
@@ -342,7 +342,6 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
                 dueBy: block.timestamp + 1 days,
                 token: address(0), // native token
                 controller: address(0),
-                feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             })

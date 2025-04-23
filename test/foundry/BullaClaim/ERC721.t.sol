@@ -3,7 +3,7 @@ pragma solidity ^0.8.14;
 
 import {DSTestPlus} from "solmate/test/utils/DSTestPlus.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
-import {Claim, Status, ClaimBinding, FeePayer, LockState, CreateClaimParams} from "contracts/types/Types.sol";
+import {Claim, Status, ClaimBinding, LockState, CreateClaimParams} from "contracts/types/Types.sol";
 import {Deployer} from "script/Deployment.s.sol";
 
 // run the solmate ERC721 spec against bulla claim to ensure functionality
@@ -15,11 +15,9 @@ contract ERC721Test is DSTestPlus {
     address debtor = address(0x02);
 
     function setUp() public {
-        (token,) = (new Deployer()).deploy_test({
+        token = (new Deployer()).deploy_test({
             _deployer: address(this),
-            _feeReceiver: address(0xfee),
-            _initialLockState: LockState.Unlocked,
-            _feeBPS: 0
+            _initialLockState: LockState.Unlocked
         });
     }
 
@@ -34,7 +32,6 @@ contract ERC721Test is DSTestPlus {
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
                 controller: address(0),
-                feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             })
@@ -52,7 +49,6 @@ contract ERC721Test is DSTestPlus {
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
                 controller: address(0),
-                feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             })
@@ -149,7 +145,6 @@ contract ERC721Test is DSTestPlus {
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
                 controller: address(0),
-                feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             })

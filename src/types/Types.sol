@@ -17,11 +17,6 @@ enum ClaimBinding {
     Bound // bound status is when the debtor has accepted the claim
 }
 
-enum FeePayer {
-    Creditor,
-    Debtor
-}
-
 enum CreateClaimApprovalType {
     Unapproved,
     CreditorOnly, // an addresss is allowed only to create claims where the user is the creditor
@@ -51,7 +46,6 @@ struct CreateClaimParams {
     string description;
     address token;
     address controller;
-    FeePayer feePayer;
     ClaimBinding binding;
     bool payerReceivesClaimOnPayment;
 }
@@ -66,13 +60,7 @@ struct ClaimStorage {
     uint128 paidAmount;
     Status status;
     ClaimBinding binding; // the debtor can allow themselves to be bound to a claim, which makes a claim unrejectable
-    FeePayer feePayer;
     bool payerReceivesClaimOnPayment; // an optional flag which allows the token to be transferred to the payer, acting as a "receipt NFT"
-    // if feePayer = Debtor:
-    //      the payer pays the fee and the creditor receives claimAmount
-    // if feePayer = Creditor:
-    //      the creditor pays the fee, meaning they will receive claimAmount - fee
-    uint16 feeCalculatorId;
     uint40 dueBy;
     address debtor;
     address token; // the token address that the claim is denominated in. NOTE: if this token is address(0), we treat this as a native token
@@ -85,10 +73,8 @@ struct Claim {
     uint256 paidAmount;
     Status status;
     ClaimBinding binding;
-    FeePayer feePayer;
     bool payerReceivesClaimOnPayment;
     address debtor;
-    uint256 feeCalculatorId;
     uint256 dueBy;
     address token;
     address controller;

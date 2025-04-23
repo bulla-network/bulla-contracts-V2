@@ -1,13 +1,13 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import { BigNumber, BigNumberish } from "ethers";
+import { ethers } from "hardhat";
 import {
   BullaClaim,
-  PenalizedClaim,
-  BullaExtensionRegistry,
   BullaClaimPermitLib,
+  BullaExtensionRegistry,
+  PenalizedClaim,
   WETH,
 } from "../../../typechain-types";
-import { ethers } from "hardhat";
-import { BigNumber, BigNumberish, Signature } from "ethers";
 import { ClaimPaymentApprovalStruct } from "../../../typechain-types/src/BullaClaim";
 
 export enum CreateClaimApprovalType {
@@ -21,11 +21,6 @@ export enum PayClaimApprovalType {
   Unapproved,
   IsApprovedForSpecific,
   IsApprovedForAll,
-}
-
-export enum FeePayer {
-  Creditor,
-  Debtor,
 }
 
 export enum ClaimBinding {
@@ -246,11 +241,7 @@ export function deployContractsFixture(deployer: SignerWithAddress) {
     const BullaClaim = await (
       await bullaClaimFactory
         .connect(deployer)
-        .deploy(
-          deployer.address,
-          BullaExtensionRegistry.address,
-          LockState.Unlocked
-        )
+        .deploy(BullaExtensionRegistry.address, LockState.Unlocked)
     ).deployed();
 
     await BullaClaim.connect(deployer).setClaimMetadataGenerator(

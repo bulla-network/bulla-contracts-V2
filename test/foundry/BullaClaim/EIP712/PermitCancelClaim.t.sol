@@ -35,11 +35,9 @@ contract TestPermitCancelClaim is Test {
     event CancelClaimApproved(address indexed user, address indexed operator, uint256 approvalCount);
 
     function setUp() public {
-        (bullaClaim,) = (new Deployer()).deploy_test({
+        bullaClaim = (new Deployer()).deploy_test({
             _deployer: address(this),
-            _feeReceiver: address(0xfee),
-            _initialLockState: LockState.Unlocked,
-            _feeBPS: 0
+            _initialLockState: LockState.Unlocked
         });
         sigHelper = new EIP712Helper(address(bullaClaim));
         eip1271Wallet = new ERC1271WalletMock();

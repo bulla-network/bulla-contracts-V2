@@ -31,11 +31,9 @@ contract PermitPayClaimTest is Test {
     );
 
     function setUp() public {
-        (bullaClaim,) = (new Deployer()).deploy_test({
+        bullaClaim = (new Deployer()).deploy_test({
             _deployer: address(this),
-            _feeReceiver: address(0xfee),
-            _initialLockState: LockState.Unlocked,
-            _feeBPS: 0
+            _initialLockState: LockState.Unlocked
         });
         sigHelper = new EIP712Helper(address(bullaClaim));
         eip1271Wallet = new ERC1271WalletMock();
@@ -51,7 +49,6 @@ contract PermitPayClaimTest is Test {
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
                 controller: address(0),
-                feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             })

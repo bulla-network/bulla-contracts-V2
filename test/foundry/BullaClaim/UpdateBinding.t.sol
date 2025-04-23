@@ -32,7 +32,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         vm.label(creditor, "CREDITOR");
         vm.label(debtor, "DEBTOR");
 
-        (bullaClaim,) = (new Deployer()).deploy_test(address(0xB0b), address(0xfee), LockState.Unlocked, 0);
+        bullaClaim = (new Deployer()).deploy_test(address(0xB0b), LockState.Unlocked);
         sigHelper = new EIP712Helper(address(bullaClaim));
     }
 
@@ -48,7 +48,6 @@ contract TestUpdateBinding is BullaClaimTestHelper {
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
                 controller: address(0),
-                feePayer: FeePayer.Creditor,
                 binding: binding,
                 payerReceivesClaimOnPayment: true
             })
@@ -398,7 +397,6 @@ contract TestUpdateBinding is BullaClaimTestHelper {
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
                 controller: controllerAddress,
-                feePayer: FeePayer.Creditor,
                 binding: ClaimBinding.BindingPending,
                 payerReceivesClaimOnPayment: true
             })
