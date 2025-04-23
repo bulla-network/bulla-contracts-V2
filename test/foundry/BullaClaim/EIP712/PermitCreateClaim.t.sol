@@ -62,10 +62,7 @@ contract TestPermitCreateClaim is Test {
     );
 
     function setUp() public {
-        bullaClaim = (new Deployer()).deploy_test({
-            _deployer: address(this),
-            _initialLockState: LockState.Unlocked
-        });
+        bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
         sigHelper = new EIP712Helper(address(bullaClaim));
         eip1271Wallet = new ERC1271WalletMock();
     }
@@ -170,13 +167,13 @@ contract TestPermitCreateClaim is Test {
         });
 
         bytes memory signature = sigHelper.signCreateClaimPermit({
-                pk: alicePK,
-                user: alice,
-                operator: bob,
-                approvalType: CreateClaimApprovalType.Unapproved,
-                approvalCount: 0,
-                isBindingAllowed: false
-            });
+            pk: alicePK,
+            user: alice,
+            operator: bob,
+            approvalType: CreateClaimApprovalType.Unapproved,
+            approvalCount: 0,
+            isBindingAllowed: false
+        });
 
         vm.expectEmit(true, true, true, true);
         emit CreateClaimApproved(
@@ -224,7 +221,7 @@ contract TestPermitCreateClaim is Test {
             approvalCount: 1,
             isBindingAllowed: true,
             signature: bytes("")
-        });        
+        });
 
         digest = sigHelper.getPermitCreateClaimDigest({
             user: alice,

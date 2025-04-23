@@ -44,12 +44,7 @@ interface IBullaClaim {
 
     event MetadataAdded(uint256 indexed claimId, string tokenURI, string attachmentURI);
 
-    event ClaimPayment(
-        uint256 indexed claimId,
-        address indexed paidBy,
-        uint256 paymentAmount,
-        uint256 totalPaidAmount
-    );
+    event ClaimPayment(uint256 indexed claimId, address indexed paidBy, uint256 paymentAmount, uint256 totalPaidAmount);
 
     event BindingUpdated(uint256 indexed claimId, address indexed from, ClaimBinding indexed binding);
 
@@ -108,7 +103,6 @@ interface IBullaClaim {
     //// BULLA CLAIM ////
 
     function DOMAIN_SEPARATOR() external view returns (bytes32);
-
 
     function extensionRegistry() external view returns (address);
 
@@ -187,7 +181,6 @@ interface IBullaClaim {
     function renounceOwnership() external;
 
     function setExtensionRegistry(address _extensionRegistry) external;
-
 
     function setLockState(uint8 _lockState) external;
 

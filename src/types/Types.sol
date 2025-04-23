@@ -9,12 +9,14 @@ enum Status {
     Paid, // status for a claim that is fully paid
     Rejected, // status reserved for the debtor to cancel a claim
     Rescinded // status reserved for the creditor to cancel a claim
+
 }
 
 enum ClaimBinding {
     Unbound, // default binding is unbound
     BindingPending, // a way for the creditor to signal that they want a debtor to accept a claim
     Bound // bound status is when the debtor has accepted the claim
+
 }
 
 enum CreateClaimApprovalType {
@@ -22,6 +24,7 @@ enum CreateClaimApprovalType {
     CreditorOnly, // an addresss is allowed only to create claims where the user is the creditor
     DebtorOnly, // an addresss is allowed only to create claims where the user is the debtor
     Approved // an addresss is allowed to create any kind of claim
+
 }
 
 enum PayClaimApprovalType {

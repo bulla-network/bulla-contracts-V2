@@ -27,10 +27,7 @@ contract TestGnosisSafeSignatures is Test {
     SignMessageLib internal signMessageLib;
 
     function _setup(address[] memory _owners) internal {
-        bullaClaim = (new Deployer()).deploy_test({
-            _deployer: address(this),
-            _initialLockState: LockState.Unlocked
-        });
+        bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
 
         sigHelper = new EIP712Helper(address(bullaClaim));
         CompatibilityFallbackHandler_patch handler = new CompatibilityFallbackHandler_patch();

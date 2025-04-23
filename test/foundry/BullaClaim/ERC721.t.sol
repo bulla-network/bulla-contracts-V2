@@ -15,10 +15,7 @@ contract ERC721Test is DSTestPlus {
     address debtor = address(0x02);
 
     function setUp() public {
-        token = (new Deployer()).deploy_test({
-            _deployer: address(this),
-            _initialLockState: LockState.Unlocked
-        });
+        token = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
     }
 
     function _mint() private returns (uint256 claimId) {

@@ -4,14 +4,7 @@ pragma solidity ^0.8.14;
 import "forge-std/Test.sol";
 import "forge-std/Vm.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
-import {
-    Claim,
-    Status,
-    ClaimBinding,
-    CreateClaimParams,
-    ClaimMetadata,
-    LockState
-} from "contracts/types/Types.sol";
+import {Claim, Status, ClaimBinding, CreateClaimParams, ClaimMetadata, LockState} from "contracts/types/Types.sol";
 import {BullaClaim, CreateClaimApprovalType} from "contracts/BullaClaim.sol";
 import {PenalizedClaim} from "contracts/mocks/PenalizedClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
@@ -30,10 +23,7 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
     event MetadataAdded(uint256 indexed claimId, string tokenURI, string attachmentURI);
 
     function setUp() public {
-        bullaClaim = (new Deployer()).deploy_test({
-            _deployer: address(this),
-            _initialLockState: LockState.Unlocked
-        });
+        bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
         sigHelper = new EIP712Helper(address(bullaClaim));
     }
 

@@ -2,14 +2,7 @@
 pragma solidity 0.8.15;
 
 import "forge-std/Test.sol";
-import {
-    Claim,
-    Status,
-    ClaimBinding,
-    LockState,
-    CreateClaimParams,
-    ClaimMetadata
-} from "contracts/types/Types.sol";
+import {Claim, Status, ClaimBinding, LockState, CreateClaimParams, ClaimMetadata} from "contracts/types/Types.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {ClaimMetadataGenerator} from "contracts/ClaimMetadataGenerator.sol";
 import {Deployer} from "script/Deployment.s.sol";
@@ -28,10 +21,7 @@ contract TestBurnClaim is Test {
         vm.label(debtor, "DEBTOR");
         vm.label(alice, "ALICE");
 
-        bullaClaim = (new Deployer()).deploy_test({
-            _deployer: address(this),
-            _initialLockState: LockState.Unlocked
-        });
+        bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
         vm.deal(debtor, 1 ether);
     }
 

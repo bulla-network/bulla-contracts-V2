@@ -86,12 +86,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
 
     event MetadataAdded(uint256 indexed claimId, string tokenURI, string attachmentURI);
 
-    event ClaimPayment(
-        uint256 indexed claimId,
-        address indexed paidBy,
-        uint256 paymentAmount,
-        uint256 totalPaidAmount
-    );
+    event ClaimPayment(uint256 indexed claimId, address indexed paidBy, uint256 paymentAmount, uint256 totalPaidAmount);
 
     event BindingUpdated(uint256 indexed claimId, address indexed from, ClaimBinding indexed binding);
 
@@ -561,7 +556,6 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     /**
      * /// BURN CLAIM ///
      */
-
     function burn(uint256 tokenId) external {
         _notLocked();
         if (msg.sender != ownerOf(tokenId)) revert NotOwner();

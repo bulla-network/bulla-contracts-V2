@@ -280,9 +280,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         vm.assume(approvalsCount > 0);
 
         approvalType = PayClaimApprovalType.IsApprovedForSpecific;
-        ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](
-                approvalsCount
-            );
+        ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](approvalsCount);
 
         // create individual claim approvals
         for (uint256 i = 0; i < approvalsCount; i++) {

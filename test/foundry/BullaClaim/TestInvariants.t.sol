@@ -9,7 +9,7 @@ import {WETH} from "contracts/mocks/weth.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {BullaHelpers} from "contracts/libraries/BullaHelpers.sol";
 import {Deployer} from "script/Deployment.s.sol";
-import {Claim, Status, ClaimBinding,LockState, CreateClaimParams} from "contracts/types/Types.sol";
+import {Claim, Status, ClaimBinding, LockState, CreateClaimParams} from "contracts/types/Types.sol";
 
 enum BullaClaimState {
     NoOwner,
@@ -45,12 +45,7 @@ contract TestInvariants is Test {
         ClaimBinding binding
     );
 
-    event ClaimPayment(
-        uint256 indexed claimId,
-        address indexed paidBy,
-        uint256 paymentAmount,
-        uint256 totalPaidAmount
-    );
+    event ClaimPayment(uint256 indexed claimId, address indexed paidBy, uint256 paymentAmount, uint256 totalPaidAmount);
     event ClaimRescinded(uint256 indexed claimId, address indexed from, string note);
 
     function setUp() public {
@@ -63,10 +58,7 @@ contract TestInvariants is Test {
         vm.label(alice, "ALICE");
 
         vm.prank(contractOwner);
-        bullaClaim = (new Deployer()).deploy_test({
-            _deployer: contractOwner,
-            _initialLockState: LockState.Unlocked
-        });
+        bullaClaim = (new Deployer()).deploy_test({_deployer: contractOwner, _initialLockState: LockState.Unlocked});
 
         weth.transferFrom(address(this), creditor, type(uint136).max);
         weth.transferFrom(address(this), debtor, type(uint136).max);

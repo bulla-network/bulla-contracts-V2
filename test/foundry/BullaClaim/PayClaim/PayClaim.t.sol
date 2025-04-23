@@ -10,7 +10,6 @@ import {BullaClaimTestHelper, EIP712Helper} from "test/foundry/BullaClaim/BullaC
 import {Deployer} from "script/Deployment.s.sol";
 
 contract TestPayClaimWithFee is BullaClaimTestHelper {
-
     address creditor = address(0xA11c3);
     address debtor = address(0xB0b);
     address charlie = address(0xC44511E);
@@ -37,17 +36,9 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
     }
 
     // contract events
-    event ClaimPayment(
-        uint256 indexed claimId,
-        address indexed paidBy,
-        uint256 paymentAmount,
-        uint256 totalPaidAmount
-    );
+    event ClaimPayment(uint256 indexed claimId, address indexed paidBy, uint256 paymentAmount, uint256 totalPaidAmount);
 
-    function _newClaim(address creator, bool isNative, uint256 claimAmount)
-        private
-        returns (uint256 claimId)
-    {
+    function _newClaim(address creator, bool isNative, uint256 claimAmount) private returns (uint256 claimId) {
         vm.prank(creator);
         claimId = bullaClaim.createClaim(
             CreateClaimParams({
@@ -270,12 +261,7 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
         weth.approve(address(bullaClaim), 1000 ether);
 
         vm.expectEmit(true, true, true, true, address(bullaClaim));
-        emit ClaimPayment(
-            claimId,
-            debtor,
-            PAYMENT_AMOUNT,
-            PAYMENT_AMOUNT
-        );
+        emit ClaimPayment(claimId, debtor, PAYMENT_AMOUNT, PAYMENT_AMOUNT);
 
         vm.prank(debtor);
         bullaClaim.payClaim(claimId, PAYMENT_AMOUNT);

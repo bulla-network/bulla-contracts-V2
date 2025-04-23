@@ -1,16 +1,25 @@
-import fs from "fs";
-import { HardhatUserConfig } from "hardhat/config";
-import "@nomicfoundation/hardhat-toolbox";
-import "hardhat-preprocessor";
 import "@nomicfoundation/hardhat-chai-matchers";
+import "@nomicfoundation/hardhat-toolbox";
 import "@nomiclabs/hardhat-ethers";
+import fs from "fs";
+import "hardhat-preprocessor";
+import { HardhatUserConfig } from "hardhat/config";
+import * as toml from "toml";
 
 function getRemappings() {
-  return fs
-    .readFileSync("remappings.txt", "utf8")
-    .split("\n")
-    .filter(Boolean)
-    .map((line: string) => line.trim().split("="));
+  try {
+    // Read foundry.toml and parse it
+    const foundryConfig = toml.parse(fs.readFileSync("foundry.toml", "utf8"));
+
+    // Extract remappings from the config
+    const remappings = foundryConfig.profile?.default?.remappings || [];
+
+    // Convert to the format expected by the preprocessor
+    return remappings.map((remapping: string) => remapping.split("="));
+  } catch (error) {
+    console.error("Error reading foundry.toml:", error);
+    return [];
+  }
 }
 
 const config: HardhatUserConfig = {
@@ -25,9 +34,17 @@ const config: HardhatUserConfig = {
   // },
   paths: { cache: "cache/hardhat", sources: "src", artifacts: "out/hardhat" },
   preprocess: {
-    eachLine: () => ({
+    eachLine: (hre) => ({
       transform: (line: string) => {
         if (line.match(/^\s*import /i) || line.match(/} from /i)) {
+          // Special handling for openzeppelin imports
+          if (line.includes("openzeppelin-contracts")) {
+            return line.replace(
+              "openzeppelin-contracts",
+              "lib/openzeppelin-contracts"
+            );
+          }
+
           for (const [from, to] of getRemappings()) {
             if (line.includes(from)) {
               line = line.replace(from, to);

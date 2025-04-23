@@ -56,13 +56,7 @@ contract TestPayClaimWithWeirdTokens is Test {
     }
 
     // contract events
-    event ClaimPayment(
-        uint256 indexed claimId,
-        address indexed paidBy,
-        uint256 paymentAmount,
-        uint256 totalPaidAmount
-    );
-
+    event ClaimPayment(uint256 indexed claimId, address indexed paidBy, uint256 paymentAmount, uint256 totalPaidAmount);
 
     function _newClaim(address token, uint256 claimAmount) private returns (uint256 claimId) {
         claimId = bullaClaim.createClaim(

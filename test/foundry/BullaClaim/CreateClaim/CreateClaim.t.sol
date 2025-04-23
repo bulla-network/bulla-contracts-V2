@@ -11,7 +11,6 @@ import {Deployer} from "script/Deployment.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 
 contract TestCreateClaim is BullaClaimTestHelper {
-
     address creditor = address(0x01);
     address debtor = address(0x02);
 
@@ -31,10 +30,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
     function setUp() public {
         weth = new WETH();
 
-        bullaClaim = (new Deployer()).deploy_test({
-            _deployer: address(this),
-            _initialLockState: LockState.Unlocked
-        });
+        bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
         _newClaim(creditor, creditor, debtor);
     }
 

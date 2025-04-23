@@ -2,14 +2,7 @@
 pragma solidity 0.8.15;
 
 import "forge-std/Test.sol";
-import {
-    Claim,
-    Status,
-    ClaimBinding,
-    LockState,
-    CreateClaimParams,
-    ClaimMetadata
-} from "contracts/types/Types.sol";
+import {Claim, Status, ClaimBinding, LockState, CreateClaimParams, ClaimMetadata} from "contracts/types/Types.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {ClaimMetadataGenerator} from "contracts/ClaimMetadataGenerator.sol";
 import {Deployer} from "script/Deployment.s.sol";
@@ -21,10 +14,7 @@ contract TestTokenURI is Test {
     address charlie = address(0xC44511E);
 
     function setUp() public {
-        bullaClaim = (new Deployer()).deploy_test({
-            _deployer: address(this),
-            _initialLockState: LockState.Unlocked
-        });
+        bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
     }
 
     function testDomainSeparator() public {

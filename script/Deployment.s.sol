@@ -18,10 +18,7 @@ contract Deployer is Script {
         vm.stopBroadcast();
     }
 
-    function deploy_test(address _deployer, LockState _initialLockState)
-        public
-        returns (BullaClaim)
-    {
+    function deploy_test(address _deployer, LockState _initialLockState) public returns (BullaClaim) {
         vm.startPrank(_deployer);
         _deploy(_initialLockState);
 
