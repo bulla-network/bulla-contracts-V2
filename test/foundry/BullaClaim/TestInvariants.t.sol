@@ -7,23 +7,18 @@ import {MockERC20} from "solmate/test/utils/mocks/MockERC20.sol";
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
-import {IBullaFeeCalculator, BullaFeeCalculator} from "contracts/BullaFeeCalculator.sol";
 import {BullaHelpers} from "contracts/libraries/BullaHelpers.sol";
 import {Deployer} from "script/Deployment.s.sol";
-import {Claim, Status, ClaimBinding, FeePayer, LockState, CreateClaimParams} from "contracts/types/Types.sol";
+import {Claim, Status, ClaimBinding, LockState, CreateClaimParams} from "contracts/types/Types.sol";
 
 enum BullaClaimState {
-    ZeroFeeCalculator,
-    WithFeeCalculator,
     NoOwner,
-    HasOwner,
-    NoFeeReceiver,
-    HasFeeReceiver
+    HasOwner
 }
 
 /// @dev This test ensures a claim's lifecycle remains uneffected by any top-level admin functions ///
 ///     1. A user should be able to create a claim and have the the claim trade hands any amount of times
-///     2. Any user should always be able to pay a claim + the fee for the claim determined at the time of claim creation with the creditor receiving tha payment
+///     2. Any user should always be able to pay a claim for the claim determined at the time of claim creation with the creditor receiving tha payment
 ///     3. Once the user fully pays a claim, it should go to the payer and the claim being marked as paid.
 contract TestInvariants is Test {
     WETH public weth;
@@ -33,7 +28,6 @@ contract TestInvariants is Test {
     address charlie = address(0xC44511E);
 
     address contractOwner = address(0xB0b);
-    address feeReceiver = address(0xFEE);
 
     address creditor = address(0x01);
     address debtor = address(0x02);
@@ -48,37 +42,23 @@ contract TestInvariants is Test {
         string description,
         address token,
         address controller,
-        FeePayer feePayer,
-        ClaimBinding binding,
-        uint256 feeCalculatorId
+        ClaimBinding binding
     );
 
-    event ClaimPayment(
-        uint256 indexed claimId,
-        address indexed paidBy,
-        uint256 paymentAmount,
-        uint256 totalPaidAmount,
-        uint256 feePaymentAmount
-    );
+    event ClaimPayment(uint256 indexed claimId, address indexed paidBy, uint256 paymentAmount, uint256 totalPaidAmount);
     event ClaimRescinded(uint256 indexed claimId, address indexed from, string note);
 
     function setUp() public {
         weth = new WETH();
 
         vm.label(address(this), "TEST_CONTRACT");
-        vm.label(feeReceiver, "FEE_RECEIVER");
 
         vm.label(creditor, "CREDITOR");
         vm.label(debtor, "DEBTOR");
         vm.label(alice, "ALICE");
 
         vm.prank(contractOwner);
-        (bullaClaim,) = (new Deployer()).deploy_test({
-            _deployer: contractOwner,
-            _feeReceiver: feeReceiver,
-            _initialLockState: LockState.Unlocked,
-            _feeBPS: 0
-        });
+        bullaClaim = (new Deployer()).deploy_test({_deployer: contractOwner, _initialLockState: LockState.Unlocked});
 
         weth.transferFrom(address(this), creditor, type(uint136).max);
         weth.transferFrom(address(this), debtor, type(uint136).max);
@@ -90,18 +70,10 @@ contract TestInvariants is Test {
     function _setState(BullaClaimState state) public {
         vm.startPrank(bullaClaim.owner() == address(0) ? address(0) : contractOwner);
 
-        if (state == BullaClaimState.ZeroFeeCalculator) {
-            bullaClaim.setFeeCalculator(address(0));
-        } else if (state == BullaClaimState.WithFeeCalculator) {
-            bullaClaim.setFeeCalculator(address(new BullaFeeCalculator(500)));
-        } else if (state == BullaClaimState.NoOwner && bullaClaim.owner() != address(0)) {
+        if (state == BullaClaimState.NoOwner && bullaClaim.owner() != address(0)) {
             bullaClaim.renounceOwnership();
         } else if (state == BullaClaimState.HasOwner) {
             bullaClaim.transferOwnership(contractOwner);
-        } else if (state == BullaClaimState.NoFeeReceiver) {
-            bullaClaim.setFeeCollectionAddress(address(0));
-        } else if (state == BullaClaimState.HasFeeReceiver) {
-            bullaClaim.setFeeCollectionAddress(address(feeReceiver));
         }
 
         vm.stopPrank();
@@ -119,11 +91,8 @@ contract TestInvariants is Test {
 
         vm.assume(_claimAmount > 100);
 
-        BullaClaimState state = BullaClaimState(_bullaClaimState1 % 6);
+        BullaClaimState state = BullaClaimState(_bullaClaimState1 % 2);
         _setState(state);
-
-        uint256 initialFeeCalculator =
-            state == BullaClaimState.WithFeeCalculator ? bullaClaim.currentFeeCalculatorId() : 0;
 
         uint256 claimId;
         uint256 fullPaymentAmount;
@@ -139,9 +108,7 @@ contract TestInvariants is Test {
             "",
             address(weth),
             address(0),
-            FeePayer.Debtor,
-            ClaimBinding(ClaimBinding.Unbound),
-            initialFeeCalculator
+            ClaimBinding(ClaimBinding.Unbound)
         );
 
         vm.prank(creditor);
@@ -154,13 +121,12 @@ contract TestInvariants is Test {
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
                 controller: address(0),
-                feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             })
         );
 
-        fullPaymentAmount = BullaHelpers.fullPaymentAmount(bullaClaim, debtor, claimId);
+        fullPaymentAmount = _claimAmount;
 
         // BEGIN TESTS //
 
@@ -169,7 +135,6 @@ contract TestInvariants is Test {
 
             assertTrue(claim.status == Status.Pending);
             assertTrue(claim.binding == ClaimBinding.Unbound);
-            assertEq(claim.feeCalculatorId, initialFeeCalculator);
             assertEq(claim.controller, address(0));
             assertEq(claim.token, address(weth));
 
@@ -178,7 +143,7 @@ contract TestInvariants is Test {
             assertEq(bullaClaim.currentClaimId(), claimId);
         }
 
-        state = BullaClaimState(_bullaClaimState2 % 6);
+        state = BullaClaimState(_bullaClaimState2 % 2);
         _setState(state);
 
         vm.prank(creditor);
@@ -187,7 +152,7 @@ contract TestInvariants is Test {
         assertEq(bullaClaim.balanceOf(alice), 1);
         assertEq(bullaClaim.ownerOf(claimId), alice);
 
-        state = BullaClaimState(_bullaClaimState3 % 6);
+        state = BullaClaimState(_bullaClaimState3 % 2);
         _setState(state);
 
         if (endWithCancellation) {
@@ -205,13 +170,12 @@ contract TestInvariants is Test {
             uint256 creditorBalanceBefore = weth.balanceOf(alice);
             uint256 debtorBalanceBefore = weth.balanceOf(debtor);
             uint256 paymentAmount = fullPaymentAmount / 2;
-            uint256 feeAmount = BullaHelpers.calculateFee(bullaClaim, debtor, claimId, paymentAmount);
 
             vm.startPrank(debtor);
             weth.approve(address(bullaClaim), paymentAmount);
 
             vm.expectEmit(true, true, true, true, address(bullaClaim));
-            emit ClaimPayment(claimId, debtor, paymentAmount - feeAmount, paymentAmount - feeAmount, feeAmount);
+            emit ClaimPayment(claimId, debtor, paymentAmount, paymentAmount);
 
             bullaClaim.payClaim(claimId, paymentAmount);
             vm.stopPrank();
@@ -220,11 +184,10 @@ contract TestInvariants is Test {
 
             assertTrue(claim.status == Status.Repaying);
             assertTrue(claim.binding == ClaimBinding.Unbound);
-            assertEq(claim.feeCalculatorId, initialFeeCalculator);
             assertEq(claim.controller, address(0));
             assertEq(claim.token, address(weth));
 
-            assertEq(weth.balanceOf(alice), creditorBalanceBefore + paymentAmount - feeAmount);
+            assertEq(weth.balanceOf(alice), creditorBalanceBefore + paymentAmount);
             assertEq(weth.balanceOf(debtor), debtorBalanceBefore - paymentAmount);
             assertEq(bullaClaim.balanceOf(alice), 1);
             assertEq(bullaClaim.ownerOf(claimId), alice);
@@ -237,7 +200,7 @@ contract TestInvariants is Test {
         assertEq(bullaClaim.balanceOf(charlie), 1);
         assertEq(bullaClaim.ownerOf(claimId), charlie);
 
-        state = BullaClaimState(_bullaClaimState4 % 6);
+        state = BullaClaimState(_bullaClaimState4 % 2);
         _setState(state);
 
         {
@@ -246,16 +209,13 @@ contract TestInvariants is Test {
             uint256 creditorBalanceBefore = weth.balanceOf(charlie);
             uint256 debtorBalanceBefore = weth.balanceOf(debtor);
 
-            uint256 _paymentAmount = BullaHelpers.fullPaymentAmount(bullaClaim, debtor, claimId);
-
-            uint256 feeAmount = BullaHelpers.calculateFee(bullaClaim, debtor, claimId, _paymentAmount);
-            uint256 paymentAmount = (claim.claimAmount - claim.paidAmount) + feeAmount;
-
-            vm.expectEmit(true, true, true, true, address(bullaClaim));
-            emit ClaimPayment(claimId, debtor, paymentAmount - feeAmount, _claimAmount, feeAmount);
+            uint256 paymentAmount = BullaHelpers.getRemainingPrincipalAmount(bullaClaim, claimId);
 
             vm.startPrank(debtor);
             weth.approve(address(bullaClaim), paymentAmount);
+
+            vm.expectEmit(true, true, true, true, address(bullaClaim));
+            emit ClaimPayment(claimId, debtor, paymentAmount, _claimAmount);
             bullaClaim.payClaim(claimId, paymentAmount);
             vm.stopPrank();
 
@@ -263,12 +223,11 @@ contract TestInvariants is Test {
 
             assertTrue(claim.status == Status.Paid);
             assertTrue(claim.binding == ClaimBinding.Unbound);
-            assertEq(claim.feeCalculatorId, initialFeeCalculator);
             assertEq(claim.controller, address(0));
             assertEq(claim.token, address(weth));
             assertEq(claim.claimAmount, claim.paidAmount);
 
-            assertEq(weth.balanceOf(charlie), creditorBalanceBefore + paymentAmount - feeAmount);
+            assertEq(weth.balanceOf(charlie), creditorBalanceBefore + paymentAmount);
             assertEq(weth.balanceOf(debtor), debtorBalanceBefore - paymentAmount);
             assertEq(bullaClaim.balanceOf(alice), 0);
             assertEq(bullaClaim.ownerOf(claimId), debtor);

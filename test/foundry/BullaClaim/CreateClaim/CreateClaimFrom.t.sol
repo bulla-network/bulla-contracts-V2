@@ -6,7 +6,6 @@ import "forge-std/Vm.sol";
 import "contracts/types/Types.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
-import {BullaFeeCalculator} from "contracts/BullaFeeCalculator.sol";
 import {BullaClaim, CreateClaimApprovalType} from "contracts/BullaClaim.sol";
 import {PenalizedClaim} from "contracts/mocks/PenalizedClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
@@ -24,13 +23,10 @@ import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper
 ///
 /// RES1: If the above are true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return -> otherwise: no-op
 contract TestCreateClaimFrom is BullaClaimTestHelper {
-    BullaFeeCalculator feeCalculator;
-
     uint256 creditorPK = uint256(0x01);
 
     address creditor = vm.addr(creditorPK);
     address debtor = address(0x02);
-    address feeReceiver = address(0xFEE);
 
     uint256 userPK = uint256(0xA11c3);
     address user = vm.addr(userPK);
@@ -46,20 +42,13 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
         string description,
         address token,
         address controller,
-        FeePayer feePayer,
-        ClaimBinding binding,
-        uint256 feeCalculatorId
+        ClaimBinding binding
     );
 
     function setUp() public {
         weth = new WETH();
 
-        (bullaClaim,) = (new Deployer()).deploy_test({
-            _deployer: address(this),
-            _feeReceiver: address(0xfee),
-            _initialLockState: LockState.Unlocked,
-            _feeBPS: 0
-        });
+        bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
         sigHelper = new EIP712Helper(address(bullaClaim));
         _newClaim(creditor, creditor, debtor);
     }
@@ -128,7 +117,6 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
                 controller: address(controller),
-                feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             })
@@ -239,7 +227,6 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
                 controller: address(0),
-                feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Bound, // binding is set to bound
                 payerReceivesClaimOnPayment: true
             })
@@ -285,9 +272,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
                 "fuzzzin",
                 address(0),
                 address(0),
-                FeePayer.Debtor,
-                _isBindingAllowed && !isInvoice ? ClaimBinding.Bound : ClaimBinding.Unbound,
-                0
+                _isBindingAllowed && !isInvoice ? ClaimBinding.Bound : ClaimBinding.Unbound
             );
         }
 
@@ -302,7 +287,6 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
                 controller: address(0),
-                feePayer: FeePayer.Debtor,
                 binding: _isBindingAllowed && !isInvoice ? ClaimBinding.Bound : ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             })

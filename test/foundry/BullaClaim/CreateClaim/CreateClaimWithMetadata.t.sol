@@ -4,29 +4,17 @@ pragma solidity ^0.8.14;
 import "forge-std/Test.sol";
 import "forge-std/Vm.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
-import {
-    Claim,
-    Status,
-    ClaimBinding,
-    FeePayer,
-    CreateClaimParams,
-    ClaimMetadata,
-    LockState
-} from "contracts/types/Types.sol";
-import {BullaFeeCalculator} from "contracts/BullaFeeCalculator.sol";
+import {Claim, Status, ClaimBinding, CreateClaimParams, ClaimMetadata, LockState} from "contracts/types/Types.sol";
 import {BullaClaim, CreateClaimApprovalType} from "contracts/BullaClaim.sol";
 import {PenalizedClaim} from "contracts/mocks/PenalizedClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 
 contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
-    BullaFeeCalculator feeCalculator;
-
     uint256 creditorPK = uint256(0x01);
 
     address creditor = vm.addr(creditorPK);
     address debtor = address(0x02);
-    address feeReceiver = address(0xFEE);
 
     uint256 userPK = uint256(0xA11c3);
     address user = vm.addr(userPK);
@@ -35,12 +23,7 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
     event MetadataAdded(uint256 indexed claimId, string tokenURI, string attachmentURI);
 
     function setUp() public {
-        (bullaClaim,) = (new Deployer()).deploy_test({
-            _deployer: address(this),
-            _feeReceiver: address(0xfee),
-            _initialLockState: LockState.Unlocked,
-            _feeBPS: 0
-        });
+        bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
         sigHelper = new EIP712Helper(address(bullaClaim));
     }
 
@@ -77,7 +60,6 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
                 controller: address(0),
-                feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             }),
@@ -133,7 +115,6 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
                 controller: address(0),
-                feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Bound,
                 payerReceivesClaimOnPayment: true
             }),
@@ -161,7 +142,6 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
                 controller: address(0),
-                feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             }),
@@ -189,7 +169,6 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
                 controller: address(0),
-                feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             }),

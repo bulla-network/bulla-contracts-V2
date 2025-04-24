@@ -219,9 +219,7 @@ library BullaClaimPermitLib {
         pure
         returns (bytes32)
     {
-        bytes32[] memory approvalHashes = new bytes32[](
-            paymentApprovals.length
-        );
+        bytes32[] memory approvalHashes = new bytes32[](paymentApprovals.length);
         for (uint256 i; i < paymentApprovals.length; ++i) {
             approvalHashes[i] = keccak256(
                 abi.encode(

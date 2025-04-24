@@ -3,16 +3,19 @@ import { expect } from "chai";
 import { BigNumber } from "ethers";
 import { ethers } from "hardhat";
 import {
-    BullaClaim, BullaClaimPermitLib, BullaExtensionRegistry, PenalizedClaim, WETH
+  BullaClaim,
+  BullaClaimPermitLib,
+  BullaExtensionRegistry,
+  PenalizedClaim,
+  WETH,
 } from "../../../typechain-types";
+import { ClaimPaymentApprovalStruct } from "../../../typechain-types/src/BullaClaim";
 import {
-    ClaimPaymentApprovalStruct
-} from "../../../typechain-types/src/BullaClaim";
-import {
-    ClaimBinding, declareSignerWithAddress,
-    deployContractsFixture,
-    FeePayer, generatePayClaimSignature,
-    PayClaimApprovalType
+  ClaimBinding,
+  declareSignerWithAddress,
+  deployContractsFixture,
+  generatePayClaimSignature,
+  PayClaimApprovalType,
 } from "./common";
 
 describe("permitPayClaim", async () => {
@@ -92,7 +95,6 @@ describe("permitPayClaim", async () => {
       description: `claim description ${Math.random()}`,
       token: weth.address,
       controller: ethers.constants.AddressZero,
-      feePayer: FeePayer.Debtor,
       binding: ClaimBinding.Unbound,
     };
 

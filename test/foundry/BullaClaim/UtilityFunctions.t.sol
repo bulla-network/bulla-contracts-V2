@@ -2,15 +2,7 @@
 pragma solidity 0.8.15;
 
 import "forge-std/Test.sol";
-import {
-    Claim,
-    Status,
-    ClaimBinding,
-    FeePayer,
-    LockState,
-    CreateClaimParams,
-    ClaimMetadata
-} from "contracts/types/Types.sol";
+import {Claim, Status, ClaimBinding, LockState, CreateClaimParams, ClaimMetadata} from "contracts/types/Types.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {ClaimMetadataGenerator} from "contracts/ClaimMetadataGenerator.sol";
 import {Deployer} from "script/Deployment.s.sol";
@@ -20,15 +12,9 @@ contract TestTokenURI is Test {
 
     address alice = address(0xA11cE);
     address charlie = address(0xC44511E);
-    address feeReceiver = address(0xFEE);
 
     function setUp() public {
-        (bullaClaim,) = (new Deployer()).deploy_test({
-            _deployer: address(this),
-            _feeReceiver: feeReceiver,
-            _initialLockState: LockState.Unlocked,
-            _feeBPS: 0
-        });
+        bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
     }
 
     function testDomainSeparator() public {
@@ -44,23 +30,6 @@ contract TestTokenURI is Test {
     }
 
     ////// OWNER FUNCTIONS //////
-
-    function testSetFeeCalculatorOnlyOwner(address _feeCalculator) public {
-        uint256 feeCalcBefore = bullaClaim.currentFeeCalculatorId();
-        bullaClaim.setFeeCalculator(_feeCalculator);
-
-        assertEq(bullaClaim.currentFeeCalculatorId(), feeCalcBefore + 1);
-        assertEq(address(bullaClaim.feeCalculators(bullaClaim.currentFeeCalculatorId())), _feeCalculator);
-
-        vm.prank(charlie);
-        vm.expectRevert("Ownable: caller is not the owner");
-        bullaClaim.setFeeCalculator(_feeCalculator);
-    }
-
-    function testSetFeeCalculatorWhileLocked() public {
-        bullaClaim.setLockState(LockState.Locked);
-        bullaClaim.setFeeCalculator(address(0x12345));
-    }
 
     function testSetExtensionRegistryOnlyOwner(address _extensionRegistry) public {
         bullaClaim.setExtensionRegistry(_extensionRegistry);
@@ -90,21 +59,6 @@ contract TestTokenURI is Test {
     function testSetClaimMetadataGeneratorWhileLocked() public {
         bullaClaim.setLockState(LockState.Locked);
         bullaClaim.setClaimMetadataGenerator(address(0x12345));
-    }
-
-    function testSetFeeCollectionAddressOnlyOwner(address _feeCollectionAddress) public {
-        bullaClaim.setFeeCollectionAddress(_feeCollectionAddress);
-
-        assertEq(address(bullaClaim.feeCollectionAddress()), _feeCollectionAddress);
-
-        vm.prank(charlie);
-        vm.expectRevert("Ownable: caller is not the owner");
-        bullaClaim.setFeeCollectionAddress(_feeCollectionAddress);
-    }
-
-    function testSetFeeCollectionAddressWhileLocked() public {
-        bullaClaim.setLockState(LockState.Locked);
-        bullaClaim.setFeeCollectionAddress(address(0x12345));
     }
 
     function testLockStateOnlyOwner(uint8 __lockState) public {

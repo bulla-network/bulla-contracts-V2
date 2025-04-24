@@ -2,7 +2,6 @@
 pragma solidity 0.8.15;
 
 import "contracts/types/Types.sol";
-import {IBullaFeeCalculator} from "contracts/interfaces/IBullaFeeCalculator.sol";
 import {IERC1271} from "contracts/interfaces/IERC1271.sol";
 import {BullaExtensionRegistry} from "contracts/BullaExtensionRegistry.sol";
 import {EIP712} from "openzeppelin-contracts/contracts/utils/cryptography/EIP712.sol";
@@ -32,13 +31,8 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     mapping(uint256 => ClaimMetadata) public claimMetadata;
     /// a mapping of users to operators to approvals for specific actions
     mapping(address => mapping(address => Approvals)) public approvals;
-    /// The contract which calculates the fee for a specific claim - tracked via ids
-    uint256 public currentFeeCalculatorId;
-    mapping(uint256 => IBullaFeeCalculator) public feeCalculators;
     /// Restricts which functions can be called. Options: Unlocked, NoNewClaims, Locked:
     LockState public lockState;
-    /// the address fees are forwarded to
-    address public feeCollectionAddress;
     /// the total amount of claims minted
     uint256 public currentClaimId;
     /// a registry of extension names vetted by Bulla Network
@@ -87,20 +81,12 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         string description,
         address token,
         address controller,
-        FeePayer feePayer,
-        ClaimBinding binding,
-        uint256 feeCalculatorId
+        ClaimBinding binding
     );
 
     event MetadataAdded(uint256 indexed claimId, string tokenURI, string attachmentURI);
 
-    event ClaimPayment(
-        uint256 indexed claimId,
-        address indexed paidBy,
-        uint256 paymentAmount,
-        uint256 totalPaidAmount,
-        uint256 feePaymentAmount
-    );
+    event ClaimPayment(uint256 indexed claimId, address indexed paidBy, uint256 paymentAmount, uint256 totalPaidAmount);
 
     event BindingUpdated(uint256 indexed claimId, address indexed from, ClaimBinding indexed binding);
 
@@ -128,11 +114,10 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
 
     event CancelClaimApproved(address indexed user, address indexed operator, uint256 approvalCount);
 
-    constructor(address _feeCollectionAddress, address _extensionRegistry, LockState _lockState)
+    constructor(address _extensionRegistry, LockState _lockState)
         ERC721("BullaClaim", "CLAIM")
         EIP712("BullaClaim", "1")
     {
-        feeCollectionAddress = _feeCollectionAddress;
         extensionRegistry = BullaExtensionRegistry(_extensionRegistry);
         lockState = _lockState;
     }
@@ -265,7 +250,6 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         if (params.binding == ClaimBinding.Bound && from != params.debtor) revert CannotBindClaim();
         if (params.claimAmount == 0) revert ZeroAmount();
 
-        uint16 feeCalculatorId;
         uint256 claimId;
         {
             unchecked {
@@ -277,16 +261,9 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
             claim.claimAmount = params.claimAmount.safeCastTo128(); //TODO: is this necessary?
             claim.debtor = params.debtor;
 
-            uint256 _currentFeeCalculatorId = currentFeeCalculatorId;
-            // we store the fee calculator id on the claim to make
-            // sure the payer pays the fee amount when the claim was created
-            if (_currentFeeCalculatorId != 0 && address(feeCalculators[_currentFeeCalculatorId]) != address(0)) {
-                claim.feeCalculatorId = feeCalculatorId = uint16(_currentFeeCalculatorId);
-            }
             if (params.dueBy != 0) claim.dueBy = uint40(params.dueBy);
             if (params.token != address(0)) claim.token = params.token;
             if (params.controller != address(0)) claim.controller = params.controller;
-            if (params.feePayer == FeePayer.Debtor) claim.feePayer = params.feePayer;
             if (params.binding != ClaimBinding.Unbound) claim.binding = params.binding;
             if (params.payerReceivesClaimOnPayment) claim.payerReceivesClaimOnPayment = true;
         }
@@ -301,9 +278,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
             params.description,
             params.token,
             params.controller,
-            params.feePayer,
-            params.binding,
-            feeCalculatorId
+            params.binding
         );
 
         // mint the NFT to the creditor
@@ -408,8 +383,6 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     /// @notice Allows any user to pay a claim with the token the claim is denominated in
     /// @notice NOTE: if the claim token is address(0) (eth) then we use the eth transferred to the contract. If this function is called via PayClaimFrom,
     ///     then the calling function must handle the sending of `from`'s eth to contract and then call this function.
-    /// @notice NOTE: The actual amount "paid off" of the claim may be less if our fee is enabled
-    ///     In other words, we treat this `amount` param as the amount the user wants to spend, and then deduct a fee from that amount
     /// @notice SPEC:
     ///     Allow a user to pay a claim given:
     ///         1. The contract is not locked
@@ -431,30 +404,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         // make sure the claim can be paid (not completed, not rejected, not rescinded)
         if (claim.status != Status.Pending && claim.status != Status.Repaying) revert ClaimNotPending();
 
-        uint256 fee = claim.feeCalculatorId != 0
-            ? IBullaFeeCalculator(feeCalculators[claim.feeCalculatorId]).calculateFee(
-                claimId,
-                from,
-                creditor,
-                claim.debtor,
-                paymentAmount,
-                claim.claimAmount,
-                claim.paidAmount,
-                claim.dueBy,
-                claim.binding,
-                claim.feePayer
-            )
-            : 0;
-
-        uint256 amountToTransferCreditor = paymentAmount - fee;
-
-        // The actual amount paid off the claim depends on who pays the fee.
-        // The creditor will always receive the param `amount` minus the fee
-        // however the debtor's obligation (implicitly claimAmount - paidAmount) will be greater
-        // if FeePayer == Debtor (payer)
-        uint256 claimPaymentAmount = claim.feePayer == FeePayer.Debtor ? paymentAmount - fee : paymentAmount;
-
-        uint256 totalPaidAmount = claim.paidAmount + claimPaymentAmount;
+        uint256 totalPaidAmount = claim.paidAmount + paymentAmount;
         bool claimPaid = totalPaidAmount == claim.claimAmount;
 
         if (totalPaidAmount > claim.claimAmount) revert OverPaying(paymentAmount);
@@ -466,17 +416,11 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         // if the claim is still not fully paid, update the status to repaying
         claimStorage.status = claimPaid ? Status.Paid : Status.Repaying;
 
-        if (fee > 0) {
-            claim.token == address(0)
-                ? feeCollectionAddress.safeTransferETH(fee)
-                : ERC20(claim.token).safeTransferFrom(from, feeCollectionAddress, fee);
-        }
-
         claim.token == address(0)
-            ? creditor.safeTransferETH(amountToTransferCreditor)
-            : ERC20(claim.token).safeTransferFrom(from, creditor, amountToTransferCreditor);
+            ? creditor.safeTransferETH(paymentAmount)
+            : ERC20(claim.token).safeTransferFrom(from, creditor, paymentAmount);
 
-        emit ClaimPayment(claimId, from, claimPaymentAmount, totalPaidAmount, fee);
+        emit ClaimPayment(claimId, from, paymentAmount, totalPaidAmount);
 
         // transfer the ownership of the claim NFT to the payee as a receipt of their completed payment
         if (claim.payerReceivesClaimOnPayment && claimPaid) _transferFrom(creditor, from, claimId);
@@ -612,7 +556,6 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     /**
      * /// BURN CLAIM ///
      */
-
     function burn(uint256 tokenId) external {
         _notLocked();
         if (msg.sender != ownerOf(tokenId)) revert NotOwner();
@@ -702,10 +645,8 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
             paidAmount: uint256(claimStorage.paidAmount),
             status: claimStorage.status,
             binding: claimStorage.binding,
-            feePayer: claimStorage.feePayer,
             payerReceivesClaimOnPayment: claimStorage.payerReceivesClaimOnPayment,
             debtor: claimStorage.debtor,
-            feeCalculatorId: claimStorage.feeCalculatorId,
             dueBy: uint256(claimStorage.dueBy),
             token: claimStorage.token,
             controller: claimStorage.controller
@@ -732,25 +673,12 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
                             OWNER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function setFeeCalculator(address _feeCalculator) external onlyOwner {
-        uint256 nextFeeCalculator;
-        unchecked {
-            nextFeeCalculator = ++currentFeeCalculatorId;
-        }
-
-        feeCalculators[nextFeeCalculator] = IBullaFeeCalculator(_feeCalculator);
-    }
-
     function setExtensionRegistry(address _extensionRegistry) external onlyOwner {
         extensionRegistry = BullaExtensionRegistry(_extensionRegistry);
     }
 
     function setClaimMetadataGenerator(address _metadataGenerator) external onlyOwner {
         claimMetadataGenerator = ClaimMetadataGenerator(_metadataGenerator);
-    }
-
-    function setFeeCollectionAddress(address _feeCollectionAddress) external onlyOwner {
-        feeCollectionAddress = _feeCollectionAddress;
     }
 
     function setLockState(LockState _lockState) external onlyOwner {

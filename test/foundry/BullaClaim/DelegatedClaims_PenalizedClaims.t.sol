@@ -21,17 +21,11 @@ contract TestPenalizedClaim is Test {
     uint256 debtorPK = uint256(0x02);
     address creditor = vm.addr(creditorPK);
     address debtor = vm.addr(debtorPK);
-    address feeReceiver = address(0xFee);
 
     function setUp() public {
         weth = new WETH();
 
-        (bullaClaim,) = (new Deployer()).deploy_test({
-            _deployer: address(this),
-            _feeReceiver: address(0xfee),
-            _initialLockState: LockState.Unlocked,
-            _feeBPS: 0
-        });
+        bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
         sigHelper = new EIP712Helper(address(bullaClaim));
         penalizedClaim = new PenalizedClaim(address(bullaClaim));
 
@@ -66,7 +60,6 @@ contract TestPenalizedClaim is Test {
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
                 controller: address(penalizedClaim),
-                feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.BindingPending,
                 payerReceivesClaimOnPayment: true
             })
@@ -138,7 +131,6 @@ contract TestPenalizedClaim is Test {
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
                 controller: address(penalizedClaim),
-                feePayer: FeePayer.Debtor,
                 binding: ClaimBinding.BindingPending,
                 payerReceivesClaimOnPayment: true
             })

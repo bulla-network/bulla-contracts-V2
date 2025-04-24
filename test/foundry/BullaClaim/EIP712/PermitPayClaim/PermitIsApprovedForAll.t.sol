@@ -24,6 +24,15 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
 
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](0);
 
+        bytes memory signature = sigHelper.signPayClaimPermit({
+            pk: alicePK,
+            user: alice,
+            operator: bob,
+            approvalType: approvalType,
+            approvalDeadline: approvalDeadline,
+            paymentApprovals: paymentApprovals
+        });
+
         vm.expectEmit(true, true, true, true);
         emit PayClaimApproved(alice, bob, approvalType, approvalDeadline, paymentApprovals);
 
@@ -33,14 +42,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
             approvalType: approvalType,
             approvalDeadline: approvalDeadline,
             paymentApprovals: paymentApprovals,
-            signature: sigHelper.signPayClaimPermit({
-                pk: alicePK,
-                user: alice,
-                operator: bob,
-                approvalType: approvalType,
-                approvalDeadline: approvalDeadline,
-                paymentApprovals: paymentApprovals
-            })
+            signature: signature
         });
 
         (, PayClaimApproval memory approval,,) = bullaClaim.approvals(alice, bob);
@@ -278,9 +280,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         vm.assume(approvalsCount > 0);
 
         approvalType = PayClaimApprovalType.IsApprovedForSpecific;
-        ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](
-                approvalsCount
-            );
+        ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](approvalsCount);
 
         // create individual claim approvals
         for (uint256 i = 0; i < approvalsCount; i++) {

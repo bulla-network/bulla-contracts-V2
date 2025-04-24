@@ -34,7 +34,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
         vm.label(creditor, "CREDITOR");
         vm.label(debtor, "DEBTOR");
 
-        (bullaClaim,) = (new Deployer()).deploy_test(deployer, address(0xfee), LockState.Unlocked, 0);
+        bullaClaim = (new Deployer()).deploy_test(deployer, LockState.Unlocked);
         sigHelper = new EIP712Helper(address(bullaClaim));
     }
 
@@ -52,7 +52,6 @@ contract TestCancelClaim is BullaClaimTestHelper {
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
                 controller: address(0),
-                feePayer: FeePayer.Creditor,
                 binding: binding,
                 payerReceivesClaimOnPayment: true
             })
@@ -388,7 +387,6 @@ contract TestCancelClaim is BullaClaimTestHelper {
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
                 controller: operator, // operator is the controller
-                feePayer: FeePayer.Creditor,
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             })
@@ -429,7 +427,6 @@ contract TestCancelClaim is BullaClaimTestHelper {
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
                 controller: operator, // operator is the controller
-                feePayer: FeePayer.Creditor,
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             })

@@ -16,8 +16,7 @@ import {ReturnsTooLittleToken} from "solmate/test/utils/weird-tokens/ReturnsTooL
 import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import {FeeOnTransferToken} from "contracts/mocks/FeeOnTransferToken.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
-import {BullaFeeCalculator} from "contracts/BullaFeeCalculator.sol";
-import {Claim, Status, ClaimBinding, FeePayer, CreateClaimParams, LockState} from "contracts/types/Types.sol";
+import {Claim, Status, ClaimBinding, CreateClaimParams, LockState} from "contracts/types/Types.sol";
 import {Deployer} from "script/Deployment.s.sol";
 
 contract TestPayClaimWithWeirdTokens is Test {
@@ -33,19 +32,16 @@ contract TestPayClaimWithWeirdTokens is Test {
     ReturnsTooLittleToken returnsTooLittle;
 
     BullaClaim bullaClaim;
-    BullaFeeCalculator feeCalculator;
 
-    address feeReceiver = address(0xFEE);
     address creditor = address(0xA11c3);
     address debtor = address(0xB0b);
 
     function setUp() public {
-        vm.label(feeReceiver, "FEE_RECEIVER");
         vm.label(creditor, "CREDITOR");
         vm.label(debtor, "DEBTOR");
         vm.label(address(this), "TEST_CONTRACT");
 
-        (bullaClaim,) = (new Deployer()).deploy_test(address(this), feeReceiver, LockState.Unlocked, 0);
+        bullaClaim = (new Deployer()).deploy_test(address(this), LockState.Unlocked);
 
         reverting = new RevertingToken();
         returnsTwo = new ReturnsTwoToken();
@@ -60,20 +56,9 @@ contract TestPayClaimWithWeirdTokens is Test {
     }
 
     // contract events
-    event ClaimPayment(
-        uint256 indexed claimId,
-        address indexed paidBy,
-        uint256 paymentAmount,
-        uint256 totalPaidAmount,
-        uint256 feePaymentAmount
-    );
+    event ClaimPayment(uint256 indexed claimId, address indexed paidBy, uint256 paymentAmount, uint256 totalPaidAmount);
 
-    function _enableFee() private {
-        feeCalculator = new BullaFeeCalculator(500);
-        bullaClaim.setFeeCalculator(address(feeCalculator));
-    }
-
-    function _newClaim(address token, FeePayer feePayer, uint256 claimAmount) private returns (uint256 claimId) {
+    function _newClaim(address token, uint256 claimAmount) private returns (uint256 claimId) {
         claimId = bullaClaim.createClaim(
             CreateClaimParams({
                 creditor: creditor,
@@ -83,7 +68,6 @@ contract TestPayClaimWithWeirdTokens is Test {
                 dueBy: block.timestamp + 1 days,
                 token: token,
                 controller: address(0),
-                feePayer: feePayer,
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             })
@@ -115,11 +99,10 @@ contract TestPayClaimWithWeirdTokens is Test {
             ERC20 token = tokens[i];
 
             vm.prank(creditor);
-            uint256 claimId = _newClaim(address(token), FeePayer.Creditor, CLAIM_AMOUNT);
+            uint256 claimId = _newClaim(address(token), CLAIM_AMOUNT);
 
             uint256 creditorBalanceBefore = token.balanceOf(creditor);
             uint256 debtorBalanceBefore = token.balanceOf(debtor);
-            uint256 feeReceiverBalanceBefore = token.balanceOf(feeReceiver);
 
             _forceApprove(address(token), debtor, address(bullaClaim), CLAIM_AMOUNT);
 
@@ -131,9 +114,6 @@ contract TestPayClaimWithWeirdTokens is Test {
 
             //ensure no tokens transferred in the case of strange reverts
             assertEq(token.balanceOf(debtor), debtorBalanceBefore, string.concat("Fail on token: ", i.toString()));
-            assertEq(
-                token.balanceOf(feeReceiver), feeReceiverBalanceBefore, string.concat("Fail on token: ", i.toString())
-            );
             assertEq(token.balanceOf(creditor), creditorBalanceBefore, string.concat("Fail on token: ", i.toString()));
 
             assertEq(bullaClaim.ownerOf(claimId), address(creditor), string.concat("Fail on token: ", i.toString()));
@@ -149,25 +129,23 @@ contract TestPayClaimWithWeirdTokens is Test {
         Claim memory claim;
         uint256 creditorBalanceBefore;
         uint256 debtorBalanceBefore;
-        uint256 feeReceiverBalanceBefore;
         uint256 tokenFeeAmount;
 
         feeToken.mint(debtor, CLAIM_AMOUNT * 2);
         tokenFeeAmount = (CLAIM_AMOUNT * feeToken.FEE_BPS()) / 10000;
 
         vm.prank(creditor);
-        uint256 claimId_creditorFee = _newClaim(address(feeToken), FeePayer.Creditor, CLAIM_AMOUNT);
+        uint256 claimId_creditorFee = _newClaim(address(feeToken), CLAIM_AMOUNT);
 
         creditorBalanceBefore = feeToken.balanceOf(creditor);
         debtorBalanceBefore = feeToken.balanceOf(debtor);
-        feeReceiverBalanceBefore = feeToken.balanceOf(feeReceiver);
 
         vm.prank(debtor);
         feeToken.approve(address(bullaClaim), CLAIM_AMOUNT * 2);
 
         // expect amountPaid in the event to equal the amount transferred from the debtor
         vm.expectEmit(true, true, true, true, address(bullaClaim));
-        emit ClaimPayment(claimId_creditorFee, debtor, CLAIM_AMOUNT, CLAIM_AMOUNT, 0);
+        emit ClaimPayment(claimId_creditorFee, debtor, CLAIM_AMOUNT, CLAIM_AMOUNT);
 
         vm.prank(debtor);
         bullaClaim.payClaim(claimId_creditorFee, CLAIM_AMOUNT);
@@ -176,7 +154,6 @@ contract TestPayClaimWithWeirdTokens is Test {
 
         // ensure no tokens transferred
         assertEq(feeToken.balanceOf(debtor), debtorBalanceBefore - CLAIM_AMOUNT);
-        assertEq(feeToken.balanceOf(feeReceiver), feeReceiverBalanceBefore);
         assertEq(feeToken.balanceOf(creditor), creditorBalanceBefore + CLAIM_AMOUNT - tokenFeeAmount);
 
         assertEq(bullaClaim.ownerOf(claimId_creditorFee), address(debtor));
@@ -184,15 +161,14 @@ contract TestPayClaimWithWeirdTokens is Test {
 
         // ensure debtor fee
         vm.prank(creditor);
-        uint256 claimId_debtorFee = _newClaim(address(feeToken), FeePayer.Debtor, CLAIM_AMOUNT);
+        uint256 claimId_debtorFee = _newClaim(address(feeToken), CLAIM_AMOUNT);
 
         creditorBalanceBefore = feeToken.balanceOf(creditor);
         debtorBalanceBefore = feeToken.balanceOf(debtor);
-        feeReceiverBalanceBefore = feeToken.balanceOf(feeReceiver);
 
         // expect amountPaid in the event to equal the amount transferred from the debtor
         vm.expectEmit(true, true, true, true, address(bullaClaim));
-        emit ClaimPayment(claimId_debtorFee, debtor, CLAIM_AMOUNT, CLAIM_AMOUNT, 0);
+        emit ClaimPayment(claimId_debtorFee, debtor, CLAIM_AMOUNT, CLAIM_AMOUNT);
 
         vm.prank(debtor);
         bullaClaim.payClaim(claimId_debtorFee, CLAIM_AMOUNT);
@@ -200,117 +176,6 @@ contract TestPayClaimWithWeirdTokens is Test {
         claim = bullaClaim.getClaim(claimId_debtorFee);
 
         assertEq(feeToken.balanceOf(debtor), debtorBalanceBefore - CLAIM_AMOUNT);
-        assertEq(feeToken.balanceOf(feeReceiver), feeReceiverBalanceBefore);
-        assertEq(feeToken.balanceOf(creditor), creditorBalanceBefore + CLAIM_AMOUNT - tokenFeeAmount);
-
-        assertEq(bullaClaim.ownerOf(claimId_debtorFee), address(debtor));
-        assertEq(uint256(claim.status), uint256(Status.Paid));
-    }
-
-    function testFeeOnTransferToken_withBullaFee() public {
-        _enableFee();
-        uint256 CLAIM_AMOUNT = 100 ether;
-        FeeOnTransferToken feeToken = new FeeOnTransferToken();
-
-        Claim memory claim;
-        uint256 creditorBalanceBefore;
-        uint256 debtorBalanceBefore;
-        uint256 feeReceiverBalanceBefore;
-        uint256 tokenFeeAmount;
-        uint256 bullaFeeAmount = feeCalculator.calculateFee(
-            0,
-            address(0),
-            address(0),
-            address(0),
-            CLAIM_AMOUNT,
-            CLAIM_AMOUNT,
-            0,
-            0,
-            ClaimBinding.Unbound,
-            FeePayer.Creditor
-        );
-
-        tokenFeeAmount = (CLAIM_AMOUNT * feeToken.FEE_BPS()) / 10000;
-
-        feeToken.mint(debtor, CLAIM_AMOUNT * 10);
-        vm.prank(debtor);
-        feeToken.approve(address(bullaClaim), CLAIM_AMOUNT * 10);
-
-        vm.prank(creditor);
-        uint256 claimId_creditorFee = _newClaim(address(feeToken), FeePayer.Creditor, CLAIM_AMOUNT);
-
-        creditorBalanceBefore = feeToken.balanceOf(creditor);
-        debtorBalanceBefore = feeToken.balanceOf(debtor);
-        feeReceiverBalanceBefore = feeToken.balanceOf(feeReceiver);
-
-        vm.expectEmit(true, true, true, true, address(bullaClaim));
-        emit ClaimPayment(claimId_creditorFee, debtor, CLAIM_AMOUNT, CLAIM_AMOUNT, bullaFeeAmount);
-
-        vm.prank(debtor);
-        bullaClaim.payClaim(claimId_creditorFee, CLAIM_AMOUNT);
-
-        claim = bullaClaim.getClaim(claimId_creditorFee);
-
-        assertEq(feeToken.balanceOf(debtor), debtorBalanceBefore - CLAIM_AMOUNT);
-        assertEq(
-            feeToken.balanceOf(feeReceiver),
-            feeReceiverBalanceBefore + bullaFeeAmount - (bullaFeeAmount * feeToken.FEE_BPS()) / 10000
-        );
-        assertEq(
-            feeToken.balanceOf(creditor),
-            creditorBalanceBefore + (CLAIM_AMOUNT - bullaFeeAmount)
-                - (((CLAIM_AMOUNT - bullaFeeAmount) * feeToken.FEE_BPS()) / 10000)
-        );
-
-        assertEq(bullaClaim.ownerOf(claimId_creditorFee), address(debtor));
-        assertEq(uint256(claim.status), uint256(Status.Paid));
-
-        // ensure debtor fee
-        vm.prank(creditor);
-        uint256 claimId_debtorFee = _newClaim(address(feeToken), FeePayer.Debtor, CLAIM_AMOUNT);
-
-        claim = bullaClaim.getClaim(claimId_debtorFee);
-        uint256 fullPaymentAmount = feeCalculator.fullPaymentAmount(
-            0,
-            address(0),
-            address(0),
-            address(0),
-            claim.claimAmount,
-            claim.paidAmount,
-            0,
-            ClaimBinding.Unbound,
-            FeePayer.Debtor
-        );
-        bullaFeeAmount = feeCalculator.calculateFee(
-            0,
-            address(0),
-            address(0),
-            address(0),
-            fullPaymentAmount,
-            100 ether,
-            0,
-            0,
-            ClaimBinding.Unbound,
-            FeePayer.Debtor
-        );
-
-        creditorBalanceBefore = feeToken.balanceOf(creditor);
-        debtorBalanceBefore = feeToken.balanceOf(debtor);
-        feeReceiverBalanceBefore = feeToken.balanceOf(feeReceiver);
-
-        vm.expectEmit(true, true, true, true, address(bullaClaim));
-        emit ClaimPayment(claimId_debtorFee, debtor, CLAIM_AMOUNT, CLAIM_AMOUNT, bullaFeeAmount);
-
-        vm.prank(debtor);
-        bullaClaim.payClaim(claimId_debtorFee, fullPaymentAmount);
-
-        claim = bullaClaim.getClaim(claimId_debtorFee);
-
-        assertEq(feeToken.balanceOf(debtor), debtorBalanceBefore - fullPaymentAmount);
-        assertEq(
-            feeToken.balanceOf(feeReceiver),
-            feeReceiverBalanceBefore + bullaFeeAmount - ((bullaFeeAmount * feeToken.FEE_BPS()) / 10000)
-        );
         assertEq(feeToken.balanceOf(creditor), creditorBalanceBefore + CLAIM_AMOUNT - tokenFeeAmount);
 
         assertEq(bullaClaim.ownerOf(claimId_debtorFee), address(debtor));

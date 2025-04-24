@@ -62,12 +62,7 @@ contract TestPermitCreateClaim is Test {
     );
 
     function setUp() public {
-        (bullaClaim,) = (new Deployer()).deploy_test({
-            _deployer: address(this),
-            _feeReceiver: address(0xfee),
-            _initialLockState: LockState.Unlocked,
-            _feeBPS: 0
-        });
+        bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
         sigHelper = new EIP712Helper(address(bullaClaim));
         eip1271Wallet = new ERC1271WalletMock();
     }
@@ -82,6 +77,15 @@ contract TestPermitCreateClaim is Test {
         uint64 approvalCount = 1;
         bool isBindingAllowed = true;
 
+        bytes memory signature = sigHelper.signCreateClaimPermit({
+            pk: alicePK,
+            user: alice,
+            operator: bob,
+            approvalType: approvalType,
+            approvalCount: approvalCount,
+            isBindingAllowed: isBindingAllowed
+        });
+
         vm.expectEmit(true, true, true, true);
         emit CreateClaimApproved(alice, bob, approvalType, approvalCount, isBindingAllowed);
 
@@ -91,14 +95,7 @@ contract TestPermitCreateClaim is Test {
             approvalType: approvalType,
             approvalCount: approvalCount,
             isBindingAllowed: isBindingAllowed,
-            signature: sigHelper.signCreateClaimPermit({
-                pk: alicePK,
-                user: alice,
-                operator: bob,
-                approvalType: approvalType,
-                approvalCount: approvalCount,
-                isBindingAllowed: isBindingAllowed
-            })
+            signature: signature
         });
 
         (CreateClaimApproval memory approval,,,) = bullaClaim.approvals(alice, bob);
@@ -169,6 +166,15 @@ contract TestPermitCreateClaim is Test {
             })
         });
 
+        bytes memory signature = sigHelper.signCreateClaimPermit({
+            pk: alicePK,
+            user: alice,
+            operator: bob,
+            approvalType: CreateClaimApprovalType.Unapproved,
+            approvalCount: 0,
+            isBindingAllowed: false
+        });
+
         vm.expectEmit(true, true, true, true);
         emit CreateClaimApproved(
             alice,
@@ -183,14 +189,7 @@ contract TestPermitCreateClaim is Test {
             approvalType: CreateClaimApprovalType.Unapproved,
             approvalCount: 0,
             isBindingAllowed: false,
-            signature: sigHelper.signCreateClaimPermit({
-                pk: alicePK,
-                user: alice,
-                operator: bob,
-                approvalType: CreateClaimApprovalType.Unapproved,
-                approvalCount: 0,
-                isBindingAllowed: false
-            })
+            signature: signature
         });
 
         (CreateClaimApproval memory approval,,,) = bullaClaim.approvals(alice, bob);
@@ -224,15 +223,6 @@ contract TestPermitCreateClaim is Test {
             signature: bytes("")
         });
 
-        vm.expectEmit(true, true, true, true);
-        emit CreateClaimApproved(
-            alice,
-            bob,
-            CreateClaimApprovalType.Unapproved,
-            0, // revoke case
-            false
-        );
-
         digest = sigHelper.getPermitCreateClaimDigest({
             user: alice,
             operator: bob,
@@ -241,6 +231,15 @@ contract TestPermitCreateClaim is Test {
             isBindingAllowed: false
         });
         eip1271Wallet.sign(digest);
+
+        vm.expectEmit(true, true, true, true);
+        emit CreateClaimApproved(
+            alice,
+            bob,
+            CreateClaimApprovalType.Unapproved,
+            0, // revoke case
+            false
+        );
 
         bullaClaim.permitCreateClaim({
             user: alice,
@@ -675,9 +674,6 @@ contract TestPermitCreateClaim is Test {
             BullaExtensionRegistry(bullaClaim.extensionRegistry()).setExtensionName(operator, "BullaFake");
         }
 
-        vm.expectEmit(true, true, true, true);
-        emit CreateClaimApproved(user, operator, approvalType, approvalCount, isBindingAllowed);
-
         bytes memory sig = sigHelper.signCreateClaimPermit({
             pk: pk,
             user: user,
@@ -686,6 +682,9 @@ contract TestPermitCreateClaim is Test {
             approvalCount: approvalCount,
             isBindingAllowed: isBindingAllowed
         });
+
+        vm.expectEmit(true, true, true, true);
+        emit CreateClaimApproved(user, operator, approvalType, approvalCount, isBindingAllowed);
 
         bullaClaim.permitCreateClaim({
             user: user,
