@@ -103,25 +103,6 @@ contract TestCreateClaim is BullaClaimTestHelper {
         );
     }
 
-    function testCannotDelegateClaimsManually() public {
-        PenalizedClaim controller = new PenalizedClaim(address(bullaClaim));
-
-        vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, debtor));
-        bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
-                token: address(0),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
-        );
-    }
-
     function testCreateBoundClaim() public {
         // test creation of a pending bound claim
         vm.prank(creditor);

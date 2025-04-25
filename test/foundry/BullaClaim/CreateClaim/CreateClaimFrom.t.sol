@@ -269,7 +269,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
                 block.timestamp + 1 days,
                 "fuzzzin",
                 address(0),
-                address(0),
+                _operator,
                 _isBindingAllowed && !isInvoice ? ClaimBinding.Bound : ClaimBinding.Unbound
             );
         }
