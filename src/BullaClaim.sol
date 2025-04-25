@@ -239,7 +239,6 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     /// @return The newly created tokenId
     function _createClaim(address from, CreateClaimParams calldata params) internal returns (uint256) {
         if (lockState != LockState.Unlocked) revert Locked();
-        if (params.controller != address(0) && params.controller != msg.sender) revert NotController(msg.sender);
         if (from != params.debtor && from != params.creditor) revert NotCreditorOrDebtor();
         // we allow dueBy to be 0 in the case of an "open" claim, or we allow a reasonable timestamp
         if (params.dueBy != 0 && (params.dueBy < block.timestamp && params.dueBy < type(uint40).max)) {
@@ -251,6 +250,8 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         if (params.claimAmount == 0) revert ZeroAmount();
 
         uint256 claimId;
+        // from is only != to msg.sender if the claim is delegated
+        address controller = msg.sender == from ? address(0) : msg.sender;
         {
             unchecked {
                 claimId = ++currentClaimId;
@@ -263,7 +264,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
 
             if (params.dueBy != 0) claim.dueBy = uint40(params.dueBy);
             if (params.token != address(0)) claim.token = params.token;
-            if (params.controller != address(0)) claim.controller = params.controller;
+            if (controller != address(0)) claim.controller = controller;
             if (params.binding != ClaimBinding.Unbound) claim.binding = params.binding;
             if (params.payerReceivesClaimOnPayment) claim.payerReceivesClaimOnPayment = true;
         }
@@ -277,7 +278,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
             params.dueBy,
             params.description,
             params.token,
-            params.controller,
+            controller,
             params.binding
         );
 

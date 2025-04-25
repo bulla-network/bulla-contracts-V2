@@ -48,7 +48,6 @@ struct CreateClaimParams {
     uint256 dueBy;
     string description;
     address token;
-    address controller;
     ClaimBinding binding;
     bool payerReceivesClaimOnPayment;
 }

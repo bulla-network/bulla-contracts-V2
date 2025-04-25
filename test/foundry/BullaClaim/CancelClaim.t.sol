@@ -51,7 +51,6 @@ contract TestCancelClaim is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                controller: address(0),
                 binding: binding,
                 payerReceivesClaimOnPayment: true
             })
@@ -386,7 +385,6 @@ contract TestCancelClaim is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                controller: operator, // operator is the controller
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             })
@@ -426,7 +424,6 @@ contract TestCancelClaim is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                controller: operator, // operator is the controller
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             })
