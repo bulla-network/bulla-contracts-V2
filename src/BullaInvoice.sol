@@ -4,6 +4,37 @@ pragma solidity 0.8.15;
 import "contracts/interfaces/IBullaClaim.sol";
 import "contracts/types/Types.sol";
 
+// Data specific to invoices and not claims
+struct InvoiceDetails {
+    uint256 dueBy;
+}
+
+error InvoiceDoesNotExist(uint256 claimId);
+error InvalidDueBy();
+
+struct Invoice {
+    uint256 claimAmount;
+    uint256 paidAmount;
+    Status status;
+    ClaimBinding binding;
+    bool payerReceivesClaimOnPayment;
+    address debtor;
+    address token;
+    uint256 dueBy;
+}
+
+struct CreateInvoiceParams {
+    address creditor;
+    address debtor;
+    uint256 claimAmount;
+    uint256 dueBy;
+    string description;
+    address token;
+    address controller;
+    ClaimBinding binding;
+    bool payerReceivesClaimOnPayment;
+}
+
 /**
  * @title BullaInvoice
  * @notice A wrapper contract for IBullaClaim that delegates all calls to the provided contract instance
@@ -11,30 +42,10 @@ import "contracts/types/Types.sol";
 contract BullaInvoice {
     IBullaClaim private immutable _bullaClaim;
 
-    // Data specific to invoices and not claims
-    struct InvoiceDetails {
-        uint16 interestRateBps; // for late payment
-    }
-
-    error InvoiceDoesNotExist(uint256 claimId);
-
-    struct Invoice {
-        uint256 claimAmount;
-        uint256 paidAmount;
-        Status status;
-        ClaimBinding binding;
-        bool payerReceivesClaimOnPayment;
-        address debtor;
-        uint256 dueBy;
-        address token;
-        InvoiceDetails details;
-    }
-
-    mapping(uint256 => InvoiceDetails) private invoiceDetailsByClaimId;
-
     // Track all claim IDs created through this contract
     uint256[] private _createdClaimIds;
     mapping(uint256 => bool) private _isClaimCreatedHere;
+    mapping(uint256 => InvoiceDetails) private _invoiceDetailsByClaimId;
 
     /**
      * @notice Constructor
@@ -47,6 +58,7 @@ contract BullaInvoice {
     function getInvoice(uint256 claimId) external view returns (Invoice memory) {
         if (_isClaimCreatedHere[claimId]) {
             Claim memory claim = _bullaClaim.getClaim(claimId);
+            InvoiceDetails memory invoiceDetails = _invoiceDetailsByClaimId[claimId];
             return Invoice({
                 claimAmount: claim.claimAmount,
                 paidAmount: claim.paidAmount,
@@ -56,25 +68,31 @@ contract BullaInvoice {
                 debtor: claim.debtor,
                 dueBy: claim.dueBy,
                 token: claim.token,
-                details: invoiceDetailsByClaimId[claimId]
+                dueBy: invoiceDetails.dueBy
             });
         }
 
         revert InvoiceDoesNotExist(claimId);
     }
 
-    function createClaim(CreateClaimParams memory params) external returns (uint256) {
+    function createInvoice(CreateInvoiceParams memory params) external returns (uint256) {
+        _validateCreateInvoiceParams(params);
+
         uint256 claimId = _bullaClaim.createClaimFrom(msg.sender, params);
         _recordCreatedClaim(claimId);
+
         return claimId;
     }
 
-    function createClaimWithMetadata(CreateClaimParams memory params, ClaimMetadata memory metadata)
+    function createInvoiceWithMetadata(CreateInvoiceParams memory params, ClaimMetadata memory metadata)
         external
         returns (uint256)
     {
+        _validateCreateInvoiceParams(params);
+
         uint256 claimId = _bullaClaim.createClaimWithMetadataFrom(msg.sender, params, metadata);
         _recordCreatedClaim(claimId);
+
         return claimId;
     }
 
@@ -128,5 +146,11 @@ contract BullaInvoice {
      */
     function getCreatedClaimCount() external view returns (uint256) {
         return _createdClaimIds.length;
+    }
+
+    function _validateCreateInvoiceParams(CreateInvoiceParams memory params) private {
+        if (params.dueBy != 0 && (params.dueBy < block.timestamp || params.dueBy > type(uint40).max)) {
+            revert InvalidDueBy();
+        }
     }
 }
