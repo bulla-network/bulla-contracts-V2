@@ -28,7 +28,6 @@ contract ERC721Test is DSTestPlus {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
-                controller: address(0),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             })
@@ -45,7 +44,6 @@ contract ERC721Test is DSTestPlus {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
-                controller: address(0),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             })
@@ -141,7 +139,6 @@ contract ERC721Test is DSTestPlus {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
-                controller: address(0),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             })

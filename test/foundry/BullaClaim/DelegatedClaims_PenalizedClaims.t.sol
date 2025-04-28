@@ -59,7 +59,6 @@ contract TestPenalizedClaim is Test {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
-                controller: address(penalizedClaim),
                 binding: ClaimBinding.BindingPending,
                 payerReceivesClaimOnPayment: true
             })
@@ -130,7 +129,6 @@ contract TestPenalizedClaim is Test {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
-                controller: address(penalizedClaim),
                 binding: ClaimBinding.BindingPending,
                 payerReceivesClaimOnPayment: true
             })

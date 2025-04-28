@@ -51,7 +51,6 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
-                controller: address(0),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             })
@@ -82,7 +81,6 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 claimAmount: uint256(type(uint128).max) + 1,
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
-                controller: address(0),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             })
@@ -99,27 +97,6 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 claimAmount: uint256(type(uint128).max) + 1,
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
-                controller: address(0),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
-        );
-    }
-
-    function testCannotDelegateClaimsManually() public {
-        PenalizedClaim controller = new PenalizedClaim(address(bullaClaim));
-
-        vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, debtor));
-        bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
-                token: address(0),
-                controller: address(controller),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             })
@@ -137,7 +114,6 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                controller: address(0),
                 binding: ClaimBinding.BindingPending,
                 payerReceivesClaimOnPayment: true
             })
@@ -155,7 +131,6 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                controller: address(0),
                 binding: ClaimBinding.Bound,
                 payerReceivesClaimOnPayment: true
             })
@@ -182,34 +157,12 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: 0,
                 token: address(weth),
-                controller: address(0),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             })
         );
         assertEq(bullaClaim.currentClaimId(), claimId);
         assertEq(bullaClaim.currentClaimId(), beforeClaimCreation + 1);
-    }
-
-    function testCannotCreateDelegatedClaimWithBadController() public {
-        address controller = address(0xDECAFC0FFEE);
-
-        vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, debtor));
-
-        bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
-                token: address(weth),
-                controller: address(controller),
-                binding: ClaimBinding.Bound,
-                payerReceivesClaimOnPayment: true
-            })
-        );
     }
 
     function testCannotCreateBoundClaimUnlessDebtor() public {
@@ -223,7 +176,6 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                controller: address(0),
                 binding: ClaimBinding.Bound,
                 payerReceivesClaimOnPayment: true
             })
@@ -239,7 +191,6 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                controller: address(0),
                 binding: ClaimBinding.Bound,
                 payerReceivesClaimOnPayment: true
             })
@@ -258,7 +209,6 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 claimAmount: claimAmount,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                controller: address(0),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             })
@@ -279,7 +229,6 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: dueBy,
                 token: address(weth),
-                controller: address(0),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             })
@@ -297,7 +246,6 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 claimAmount: 0,
                 dueBy: 1 days,
                 token: address(weth),
-                controller: address(0),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             })
@@ -315,7 +263,6 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                controller: address(0),
                 binding: ClaimBinding.Bound,
                 payerReceivesClaimOnPayment: true
             })
@@ -366,7 +313,6 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 claimAmount: claimAmount,
                 dueBy: dueBy,
                 token: token,
-                controller: address(0),
                 binding: ClaimBinding(binding),
                 payerReceivesClaimOnPayment: payerReceivesClaimOnPayment
             })

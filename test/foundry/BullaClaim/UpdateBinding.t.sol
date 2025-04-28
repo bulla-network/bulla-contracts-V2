@@ -47,7 +47,6 @@ contract TestUpdateBinding is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                controller: address(0),
                 binding: binding,
                 payerReceivesClaimOnPayment: true
             })
@@ -396,7 +395,6 @@ contract TestUpdateBinding is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                controller: controllerAddress,
                 binding: ClaimBinding.BindingPending,
                 payerReceivesClaimOnPayment: true
             })

@@ -116,7 +116,6 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                controller: address(controller),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             })
@@ -226,7 +225,6 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                controller: address(0),
                 binding: ClaimBinding.Bound, // binding is set to bound
                 payerReceivesClaimOnPayment: true
             })
@@ -271,7 +269,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
                 block.timestamp + 1 days,
                 "fuzzzin",
                 address(0),
-                address(0),
+                _operator,
                 _isBindingAllowed && !isInvoice ? ClaimBinding.Bound : ClaimBinding.Unbound
             );
         }
@@ -286,7 +284,6 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 1 days,
                 token: address(0),
-                controller: address(0),
                 binding: _isBindingAllowed && !isInvoice ? ClaimBinding.Bound : ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             })
