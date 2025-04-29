@@ -267,7 +267,6 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
             params.creditor,
             params.debtor,
             params.claimAmount,
-            params.dueBy,
             params.description,
             params.token,
             params.controller,
@@ -640,7 +639,6 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
             binding: claimStorage.binding,
             payerReceivesClaimOnPayment: claimStorage.payerReceivesClaimOnPayment,
             debtor: claimStorage.debtor,
-            dueBy: uint256(claimStorage.dueBy),
             token: claimStorage.token,
             controller: claimStorage.controller
         });

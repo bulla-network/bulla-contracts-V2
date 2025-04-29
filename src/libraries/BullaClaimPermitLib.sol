@@ -12,6 +12,8 @@ library BullaClaimPermitLib {
     using Strings for uint256;
     using Strings for address;
 
+    error ApprovalExpired();
+
     event CreateClaimApproved(
         address indexed user,
         address indexed operator,
@@ -458,7 +460,7 @@ library BullaClaimPermitLib {
 
         if (!SignatureChecker.isValidSignatureNow(user, digest, signature)) revert BullaClaim.InvalidSignature();
         if (approvalDeadline != 0 && (approvalDeadline < block.timestamp || approvalDeadline > type(uint40).max)) {
-            revert BullaClaim.InvalidTimestamp();
+            revert ApprovalExpired();
         }
 
         if (approvalType == PayClaimApprovalType.IsApprovedForAll) {
@@ -482,7 +484,7 @@ library BullaClaimPermitLib {
                                 || paymentApprovals[i].approvalDeadline > type(uint40).max
                         )
                 ) {
-                    revert BullaClaim.InvalidTimestamp();
+                    revert ApprovalExpired();
                 }
 
                 approvals.payClaim.claimApprovals.push(

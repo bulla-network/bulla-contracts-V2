@@ -9,7 +9,6 @@ struct InvoiceDetails {
     uint256 dueBy;
 }
 
-error InvoiceDoesNotExist(uint256 claimId);
 error InvalidDueBy();
 
 struct Invoice {
@@ -39,116 +38,140 @@ struct CreateInvoiceParams {
  * @title BullaInvoice
  * @notice A wrapper contract for IBullaClaim that delegates all calls to the provided contract instance
  */
-contract BullaInvoice {
-    IBullaClaim private immutable _bullaClaim;
-
-    // Track all claim IDs created through this contract
-    uint256[] private _createdClaimIds;
-    mapping(uint256 => bool) private _isClaimCreatedHere;
+contract BullaInvoice is BullaClaimControllerBase {
     mapping(uint256 => InvoiceDetails) private _invoiceDetailsByClaimId;
 
     /**
      * @notice Constructor
      * @param bullaClaim Address of the IBullaClaim contract to delegate calls to
      */
-    constructor(address bullaClaim) {
-        _bullaClaim = IBullaClaim(bullaClaim);
-    }
+    constructor(address bullaClaim) BullaClaimControllerBase(bullaClaim) {}
 
+    /**
+     * @notice Get an invoice
+     * @param claimId The ID of the invoice to get
+     * @return The invoice
+     */
     function getInvoice(uint256 claimId) external view returns (Invoice memory) {
-        if (_isClaimCreatedHere[claimId]) {
-            Claim memory claim = _bullaClaim.getClaim(claimId);
-            InvoiceDetails memory invoiceDetails = _invoiceDetailsByClaimId[claimId];
-            return Invoice({
-                claimAmount: claim.claimAmount,
-                paidAmount: claim.paidAmount,
-                status: claim.status,
-                binding: claim.binding,
-                payerReceivesClaimOnPayment: claim.payerReceivesClaimOnPayment,
-                debtor: claim.debtor,
-                dueBy: claim.dueBy,
-                token: claim.token,
-                dueBy: invoiceDetails.dueBy
-            });
-        }
+        Claim memory claim = _bullaClaim.getClaim(claimId);
+        _checkController(claim.controller);
 
-        revert InvoiceDoesNotExist(claimId);
+        InvoiceDetails memory invoiceDetails = _invoiceDetailsByClaimId[claimId];
+
+        return Invoice({
+            claimAmount: claim.claimAmount,
+            paidAmount: claim.paidAmount,
+            status: claim.status,
+            binding: claim.binding,
+            payerReceivesClaimOnPayment: claim.payerReceivesClaimOnPayment,
+            debtor: claim.debtor,
+            token: claim.token,
+            dueBy: invoiceDetails.dueBy
+        });
     }
 
+    /**
+     * @notice Creates an invoice
+     * @param params The parameters for creating an invoice
+     * @return The ID of the created invoice
+     */
     function createInvoice(CreateInvoiceParams memory params) external returns (uint256) {
         _validateCreateInvoiceParams(params);
 
-        uint256 claimId = _bullaClaim.createClaimFrom(msg.sender, params);
-        _recordCreatedClaim(claimId);
+        CreateClaimParams memory createClaimParams = CreateClaimParams({
+            creditor: params.creditor,
+            debtor: params.debtor,
+            claimAmount: params.claimAmount,
+            description: params.description,
+            token: params.token,
+            controller: params.controller,
+            binding: params.binding,
+            payerReceivesClaimOnPayment: params.payerReceivesClaimOnPayment
+        });
 
-        return claimId;
+        return _bullaClaim.createClaimFrom(msg.sender, createClaimParams);
     }
 
+    /**
+     * @notice Creates an invoice with metadata
+     * @param params The parameters for creating an invoice
+     * @param metadata The metadata for the invoice
+     * @return The ID of the created invoice
+     */
     function createInvoiceWithMetadata(CreateInvoiceParams memory params, ClaimMetadata memory metadata)
         external
         returns (uint256)
     {
         _validateCreateInvoiceParams(params);
 
-        uint256 claimId = _bullaClaim.createClaimWithMetadataFrom(msg.sender, params, metadata);
-        _recordCreatedClaim(claimId);
+        CreateClaimParams memory createClaimParams = CreateClaimParams({
+            creditor: params.creditor,
+            debtor: params.debtor,
+            claimAmount: params.claimAmount,
+            description: params.description,
+            token: params.token,
+            controller: params.controller,
+            binding: params.binding,
+            payerReceivesClaimOnPayment: params.payerReceivesClaimOnPayment
+        });
 
-        return claimId;
+        return _bullaClaim.createClaimWithMetadataFrom(msg.sender, createClaimParams, metadata);
     }
 
+    /**
+     * @notice Pays an invoice
+     * @param claimId The ID of the invoice to pay
+     * @param amount The amount to pay
+     */
     function payClaim(uint256 claimId, uint256 amount) external payable {
-        _bullaClaim.payClaimFrom{value: msg.value}(msg.sender, claimId, amount);
+        Claim memory claim = _bullaClaim.getClaim(claimId);
+        _checkController(claim.controller);
+
+        return _bullaClaim.payClaimFrom{value: msg.value}(msg.sender, claimId, amount);
     }
 
+    /**
+     * @notice Updates the binding of an invoice
+     * @param claimId The ID of the invoice to update
+     * @param binding The new binding for the invoice
+     */
     function updateBinding(uint256 claimId, uint8 binding) external {
-        _bullaClaim.updateBindingFrom(msg.sender, claimId, binding);
+        Claim memory claim = _bullaClaim.getClaim(claimId);
+        _checkController(claim.controller);
+
+        return _bullaClaim.updateBindingFrom(msg.sender, claimId, binding);
     }
 
+    /**
+     * @notice Cancels an invoice
+     * @param claimId The ID of the invoice to cancel
+     * @param note The note to cancel the invoice with
+     */
     function cancelClaim(uint256 claimId, string memory note) external {
-        _bullaClaim.cancelClaimFrom(msg.sender, claimId, note);
+        Claim memory claim = _bullaClaim.getClaim(claimId);
+        _checkController(claim.controller);
+
+        return _bullaClaim.cancelClaimFrom(msg.sender, claimId, note);
     }
 
+    /**
+     * @notice Burns an invoice
+     * @param tokenId The ID of the invoice to burn
+     */
     function burn(uint256 tokenId) external {
-        _bullaClaim.burn(tokenId);
+        Claim memory claim = _bullaClaim.getClaim(tokenId);
+        _checkController(claim.controller);
+
+        return _bullaClaim.burn(tokenId);
     }
+
+    /// PRIVATE FUNCTIONS ///
 
     /**
-     * @notice Records a claim ID as created through this contract
-     * @param claimId The ID of the claim that was created
+     * @notice Validates the parameters for creating an invoice
+     * @param params The parameters for creating an invoice
      */
-    function _recordCreatedClaim(uint256 claimId) private {
-        if (!_isClaimCreatedHere[claimId]) {
-            _createdClaimIds.push(claimId);
-            _isClaimCreatedHere[claimId] = true;
-        }
-    }
-
-    /**
-     * @notice Get all claim IDs created through this contract
-     * @return Array of claim IDs
-     */
-    function getCreatedClaimIds() external view returns (uint256[] memory) {
-        return _createdClaimIds;
-    }
-
-    /**
-     * @notice Check if a claim was created through this contract
-     * @param claimId The ID of the claim to check
-     * @return True if the claim was created through this contract
-     */
-    function isClaimCreatedHere(uint256 claimId) external view returns (bool) {
-        return _isClaimCreatedHere[claimId];
-    }
-
-    /**
-     * @notice Get the total number of claims created through this contract
-     * @return The number of claims created
-     */
-    function getCreatedClaimCount() external view returns (uint256) {
-        return _createdClaimIds.length;
-    }
-
-    function _validateCreateInvoiceParams(CreateInvoiceParams memory params) private {
+    function _validateCreateInvoiceParams(CreateInvoiceParams memory params) private view {
         if (params.dueBy != 0 && (params.dueBy < block.timestamp || params.dueBy > type(uint40).max)) {
             revert InvalidDueBy();
         }
