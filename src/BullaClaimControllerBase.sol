@@ -8,12 +8,12 @@ abstract contract BullaClaimControllerBase {
     IBullaClaim internal immutable _bullaClaim;
 
     constructor(address bullaClaimAddress) {
-        _bullaClaim = BullaClaim(bullaClaimAddress);
+        _bullaClaim = IBullaClaim(bullaClaimAddress);
     }
 
     function _checkController(address controller) internal view {
         if (controller != address(this)) {
-            revert BullaClaim.NotController(controller);
+            revert IBullaClaim.NotController(controller);
         }
     }
 }

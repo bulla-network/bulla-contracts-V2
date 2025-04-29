@@ -2,6 +2,7 @@
 pragma solidity 0.8.15;
 
 import "contracts/interfaces/IBullaClaim.sol";
+import "contracts/BullaClaimControllerBase.sol";
 import "contracts/types/Types.sol";
 
 // Data specific to invoices and not claims
@@ -84,7 +85,6 @@ contract BullaInvoice is BullaClaimControllerBase {
             claimAmount: params.claimAmount,
             description: params.description,
             token: params.token,
-            controller: params.controller,
             binding: params.binding,
             payerReceivesClaimOnPayment: params.payerReceivesClaimOnPayment
         });
@@ -110,7 +110,6 @@ contract BullaInvoice is BullaClaimControllerBase {
             claimAmount: params.claimAmount,
             description: params.description,
             token: params.token,
-            controller: params.controller,
             binding: params.binding,
             payerReceivesClaimOnPayment: params.payerReceivesClaimOnPayment
         });
@@ -135,7 +134,7 @@ contract BullaInvoice is BullaClaimControllerBase {
      * @param claimId The ID of the invoice to update
      * @param binding The new binding for the invoice
      */
-    function updateBinding(uint256 claimId, uint8 binding) external {
+    function updateBinding(uint256 claimId, ClaimBinding binding) external {
         Claim memory claim = _bullaClaim.getClaim(claimId);
         _checkController(claim.controller);
 

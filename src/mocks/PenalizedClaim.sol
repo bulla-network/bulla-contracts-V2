@@ -5,7 +5,7 @@ import "contracts/types/Types.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {BullaClaim, CreateClaimParams, BullaClaim} from "contracts/BullaClaim.sol";
-
+import "contracts/BullaClaimControllerBase.sol";
 // naive implementation of a bullaExtension and a controller that penalizes users for paying late:
 //   note: all claim creation / mutation methods like createClaim, payClaim, acceptClaim,
 //   and cancelClaim have to be routed through this contract.
