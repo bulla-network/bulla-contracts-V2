@@ -120,7 +120,6 @@ contract TestInvariants is Test {
                 claimAmount: _claimAmount,
                 dueBy: block.timestamp + 1 days,
                 token: address(weth),
-                controller: address(0),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             })

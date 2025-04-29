@@ -15,8 +15,6 @@ contract PenalizedClaim is BullaClaimControllerBase {
 
     uint256 LATE_FEE_BPS = 500;
 
-    error NotController(address controller);
-
     // We removed dueBy from the invoice struct, so we need to store it separately, hardcode to 30 days for tests
     mapping(uint256 => uint256) public _dueByByClaimId;
 
