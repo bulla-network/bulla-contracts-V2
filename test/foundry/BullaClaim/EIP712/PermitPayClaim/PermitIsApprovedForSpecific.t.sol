@@ -2,6 +2,7 @@
 pragma solidity 0.8.15;
 
 import "test/foundry/BullaClaim/EIP712/PermitPayClaim/Common.t.sol";
+import "contracts/interfaces/IBullaClaim.sol";
 
 /// @notice SPEC
 /// permitPayClaim can approve an operator to pay _specific_ claims given the following conditions listed below as AS - (Approve Specific 1-5):
@@ -217,7 +218,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
             paymentApprovals: paymentApprovals
         });
 
-        vm.expectRevert(BullaClaim.InvalidTimestamp.selector);
+        vm.expectRevert(IBullaClaim.ApprovalExpired.selector);
         bullaClaim.permitPayClaim({
             user: alice,
             operator: bob,
@@ -294,7 +295,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
             paymentApprovals: paymentApprovals
         });
 
-        vm.expectRevert(BullaClaim.InvalidTimestamp.selector);
+        vm.expectRevert(IBullaClaim.ApprovalExpired.selector);
         bullaClaim.permitPayClaim({
             user: alice,
             operator: bob,
@@ -322,7 +323,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
             paymentApprovals: paymentApprovals
         });
 
-        vm.expectRevert(BullaClaim.InvalidTimestamp.selector);
+        vm.expectRevert(IBullaClaim.ApprovalExpired.selector);
         bullaClaim.permitPayClaim({
             user: alice,
             operator: bob,
@@ -349,7 +350,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
             paymentApprovals: paymentApprovals
         });
 
-        vm.expectRevert(BullaClaim.InvalidTimestamp.selector);
+        vm.expectRevert(IBullaClaim.ApprovalExpired.selector);
         bullaClaim.permitPayClaim({
             user: alice,
             operator: bob,

@@ -15,14 +15,14 @@ contract PenalizedClaim is BullaClaimControllerBase {
 
     uint256 LATE_FEE_BPS = 500;
 
-    // We removed dueBy from the invoice struct, so we need to store it separately, hardcode to 30 days for tests
+    // We removed dueBy from the invoice struct, so we need to store it separately, hardcode to 1 day for tests
     mapping(uint256 => uint256) public _dueByByClaimId;
 
     constructor(address _bullaClaimAddress) BullaClaimControllerBase(_bullaClaimAddress) {}
 
     function createClaim(CreateClaimParams calldata claimParams) public returns (uint256) {
         uint256 claimId = _bullaClaim.createClaimFrom(msg.sender, claimParams);
-        _dueByByClaimId[claimId] = block.timestamp + 30 days;
+        _dueByByClaimId[claimId] = block.timestamp + 1 days;
         return claimId;
     }
 

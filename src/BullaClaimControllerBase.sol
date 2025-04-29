@@ -5,7 +5,7 @@ import "contracts/interfaces/IBullaClaim.sol";
 import "contracts/types/Types.sol";
 
 abstract contract BullaClaimControllerBase {
-    IBullaClaim internal immutable _bullaClaim;
+    IBullaClaim public immutable _bullaClaim;
 
     constructor(address bullaClaimAddress) {
         _bullaClaim = IBullaClaim(bullaClaimAddress);

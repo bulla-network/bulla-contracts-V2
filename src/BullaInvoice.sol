@@ -30,7 +30,6 @@ struct CreateInvoiceParams {
     uint256 dueBy;
     string description;
     address token;
-    address controller;
     ClaimBinding binding;
     bool payerReceivesClaimOnPayment;
 }
@@ -89,6 +88,7 @@ contract BullaInvoice is BullaClaimControllerBase {
             payerReceivesClaimOnPayment: params.payerReceivesClaimOnPayment
         });
 
+        // TODO: emit InvoiceCreated event to index dueBy
         return _bullaClaim.createClaimFrom(msg.sender, createClaimParams);
     }
 
@@ -114,6 +114,8 @@ contract BullaInvoice is BullaClaimControllerBase {
             payerReceivesClaimOnPayment: params.payerReceivesClaimOnPayment
         });
 
+        // TODO: emit InvoiceCreated event to index dueBy
+
         return _bullaClaim.createClaimWithMetadataFrom(msg.sender, createClaimParams, metadata);
     }
 
@@ -122,7 +124,7 @@ contract BullaInvoice is BullaClaimControllerBase {
      * @param claimId The ID of the invoice to pay
      * @param amount The amount to pay
      */
-    function payClaim(uint256 claimId, uint256 amount) external payable {
+    function payInvoice(uint256 claimId, uint256 amount) external payable {
         Claim memory claim = _bullaClaim.getClaim(claimId);
         _checkController(claim.controller);
 
@@ -146,7 +148,7 @@ contract BullaInvoice is BullaClaimControllerBase {
      * @param claimId The ID of the invoice to cancel
      * @param note The note to cancel the invoice with
      */
-    function cancelClaim(uint256 claimId, string memory note) external {
+    function cancelInvoice(uint256 claimId, string memory note) external {
         Claim memory claim = _bullaClaim.getClaim(claimId);
         _checkController(claim.controller);
 

@@ -38,7 +38,6 @@ contract TestInvariants is Test {
         address indexed creditor,
         address indexed debtor,
         uint256 claimAmount,
-        uint256 dueBy,
         string description,
         address token,
         address controller,
@@ -104,7 +103,6 @@ contract TestInvariants is Test {
             creditor,
             debtor,
             uint256(_claimAmount),
-            uint256(block.timestamp + 1 days),
             "",
             address(weth),
             address(0),
@@ -118,7 +116,6 @@ contract TestInvariants is Test {
                 debtor: debtor,
                 description: "",
                 claimAmount: _claimAmount,
-                dueBy: block.timestamp + 1 days,
                 token: address(weth),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true

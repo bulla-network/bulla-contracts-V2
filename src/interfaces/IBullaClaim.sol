@@ -13,7 +13,7 @@ interface IBullaClaim {
     error CannotBindClaim();
     error InvalidApproval();
     error InvalidSignature();
-    error InvalidTimestamp();
+    error ApprovalExpired();
     error PastApprovalDeadline();
     error NotOwner();
     error NotCreditorOrDebtor();
