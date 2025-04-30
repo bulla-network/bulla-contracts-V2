@@ -8,7 +8,7 @@ import "contracts/types/Types.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
-import {BullaInvoice, CreateInvoiceParams, Invoice, InvalidDueBy} from "contracts/BullaInvoice.sol";
+import {BullaInvoice, CreateInvoiceParams, Invoice, InvalidDueBy, CreditorCannotBeDebtor} from "contracts/BullaInvoice.sol";
 import {Deployer} from "script/Deployment.s.sol";
 
 contract TestBullaInvoice is Test {
@@ -54,7 +54,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(
             CreateInvoiceParams({
-                creditor: creditor,
                 debtor: debtor,
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 30 days,
@@ -96,7 +95,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(
             CreateInvoiceParams({
-                creditor: creditor,
                 debtor: debtor,
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 30 days,
@@ -151,7 +149,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(
             CreateInvoiceParams({
-                creditor: creditor,
                 debtor: debtor,
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 30 days,
@@ -211,7 +208,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(
             CreateInvoiceParams({
-                creditor: creditor,
                 debtor: debtor,
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 30 days,
@@ -266,7 +262,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(
             CreateInvoiceParams({
-                creditor: creditor,
                 debtor: debtor,
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 30 days,
@@ -322,7 +317,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(
             CreateInvoiceParams({
-                creditor: creditor,
                 debtor: debtor,
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 30 days,
@@ -400,7 +394,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(
             CreateInvoiceParams({
-                creditor: creditor,
                 debtor: debtor,
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 30 days,
@@ -473,7 +466,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoiceWithMetadata(
             CreateInvoiceParams({
-                creditor: creditor,
                 debtor: debtor,
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 30 days,
@@ -522,7 +514,6 @@ contract TestBullaInvoice is Test {
         vm.expectRevert(abi.encodeWithSelector(InvalidDueBy.selector));
         bullaInvoice.createInvoice(
             CreateInvoiceParams({
-                creditor: creditor,
                 debtor: debtor,
                 claimAmount: 1 ether,
                 dueBy: block.timestamp - 1 days, // Past date
@@ -538,7 +529,6 @@ contract TestBullaInvoice is Test {
         vm.expectRevert(abi.encodeWithSelector(InvalidDueBy.selector));
         bullaInvoice.createInvoice(
             CreateInvoiceParams({
-                creditor: creditor,
                 debtor: debtor,
                 claimAmount: 1 ether,
                 dueBy: uint256(type(uint40).max) + 1, // Too far in the future
@@ -574,7 +564,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(
             CreateInvoiceParams({
-                creditor: creditor,
                 debtor: debtor,
                 claimAmount: 1 ether,
                 dueBy: dueDate,
@@ -637,7 +626,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(
             CreateInvoiceParams({
-                creditor: creditor,
                 debtor: debtor,
                 claimAmount: 1 ether,
                 dueBy: dueDate,
@@ -700,7 +688,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(
             CreateInvoiceParams({
-                creditor: creditor,
                 debtor: debtor,
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 30 days,
@@ -740,7 +727,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(
             CreateInvoiceParams({
-                creditor: creditor,
                 debtor: debtor,
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 30 days,
@@ -787,7 +773,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(
             CreateInvoiceParams({
-                creditor: creditor,
                 debtor: debtor,
                 claimAmount: amount,
                 dueBy: dueBy,
@@ -832,7 +817,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(
             CreateInvoiceParams({
-                creditor: creditor,
                 debtor: debtor,
                 claimAmount: amount,
                 dueBy: block.timestamp + 30 days,
@@ -905,7 +889,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(
             CreateInvoiceParams({
-                creditor: creditor,
                 debtor: debtor,
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 30 days,
@@ -961,7 +944,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(
             CreateInvoiceParams({
-                creditor: creditor,
                 debtor: debtor,
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 30 days,
@@ -1017,7 +999,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(
             CreateInvoiceParams({
-                creditor: creditor,
                 debtor: debtor,
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 30 days,
@@ -1080,7 +1061,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(
             CreateInvoiceParams({
-                creditor: creditor,
                 debtor: debtor,
                 claimAmount: 1 ether,
                 dueBy: 0, // No due date
@@ -1116,6 +1096,41 @@ contract TestBullaInvoice is Test {
         vm.prank(debtor);
         vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, debtor)); // Should revert as the claim's controller is not BullaInvoice
         bullaInvoice.payInvoice{value: 1 ether}(claimId, 1 ether);
+    }
+
+    // Test trying to update binding of a claim that was not created by BullaInvoice
+    function testUpdateBindingDirectClaim() public {
+        // Create a claim directly via BullaClaim
+        vm.prank(creditor);
+        uint256 claimId = bullaClaim.createClaim(
+            CreateClaimParams({
+                creditor: creditor,
+                debtor: debtor,
+                claimAmount: 1 ether,
+                description: "Direct Claim",
+                token: address(0),
+                binding: ClaimBinding.BindingPending,
+                payerReceivesClaimOnPayment: true
+            })
+        );
+
+        // Setup binding permit
+        bullaClaim.permitUpdateBinding({
+            user: debtor,
+            operator: address(bullaInvoice),
+            approvalCount: 1,
+            signature: sigHelper.signUpdateBindingPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaInvoice),
+                approvalCount: 1
+            })
+        });
+
+        // Try to update binding via BullaInvoice
+        vm.prank(debtor);
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, debtor)); // Should revert as the claim's controller is not BullaInvoice
+        bullaInvoice.updateBinding(claimId, ClaimBinding.Bound);
     }
 
     // Test trying to cancel a claim that was not created by BullaInvoice
@@ -1163,7 +1178,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(
             CreateInvoiceParams({
-                creditor: creditor,
                 debtor: debtor,
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 30 days,
@@ -1203,7 +1217,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(
             CreateInvoiceParams({
-                creditor: creditor,
                 debtor: debtor,
                 claimAmount: 1 ether,
                 dueBy: block.timestamp + 30 days,
@@ -1247,7 +1260,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoiceWithMetadata(
             CreateInvoiceParams({
-                creditor: creditor,
                 debtor: debtor,
                 claimAmount: 1 ether,
                 dueBy: 0, // No due date
@@ -1301,7 +1313,6 @@ contract TestBullaInvoice is Test {
         vm.expectRevert(abi.encodeWithSelector(InvalidDueBy.selector));
         bullaInvoice.createInvoiceWithMetadata(
             CreateInvoiceParams({
-                creditor: creditor,
                 debtor: debtor,
                 claimAmount: 1 ether,
                 dueBy: block.timestamp - 1 days, // Past date
@@ -1344,11 +1355,87 @@ contract TestBullaInvoice is Test {
         vm.expectRevert(abi.encodeWithSelector(InvalidDueBy.selector));
         bullaInvoice.createInvoiceWithMetadata(
             CreateInvoiceParams({
-                creditor: creditor,
                 debtor: debtor,
                 claimAmount: 1 ether,
                 dueBy: uint256(type(uint40).max) + 1, // Too far in the future
                 description: "Test Invoice with Metadata and Far Future Due Date",
+                token: address(0),
+                binding: ClaimBinding.BindingPending,
+                payerReceivesClaimOnPayment: true
+            }),
+            metadata
+        );
+    }
+
+    // Test creditor cannot be debtor in createInvoice
+    function testCreditorCannotBeDebtorInCreateInvoice() public {
+        // Setup permissions
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            operator: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        // Try to create an invoice where creditor (msg.sender) is the same as debtor
+        vm.prank(creditor);
+        vm.expectRevert(abi.encodeWithSelector(CreditorCannotBeDebtor.selector));
+        bullaInvoice.createInvoice(
+            CreateInvoiceParams({
+                debtor: creditor, // Same as the msg.sender
+                claimAmount: 1 ether,
+                dueBy: block.timestamp + 30 days,
+                description: "Test Invoice with Same Creditor and Debtor",
+                token: address(0),
+                binding: ClaimBinding.BindingPending,
+                payerReceivesClaimOnPayment: true
+            })
+        );
+    }
+
+    // Test creditor cannot be debtor in createInvoiceWithMetadata
+    function testCreditorCannotBeDebtorInCreateInvoiceWithMetadata() public {
+        // Setup permissions
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            operator: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        // Create metadata
+        ClaimMetadata memory metadata = ClaimMetadata({
+            tokenURI: "Invalid Invoice - Same Creditor and Debtor",
+            attachmentURI: "This should fail due to creditor being same as debtor"
+        });
+
+        // Try to create an invoice with metadata where creditor (msg.sender) is the same as debtor
+        vm.prank(creditor);
+        vm.expectRevert(abi.encodeWithSelector(CreditorCannotBeDebtor.selector));
+        bullaInvoice.createInvoiceWithMetadata(
+            CreateInvoiceParams({
+                debtor: creditor, // Same as the msg.sender
+                claimAmount: 1 ether,
+                dueBy: block.timestamp + 30 days,
+                description: "Test Invoice with Metadata and Same Creditor and Debtor",
                 token: address(0),
                 binding: ClaimBinding.BindingPending,
                 payerReceivesClaimOnPayment: true

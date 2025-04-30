@@ -11,6 +11,7 @@ struct InvoiceDetails {
 }
 
 error InvalidDueBy();
+error CreditorCannotBeDebtor();
 
 struct Invoice {
     uint256 claimAmount;
@@ -24,7 +25,6 @@ struct Invoice {
 }
 
 struct CreateInvoiceParams {
-    address creditor;
     address debtor;
     uint256 claimAmount;
     uint256 dueBy;
@@ -81,7 +81,7 @@ contract BullaInvoice is BullaClaimControllerBase {
         _validateCreateInvoiceParams(params);
 
         CreateClaimParams memory createClaimParams = CreateClaimParams({
-            creditor: params.creditor,
+            creditor: msg.sender,
             debtor: params.debtor,
             claimAmount: params.claimAmount,
             description: params.description,
@@ -111,7 +111,7 @@ contract BullaInvoice is BullaClaimControllerBase {
         _validateCreateInvoiceParams(params);
 
         CreateClaimParams memory createClaimParams = CreateClaimParams({
-            creditor: params.creditor,
+            creditor: msg.sender,
             debtor: params.debtor,
             claimAmount: params.claimAmount,
             description: params.description,
@@ -172,6 +172,10 @@ contract BullaInvoice is BullaClaimControllerBase {
      * @param params The parameters for creating an invoice
      */
     function _validateCreateInvoiceParams(CreateInvoiceParams memory params) private view {
+        if (msg.sender == params.debtor) {
+            revert CreditorCannotBeDebtor();
+        }
+        
         if (params.dueBy != 0 && (params.dueBy < block.timestamp || params.dueBy > type(uint40).max)) {
             revert InvalidDueBy();
         }
