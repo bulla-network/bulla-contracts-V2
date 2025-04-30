@@ -165,17 +165,6 @@ contract BullaInvoice is BullaClaimControllerBase {
         return _bullaClaim.cancelClaimFrom(msg.sender, claimId, note);
     }
 
-    /**
-     * @notice Burns an invoice
-     * @param tokenId The ID of the invoice to burn
-     */
-    function burn(uint256 tokenId) external {
-        Claim memory claim = _bullaClaim.getClaim(tokenId);
-        _checkController(claim.controller);
-
-        return _bullaClaim.burn(tokenId);
-    }
-
     /// PRIVATE FUNCTIONS ///
 
     /**
