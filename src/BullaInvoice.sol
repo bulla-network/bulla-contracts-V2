@@ -41,6 +41,8 @@ struct CreateInvoiceParams {
 contract BullaInvoice is BullaClaimControllerBase {
     mapping(uint256 => InvoiceDetails) private _invoiceDetailsByClaimId;
 
+    event InvoiceCreated(uint256 claimId, uint256 dueBy);
+
     /**
      * @notice Constructor
      * @param bullaClaim Address of the IBullaClaim contract to delegate calls to
@@ -88,8 +90,12 @@ contract BullaInvoice is BullaClaimControllerBase {
             payerReceivesClaimOnPayment: params.payerReceivesClaimOnPayment
         });
 
-        // TODO: emit InvoiceCreated event to index dueBy
-        return _bullaClaim.createClaimFrom(msg.sender, createClaimParams);
+        uint256 claimId = _bullaClaim.createClaimFrom(msg.sender, createClaimParams);
+        _invoiceDetailsByClaimId[claimId] = InvoiceDetails({dueBy: params.dueBy});
+
+        emit InvoiceCreated(claimId, params.dueBy);
+
+        return claimId;
     }
 
     /**
@@ -114,9 +120,13 @@ contract BullaInvoice is BullaClaimControllerBase {
             payerReceivesClaimOnPayment: params.payerReceivesClaimOnPayment
         });
 
-        // TODO: emit InvoiceCreated event to index dueBy
+        uint256 claimId = _bullaClaim.createClaimWithMetadataFrom(msg.sender, createClaimParams, metadata);
 
-        return _bullaClaim.createClaimWithMetadataFrom(msg.sender, createClaimParams, metadata);
+        _invoiceDetailsByClaimId[claimId] = InvoiceDetails({dueBy: params.dueBy});
+
+        emit InvoiceCreated(claimId, params.dueBy);
+
+        return claimId;
     }
 
     /**
