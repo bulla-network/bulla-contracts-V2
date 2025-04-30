@@ -48,7 +48,6 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     error CannotBindClaim();
     error InvalidApproval();
     error InvalidSignature();
-    error InvalidTimestamp();
     error PastApprovalDeadline();
     error NotOwner();
     error NotCreditorOrDebtor();
@@ -77,7 +76,6 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         address indexed creditor,
         address indexed debtor,
         uint256 claimAmount,
-        uint256 dueBy,
         string description,
         address token,
         address controller,
@@ -240,11 +238,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     function _createClaim(address from, CreateClaimParams calldata params) internal returns (uint256) {
         if (lockState != LockState.Unlocked) revert Locked();
         if (from != params.debtor && from != params.creditor) revert NotCreditorOrDebtor();
-        // we allow dueBy to be 0 in the case of an "open" claim, or we allow a reasonable timestamp
-        if (params.dueBy != 0 && (params.dueBy < block.timestamp && params.dueBy < type(uint40).max)) {
-            //todo fix
-            revert InvalidTimestamp();
-        }
+
         // you need the permission of the debtor to bind a claim
         if (params.binding == ClaimBinding.Bound && from != params.debtor) revert CannotBindClaim();
         if (params.claimAmount == 0) revert ZeroAmount();
@@ -262,7 +256,6 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
             claim.claimAmount = params.claimAmount.safeCastTo128(); //TODO: is this necessary?
             claim.debtor = params.debtor;
 
-            if (params.dueBy != 0) claim.dueBy = uint40(params.dueBy);
             if (params.token != address(0)) claim.token = params.token;
             if (controller != address(0)) claim.controller = controller;
             if (params.binding != ClaimBinding.Unbound) claim.binding = params.binding;
@@ -275,7 +268,6 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
             params.creditor,
             params.debtor,
             params.claimAmount,
-            params.dueBy,
             params.description,
             params.token,
             controller,
@@ -648,7 +640,6 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
             binding: claimStorage.binding,
             payerReceivesClaimOnPayment: claimStorage.payerReceivesClaimOnPayment,
             debtor: claimStorage.debtor,
-            dueBy: uint256(claimStorage.dueBy),
             token: claimStorage.token,
             controller: claimStorage.controller
         });

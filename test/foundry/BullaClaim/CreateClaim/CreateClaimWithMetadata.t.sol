@@ -57,7 +57,6 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
                 debtor: debtor,
                 description: "",
                 claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
                 token: address(weth),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
@@ -111,7 +110,6 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
                 debtor: user,
                 description: "",
                 claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
                 token: address(0),
                 binding: ClaimBinding.Bound,
                 payerReceivesClaimOnPayment: true
@@ -137,7 +135,6 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
                 debtor: user,
                 description: "",
                 claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
                 token: address(0),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
@@ -163,7 +160,6 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
                 debtor: creditor,
                 description: "",
                 claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
                 token: address(0),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true

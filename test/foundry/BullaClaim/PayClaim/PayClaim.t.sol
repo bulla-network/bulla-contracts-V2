@@ -46,7 +46,6 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
                 debtor: debtor,
                 description: "",
                 claimAmount: claimAmount,
-                dueBy: block.timestamp + 1 days,
                 token: isNative ? address(0) : address(weth),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
@@ -96,7 +95,6 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
                 debtor: debtor,
                 description: "",
                 claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
                 token: address(0),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: false
@@ -170,7 +168,6 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
                 debtor: debtor,
                 description: "",
                 claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
                 token: address(0),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: false

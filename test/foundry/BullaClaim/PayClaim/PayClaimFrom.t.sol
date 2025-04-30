@@ -339,7 +339,6 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
                 debtor: user,
                 description: "",
                 claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
                 token: address(0), // native token
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true

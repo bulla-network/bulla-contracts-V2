@@ -20,7 +20,6 @@ contract TestCreateClaim is BullaClaimTestHelper {
         address indexed creditor,
         address indexed debtor,
         uint256 claimAmount,
-        uint256 dueBy,
         string description,
         address token,
         address controller,
@@ -49,7 +48,6 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 debtor: debtor,
                 description: "",
                 claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
                 token: address(0),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
@@ -79,7 +77,6 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 debtor: debtor,
                 description: "",
                 claimAmount: uint256(type(uint128).max) + 1,
-                dueBy: block.timestamp + 1 days,
                 token: address(0),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
@@ -95,7 +92,6 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 debtor: debtor,
                 description: "",
                 claimAmount: uint256(type(uint128).max) + 1,
-                dueBy: block.timestamp + 1 days,
                 token: address(0),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
@@ -112,7 +108,6 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 debtor: debtor,
                 description: "",
                 claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
                 token: address(weth),
                 binding: ClaimBinding.BindingPending,
                 payerReceivesClaimOnPayment: true
@@ -129,7 +124,6 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 debtor: debtor,
                 description: "",
                 claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
                 token: address(weth),
                 binding: ClaimBinding.Bound,
                 payerReceivesClaimOnPayment: true
@@ -146,24 +140,25 @@ contract TestCreateClaim is BullaClaimTestHelper {
         assertEq(bullaClaim.currentClaimId(), beforeClaimCreation + 1);
     }
 
-    function testCreateEdgeCase_ZeroDueBy() public {
-        uint256 beforeClaimCreation = bullaClaim.currentClaimId();
-        vm.prank(creditor);
-        uint256 claimId = bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                dueBy: 0,
-                token: address(weth),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
-        );
-        assertEq(bullaClaim.currentClaimId(), claimId);
-        assertEq(bullaClaim.currentClaimId(), beforeClaimCreation + 1);
-    }
+    //TODO: add test in BullaInvoice
+    // function testCreateEdgeCase_ZeroDueBy() public {
+    //     uint256 beforeClaimCreation = bullaClaim.currentClaimId();
+    //     vm.prank(creditor);
+    //     uint256 claimId = bullaClaim.createClaim(
+    //         CreateClaimParams({
+    //             creditor: creditor,
+    //             debtor: debtor,
+    //             description: "",
+    //             claimAmount: 1 ether,
+    //             dueBy: 0,
+    //             token: address(weth),
+    //             binding: ClaimBinding.Unbound,
+    //             payerReceivesClaimOnPayment: true
+    //         })
+    //     );
+    //     assertEq(bullaClaim.currentClaimId(), claimId);
+    //     assertEq(bullaClaim.currentClaimId(), beforeClaimCreation + 1);
+    // }
 
     function testCannotCreateBoundClaimUnlessDebtor() public {
         vm.prank(debtor);
@@ -174,7 +169,6 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 debtor: debtor,
                 description: "",
                 claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
                 token: address(weth),
                 binding: ClaimBinding.Bound,
                 payerReceivesClaimOnPayment: true
@@ -189,7 +183,6 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 debtor: debtor,
                 description: "",
                 claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
                 token: address(weth),
                 binding: ClaimBinding.Bound,
                 payerReceivesClaimOnPayment: true
@@ -207,7 +200,6 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 debtor: debtor,
                 description: "",
                 claimAmount: claimAmount,
-                dueBy: block.timestamp + 1 days,
                 token: address(weth),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
@@ -215,25 +207,26 @@ contract TestCreateClaim is BullaClaimTestHelper {
         );
     }
 
-    function testCannotCreateOverDueClaim() public {
-        vm.warp(block.timestamp + 6 days);
+    //TODO: add test in BullaInvoice
+    // function testCannotCreateOverDueClaim() public {
+    //     vm.warp(block.timestamp + 6 days);
 
-        uint256 dueBy = block.timestamp - 1 days;
-        vm.expectRevert(BullaClaim.InvalidTimestamp.selector);
-        vm.prank(creditor);
-        bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                dueBy: dueBy,
-                token: address(weth),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
-        );
-    }
+    //     uint256 dueBy = block.timestamp - 1 days;
+    //     vm.expectRevert(BullaClaim.InvalidTimestamp.selector);
+    //     vm.prank(creditor);
+    //     bullaClaim.createClaim(
+    //         CreateClaimParams({
+    //             creditor: creditor,
+    //             debtor: debtor,
+    //             description: "",
+    //             claimAmount: 1 ether,
+    //             dueBy: dueBy,
+    //             token: address(weth),
+    //             binding: ClaimBinding.Unbound,
+    //             payerReceivesClaimOnPayment: true
+    //         })
+    //     );
+    // }
 
     function testCannotCreateZeroAmountClaim() public {
         vm.expectRevert(BullaClaim.ZeroAmount.selector);
@@ -244,7 +237,6 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 debtor: debtor,
                 description: "",
                 claimAmount: 0,
-                dueBy: 1 days,
                 token: address(weth),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
@@ -261,7 +253,6 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 debtor: debtor,
                 description: "",
                 claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
                 token: address(weth),
                 binding: ClaimBinding.Bound,
                 payerReceivesClaimOnPayment: true
@@ -269,17 +260,16 @@ contract TestCreateClaim is BullaClaimTestHelper {
         );
     }
 
+    //TODO: add similar test in BullaInvoice but with dueBy
     function test_FUZZ_createClaim(
         bool isInvoice,
         address _creditor,
         address _debtor,
         uint128 claimAmount,
         address token,
-        uint40 dueBy,
         uint8 binding,
         bool payerReceivesClaimOnPayment
     ) public {
-        vm.assume(dueBy > block.timestamp + 6 days);
         vm.assume(_creditor != address(0));
         vm.assume(claimAmount > 0);
         vm.assume(binding <= 1); // assumes a fuzz can only produce unbound or binding pending claims
@@ -297,7 +287,6 @@ contract TestCreateClaim is BullaClaimTestHelper {
             _creditor,
             _debtor,
             uint256(claimAmount),
-            uint256(dueBy),
             "test description",
             token,
             address(0),
@@ -311,7 +300,6 @@ contract TestCreateClaim is BullaClaimTestHelper {
                 debtor: _debtor,
                 description: "test description",
                 claimAmount: claimAmount,
-                dueBy: dueBy,
                 token: token,
                 binding: ClaimBinding(binding),
                 payerReceivesClaimOnPayment: payerReceivesClaimOnPayment
@@ -326,7 +314,6 @@ contract TestCreateClaim is BullaClaimTestHelper {
             assertTrue(claim.status == Status.Pending);
             assertEq(claim.claimAmount, claimAmount);
             assertEq(claim.debtor, _debtor);
-            assertEq(claim.dueBy, dueBy);
             assertEq(claim.payerReceivesClaimOnPayment, payerReceivesClaimOnPayment);
             assertTrue(claim.binding == ClaimBinding(binding));
             assertEq(claim.token, token);

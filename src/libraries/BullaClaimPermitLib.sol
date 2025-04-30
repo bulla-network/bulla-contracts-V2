@@ -4,6 +4,7 @@ pragma solidity 0.8.15;
 import "contracts/types/Types.sol";
 import "contracts/interfaces/IERC1271.sol";
 import "contracts/BullaClaim.sol";
+import "contracts/interfaces/IBullaClaim.sol";
 import {BullaExtensionRegistry} from "contracts/BullaExtensionRegistry.sol";
 import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import {SignatureChecker} from "openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol";
@@ -458,7 +459,7 @@ library BullaClaimPermitLib {
 
         if (!SignatureChecker.isValidSignatureNow(user, digest, signature)) revert BullaClaim.InvalidSignature();
         if (approvalDeadline != 0 && (approvalDeadline < block.timestamp || approvalDeadline > type(uint40).max)) {
-            revert BullaClaim.InvalidTimestamp();
+            revert IBullaClaim.ApprovalExpired();
         }
 
         if (approvalType == PayClaimApprovalType.IsApprovedForAll) {
@@ -482,7 +483,7 @@ library BullaClaimPermitLib {
                                 || paymentApprovals[i].approvalDeadline > type(uint40).max
                         )
                 ) {
-                    revert BullaClaim.InvalidTimestamp();
+                    revert IBullaClaim.ApprovalExpired();
                 }
 
                 approvals.payClaim.claimApprovals.push(

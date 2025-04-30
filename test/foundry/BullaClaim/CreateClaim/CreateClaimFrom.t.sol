@@ -38,7 +38,6 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
         address indexed creditor,
         address indexed debtor,
         uint256 claimAmount,
-        uint256 dueBy,
         string description,
         address token,
         address controller,
@@ -114,7 +113,6 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
                 debtor: debtor,
                 description: "",
                 claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
                 token: address(weth),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
@@ -223,7 +221,6 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
                 debtor: debtor,
                 description: "",
                 claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
                 token: address(weth),
                 binding: ClaimBinding.Bound, // binding is set to bound
                 payerReceivesClaimOnPayment: true
@@ -266,7 +263,6 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
                 isInvoice ? _user : debtor,
                 isInvoice ? debtor : _user,
                 1 ether,
-                block.timestamp + 1 days,
                 "fuzzzin",
                 address(0),
                 _operator,
@@ -282,7 +278,6 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
                 debtor: isInvoice ? debtor : _user,
                 description: "fuzzzin",
                 claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
                 token: address(0),
                 binding: _isBindingAllowed && !isInvoice ? ClaimBinding.Bound : ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true

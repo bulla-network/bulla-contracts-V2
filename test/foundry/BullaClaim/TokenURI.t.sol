@@ -34,7 +34,6 @@ contract TestTokenURI is Test {
                 debtor: debtor,
                 description: "",
                 claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
                 token: address(0),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
@@ -56,7 +55,6 @@ contract TestTokenURI is Test {
                 debtor: debtor,
                 description: "",
                 claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
                 token: address(0),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
@@ -82,7 +80,6 @@ contract TestTokenURI is Test {
                 debtor: debtor,
                 description: "",
                 claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
                 token: address(0),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
