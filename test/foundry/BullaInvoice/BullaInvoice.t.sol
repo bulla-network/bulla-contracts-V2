@@ -701,7 +701,7 @@ contract TestBullaInvoice is Test {
         // Try to cancel without proper permissions (no permit)
         address randomUser = vm.addr(0x03);
         vm.prank(randomUser);
-        vm.expectRevert(); // Should fail - random user can't cancel
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector)); // Should fail - random user can't cancel
         bullaInvoice.cancelInvoice(invoiceId, "Unauthorized cancellation");
     }
 
@@ -741,7 +741,7 @@ contract TestBullaInvoice is Test {
         address randomUser = vm.addr(0x03);
         vm.deal(randomUser, 2 ether);
         vm.prank(randomUser);
-        vm.expectRevert(); // Should fail - random user can't pay without permit
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector)); // Should fail - random user can't pay without permit
         bullaInvoice.payInvoice{value: 1 ether}(invoiceId, 1 ether);
     }
 
