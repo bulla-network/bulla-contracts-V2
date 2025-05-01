@@ -13,7 +13,7 @@ abstract contract BullaClaimControllerBase {
 
     function _checkController(address controller) internal view {
         if (controller != address(this)) {
-            revert IBullaClaim.NotController(controller);
+            revert IBullaClaim.NotController(msg.sender);
         }
     }
 }

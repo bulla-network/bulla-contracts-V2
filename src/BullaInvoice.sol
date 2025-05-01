@@ -11,6 +11,7 @@ struct InvoiceDetails {
 }
 
 error InvalidDueBy();
+error CreditorCannotBeDebtor();
 
 struct Invoice {
     uint256 claimAmount;
@@ -24,7 +25,6 @@ struct Invoice {
 }
 
 struct CreateInvoiceParams {
-    address creditor;
     address debtor;
     uint256 claimAmount;
     uint256 dueBy;
@@ -40,6 +40,8 @@ struct CreateInvoiceParams {
  */
 contract BullaInvoice is BullaClaimControllerBase {
     mapping(uint256 => InvoiceDetails) private _invoiceDetailsByClaimId;
+
+    event InvoiceCreated(uint256 claimId, uint256 dueBy);
 
     /**
      * @notice Constructor
@@ -79,7 +81,7 @@ contract BullaInvoice is BullaClaimControllerBase {
         _validateCreateInvoiceParams(params);
 
         CreateClaimParams memory createClaimParams = CreateClaimParams({
-            creditor: params.creditor,
+            creditor: msg.sender,
             debtor: params.debtor,
             claimAmount: params.claimAmount,
             description: params.description,
@@ -88,8 +90,12 @@ contract BullaInvoice is BullaClaimControllerBase {
             payerReceivesClaimOnPayment: params.payerReceivesClaimOnPayment
         });
 
-        // TODO: emit InvoiceCreated event to index dueBy
-        return _bullaClaim.createClaimFrom(msg.sender, createClaimParams);
+        uint256 claimId = _bullaClaim.createClaimFrom(msg.sender, createClaimParams);
+        _invoiceDetailsByClaimId[claimId] = InvoiceDetails({dueBy: params.dueBy});
+
+        emit InvoiceCreated(claimId, params.dueBy);
+
+        return claimId;
     }
 
     /**
@@ -105,7 +111,7 @@ contract BullaInvoice is BullaClaimControllerBase {
         _validateCreateInvoiceParams(params);
 
         CreateClaimParams memory createClaimParams = CreateClaimParams({
-            creditor: params.creditor,
+            creditor: msg.sender,
             debtor: params.debtor,
             claimAmount: params.claimAmount,
             description: params.description,
@@ -114,9 +120,13 @@ contract BullaInvoice is BullaClaimControllerBase {
             payerReceivesClaimOnPayment: params.payerReceivesClaimOnPayment
         });
 
-        // TODO: emit InvoiceCreated event to index dueBy
+        uint256 claimId = _bullaClaim.createClaimWithMetadataFrom(msg.sender, createClaimParams, metadata);
 
-        return _bullaClaim.createClaimWithMetadataFrom(msg.sender, createClaimParams, metadata);
+        _invoiceDetailsByClaimId[claimId] = InvoiceDetails({dueBy: params.dueBy});
+
+        emit InvoiceCreated(claimId, params.dueBy);
+
+        return claimId;
     }
 
     /**
@@ -155,17 +165,6 @@ contract BullaInvoice is BullaClaimControllerBase {
         return _bullaClaim.cancelClaimFrom(msg.sender, claimId, note);
     }
 
-    /**
-     * @notice Burns an invoice
-     * @param tokenId The ID of the invoice to burn
-     */
-    function burn(uint256 tokenId) external {
-        Claim memory claim = _bullaClaim.getClaim(tokenId);
-        _checkController(claim.controller);
-
-        return _bullaClaim.burn(tokenId);
-    }
-
     /// PRIVATE FUNCTIONS ///
 
     /**
@@ -173,6 +172,10 @@ contract BullaInvoice is BullaClaimControllerBase {
      * @param params The parameters for creating an invoice
      */
     function _validateCreateInvoiceParams(CreateInvoiceParams memory params) private view {
+        if (msg.sender == params.debtor) {
+            revert CreditorCannotBeDebtor();
+        }
+        
         if (params.dueBy != 0 && (params.dueBy < block.timestamp || params.dueBy > type(uint40).max)) {
             revert InvalidDueBy();
         }

@@ -546,17 +546,6 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         }
     }
 
-    /**
-     * /// BURN CLAIM ///
-     */
-    function burn(uint256 tokenId) external {
-        _notLocked();
-        if (msg.sender != ownerOf(tokenId)) revert NotOwner();
-        if (getClaim(tokenId).status != Status.Paid) revert ClaimPending();
-
-        _burn(tokenId);
-    }
-
     /*///////////////////////////////////////////////////////////////
                              PERMIT FUNCTIONS
     //////////////////////////////////////////////////////////////*/

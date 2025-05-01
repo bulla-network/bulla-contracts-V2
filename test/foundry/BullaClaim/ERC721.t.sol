@@ -142,19 +142,6 @@ contract ERC721Test is DSTestPlus {
         );
     }
 
-    function testFailBurnUnMinted() public {
-        token.burn(1337);
-    }
-
-    function testFailDoubleBurn() public {
-        uint256 tokenId = _mint();
-
-        hevm.startPrank(creditor);
-        token.burn(tokenId);
-        token.burn(tokenId);
-        hevm.stopPrank();
-    }
-
     function testFailApproveUnMinted() public {
         token.approve(address(0xBEEF), 1);
     }

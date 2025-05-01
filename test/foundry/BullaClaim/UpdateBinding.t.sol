@@ -201,25 +201,6 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         bullaClaim.updateBinding(1, ClaimBinding.Unbound);
     }
 
-    function testCannotUpdateBindingIfBurned() public {
-        vm.prank(creditor);
-        (uint256 claimId,) = _newClaim(ClaimBinding.BindingPending);
-        vm.prank(creditor);
-        _newClaim(ClaimBinding.BindingPending);
-
-        vm.deal(debtor, 1 ether);
-
-        vm.startPrank(debtor);
-        weth.deposit{value: 1 ether}();
-        weth.approve(address(bullaClaim), 1 ether);
-        bullaClaim.payClaim(claimId, 1 ether);
-        bullaClaim.burn(claimId);
-
-        vm.expectRevert(BullaClaim.ClaimNotPending.selector);
-        bullaClaim.updateBinding(claimId, ClaimBinding.Unbound);
-        vm.stopPrank();
-    }
-
     function testCannotUpdateBindingNotPending(uint8 _claimStatus) public {
         Status claimStatus = Status(_claimStatus % 4);
         vm.prank(creditor);
