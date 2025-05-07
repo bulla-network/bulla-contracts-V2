@@ -43,7 +43,6 @@ contract PermitPayClaimTest is Test {
                 debtor: _debtor,
                 description: "",
                 claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
                 token: address(weth),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true

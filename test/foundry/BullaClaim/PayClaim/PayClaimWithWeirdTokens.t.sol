@@ -65,7 +65,6 @@ contract TestPayClaimWithWeirdTokens is Test {
                 debtor: debtor,
                 description: "",
                 claimAmount: claimAmount,
-                dueBy: block.timestamp + 1 days,
                 token: token,
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true

@@ -49,7 +49,6 @@ contract TestCancelClaim is BullaClaimTestHelper {
                 debtor: debtor,
                 description: "",
                 claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
                 token: address(weth),
                 binding: binding,
                 payerReceivesClaimOnPayment: true
@@ -303,25 +302,6 @@ contract TestCancelClaim is BullaClaimTestHelper {
         bullaClaim.cancelClaim(1, "Reject");
     }
 
-    function testCannotCancelIfBurned() public {
-        vm.prank(creditor);
-        (uint256 claimId,) = _newClaim(ClaimBinding.Unbound);
-
-        vm.deal(debtor, 1 ether);
-
-        vm.startPrank(debtor);
-        weth.deposit{value: 1 ether}();
-        weth.approve(address(bullaClaim), 1 ether);
-
-        bullaClaim.payClaim(claimId, 1 ether);
-
-        bullaClaim.burn(claimId);
-
-        vm.expectRevert();
-        bullaClaim.cancelClaim(claimId, "Reject");
-        vm.stopPrank();
-    }
-
     function testDebtorCannotCancelClaimIfBound() public {
         vm.prank(creditor);
         (uint256 claimId,) = _newClaim(ClaimBinding.Unbound);
@@ -383,7 +363,6 @@ contract TestCancelClaim is BullaClaimTestHelper {
                 debtor: debtor,
                 description: "",
                 claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
                 token: address(weth),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
@@ -422,7 +401,6 @@ contract TestCancelClaim is BullaClaimTestHelper {
                 debtor: debtor,
                 description: "",
                 claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
                 token: address(weth),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true

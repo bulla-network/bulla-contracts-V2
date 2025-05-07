@@ -13,7 +13,7 @@ interface IBullaClaim {
     error CannotBindClaim();
     error InvalidApproval();
     error InvalidSignature();
-    error InvalidTimestamp();
+    error ApprovalExpired();
     error PastApprovalDeadline();
     error NotOwner();
     error NotCreditorOrDebtor();
@@ -142,9 +142,9 @@ interface IBullaClaim {
 
     function payClaimFrom(address from, uint256 claimId, uint256 amount) external payable;
 
-    function updateBinding(uint256 claimId, uint8 binding) external;
+    function updateBinding(uint256 claimId, ClaimBinding binding) external;
 
-    function updateBindingFrom(address from, uint256 claimId, uint8 binding) external;
+    function updateBindingFrom(address from, uint256 claimId, ClaimBinding binding) external;
 
     function cancelClaim(uint256 claimId, string memory note) external;
 

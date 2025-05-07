@@ -26,7 +26,6 @@ contract ERC721Test is DSTestPlus {
                 debtor: debtor,
                 description: "",
                 claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
                 token: address(0),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
@@ -42,7 +41,6 @@ contract ERC721Test is DSTestPlus {
                 debtor: debtor,
                 description: "",
                 claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
                 token: address(0),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
@@ -137,25 +135,11 @@ contract ERC721Test is DSTestPlus {
                 debtor: debtor,
                 description: "",
                 claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
                 token: address(0),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
             })
         );
-    }
-
-    function testFailBurnUnMinted() public {
-        token.burn(1337);
-    }
-
-    function testFailDoubleBurn() public {
-        uint256 tokenId = _mint();
-
-        hevm.startPrank(creditor);
-        token.burn(tokenId);
-        token.burn(tokenId);
-        hevm.stopPrank();
     }
 
     function testFailApproveUnMinted() public {

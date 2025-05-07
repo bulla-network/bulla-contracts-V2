@@ -46,7 +46,6 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
                 debtor: debtor,
                 description: "",
                 claimAmount: claimAmount,
-                dueBy: block.timestamp + 1 days,
                 token: isNative ? address(0) : address(weth),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: true
@@ -96,7 +95,6 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
                 debtor: debtor,
                 description: "",
                 claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
                 token: address(0),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: false
@@ -140,21 +138,6 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
         bullaClaim.payClaim{value: 1 ether}(1, 1 ether);
     }
 
-    function testCannotPayABurnedClaim() public {
-        uint256 CLAIM_AMOUNT = 1 ether;
-
-        uint256 claimId = _newClaim(creditor, true, CLAIM_AMOUNT);
-        vm.prank(debtor);
-        bullaClaim.payClaim{value: CLAIM_AMOUNT}(claimId, CLAIM_AMOUNT);
-
-        vm.prank(debtor);
-        bullaClaim.burn(claimId);
-
-        vm.prank(debtor);
-        vm.expectRevert(BullaClaim.ClaimNotPending.selector);
-        bullaClaim.payClaim{value: CLAIM_AMOUNT}(claimId, CLAIM_AMOUNT);
-    }
-
     function testNonControllerCannotPayClaim() public {
         uint256 userPK = 12345686543;
         address userAddress = vm.addr(userPK);
@@ -170,7 +153,6 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
                 debtor: debtor,
                 description: "",
                 claimAmount: 1 ether,
-                dueBy: block.timestamp + 1 days,
                 token: address(0),
                 binding: ClaimBinding.Unbound,
                 payerReceivesClaimOnPayment: false
