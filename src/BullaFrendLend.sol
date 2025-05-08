@@ -4,6 +4,7 @@ pragma solidity 0.8.15;
 import "contracts/interfaces/IBullaClaim.sol";
 import "contracts/BullaClaimControllerBase.sol";
 import "contracts/types/Types.sol";
+import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
 uint256 constant MAX_BPS = 10_000;
 
@@ -16,6 +17,7 @@ error InvalidTermLength();
 error WithdrawalFailed();
 error TransferFailed();
 error LoanOfferNotFound();
+error NativeTokenNotSupported();
 
 struct LoanDetails {
     uint256 dueBy;        
@@ -108,6 +110,7 @@ contract BullaFrendLend is BullaClaimControllerBase {
         if (msg.value != fee) revert IncorrectFee();
         if (msg.sender != offer.creditor) revert NotCreditor();
         if (offer.termLength == 0) revert InvalidTermLength();
+        if (offer.token == address(0)) revert NativeTokenNotSupported();
 
         uint256 offerId = ++loanOfferCount;
         loanOffers[offerId] = offer;
@@ -172,17 +175,14 @@ contract BullaFrendLend is BullaClaimControllerBase {
             termLength: offer.termLength
         });
 
-        // Transfer loan amount from creditor to debtor
-        if (offer.token == address(0)) {
-            // Handle native token transfer
-            (bool success,) = offer.debtor.call{value: offer.loanAmount}("");
-            if (!success) revert TransferFailed();
-        } else {
-            // Handle ERC20 token transfer
-            bool success = IERC20(offer.token).transferFrom(offer.creditor, offer.debtor, offer.loanAmount);
-            if (!success) revert TransferFailed();
-        }
-
+        // Transfer token from creditor to debtor via the contract
+        // First, transfer from creditor to this contract
+        bool transferFromSuccess = IERC20(offer.token).transferFrom(offer.creditor, address(this), offer.loanAmount);
+        if (!transferFromSuccess) revert TransferFailed();
+        
+        // Then transfer from this contract to debtor
+        bool transferSuccess = IERC20(offer.token).transfer(offer.debtor, offer.loanAmount);
+        if (!transferSuccess) revert TransferFailed();
         emit LoanOfferAccepted(offerId, claimId, block.timestamp);
 
         return claimId;
