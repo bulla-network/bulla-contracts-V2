@@ -54,7 +54,7 @@ contract TestBullaFrendLend is Test {
             creditor: creditor,
             debtor: debtor,
             description: "Test Loan",
-            token: address(weth) // Use WETH instead of native token
+            token: address(weth)
         });
 
         vm.prank(creditor);
