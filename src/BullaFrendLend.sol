@@ -76,6 +76,33 @@ contract BullaFrendLend is BullaClaimControllerBase {
     }
 
     /**
+     * @notice Calculate the current interest amount for a loan
+     * @param claimId The ID of the loan
+     * @return The current interest amount
+     */
+    function calculateCurrentInterest(uint256 claimId) public view returns (uint256) {
+        LoanDetails memory loanDetails = _loanDetailsByClaimId[claimId];
+        Claim memory claim = _bullaClaim.getClaim(claimId);
+        
+        // Calculate time elapsed in seconds
+        uint256 timeElapsed = block.timestamp - (loanDetails.dueBy - loanDetails.termLength);
+        
+        // Calculate interest: principal * interestBPS * timeElapsed / (MAX_BPS * termLength)
+        return (claim.claimAmount * loanDetails.interestBPS * timeElapsed) / (MAX_BPS * loanDetails.termLength);
+    }
+
+    /**
+     * @notice Get the total amount due for a loan including principal and interest
+     * @param claimId The ID of the loan
+     * @return The total amount due
+     */
+    function getTotalAmountDue(uint256 claimId) public view returns (uint256) {
+        Claim memory claim = _bullaClaim.getClaim(claimId);
+        return claim.claimAmount + calculateCurrentInterest(claimId);
+    }
+
+
+    /**
      * @notice Get a loan with all its details
      * @param claimId The ID of the claim associated with the loan
      * @return The loan details
@@ -149,12 +176,10 @@ contract BullaFrendLend is BullaClaimControllerBase {
 
         delete loanOffers[offerId];
 
-        uint256 claimAmount = offer.loanAmount + (offer.loanAmount * offer.interestBPS) / MAX_BPS;
-
         CreateClaimParams memory claimParams = CreateClaimParams({
             creditor: offer.creditor,
             debtor: offer.debtor,
-            claimAmount: claimAmount,
+            claimAmount: offer.loanAmount,
             description: offer.description,
             token: offer.token,
             binding: ClaimBinding.Bound, // Loans are bound claims, avoiding the 1 wei transfer used in V1
@@ -196,6 +221,9 @@ contract BullaFrendLend is BullaClaimControllerBase {
     function payLoan(uint256 claimId, uint256 amount) external payable {
         Claim memory claim = _bullaClaim.getClaim(claimId);
         _checkController(claim.controller);
+
+        // Calculate total amount due including interest
+        uint256 totalDue = getTotalAmountDue(claimId);
 
         _bullaClaim.payClaimFrom{value: msg.value}(msg.sender, claimId, amount);
     }
