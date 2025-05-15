@@ -5,6 +5,7 @@ import "contracts/interfaces/IBullaClaim.sol";
 import "contracts/BullaClaimControllerBase.sol";
 import "contracts/types/Types.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
 uint256 constant MAX_BPS = 10_000;
 
@@ -64,6 +65,7 @@ contract BullaFrendLend is BullaClaimControllerBase {
     event LoanOffered(uint256 indexed loanId, address indexed offeredBy, LoanOffer loanOffer, uint256 blocktime);
     event LoanOfferAccepted(uint256 indexed loanId, uint256 indexed claimId, uint256 blocktime);
     event LoanOfferRejected(uint256 indexed loanId, address indexed rejectedBy, uint256 blocktime);
+    event LoanPayment(uint256 indexed claimId, uint256 interestPayment, uint256 principalPayment, uint256 blocktime);
 
     /**
      * @param bullaClaim Address of the IBullaClaim contract to delegate calls to
@@ -94,13 +96,14 @@ contract BullaFrendLend is BullaClaimControllerBase {
     /**
      * @notice Get the total amount due for a loan including principal and interest
      * @param claimId The ID of the loan
-     * @return The total amount due
+     * @return remainingPrincipal The remaining principal amount due
+     * @return interest The current interest amount accrued
      */
-    function getTotalAmountDue(uint256 claimId) public view returns (uint256) {
+    function getTotalAmountDue(uint256 claimId) public view returns (uint256 remainingPrincipal, uint256 interest) {
         Claim memory claim = _bullaClaim.getClaim(claimId);
-        return claim.claimAmount + calculateCurrentInterest(claimId);
+        remainingPrincipal = claim.claimAmount - claim.paidAmount;
+        interest = calculateCurrentInterest(claimId);
     }
-
 
     /**
      * @notice Get a loan with all its details
@@ -218,14 +221,30 @@ contract BullaFrendLend is BullaClaimControllerBase {
      * @param claimId The ID of the loan to pay
      * @param amount The amount to pay
      */
-    function payLoan(uint256 claimId, uint256 amount) external payable {
+    function payLoan(uint256 claimId, uint256 amount) external {
         Claim memory claim = _bullaClaim.getClaim(claimId);
         _checkController(claim.controller);
+        address creditor = _bullaClaim.ownerOf(claimId);
 
-        // Calculate total amount due including interest
-        uint256 totalDue = getTotalAmountDue(claimId);
-
-        _bullaClaim.payClaimFrom{value: msg.value}(msg.sender, claimId, amount);
+        (uint256 remainingPrincipal, uint256 currentInterest) = getTotalAmountDue(claimId);
+        
+        uint256 interestPayment = Math.min(amount, currentInterest);
+        uint256 principalPayment = amount - interestPayment;
+        
+        principalPayment = Math.min(principalPayment, remainingPrincipal);
+        
+        // Send interest payment directly from debtor to creditor
+        if (interestPayment > 0) {
+            bool interestTransferSuccess = IERC20(claim.token).transferFrom(msg.sender, creditor, interestPayment);
+            if (!interestTransferSuccess) revert TransferFailed();
+        }
+        
+        // Process principal payment through BullaClaim
+        if (principalPayment > 0) {
+            _bullaClaim.payClaimFrom(msg.sender, claimId, principalPayment);
+        }
+        
+        emit LoanPayment(claimId, interestPayment, principalPayment, block.timestamp);
     }
 
     /**
