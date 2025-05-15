@@ -89,8 +89,9 @@ contract BullaFrendLend is BullaClaimControllerBase {
         // Calculate time elapsed in seconds
         uint256 timeElapsed = block.timestamp - (loanDetails.dueBy - loanDetails.termLength);
         
-        // Calculate interest: principal * interestBPS * timeElapsed / (MAX_BPS * termLength)
-        return (claim.claimAmount * loanDetails.interestBPS * timeElapsed) / (MAX_BPS * loanDetails.termLength);
+        // Calculate APR-based interest: principal * (interestBPS / MAX_BPS) * (timeElapsed / SECONDS_PER_YEAR)
+        uint256 SECONDS_PER_YEAR = 365 days;
+        return (claim.claimAmount * loanDetails.interestBPS * timeElapsed) / (MAX_BPS * SECONDS_PER_YEAR);
     }
 
     /**
