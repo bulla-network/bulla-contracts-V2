@@ -10,6 +10,7 @@ import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/U
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {BullaInvoice, CreateInvoiceParams, Invoice, InvalidDueBy, CreditorCannotBeDebtor} from "contracts/BullaInvoice.sol";
 import {Deployer} from "script/Deployment.s.sol";
+import {CreateInvoiceParamsBuilder} from "test/foundry/BullaInvoice/CreateInvoiceParamsBuilder.sol";
 
 contract TestBullaInvoice is Test {
     WETH public weth;
@@ -50,20 +51,14 @@ contract TestBullaInvoice is Test {
             })
         });
 
+        // Create invoice params
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .build();
+            
         // Create an invoice as creditor
         vm.prank(creditor);
-        uint256 invoiceId = bullaInvoice.createInvoice(
-            CreateInvoiceParams({
-                debtor: debtor,
-                claimAmount: 1 ether,
-                dueBy: block.timestamp + 30 days,
-                deliveryDate: 0,
-                description: "Test Invoice",
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            })
-        );
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Verify invoice was created correctly
         Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
@@ -92,20 +87,14 @@ contract TestBullaInvoice is Test {
             })
         });
 
+        // Create invoice params
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .build();
+            
         // Create an invoice
         vm.prank(creditor);
-        uint256 invoiceId = bullaInvoice.createInvoice(
-            CreateInvoiceParams({
-                debtor: debtor,
-                claimAmount: 1 ether,
-                dueBy: block.timestamp + 30 days,
-                deliveryDate: 0,
-                description: "Test Invoice",
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            })
-        );
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Setup binding permit
         bullaClaim.permitUpdateBinding({
@@ -147,20 +136,14 @@ contract TestBullaInvoice is Test {
             })
         });
 
+        // Create invoice params
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .build();
+            
         // Create an invoice
         vm.prank(creditor);
-        uint256 invoiceId = bullaInvoice.createInvoice(
-            CreateInvoiceParams({
-                debtor: debtor,
-                claimAmount: 1 ether,
-                dueBy: block.timestamp + 30 days,
-                deliveryDate: 0,
-                description: "Test Invoice",
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            })
-        );
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Setup payment permit
         bullaClaim.permitPayClaim({
@@ -207,20 +190,14 @@ contract TestBullaInvoice is Test {
             })
         });
 
+        // Create invoice params
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .build();
+            
         // Create an invoice
         vm.prank(creditor);
-        uint256 invoiceId = bullaInvoice.createInvoice(
-            CreateInvoiceParams({
-                debtor: debtor,
-                claimAmount: 1 ether,
-                dueBy: block.timestamp + 30 days,
-                deliveryDate: 0,
-                description: "Test Invoice",
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            })
-        );
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Setup cancel permit
         bullaClaim.permitCancelClaim({
@@ -262,20 +239,14 @@ contract TestBullaInvoice is Test {
             })
         });
 
+        // Create invoice params
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .build();
+            
         // Create an invoice
         vm.prank(creditor);
-        uint256 invoiceId = bullaInvoice.createInvoice(
-            CreateInvoiceParams({
-                debtor: debtor,
-                claimAmount: 1 ether,
-                dueBy: block.timestamp + 30 days,
-                deliveryDate: 0,
-                description: "Test Invoice",
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            })
-        );
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Setup reject permit
         bullaClaim.permitCancelClaim({
@@ -318,20 +289,14 @@ contract TestBullaInvoice is Test {
             })
         });
 
+        // Create invoice params
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .build();
+            
         // Create an invoice
         vm.prank(creditor);
-        uint256 invoiceId = bullaInvoice.createInvoice(
-            CreateInvoiceParams({
-                debtor: debtor,
-                claimAmount: 1 ether,
-                dueBy: block.timestamp + 30 days,
-                deliveryDate: 0,
-                description: "Test Invoice",
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            })
-        );
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Setup payment permit
         bullaClaim.permitPayClaim({
@@ -396,20 +361,16 @@ contract TestBullaInvoice is Test {
             })
         });
 
+        // Create invoice params with WETH as token
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withDescription("Token Payment Invoice")
+            .withToken(address(weth))
+            .build();
+
         // Create an invoice with WETH as token
         vm.prank(creditor);
-        uint256 invoiceId = bullaInvoice.createInvoice(
-            CreateInvoiceParams({
-                debtor: debtor,
-                claimAmount: 1 ether,
-                dueBy: block.timestamp + 30 days,
-                deliveryDate: 0,
-                description: "Token Payment Invoice",
-                token: address(weth),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            })
-        );
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Setup payment permit
         bullaClaim.permitPayClaim({
@@ -469,21 +430,15 @@ contract TestBullaInvoice is Test {
         ClaimMetadata memory metadata =
             ClaimMetadata({tokenURI: "Monthly Service", attachmentURI: "Additional details about this invoice"});
 
+        // Create invoice params with metadata
+        CreateInvoiceParams memory invoiceParams = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withDescription("Test Invoice with Metadata")
+            .build();
+
         // Create an invoice with metadata
         vm.prank(creditor);
-        uint256 invoiceId = bullaInvoice.createInvoiceWithMetadata(
-            CreateInvoiceParams({
-                debtor: debtor,
-                claimAmount: 1 ether,
-                dueBy: block.timestamp + 30 days,
-                deliveryDate: 0,
-                description: "Test Invoice with Metadata",
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            }),
-            metadata
-        );
+        uint256 invoiceId = bullaInvoice.createInvoiceWithMetadata(invoiceParams, metadata);
 
         // Verify invoice was created correctly
         Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
@@ -517,37 +472,27 @@ contract TestBullaInvoice is Test {
 
         vm.warp(block.timestamp + 1 days);
 
+        // Create params with past due date
+        CreateInvoiceParams memory pastDueParams = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withDueBy(block.timestamp - 1 days) // Past date
+            .build();
+
         // Try to create an invoice with past due date
         vm.prank(creditor);
         vm.expectRevert(abi.encodeWithSelector(InvalidDueBy.selector));
-        bullaInvoice.createInvoice(
-            CreateInvoiceParams({
-                debtor: debtor,
-                claimAmount: 1 ether,
-                dueBy: block.timestamp - 1 days, // Past date
-                deliveryDate: 0,
-                description: "Test Invoice",
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            })
-        );
+        bullaInvoice.createInvoice(pastDueParams);
+
+        // Create params with far future due date
+        CreateInvoiceParams memory farFutureParams = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withDueBy(uint256(type(uint40).max) + 1) // Too far in the future
+            .build();
 
         // Try to create an invoice with too far future due date
         vm.prank(creditor);
         vm.expectRevert(abi.encodeWithSelector(InvalidDueBy.selector));
-        bullaInvoice.createInvoice(
-            CreateInvoiceParams({
-                debtor: debtor,
-                claimAmount: 1 ether,
-                dueBy: uint256(type(uint40).max) + 1, // Too far in the future
-                deliveryDate: 0,
-                description: "Test Invoice",
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            })
-        );
+        bullaInvoice.createInvoice(farFutureParams);
     }
 
     // 5. Edge Cases
@@ -569,21 +514,16 @@ contract TestBullaInvoice is Test {
             })
         });
 
-        // Create an invoice
+        // Set due date and create invoice params
         uint256 dueDate = block.timestamp + 30 days;
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withDueBy(dueDate)
+            .build();
+            
+        // Create an invoice
         vm.prank(creditor);
-        uint256 invoiceId = bullaInvoice.createInvoice(
-            CreateInvoiceParams({
-                debtor: debtor,
-                claimAmount: 1 ether,
-                dueBy: dueDate,
-                deliveryDate: 0,
-                description: "Test Invoice",
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            })
-        );
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Setup payment permit
         bullaClaim.permitPayClaim({
@@ -632,21 +572,16 @@ contract TestBullaInvoice is Test {
             })
         });
 
-        // Create an invoice
+        // Set due date and create invoice params
         uint256 dueDate = block.timestamp + 30 days;
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withDueBy(dueDate)
+            .build();
+            
+        // Create an invoice
         vm.prank(creditor);
-        uint256 invoiceId = bullaInvoice.createInvoice(
-            CreateInvoiceParams({
-                debtor: debtor,
-                claimAmount: 1 ether,
-                dueBy: dueDate,
-                deliveryDate: 0,
-                description: "Test Invoice",
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            })
-        );
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Setup payment permit
         bullaClaim.permitPayClaim({
@@ -696,20 +631,14 @@ contract TestBullaInvoice is Test {
             })
         });
 
+        // Create invoice params
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .build();
+            
         // Create an invoice
         vm.prank(creditor);
-        uint256 invoiceId = bullaInvoice.createInvoice(
-            CreateInvoiceParams({
-                debtor: debtor,
-                claimAmount: 1 ether,
-                dueBy: block.timestamp + 30 days,
-                deliveryDate: 0,
-                description: "Test Invoice",
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            })
-        );
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Try to cancel without proper permissions (no permit)
         address randomUser = vm.addr(0x03);
@@ -736,20 +665,14 @@ contract TestBullaInvoice is Test {
             })
         });
 
+        // Create invoice params
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .build();
+            
         // Create an invoice
         vm.prank(creditor);
-        uint256 invoiceId = bullaInvoice.createInvoice(
-            CreateInvoiceParams({
-                debtor: debtor,
-                claimAmount: 1 ether,
-                dueBy: block.timestamp + 30 days,
-                deliveryDate: 0,
-                description: "Test Invoice",
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            })
-        );
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Try to pay without proper permissions
         address randomUser = vm.addr(0x03);
@@ -783,20 +706,17 @@ contract TestBullaInvoice is Test {
             })
         });
 
+        // Create invoice params with fuzzing values
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withClaimAmount(amount)
+            .withDueBy(dueBy)
+            .withDescription("Fuzz Test Invoice")
+            .build();
+            
         // Create an invoice
         vm.prank(creditor);
-        uint256 invoiceId = bullaInvoice.createInvoice(
-            CreateInvoiceParams({
-                debtor: debtor,
-                claimAmount: amount,
-                dueBy: dueBy,
-                deliveryDate: 0,
-                description: "Fuzz Test Invoice",
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            })
-        );
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Verify invoice was created correctly
         Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
@@ -828,20 +748,16 @@ contract TestBullaInvoice is Test {
             })
         });
 
+        // Create invoice params with fuzzing values
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withClaimAmount(amount)
+            .withDescription("Fuzz Test Invoice")
+            .build();
+            
         // Create an invoice
         vm.prank(creditor);
-        uint256 invoiceId = bullaInvoice.createInvoice(
-            CreateInvoiceParams({
-                debtor: debtor,
-                claimAmount: amount,
-                dueBy: block.timestamp + 30 days,
-                deliveryDate: 0,
-                description: "Fuzz Test Invoice",
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            })
-        );
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Ensure debtor has enough ETH
         vm.deal(debtor, amount + 1 ether);
@@ -901,20 +817,14 @@ contract TestBullaInvoice is Test {
             })
         });
 
+        // Create invoice params
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .build();
+            
         // Create an invoice
         vm.prank(creditor);
-        uint256 invoiceId = bullaInvoice.createInvoice(
-            CreateInvoiceParams({
-                debtor: debtor,
-                claimAmount: 1 ether,
-                dueBy: block.timestamp + 30 days,
-                deliveryDate: 0,
-                description: "Test Invoice",
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            })
-        );
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Setup payment permit
         bullaClaim.permitPayClaim({
@@ -957,20 +867,14 @@ contract TestBullaInvoice is Test {
             })
         });
 
+        // Create invoice params
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .build();
+            
         // Create an invoice
         vm.prank(creditor);
-        uint256 invoiceId = bullaInvoice.createInvoice(
-            CreateInvoiceParams({
-                debtor: debtor,
-                claimAmount: 1 ether,
-                dueBy: block.timestamp + 30 days,
-                deliveryDate: 0,
-                description: "Test Invoice",
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            })
-        );
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Setup payment permit
         bullaClaim.permitPayClaim({
@@ -1013,20 +917,14 @@ contract TestBullaInvoice is Test {
             })
         });
 
+        // Create invoice params
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .build();
+            
         // Create an invoice
         vm.prank(creditor);
-        uint256 invoiceId = bullaInvoice.createInvoice(
-            CreateInvoiceParams({
-                debtor: debtor,
-                claimAmount: 1 ether,
-                dueBy: block.timestamp + 30 days,
-                deliveryDate: 0,
-                description: "Test Invoice",
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            })
-        );
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Setup payment permit
         bullaClaim.permitPayClaim({
@@ -1076,20 +974,16 @@ contract TestBullaInvoice is Test {
             })
         });
 
+        // Create invoice params with zero due date
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withDueBy(0) // No due date
+            .withDescription("Test Invoice with No Due Date")
+            .build();
+            
         // Create an invoice with dueBy = 0
         vm.prank(creditor);
-        uint256 invoiceId = bullaInvoice.createInvoice(
-            CreateInvoiceParams({
-                debtor: debtor,
-                claimAmount: 1 ether,
-                dueBy: 0, // No due date
-                deliveryDate: 0,
-                description: "Test Invoice with No Due Date",
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            })
-        );
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Verify invoice was created correctly
         Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
@@ -1194,20 +1088,13 @@ contract TestBullaInvoice is Test {
             })
         });
 
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .build();
+
         // Create an invoice via BullaInvoice
         vm.prank(creditor);
-        uint256 invoiceId = bullaInvoice.createInvoice(
-            CreateInvoiceParams({
-                debtor: debtor,
-                claimAmount: 1 ether,
-                dueBy: block.timestamp + 30 days,
-                deliveryDate: 0,
-                description: "Test Invoice",
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            })
-        );
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Try to pay directly via BullaClaim
         vm.prank(debtor);
@@ -1234,20 +1121,13 @@ contract TestBullaInvoice is Test {
             })
         });
 
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .build();
+
         // Create an invoice via BullaInvoice
         vm.prank(creditor);
-        uint256 invoiceId = bullaInvoice.createInvoice(
-            CreateInvoiceParams({
-                debtor: debtor,
-                claimAmount: 1 ether,
-                dueBy: block.timestamp + 30 days,
-                deliveryDate: 0,
-                description: "Test Invoice",
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            })
-        );
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Try to cancel directly via BullaClaim
         vm.prank(creditor);
@@ -1278,19 +1158,16 @@ contract TestBullaInvoice is Test {
         ClaimMetadata memory metadata =
             ClaimMetadata({tokenURI: "Invoice with Zero Due Date", attachmentURI: "No due date specified"});
 
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withDueBy(0) // No due date
+            .withDescription("Test Invoice with Metadata and No Due Date")
+            .build();
+
         // Create an invoice with metadata and dueBy = 0
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoiceWithMetadata(
-            CreateInvoiceParams({
-                debtor: debtor,
-                claimAmount: 1 ether,
-                dueBy: 0, // No due date
-                deliveryDate: 0,
-                description: "Test Invoice with Metadata and No Due Date",
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            }),
+            params,
             metadata
         );
 
@@ -1331,20 +1208,18 @@ contract TestBullaInvoice is Test {
 
         vm.warp(block.timestamp + 1 days);
 
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withClaimAmount(1 ether)
+            .withDueBy(block.timestamp - 1 days) // Past date
+            .withDescription("Test Invoice with Metadata and Past Due Date")
+            .build();
+
         // Try to create an invoice with metadata and past due date
         vm.prank(creditor);
         vm.expectRevert(abi.encodeWithSelector(InvalidDueBy.selector));
         bullaInvoice.createInvoiceWithMetadata(
-            CreateInvoiceParams({
-                debtor: debtor,
-                claimAmount: 1 ether,
-                dueBy: block.timestamp - 1 days, // Past date
-                deliveryDate: 0,
-                description: "Test Invoice with Metadata and Past Due Date",
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            }),
+            params,
             metadata
         );
     }
@@ -1374,20 +1249,17 @@ contract TestBullaInvoice is Test {
             attachmentURI: "This should fail due to far future due date"
         });
 
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withDueBy(uint256(type(uint40).max) + 1) // Too far in the future
+            .withDescription("Test Invoice with Metadata and Far Future Due Date")
+            .build();
+
         // Try to create an invoice with metadata and too far future due date
         vm.prank(creditor);
         vm.expectRevert(abi.encodeWithSelector(InvalidDueBy.selector));
         bullaInvoice.createInvoiceWithMetadata(
-            CreateInvoiceParams({
-                debtor: debtor,
-                claimAmount: 1 ether,
-                dueBy: uint256(type(uint40).max) + 1, // Too far in the future
-                deliveryDate: 0,
-                description: "Test Invoice with Metadata and Far Future Due Date",
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            }),
+            params,
             metadata
         );
     }
@@ -1411,21 +1283,15 @@ contract TestBullaInvoice is Test {
             })
         });
 
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(creditor)
+            .withDescription("Test Invoice with Same Creditor and Debtor")
+            .build();
+
         // Try to create an invoice where creditor (msg.sender) is the same as debtor
         vm.prank(creditor);
         vm.expectRevert(abi.encodeWithSelector(CreditorCannotBeDebtor.selector));
-        bullaInvoice.createInvoice(
-            CreateInvoiceParams({
-                debtor: creditor, // Same as the msg.sender
-                claimAmount: 1 ether,
-                dueBy: block.timestamp + 30 days,
-                deliveryDate: 0,
-                description: "Test Invoice with Same Creditor and Debtor",
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            })
-        );
+        bullaInvoice.createInvoice(params);
     }
 
     // Test creditor cannot be debtor in createInvoiceWithMetadata
@@ -1453,20 +1319,16 @@ contract TestBullaInvoice is Test {
             attachmentURI: "This should fail due to creditor being same as debtor"
         });
 
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(creditor)
+            .withDescription("Test Invoice with Metadata and Same Creditor and Debtor")
+            .build();
+
         // Try to create an invoice with metadata where creditor (msg.sender) is the same as debtor
         vm.prank(creditor);
         vm.expectRevert(abi.encodeWithSelector(CreditorCannotBeDebtor.selector));
         bullaInvoice.createInvoiceWithMetadata(
-            CreateInvoiceParams({
-                debtor: creditor, // Same as the msg.sender
-                claimAmount: 1 ether,
-                dueBy: block.timestamp + 30 days,
-                deliveryDate: 0,
-                description: "Test Invoice with Metadata and Same Creditor and Debtor",
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            }),
+            params,
             metadata
         );
     }
