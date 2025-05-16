@@ -253,4 +253,32 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
         assertEq(bullaClaim.ownerOf(claimId), address(creditor));
         assertEq(uint256(claim.status), uint256(Status.Repaying));
     }
+
+    
+    function testOriginalCreditorAfterPayment() public {
+        vm.prank(creditor);
+        uint256 claimId = bullaClaim.createClaim(
+            CreateClaimParams({
+                creditor: creditor,
+                debtor: debtor,
+                description: "",
+                claimAmount: 1 ether,
+                token: address(weth),
+                binding: ClaimBinding.Unbound,
+                payerReceivesClaimOnPayment: true
+            })
+        );
+        
+        // Approve and pay claim
+        vm.startPrank(debtor);
+        weth.approve(address(bullaClaim), 1 ether);
+        bullaClaim.payClaim(claimId, 1 ether);
+        vm.stopPrank();
+        
+        // Check ownership transferred but originalCreditor preserved
+        assertEq(bullaClaim.ownerOf(claimId), debtor);
+        Claim memory claim = bullaClaim.getClaim(claimId);
+        assertEq(claim.originalCreditor, creditor);
+        assertTrue(claim.status == Status.Paid);
+    }
 }
