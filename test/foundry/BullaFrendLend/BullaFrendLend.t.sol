@@ -253,18 +253,26 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        uint256 paymentAmount = 1.05 ether; // Principal + 5% interest
+        // Advance time by 15 days to generate some interest
+        vm.warp(block.timestamp + 15 days);
+        
+        // Get the exact amounts needed for payment
+        (uint256 remainingPrincipal, uint256 currentInterest) = bullaFrendLend.getTotalAmountDue(claimId);
+        uint256 paymentAmount = remainingPrincipal + currentInterest;
+        
+        vm.prank(debtor);
+        weth.approve(address(bullaFrendLend), paymentAmount);
                 
         vm.prank(debtor);
         bullaFrendLend.payLoan(claimId, paymentAmount);
 
-        assertEq(weth.balanceOf(creditor), initialCreditorWeth + 0.05 ether, "Creditor final WETH balance incorrect");
-        assertEq(weth.balanceOf(debtor), initialDebtorWeth - 0.05 ether, "Debtor final WETH balance incorrect");
+        assertEq(weth.balanceOf(creditor), initialCreditorWeth - remainingPrincipal + paymentAmount, "Creditor final WETH balance incorrect");
+        assertEq(weth.balanceOf(debtor), initialDebtorWeth + remainingPrincipal - paymentAmount, "Debtor final WETH balance incorrect");
 
         Loan memory loan = bullaFrendLend.getLoan(claimId);
         assertTrue(loan.status == Status.Paid, "Loan status should be Paid");
-        assertEq(loan.paidAmount, paymentAmount, "Paid amount should match payment");
-        assertEq(loan.claimAmount, paymentAmount, "Claim amount should match payment");
+        assertEq(loan.paidAmount, remainingPrincipal, "Paid amount should match principal");
+        assertEq(loan.claimAmount, remainingPrincipal, "Claim amount should match principal");
     }
 
     function testRejectLoanOffer() public {

@@ -5,6 +5,7 @@ import "contracts/interfaces/IBullaClaim.sol";
 import "contracts/BullaClaimControllerBase.sol";
 import "contracts/types/Types.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
 uint256 constant MAX_BPS = 10_000;
 
@@ -64,6 +65,7 @@ contract BullaFrendLend is BullaClaimControllerBase {
     event LoanOffered(uint256 indexed loanId, address indexed offeredBy, LoanOffer loanOffer, uint256 blocktime);
     event LoanOfferAccepted(uint256 indexed loanId, uint256 indexed claimId, uint256 blocktime);
     event LoanOfferRejected(uint256 indexed loanId, address indexed rejectedBy, uint256 blocktime);
+    event LoanPayment(uint256 indexed claimId, uint256 interestPayment, uint256 principalPayment, uint256 blocktime);
 
     /**
      * @param bullaClaim Address of the IBullaClaim contract to delegate calls to
@@ -73,6 +75,35 @@ contract BullaFrendLend is BullaClaimControllerBase {
     constructor(address bullaClaim, address _admin, uint256 _fee) BullaClaimControllerBase(bullaClaim) {
         admin = _admin;
         fee = _fee;
+    }
+
+    /**
+     * @notice Calculate the current interest amount for a loan
+     * @param claimId The ID of the loan
+     * @return The current interest amount
+     */
+    function calculateCurrentInterest(uint256 claimId) public view returns (uint256) {
+        LoanDetails memory loanDetails = _loanDetailsByClaimId[claimId];
+        Claim memory claim = _bullaClaim.getClaim(claimId);
+        
+        // Calculate time elapsed in seconds
+        uint256 timeElapsed = block.timestamp - (loanDetails.dueBy - loanDetails.termLength);
+        
+        // Calculate APR-based interest: principal * (interestBPS / MAX_BPS) * (timeElapsed / SECONDS_PER_YEAR)
+        uint256 SECONDS_PER_YEAR = 365 days;
+        return (claim.claimAmount * loanDetails.interestBPS * timeElapsed) / (MAX_BPS * SECONDS_PER_YEAR);
+    }
+
+    /**
+     * @notice Get the total amount due for a loan including principal and interest
+     * @param claimId The ID of the loan
+     * @return remainingPrincipal The remaining principal amount due
+     * @return interest The current interest amount accrued
+     */
+    function getTotalAmountDue(uint256 claimId) public view returns (uint256 remainingPrincipal, uint256 interest) {
+        Claim memory claim = _bullaClaim.getClaim(claimId);
+        remainingPrincipal = claim.claimAmount - claim.paidAmount;
+        interest = calculateCurrentInterest(claimId);
     }
 
     /**
@@ -149,12 +180,10 @@ contract BullaFrendLend is BullaClaimControllerBase {
 
         delete loanOffers[offerId];
 
-        uint256 claimAmount = offer.loanAmount + (offer.loanAmount * offer.interestBPS) / MAX_BPS;
-
         CreateClaimParams memory claimParams = CreateClaimParams({
             creditor: offer.creditor,
             debtor: offer.debtor,
-            claimAmount: claimAmount,
+            claimAmount: offer.loanAmount,
             description: offer.description,
             token: offer.token,
             binding: ClaimBinding.Bound, // Loans are bound claims, avoiding the 1 wei transfer used in V1
@@ -193,11 +222,30 @@ contract BullaFrendLend is BullaClaimControllerBase {
      * @param claimId The ID of the loan to pay
      * @param amount The amount to pay
      */
-    function payLoan(uint256 claimId, uint256 amount) external payable {
+    function payLoan(uint256 claimId, uint256 amount) external {
         Claim memory claim = _bullaClaim.getClaim(claimId);
         _checkController(claim.controller);
+        address creditor = _bullaClaim.ownerOf(claimId);
 
-        _bullaClaim.payClaimFrom{value: msg.value}(msg.sender, claimId, amount);
+        (uint256 remainingPrincipal, uint256 currentInterest) = getTotalAmountDue(claimId);
+        
+        uint256 interestPayment = Math.min(amount, currentInterest);
+        uint256 principalPayment = amount - interestPayment;
+        
+        principalPayment = Math.min(principalPayment, remainingPrincipal);
+        
+        // Send interest payment directly from debtor to creditor
+        if (interestPayment > 0) {
+            bool interestTransferSuccess = IERC20(claim.token).transferFrom(msg.sender, creditor, interestPayment);
+            if (!interestTransferSuccess) revert TransferFailed();
+        }
+        
+        // Process principal payment through BullaClaim
+        if (principalPayment > 0) {
+            _bullaClaim.payClaimFrom(msg.sender, claimId, principalPayment);
+        }
+        
+        emit LoanPayment(claimId, interestPayment, principalPayment, block.timestamp);
     }
 
     /**
