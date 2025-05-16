@@ -8,7 +8,7 @@ import "contracts/types/Types.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
-import {BullaInvoice, CreateInvoiceParams, Invoice, InvalidDueBy, CreditorCannotBeDebtor} from "contracts/BullaInvoice.sol";
+import {BullaInvoice, CreateInvoiceParams, Invoice, InvalidDueBy, CreditorCannotBeDebtor, InvalidDeliveryDate, NotOriginalCreditor, PurchaseOrderAlreadyDelivered, InvoiceNotPending, PurchaseOrderState, InvoiceDetails, NotPurchaseOrder} from "contracts/BullaInvoice.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {CreateInvoiceParamsBuilder} from "test/foundry/BullaInvoice/CreateInvoiceParamsBuilder.sol";
 
@@ -1331,5 +1331,561 @@ contract TestBullaInvoice is Test {
             params,
             metadata
         );
+    }
+
+    /// PURCHASE ORDER TESTS ///
+
+    function testCreateInvoiceWithPurchaseOrder() public {
+        // Setup permissions
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            operator: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        // Future delivery date (7 days from now)
+        uint256 deliveryDate = block.timestamp + 7 days;
+
+        // Create invoice params with delivery date
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withDeliveryDate(deliveryDate)
+            .build();
+            
+        // Create an invoice as creditor
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Verify the invoice was created correctly
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        assertEq(invoice.purchaseOrder.deliveryDate, deliveryDate, "Invoice delivery date mismatch");
+        assertFalse(invoice.purchaseOrder.isDelivered, "Purchase order should not be delivered initially");
+        assertTrue(invoice.status == Status.Pending, "Invoice status should be Pending");
+    }
+
+    function testInvalidDeliveryDate() public {
+        // Setup permissions
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            operator: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+        
+        vm.warp(30 days);
+
+        // Create invoice params with past delivery date
+        uint256 pastDeliveryDate = block.timestamp - 1 days;
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withDeliveryDate(pastDeliveryDate)
+            .build();
+            
+        // Create should revert with InvalidDeliveryDate
+        vm.prank(creditor);
+        vm.expectRevert(InvalidDeliveryDate.selector);
+        bullaInvoice.createInvoice(params);
+
+        // Create invoice params with future delivery date beyond uint40
+        uint256 farFutureDeliveryDate = uint256(type(uint40).max) + 1;
+        params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withDeliveryDate(farFutureDeliveryDate)
+            .build();
+            
+        // Create should revert with InvalidDeliveryDate
+        vm.prank(creditor);
+        vm.expectRevert(InvalidDeliveryDate.selector);
+        bullaInvoice.createInvoice(params);
+    }
+
+    function testDeliverPurchaseOrder() public {
+        // Setup permissions
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            operator: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        // Create invoice params with delivery date
+        uint256 deliveryDate = block.timestamp + 7 days;
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withDeliveryDate(deliveryDate)
+            .build();
+            
+        // Create an invoice as creditor
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Verify initial state
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        assertFalse(invoice.purchaseOrder.isDelivered, "Purchase order should not be delivered initially");
+        assertEq(invoice.purchaseOrder.deliveryDate, deliveryDate, "Delivery date should match");
+
+        // Mark the purchase order as delivered
+        vm.prank(creditor);
+        bullaInvoice.deliverPurchaseOrder(invoiceId);
+
+        // Verify the delivery state was updated
+        invoice = bullaInvoice.getInvoice(invoiceId);
+        assertTrue(invoice.purchaseOrder.isDelivered, "Purchase order should be marked as delivered");
+        assertEq(invoice.purchaseOrder.deliveryDate, deliveryDate, "Delivery date should remain unchanged");
+
+        // Try to deliver again - should revert
+        vm.prank(creditor);
+        vm.expectRevert(PurchaseOrderAlreadyDelivered.selector);
+        bullaInvoice.deliverPurchaseOrder(invoiceId);
+    }
+
+    function testUnauthorizedDeliveryPurchaseOrder() public {
+        // Setup permissions
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            operator: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        // Create invoice params with delivery date
+        uint256 deliveryDate = block.timestamp + 7 days;
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withDeliveryDate(deliveryDate)
+            .build();
+            
+        // Create an invoice as creditor
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Try to deliver from non-original creditor account
+        address notCreditor = address(0x1234);
+        vm.prank(notCreditor);
+        vm.expectRevert(NotOriginalCreditor.selector);
+        bullaInvoice.deliverPurchaseOrder(invoiceId);
+
+        // Try to deliver from debtor account
+        vm.prank(debtor);
+        vm.expectRevert(NotOriginalCreditor.selector);
+        bullaInvoice.deliverPurchaseOrder(invoiceId);
+    }
+
+    function testDeliverNonPendingPurchaseOrder() public {
+        // Setup permissions
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            operator: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        // Create invoice params with delivery date
+        uint256 deliveryDate = block.timestamp + 7 days;
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withDeliveryDate(deliveryDate)
+            .build();
+            
+        // Create an invoice
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Setup cancel permit
+        bullaClaim.permitCancelClaim({
+            user: creditor,
+            operator: address(bullaInvoice),
+            approvalCount: 1,
+            signature: sigHelper.signCancelClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaInvoice),
+                approvalCount: 1
+            })
+        });
+
+        // Cancel the invoice
+        vm.prank(creditor);
+        bullaInvoice.cancelInvoice(invoiceId, "No longer needed");
+
+        // Try to deliver the purchase order - should revert
+        vm.prank(creditor);
+        vm.expectRevert(InvoiceNotPending.selector);
+        bullaInvoice.deliverPurchaseOrder(invoiceId);
+    }
+
+    function testCantDeliverInvoiceWithZeroDeliveryDate() public {
+        // Setup permissions
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            operator: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        // Create invoice params with zero delivery date (not a purchase order)
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withDeliveryDate(0)  // Explicitly set to 0
+            .build();
+            
+        // Create an invoice as creditor
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Verify initial state
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        assertFalse(invoice.purchaseOrder.isDelivered, "Purchase order should not be delivered initially");
+        assertEq(invoice.purchaseOrder.deliveryDate, 0, "Delivery date should be zero");
+
+        // Still can mark as delivered even with 0 delivery date
+        vm.prank(creditor);
+        vm.expectRevert(NotPurchaseOrder.selector);
+        bullaInvoice.deliverPurchaseOrder(invoiceId);
+
+    }
+
+    function testCreateInvoiceWithMetadataAndPurchaseOrder() public {
+        // Setup permissions
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            operator: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        // Future delivery date (7 days from now)
+        uint256 deliveryDate = block.timestamp + 7 days;
+
+        // Create invoice params with delivery date
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withDeliveryDate(deliveryDate)
+            .build();
+            
+        // Create an invoice with metadata
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoiceWithMetadata(
+            params,
+            ClaimMetadata({
+                tokenURI: "https://example.com/token/1",
+                attachmentURI: "https://example.com/attachment/1"
+            })
+        );
+
+        // Verify invoice was created correctly
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        assertEq(invoice.claimAmount, 1 ether, "Invoice claim amount mismatch");
+        assertEq(invoice.debtor, debtor, "Invoice debtor mismatch");
+        assertEq(invoice.dueBy, block.timestamp + 30 days, "Invoice due date mismatch");
+        assertTrue(invoice.status == Status.Pending, "Invoice status should be Pending");
+        assertEq(invoice.purchaseOrder.deliveryDate, deliveryDate, "Purchase order delivery date mismatch");
+        assertFalse(invoice.purchaseOrder.isDelivered, "Purchase order should not be delivered initially");
+
+        // Verify metadata
+        (string memory tokenURI, string memory attachmentURI) = bullaClaim.claimMetadata(invoiceId);
+        assertEq(tokenURI, "https://example.com/token/1", "Token URI mismatch");
+        assertEq(attachmentURI, "https://example.com/attachment/1", "Attachment URI mismatch");
+
+        // Mark the purchase order as delivered
+        vm.prank(creditor);
+        bullaInvoice.deliverPurchaseOrder(invoiceId);
+
+        // Verify the delivery state was updated
+        invoice = bullaInvoice.getInvoice(invoiceId);
+        assertTrue(invoice.purchaseOrder.isDelivered, "Purchase order should be marked as delivered");
+
+        // Try to deliver again - should revert
+        vm.prank(creditor);
+        vm.expectRevert(PurchaseOrderAlreadyDelivered.selector);
+        bullaInvoice.deliverPurchaseOrder(invoiceId);
+    }
+
+    function testPaymentOfDeliveredPurchaseOrder() public {
+        // Setup permissions
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            operator: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        // Future delivery date (7 days from now)
+        uint256 deliveryDate = block.timestamp + 7 days;
+
+        // Create invoice params with delivery date
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withDeliveryDate(deliveryDate)
+            .build();
+            
+        // Create an invoice as creditor
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Check initial state
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        assertEq(invoice.purchaseOrder.deliveryDate, deliveryDate, "Purchase order delivery date mismatch");
+        assertFalse(invoice.purchaseOrder.isDelivered, "Purchase order should not be delivered initially");
+        assertTrue(invoice.status == Status.Pending, "Invoice status should be Pending");
+
+        // Mark the purchase order as delivered
+        vm.prank(creditor);
+        bullaInvoice.deliverPurchaseOrder(invoiceId);
+
+        // Verify purchase order is now marked as delivered
+        invoice = bullaInvoice.getInvoice(invoiceId);
+        assertTrue(invoice.purchaseOrder.isDelivered, "Purchase order should be marked as delivered");
+        assertTrue(invoice.status == Status.Pending, "Invoice status should still be Pending after delivery");
+
+        // Setup payment permit
+        bullaClaim.permitPayClaim({
+            user: debtor,
+            operator: address(bullaInvoice),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaInvoice),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        // Pay the invoice
+        vm.prank(debtor);
+        bullaInvoice.payInvoice{value: 1 ether}(invoiceId, 1 ether);
+
+        // Verify invoice is paid but purchase order state remains the same
+        invoice = bullaInvoice.getInvoice(invoiceId);
+        assertTrue(invoice.status == Status.Paid, "Invoice status should be Paid");
+        assertEq(invoice.paidAmount, 1 ether, "Invoice paid amount mismatch");
+        assertTrue(invoice.purchaseOrder.isDelivered, "Purchase order should still be marked as delivered after payment");
+        assertEq(invoice.purchaseOrder.deliveryDate, deliveryDate, "Delivery date should remain unchanged after payment");
+    }
+
+    function testPartialPaymentOfPurchaseOrder() public {
+        // Setup permissions
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            operator: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        // Future delivery date (7 days from now)
+        uint256 deliveryDate = block.timestamp + 7 days;
+
+        // Create invoice params with delivery date
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withDeliveryDate(deliveryDate)
+            .withClaimAmount(2 ether) // Larger amount to test partial payment
+            .build();
+            
+        // Create an invoice as creditor
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Mark the purchase order as delivered
+        vm.prank(creditor);
+        bullaInvoice.deliverPurchaseOrder(invoiceId);
+
+        // Verify purchase order is marked as delivered
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        assertTrue(invoice.purchaseOrder.isDelivered, "Purchase order should be marked as delivered");
+        assertTrue(invoice.status == Status.Pending, "Invoice status should be Pending");
+
+        // Setup payment permit
+        bullaClaim.permitPayClaim({
+            user: debtor,
+            operator: address(bullaInvoice),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaInvoice),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        // Make first partial payment
+        vm.prank(debtor);
+        bullaInvoice.payInvoice{value: 1 ether}(invoiceId, 1 ether);
+
+        // Verify partial payment and purchase order state
+        invoice = bullaInvoice.getInvoice(invoiceId);
+        assertTrue(invoice.status == Status.Repaying, "Invoice status should be Repaying after partial payment");
+        assertEq(invoice.paidAmount, 1 ether, "Invoice paid amount should be 1 ether");
+        assertTrue(invoice.purchaseOrder.isDelivered, "Purchase order should still be marked as delivered after partial payment");
+        assertEq(invoice.purchaseOrder.deliveryDate, deliveryDate, "Delivery date should remain unchanged");
+
+        // Make final payment
+        vm.prank(debtor);
+        bullaInvoice.payInvoice{value: 1 ether}(invoiceId, 1 ether);
+
+        // Verify full payment and purchase order state
+        invoice = bullaInvoice.getInvoice(invoiceId);
+        assertTrue(invoice.status == Status.Paid, "Invoice status should be Paid after full payment");
+        assertEq(invoice.paidAmount, 2 ether, "Invoice paid amount should be 2 ether");
+        assertTrue(invoice.purchaseOrder.isDelivered, "Purchase order should still be marked as delivered after full payment");
+        assertEq(invoice.purchaseOrder.deliveryDate, deliveryDate, "Delivery date should remain unchanged");
+    }
+
+    function testOnlyOriginalCreditorCanDeliverAfterTransfer() public {
+        // Setup permissions
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            operator: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        // Future delivery date (7 days from now)
+        uint256 deliveryDate = block.timestamp + 7 days;
+
+        // Create invoice params with delivery date
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withDeliveryDate(deliveryDate)
+            .build();
+            
+        // Create an invoice as creditor
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Verify initial invoice state
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        assertEq(invoice.purchaseOrder.deliveryDate, deliveryDate, "Purchase order delivery date mismatch");
+        assertFalse(invoice.purchaseOrder.isDelivered, "Purchase order should not be delivered initially");
+        assertEq(bullaClaim.ownerOf(invoiceId), creditor, "Original creditor should own the invoice");
+
+        // Create new creditor address
+        address newCreditor = address(0x1234);
+        
+        // Transfer invoice to new creditor
+        vm.prank(creditor);
+        bullaClaim.safeTransferFrom(creditor, newCreditor, invoiceId);
+        
+        // Verify ownership transfer
+        assertEq(bullaClaim.ownerOf(invoiceId), newCreditor, "New creditor should own the invoice");
+        
+        // Attempt to deliver from new creditor - should fail
+        vm.prank(newCreditor);
+        vm.expectRevert(NotOriginalCreditor.selector);
+        bullaInvoice.deliverPurchaseOrder(invoiceId);
+        
+        // Verify purchase order is still not delivered
+        invoice = bullaInvoice.getInvoice(invoiceId);
+        assertFalse(invoice.purchaseOrder.isDelivered, "Purchase order should not be delivered after failed attempt");
+        
+        // Original creditor can still deliver
+        vm.prank(creditor);
+        bullaInvoice.deliverPurchaseOrder(invoiceId);
+        
+        // Verify purchase order is now delivered
+        invoice = bullaInvoice.getInvoice(invoiceId);
+        assertTrue(invoice.purchaseOrder.isDelivered, "Purchase order should be delivered by original creditor");
+        
+        // Verify ownership hasn't changed
+        assertEq(bullaClaim.ownerOf(invoiceId), newCreditor, "New creditor should still own the invoice");
     }
 }
