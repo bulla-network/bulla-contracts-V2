@@ -8,7 +8,7 @@ import "contracts/types/Types.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
-import {BullaFrendLend, LoanOffer, Loan, IncorrectFee, NotCreditor, InvalidTermLength, NativeTokenNotSupported} from "contracts/BullaFrendLend.sol";
+import {BullaFrendLend, LoanOffer, Loan, IncorrectFee, NotCreditor, InvalidTermLength, NativeTokenNotSupported, NotDebtor} from "contracts/BullaFrendLend.sol";
 import {Deployer} from "script/Deployment.s.sol";
 
 contract TestBullaFrendLend is Test {
@@ -505,5 +505,114 @@ contract TestBullaFrendLend is Test {
         // 1 ether * 0.1 = 0.1 ether
         uint256 expectedInterest3 = 0.1 ether;
         assertApproxEqRel(interest3, expectedInterest3, 0.005e18, "Interest after 1 year should be ~0.1 ether");
+    }
+
+
+    function testPayLoanWithExcessiveAmount() public {
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 2 ether);
+        
+        vm.prank(creditor);
+        weth.approve(address(bullaClaim), 2 ether);
+        
+        vm.prank(debtor);
+        weth.approve(address(bullaClaim), 2 ether);
+        
+        vm.prank(debtor);
+        weth.approve(address(bullaFrendLend), 5 ether);
+        
+        LoanOffer memory offer = LoanOffer({
+            interestBPS: 500,
+            termLength: 30 days,
+            loanAmount: 1 ether,
+            creditor: creditor,
+            debtor: debtor,
+            description: "Excessive Payment Test Loan",
+            token: address(weth)
+        });
+
+        vm.prank(creditor);
+        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+
+        bullaClaim.permitCreateClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
+        });
+
+        vm.prank(debtor);
+        uint256 claimId = bullaFrendLend.acceptLoan(loanId, ClaimMetadata("", ""));
+
+        bullaClaim.permitPayClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        vm.warp(block.timestamp + 15 days);
+        
+        vm.prank(debtor);
+        weth.deposit{value: 3 ether}(); 
+        
+        // Set a high approval for the excessive payment
+        vm.prank(debtor);
+        weth.approve(address(bullaFrendLend), 5 ether);
+        
+        // Payment amount greater than loan + interest
+        uint256 excessiveAmount = 3 ether;
+        
+        uint256 initialCreditorBalance = weth.balanceOf(creditor);
+        uint256 initialDebtorBalance = weth.balanceOf(debtor);
+        
+        vm.prank(debtor);
+        bullaFrendLend.payLoan(claimId, excessiveAmount);
+        
+        Loan memory loan = bullaFrendLend.getLoan(claimId);
+        assertTrue(loan.status == Status.Paid, "Loan should be fully paid");
+        assertEq(loan.paidAmount, loan.claimAmount, "Paid amount should equal loan amount");
+        
+        (uint256 remainingPrincipal, uint256 currentInterest) = bullaFrendLend.getTotalAmountDue(claimId);
+        
+        uint256 actualDebtorPayment = initialDebtorBalance - weth.balanceOf(debtor);
+        uint256 actualCreditorReceived = weth.balanceOf(creditor) - initialCreditorBalance;
+        
+        // Calculate expected payment (principal + interest)
+        uint256 expectedPayment = loan.claimAmount + currentInterest;
+        
+        // Verify exact payment amounts
+        assertEq(actualDebtorPayment, expectedPayment, "Debtor should have paid exactly the principal + interest");
+        assertEq(actualCreditorReceived, expectedPayment, "Creditor should have received exactly the principal + interest");
+        
+        assertEq(excessiveAmount - actualDebtorPayment, excessiveAmount - expectedPayment, "Excess payment should have been refunded");
+    }
+    
+    function testPayNonExistentLoan() public {
+        // Create a fake claim ID that doesn't exist
+        uint256 nonExistentClaimId = 999;
+        
+        // Attempt to pay a non-existent loan
+        vm.prank(debtor);
+        vm.expectRevert();
+        bullaFrendLend.payLoan(nonExistentClaimId, 1 ether);
     }
 } 
