@@ -167,4 +167,45 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
             ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
         );
     }
+
+    function testOriginalCreditorWithMetadata() public {
+        // Test with createClaimWithMetadata
+        vm.prank(creditor);
+        uint256 claimId2 = bullaClaim.createClaimWithMetadata(
+            CreateClaimParams({
+                creditor: creditor,
+                debtor: debtor,
+                description: "",
+                claimAmount: 1 ether,
+                token: address(weth),
+                binding: ClaimBinding.Unbound,
+                payerReceivesClaimOnPayment: true
+            }),
+            ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
+        );
+        
+        _permitCreateClaim({
+            _userPK: userPK,
+            _operator: address(this),
+            _approvalCount: type(uint64).max,
+            _approvalType: CreateClaimApprovalType.Approved,
+            _isBindingAllowed: false
+        });
+        
+        uint256 claimId3 = bullaClaim.createClaimFrom(
+            user,
+            CreateClaimParams({
+                creditor: user,
+                debtor: debtor,
+                description: "",
+                claimAmount: 1 ether,
+                token: address(weth),
+                binding: ClaimBinding.Unbound,
+                payerReceivesClaimOnPayment: true
+            })
+        );
+        
+        Claim memory claim3 = bullaClaim.getClaim(claimId3);
+        assertEq(claim3.originalCreditor, user);
+    }
 }

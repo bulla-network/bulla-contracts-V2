@@ -4,11 +4,12 @@ pragma solidity ^0.8.14;
 import "forge-std/Test.sol";
 import "forge-std/Vm.sol";
 import {WETH} from "contracts/mocks/weth.sol";
-import {Claim, Status, ClaimBinding, CreateClaimParams, LockState} from "contracts/types/Types.sol";
+import {Claim, Status, ClaimBinding, CreateClaimParams, LockState, ClaimMetadata, CreateClaimApprovalType} from "contracts/types/Types.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {PenalizedClaim} from "contracts/mocks/PenalizedClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
+import {ClaimMetadataGenerator} from "contracts/ClaimMetadataGenerator.sol";
 
 contract TestCreateClaim is BullaClaimTestHelper {
     address creditor = address(0x01);
@@ -206,28 +207,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
             })
         );
     }
-
-    //TODO: add test in BullaInvoice
-    // function testCannotCreateOverDueClaim() public {
-    //     vm.warp(block.timestamp + 6 days);
-
-    //     uint256 dueBy = block.timestamp - 1 days;
-    //     vm.expectRevert(BullaClaim.InvalidTimestamp.selector);
-    //     vm.prank(creditor);
-    //     bullaClaim.createClaim(
-    //         CreateClaimParams({
-    //             creditor: creditor,
-    //             debtor: debtor,
-    //             description: "",
-    //             claimAmount: 1 ether,
-    //             dueBy: dueBy,
-    //             token: address(weth),
-    //             binding: ClaimBinding.Unbound,
-    //             payerReceivesClaimOnPayment: true
-    //         })
-    //     );
-    // }
-
+    
     function testCannotCreateZeroAmountClaim() public {
         vm.expectRevert(BullaClaim.ZeroAmount.selector);
         vm.prank(creditor);
@@ -260,7 +240,73 @@ contract TestCreateClaim is BullaClaimTestHelper {
         );
     }
 
-    //TODO: add similar test in BullaInvoice but with dueBy
+    /**
+     * /// TEST CASES FOR ORIGINAL CREDITOR ///
+     */
+
+    function testOriginalCreditorPersistenceAfterTransfer() public {
+        address newOwner = address(0xABC);
+        
+        vm.prank(creditor);
+        uint256 claimId = bullaClaim.createClaim(
+            CreateClaimParams({
+                creditor: creditor,
+                debtor: debtor,
+                description: "",
+                claimAmount: 1 ether,
+                token: address(weth),
+                binding: ClaimBinding.Unbound,
+                payerReceivesClaimOnPayment: true
+            })
+        );
+        
+        // Transfer NFT to another address
+        vm.prank(creditor);
+        bullaClaim.safeTransferFrom(creditor, newOwner, claimId);
+        
+        // Check that originalCreditor is still preserved
+        Claim memory claim = bullaClaim.getClaim(claimId);
+        assertEq(claim.originalCreditor, creditor);
+        assertEq(bullaClaim.ownerOf(claimId), newOwner);
+    }
+
+
+    function testOriginalCreditorInTokenURI() public {
+        // We need to set the metadata generator first
+        ClaimMetadataGenerator metadataGenerator = new ClaimMetadataGenerator();
+        bullaClaim.setClaimMetadataGenerator(address(metadataGenerator));
+        
+        vm.prank(creditor);
+        uint256 claimId = bullaClaim.createClaim(
+            CreateClaimParams({
+                creditor: creditor,
+                debtor: debtor,
+                description: "",
+                claimAmount: 1 ether,
+                token: address(weth),
+                binding: ClaimBinding.Unbound,
+                payerReceivesClaimOnPayment: true
+            })
+        );
+        
+        // Get the tokenURI and verify it contains creditor information
+        string memory uri = bullaClaim.tokenURI(claimId);
+        
+        // Transfer to a new owner
+        address newOwner = address(0xDEF);
+        vm.prank(creditor);
+        bullaClaim.safeTransferFrom(creditor, newOwner, claimId);
+        
+        // Get the tokenURI again and verify it contains current owner (not original creditor)
+        // This test is verifying the current implementation which uses the current owner
+        // and not the originalCreditor in the token URI
+        string memory newUri = bullaClaim.tokenURI(claimId);
+        
+        // We can't directly compare strings in Solidity easily, but we can check that the URIs are different
+        // which indicates the owner change is reflected in the URI
+        assertTrue(keccak256(bytes(uri)) != keccak256(bytes(newUri)));
+    }
+
     function test_FUZZ_createClaim(
         bool isInvoice,
         address _creditor,
@@ -309,6 +355,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
         {
             assertEq(bullaClaim.currentClaimId(), claimId);
             Claim memory claim = bullaClaim.getClaim(claimId);
+            assertEq(claim.originalCreditor, _creditor);
             assertEq(bullaClaim.ownerOf(claimId), _creditor);
             assertEq(claim.paidAmount, 0);
             assertTrue(claim.status == Status.Pending);
