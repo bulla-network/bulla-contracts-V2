@@ -298,4 +298,212 @@ contract TestBullaFrendLend is Test {
         (uint24 interestBPS, uint40 termLength, uint128 loanAmount, address offerCreditor, ,, ) = bullaFrendLend.loanOffers(loanId);
         assertEq(offerCreditor, address(0), "Offer should be deleted after rejection");
     }
+
+    function testPartialLoanPayments() public {
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 2 ether);
+        
+        vm.prank(creditor);
+        weth.approve(address(bullaClaim), 2 ether);
+        
+        vm.prank(debtor);
+        weth.approve(address(bullaClaim), 2 ether);
+        
+        vm.prank(debtor);
+        weth.approve(address(bullaFrendLend), 2 ether);
+        
+        LoanOffer memory offer = LoanOffer({
+            interestBPS: 500,
+            termLength: 30 days,
+            loanAmount: 1 ether,
+            creditor: creditor,
+            debtor: debtor,
+            description: "Partial Payments Test Loan",
+            token: address(weth)
+        });
+
+        uint256 initialCreditorWeth = weth.balanceOf(creditor);
+        uint256 initialDebtorWeth = weth.balanceOf(debtor);
+
+        vm.prank(creditor);
+        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+
+        bullaClaim.permitCreateClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
+        });
+
+        vm.prank(debtor);
+        uint256 claimId = bullaFrendLend.acceptLoan(loanId, ClaimMetadata("", ""));
+
+        assertEq(weth.balanceOf(creditor), initialCreditorWeth - 1 ether, "Creditor WETH balance after loan acceptance incorrect");
+        assertEq(weth.balanceOf(debtor), initialDebtorWeth + 1 ether, "Debtor WETH balance after loan acceptance incorrect");
+
+        bullaClaim.permitPayClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        // Advance time by 10 days to generate some interest
+        vm.warp(block.timestamp + 10 days);
+        
+        // Make first partial payment
+        uint256 firstPaymentAmount = 0.3 ether;
+        vm.prank(debtor);
+        weth.approve(address(bullaFrendLend), firstPaymentAmount);
+        
+        vm.prank(debtor);
+        bullaFrendLend.payLoan(claimId, firstPaymentAmount);
+        
+        // Check loan state after first payment
+        (uint256 remainingPrincipal1, uint256 currentInterest1) = bullaFrendLend.getTotalAmountDue(claimId);
+        Loan memory loanAfterFirstPayment = bullaFrendLend.getLoan(claimId);
+        
+        assertEq(loanAfterFirstPayment.paidAmount, firstPaymentAmount - currentInterest1, "Paid amount after first payment incorrect");
+        assertEq(uint8(loanAfterFirstPayment.status), uint8(Status.Repaying), "Loan should still be active after partial payment");
+        
+        // Advance time by another 10 days
+        vm.warp(block.timestamp + 10 days);
+        
+        // Make second partial payment
+        uint256 secondPaymentAmount = 0.4 ether;
+        vm.prank(debtor);
+        weth.approve(address(bullaFrendLend), secondPaymentAmount);
+        
+        vm.prank(debtor);
+        bullaFrendLend.payLoan(claimId, secondPaymentAmount);
+        
+        // Check loan state after second payment
+        (uint256 remainingPrincipal2, uint256 currentInterest2) = bullaFrendLend.getTotalAmountDue(claimId);
+        Loan memory loanAfterSecondPayment = bullaFrendLend.getLoan(claimId);
+        
+        assertEq(loanAfterSecondPayment.paidAmount, loanAfterFirstPayment.paidAmount + (secondPaymentAmount - currentInterest2), 
+            "Paid amount after second payment incorrect");
+        assertEq(uint8(loanAfterSecondPayment.status), uint8(Status.Repaying), "Loan should still be active after second partial payment");
+        
+        // Make final payment to close the loan
+        (uint256 finalRemainingPrincipal, uint256 finalInterest) = bullaFrendLend.getTotalAmountDue(claimId);
+        uint256 finalPaymentAmount = finalRemainingPrincipal + finalInterest;
+        
+        vm.prank(debtor);
+        weth.approve(address(bullaFrendLend), finalPaymentAmount);
+        
+        vm.prank(debtor);
+        bullaFrendLend.payLoan(claimId, finalPaymentAmount);
+        
+        // Check that loan is now paid
+        Loan memory finalLoan = bullaFrendLend.getLoan(claimId);
+        assertEq(uint8(finalLoan.status), uint8(Status.Paid), "Loan should be paid after final payment");
+        assertEq(finalLoan.paidAmount, finalLoan.claimAmount, "Paid amount should equal claim amount");
+    }
+    
+    function testInterestAPRCalculation() public {
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 2 ether);
+        
+        vm.prank(creditor);
+        weth.approve(address(bullaClaim), 2 ether);
+        
+        vm.prank(debtor);
+        weth.approve(address(bullaClaim), 2 ether);
+        
+        // Set up a loan with 10% interest (1000 BPS)
+        LoanOffer memory offer = LoanOffer({
+            interestBPS: 1000, // 10% interest
+            termLength: 365 days, // 1 year term
+            loanAmount: 1 ether,
+            creditor: creditor,
+            debtor: debtor,
+            description: "APR Test Loan",
+            token: address(weth)
+        });
+
+        vm.prank(creditor);
+        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+
+        bullaClaim.permitCreateClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
+        });
+
+        uint256 acceptTime = block.timestamp;
+        vm.prank(debtor);
+        uint256 claimId = bullaFrendLend.acceptLoan(loanId, ClaimMetadata("", ""));
+
+        bullaClaim.permitPayClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        // Check interest after exactly 1/4 year
+        vm.warp(acceptTime + 91.25 days);
+        uint256 interest1 = bullaFrendLend.calculateCurrentInterest(claimId);
+        
+        // After 1/4 year, we should have approximately 2.5% interest (10% / 4)
+        // 1 ether * 0.025 = 0.025 ether
+        uint256 expectedInterest1 = 0.025 ether;
+        assertApproxEqRel(interest1, expectedInterest1, 0.005e18, "Interest after 1/4 year should be ~0.025 ether");
+        
+        // Check interest after exactly 1/2 year (182.5 days)
+        vm.warp(acceptTime + 182.5 days);
+        uint256 interest2 = bullaFrendLend.calculateCurrentInterest(claimId);
+        
+        // After 1/2 year, we should have approximately 5% interest (10% / 2)
+        // 1 ether * 0.05 = 0.05 ether
+        uint256 expectedInterest2 = 0.05 ether;
+        assertApproxEqRel(interest2, expectedInterest2, 0.005e18, "Interest after 1/2 year should be ~0.05 ether");
+        
+        // Check interest after exactly 1 year (365 days)
+        vm.warp(acceptTime + 365 days);
+        uint256 interest3 = bullaFrendLend.calculateCurrentInterest(claimId);
+        
+        // After 1 year, we should have approximately 10% interest
+        // 1 ether * 0.1 = 0.1 ether
+        uint256 expectedInterest3 = 0.1 ether;
+        assertApproxEqRel(interest3, expectedInterest3, 0.005e18, "Interest after 1 year should be ~0.1 ether");
+    }
 } 
