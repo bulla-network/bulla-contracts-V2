@@ -59,6 +59,7 @@ struct ClaimMetadata {
 struct ClaimStorage {
     uint128 claimAmount;
     uint128 paidAmount;
+    address originalCreditor;
     address debtor;
     address token; // the token address that the claim is denominated in. NOTE: if this token is address(0), we treat this as a native token
     address controller;
@@ -74,6 +75,7 @@ struct Claim {
     Status status;
     ClaimBinding binding;
     bool payerReceivesClaimOnPayment;
+    address originalCreditor;
     address debtor;
     address token;
     address controller;
