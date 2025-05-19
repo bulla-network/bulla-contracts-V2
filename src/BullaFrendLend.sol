@@ -19,6 +19,7 @@ error WithdrawalFailed();
 error TransferFailed();
 error LoanOfferNotFound();
 error NativeTokenNotSupported();
+error InvalidProtocolFee();
 
 struct LoanDetails {
     uint256 dueBy;        
@@ -58,6 +59,7 @@ contract BullaFrendLend is BullaClaimControllerBase {
     address public admin;
     uint256 public fee;
     uint256 public loanOfferCount;
+    uint256 public protocolFeeBPS;
     
     mapping(uint256 => LoanOffer) public loanOffers;
     mapping(uint256 => LoanDetails) private _loanDetailsByClaimId;
@@ -66,16 +68,20 @@ contract BullaFrendLend is BullaClaimControllerBase {
     event LoanOffered(uint256 indexed loanId, address indexed offeredBy, LoanOffer loanOffer, uint256 blocktime);
     event LoanOfferAccepted(uint256 indexed loanId, uint256 indexed claimId, uint256 blocktime);
     event LoanOfferRejected(uint256 indexed loanId, address indexed rejectedBy, uint256 blocktime);
-    event LoanPayment(uint256 indexed claimId, uint256 interestPayment, uint256 principalPayment, uint256 blocktime);
+    event LoanPayment(uint256 indexed claimId, uint256 interestPayment, uint256 principalPayment, uint256 protocolFee, uint256 blocktime);
+    event ProtocolFeeUpdated(uint256 oldFee, uint256 newFee, uint256 blocktime);
 
     /**
      * @param bullaClaim Address of the IBullaClaim contract to delegate calls to
      * @param _admin Address of the contract administrator
      * @param _fee Fee required to create a loan offer
+     * @param _protocolFeeBPS Protocol fee in basis points taken from interest payments
      */
-    constructor(address bullaClaim, address _admin, uint256 _fee) BullaClaimControllerBase(bullaClaim) {
+    constructor(address bullaClaim, address _admin, uint256 _fee, uint256 _protocolFeeBPS) BullaClaimControllerBase(bullaClaim) {
         admin = _admin;
         fee = _fee;
+        if (_protocolFeeBPS > MAX_BPS) revert InvalidProtocolFee();
+        protocolFeeBPS = _protocolFeeBPS;
     }
 
     /**
@@ -246,6 +252,15 @@ contract BullaFrendLend is BullaClaimControllerBase {
     }
 
     /**
+     * @notice Calculate the protocol fee amount based on interest payment
+     * @param interestAmount The interest amount to calculate fee from
+     * @return The protocol fee amount
+     */
+    function calculateProtocolFee(uint256 interestAmount) public view returns (uint256) {
+        return Math.mulDiv(interestAmount, protocolFeeBPS, MAX_BPS);
+    }
+
+    /**
      * @notice Pays a loan
      * @param claimId The ID of the loan to pay
      * @param amount The amount to pay
@@ -271,13 +286,17 @@ contract BullaFrendLend is BullaClaimControllerBase {
             amount = actualPayment;
         }
         
+        uint256 protocolFee = calculateProtocolFee(interestPayment);
+        uint256 creditorInterest = interestPayment - protocolFee;
+        
         // Transfer the total amount from sender to this contract, to avoid double approval
         if (amount > 0) {
             bool transferSuccess = IERC20(claim.token).transferFrom(msg.sender, address(this), amount);
             if (!transferSuccess) revert TransferFailed();
             
             if (interestPayment > 0) {
-                bool interestTransferSuccess = IERC20(claim.token).transfer(creditor, interestPayment);
+                // Transfer interest net of protocol fees to creditor
+                bool interestTransferSuccess = IERC20(claim.token).transfer(creditor, creditorInterest);
                 if (!interestTransferSuccess) revert TransferFailed();
             }
             
@@ -291,17 +310,32 @@ contract BullaFrendLend is BullaClaimControllerBase {
             }
         }
         
-        emit LoanPayment(claimId, interestPayment, principalPayment, block.timestamp);
+        emit LoanPayment(claimId, interestPayment, principalPayment, protocolFee, block.timestamp);
     }
 
     /**
-     * @notice Allows an admin to withdraw fees from the contract
-     * @param amount The amount to withdraw
+     * @notice Allows admin to withdraw accumulated protocol fees and loanOffer fees
      */
-    function withdrawFee(uint256 amount) external {
+    function withdrawAllFees() external {
         if (msg.sender != admin) revert NotAdmin();
+        (bool _success, ) = admin.call{value: address(this).balance}(""); // withdraw fees related to loan offers in native token
+        if (!_success) revert WithdrawalFailed();
 
-        (bool success, ) = admin.call{value: amount}("");
-        if (!success) revert WithdrawalFailed();
+        // bool success = IERC20(token).transfer(admin, protocolFees); // TODO: loop through tokens
+        // if (!success) revert WithdrawalFailed();
+    }
+    
+    /**
+     * @notice Allows admin to set the protocol fee percentage
+     * @param _protocolFeeBPS New protocol fee in basis points
+     */
+    function setProtocolFee(uint256 _protocolFeeBPS) external {
+        if (msg.sender != admin) revert NotAdmin();
+        if (_protocolFeeBPS > MAX_BPS) revert InvalidProtocolFee();
+        
+        uint256 oldFee = protocolFeeBPS;
+        protocolFeeBPS = _protocolFeeBPS;
+        
+        emit ProtocolFeeUpdated(oldFee, _protocolFeeBPS, block.timestamp);
     }
 }

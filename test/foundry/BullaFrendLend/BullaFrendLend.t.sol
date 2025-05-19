@@ -8,7 +8,7 @@ import "contracts/types/Types.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
-import {BullaFrendLend, LoanOffer, Loan, IncorrectFee, NotCreditor, InvalidTermLength, NativeTokenNotSupported, NotDebtor} from "contracts/BullaFrendLend.sol";
+import {BullaFrendLend, LoanOffer, Loan, IncorrectFee, NotCreditor, InvalidTermLength, NativeTokenNotSupported, NotDebtor, NotAdmin} from "contracts/BullaFrendLend.sol";
 import {Deployer} from "script/Deployment.s.sol";
 
 contract TestBullaFrendLend is Test {
@@ -23,13 +23,14 @@ contract TestBullaFrendLend is Test {
     address debtor = vm.addr(debtorPK);
     address admin = vm.addr(0x03);
     uint256 constant FEE = 0.01 ether;
+    uint256 constant PROTOCOL_FEE_BPS = 1000; // 10% protocol fee
 
     function setUp() public {
         weth = new WETH();
 
         bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
         sigHelper = new EIP712Helper(address(bullaClaim));
-        bullaFrendLend = new BullaFrendLend(address(bullaClaim), admin, FEE);
+        bullaFrendLend = new BullaFrendLend(address(bullaClaim), admin, FEE, PROTOCOL_FEE_BPS);
 
         vm.deal(creditor, 10 ether);
         vm.deal(debtor, 10 ether);
@@ -256,10 +257,25 @@ contract TestBullaFrendLend is Test {
         (uint256 remainingPrincipal, uint256 currentInterest) = bullaFrendLend.getTotalAmountDue(claimId);
         uint256 paymentAmount = remainingPrincipal + currentInterest;
         
+        // Calculate protocol fee
+        uint256 protocolFee = bullaFrendLend.calculateProtocolFee(currentInterest);
+        uint256 creditorInterest = currentInterest - protocolFee;
+        
+        uint256 contractBalanceBefore = weth.balanceOf(address(bullaFrendLend));
+        
         vm.prank(debtor);
         bullaFrendLend.payLoan(claimId, paymentAmount);
 
-        assertEq(weth.balanceOf(creditor), initialCreditorWeth - remainingPrincipal + paymentAmount, "Creditor final WETH balance incorrect");
+        // Check protocol fee is kept in the contract
+        assertEq(weth.balanceOf(address(bullaFrendLend)), contractBalanceBefore + protocolFee, "Protocol fee not correctly retained in contract");
+        
+        // Creditor should receive principal + interest - protocol fee
+        assertEq(
+            weth.balanceOf(creditor), 
+            initialCreditorWeth - remainingPrincipal + remainingPrincipal + creditorInterest, 
+            "Creditor final WETH balance incorrect"
+        );
+        
         assertEq(weth.balanceOf(debtor), initialDebtorWeth + remainingPrincipal - paymentAmount, "Debtor final WETH balance incorrect");
 
         Loan memory loan = bullaFrendLend.getLoan(claimId);
@@ -553,6 +569,7 @@ contract TestBullaFrendLend is Test {
         
         uint256 initialCreditorBalance = weth.balanceOf(creditor);
         uint256 initialDebtorBalance = weth.balanceOf(debtor);
+        uint256 initialContractBalance = weth.balanceOf(address(bullaFrendLend));
         
         vm.prank(debtor);
         bullaFrendLend.payLoan(claimId, excessiveAmount);
@@ -563,15 +580,22 @@ contract TestBullaFrendLend is Test {
         
         (uint256 remainingPrincipal, uint256 currentInterest) = bullaFrendLend.getTotalAmountDue(claimId);
         
+        // Calculate protocol fee from interest
+        uint256 protocolFee = bullaFrendLend.calculateProtocolFee(currentInterest);
+        uint256 creditorInterest = currentInterest - protocolFee;
+        
         uint256 actualDebtorPayment = initialDebtorBalance - weth.balanceOf(debtor);
         uint256 actualCreditorReceived = weth.balanceOf(creditor) - initialCreditorBalance;
+        uint256 actualContractReceived = weth.balanceOf(address(bullaFrendLend)) - initialContractBalance;
         
         // Calculate expected payment (principal + interest)
-        uint256 expectedPayment = loan.claimAmount + currentInterest;
+        uint256 expectedTotalPayment = loan.claimAmount + currentInterest;
+        uint256 expectedCreditorPayment = loan.claimAmount + creditorInterest;
         
         // Verify exact payment amounts
-        assertEq(actualDebtorPayment, expectedPayment, "Debtor should have paid exactly the principal + interest");
-        assertEq(actualCreditorReceived, expectedPayment, "Creditor should have received exactly the principal + interest");
+        assertEq(actualDebtorPayment, expectedTotalPayment, "Debtor should have paid exactly the principal + interest");
+        assertEq(actualCreditorReceived, expectedCreditorPayment, "Creditor should have received principal + interest - protocol fee");
+        assertEq(actualContractReceived, protocolFee, "Contract should have received protocol fee");
         
         assertGt(excessiveAmount, actualDebtorPayment, "Excess payment should have been refunded");
     }
@@ -636,5 +660,24 @@ contract TestBullaFrendLend is Test {
         // Verify the metadata was correctly stored on the claim
         assertEq(tokenURI, "ipfs://QmTestTokenURI", "Token URI not correctly stored on claim");
         assertEq(attachmentURI, "ipfs://QmTestAttachmentURI", "Attachment URI not correctly stored on claim");
+    }
+    
+    function testSetProtocolFee() public {
+        uint256 newProtocolFeeBPS = 2000; // 20%
+        
+        // Test that non-admin cannot set protocol fee
+        vm.prank(debtor);
+        vm.expectRevert(abi.encodeWithSelector(NotAdmin.selector));
+        bullaFrendLend.setProtocolFee(newProtocolFeeBPS);
+        
+        vm.prank(admin);
+        bullaFrendLend.setProtocolFee(newProtocolFeeBPS);
+        
+        assertEq(bullaFrendLend.protocolFeeBPS(), newProtocolFeeBPS, "Protocol fee not updated correctly");
+        
+        // Verify fee calculation with new rate
+        uint256 amount = 1 ether;
+        uint256 expectedFee = (amount * newProtocolFeeBPS) / 10000; // 0.2 ether
+        assertEq(bullaFrendLend.calculateProtocolFee(amount), expectedFee, "Protocol fee calculation incorrect after update");
     }
 } 
