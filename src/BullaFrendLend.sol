@@ -61,6 +61,7 @@ contract BullaFrendLend is BullaClaimControllerBase {
     
     mapping(uint256 => LoanOffer) public loanOffers;
     mapping(uint256 => LoanDetails) private _loanDetailsByClaimId;
+    mapping(uint256 => ClaimMetadata) public loanOfferMetadata;
 
     event LoanOffered(uint256 indexed loanId, address indexed offeredBy, LoanOffer loanOffer, uint256 blocktime);
     event LoanOfferAccepted(uint256 indexed loanId, uint256 indexed claimId, uint256 blocktime);
@@ -133,6 +134,29 @@ contract BullaFrendLend is BullaClaimControllerBase {
     }
 
     /**
+     * @notice Allows a user to create and offer a loan to a potential debtor with metadata
+     * @param offer The loan offer parameters
+     * @param metadata Metadata for the claim (will be used when the loan is accepted)
+     * @return The ID of the created loan offer
+     */
+    function offerLoanWithMetadata(LoanOffer calldata offer, ClaimMetadata calldata metadata) external payable returns (uint256) {
+        if (msg.value != fee) revert IncorrectFee();
+        if (msg.sender != offer.creditor) revert NotCreditor();
+        if (offer.termLength == 0) revert InvalidTermLength();
+        if (offer.token == address(0)) revert NativeTokenNotSupported();
+
+        uint256 offerId = ++loanOfferCount;
+        loanOffers[offerId] = offer;
+        
+        loanOfferMetadata[offerId] = metadata;
+
+        emit LoanOffered(offerId, msg.sender, offer, block.timestamp);
+
+        return offerId;
+    }
+
+
+        /**
      * @notice Allows a user to create and offer a loan to a potential debtor
      * @param offer The loan offer parameters
      * @return The ID of the created loan offer
@@ -162,6 +186,7 @@ contract BullaFrendLend is BullaClaimControllerBase {
         if (msg.sender != offer.creditor && msg.sender != offer.debtor) revert NotCreditorOrDebtor();
 
         delete loanOffers[offerId];
+        delete loanOfferMetadata[offerId];
 
         emit LoanOfferRejected(offerId, msg.sender, block.timestamp);
     }
@@ -169,16 +194,19 @@ contract BullaFrendLend is BullaClaimControllerBase {
     /**
      * @notice Allows a debtor to accept a loan offer and receive payment
      * @param offerId The ID of the loan offer to accept
-     * @param metadata Optional metadata for the claim
      * @return The ID of the created claim
      */
-    function acceptLoan(uint256 offerId, ClaimMetadata calldata metadata) external returns (uint256) {
+    function acceptLoan(uint256 offerId) external returns (uint256) {
         LoanOffer memory offer = loanOffers[offerId];
         
         if (offer.creditor == address(0)) revert LoanOfferNotFound();
         if (msg.sender != offer.debtor) revert NotDebtor();
 
+        ClaimMetadata memory metadata = loanOfferMetadata[offerId];
+        
+        // Clean up storage
         delete loanOffers[offerId];
+        delete loanOfferMetadata[offerId];
 
         CreateClaimParams memory claimParams = CreateClaimParams({
             creditor: offer.creditor,

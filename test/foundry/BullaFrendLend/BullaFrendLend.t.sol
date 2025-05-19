@@ -231,7 +231,7 @@ contract TestBullaFrendLend is Test {
         });
 
         vm.prank(debtor);
-        uint256 claimId = bullaFrendLend.acceptLoan(loanId, ClaimMetadata("", ""));
+        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
 
         assertEq(weth.balanceOf(creditor), initialCreditorWeth - 1 ether, "Creditor WETH balance after loan acceptance incorrect");
         assertEq(weth.balanceOf(debtor), initialDebtorWeth + 1 ether, "Debtor WETH balance after loan acceptance incorrect");
@@ -300,18 +300,14 @@ contract TestBullaFrendLend is Test {
     }
 
     function testPartialLoanPayments() public {
-        vm.prank(creditor);
+        vm.startPrank(creditor);
         weth.approve(address(bullaFrendLend), 2 ether);
-        
-        vm.prank(creditor);
         weth.approve(address(bullaClaim), 2 ether);
-        
-        vm.prank(debtor);
+        vm.stopPrank();
+        vm.startPrank(debtor);
         weth.approve(address(bullaClaim), 2 ether);
-        
-        vm.prank(debtor);
         weth.approve(address(bullaFrendLend), 2 ether);
-        
+        vm.stopPrank();
         LoanOffer memory offer = LoanOffer({
             interestBPS: 500,
             termLength: 30 days,
@@ -345,7 +341,7 @@ contract TestBullaFrendLend is Test {
         });
 
         vm.prank(debtor);
-        uint256 claimId = bullaFrendLend.acceptLoan(loanId, ClaimMetadata("", ""));
+        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
 
         assertEq(weth.balanceOf(creditor), initialCreditorWeth - 1 ether, "Creditor WETH balance after loan acceptance incorrect");
         assertEq(weth.balanceOf(debtor), initialDebtorWeth + 1 ether, "Debtor WETH balance after loan acceptance incorrect");
@@ -371,12 +367,10 @@ contract TestBullaFrendLend is Test {
         
         // Make first partial payment
         uint256 firstPaymentAmount = 0.3 ether;
-        vm.prank(debtor);
+        vm.startPrank(debtor);
         weth.approve(address(bullaFrendLend), firstPaymentAmount);
-        
-        vm.prank(debtor);
         bullaFrendLend.payLoan(claimId, firstPaymentAmount);
-        
+        vm.stopPrank();
         // Check loan state after first payment
         (uint256 remainingPrincipal1, uint256 currentInterest1) = bullaFrendLend.getTotalAmountDue(claimId);
         Loan memory loanAfterFirstPayment = bullaFrendLend.getLoan(claimId);
@@ -389,11 +383,10 @@ contract TestBullaFrendLend is Test {
         
         // Make second partial payment
         uint256 secondPaymentAmount = 0.4 ether;
-        vm.prank(debtor);
+        vm.startPrank(debtor);
         weth.approve(address(bullaFrendLend), secondPaymentAmount);
-        
-        vm.prank(debtor);
         bullaFrendLend.payLoan(claimId, secondPaymentAmount);
+        vm.stopPrank();
         
         // Check loan state after second payment
         (uint256 remainingPrincipal2, uint256 currentInterest2) = bullaFrendLend.getTotalAmountDue(claimId);
@@ -407,12 +400,10 @@ contract TestBullaFrendLend is Test {
         (uint256 finalRemainingPrincipal, uint256 finalInterest) = bullaFrendLend.getTotalAmountDue(claimId);
         uint256 finalPaymentAmount = finalRemainingPrincipal + finalInterest;
         
-        vm.prank(debtor);
+        vm.startPrank(debtor);
         weth.approve(address(bullaFrendLend), finalPaymentAmount);
-        
-        vm.prank(debtor);
         bullaFrendLend.payLoan(claimId, finalPaymentAmount);
-        
+        vm.stopPrank();
         // Check that loan is now paid
         Loan memory finalLoan = bullaFrendLend.getLoan(claimId);
         assertEq(uint8(finalLoan.status), uint8(Status.Paid), "Loan should be paid after final payment");
@@ -461,7 +452,7 @@ contract TestBullaFrendLend is Test {
 
         uint256 acceptTime = block.timestamp;
         vm.prank(debtor);
-        uint256 claimId = bullaFrendLend.acceptLoan(loanId, ClaimMetadata("", ""));
+        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
 
         bullaClaim.permitPayClaim({
             user: debtor,
@@ -551,7 +542,7 @@ contract TestBullaFrendLend is Test {
         });
 
         vm.prank(debtor);
-        uint256 claimId = bullaFrendLend.acceptLoan(loanId, ClaimMetadata("", ""));
+        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
 
         bullaClaim.permitPayClaim({
             user: debtor,
@@ -612,7 +603,7 @@ contract TestBullaFrendLend is Test {
         
         // Attempt to pay a non-existent loan
         vm.prank(debtor);
-        vm.expectRevert();
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotMinted.selector));
         bullaFrendLend.payLoan(nonExistentClaimId, 1 ether);
     }
 } 
