@@ -260,17 +260,35 @@ contract BullaFrendLend is BullaClaimControllerBase {
         uint256 interestPayment = Math.min(amount, currentInterest);
         uint256 principalPayment = amount - interestPayment;
         
+        // Cap principal payment to remaining principal
         principalPayment = Math.min(principalPayment, remainingPrincipal);
         
-        // Send interest payment directly from debtor to creditor
-        if (interestPayment > 0) {
-            bool interestTransferSuccess = IERC20(claim.token).transferFrom(msg.sender, creditor, interestPayment);
-            if (!interestTransferSuccess) revert TransferFailed();
+        // Calculate total actual payment (interest + principal)
+        uint256 actualPayment = interestPayment + principalPayment;
+
+        // If amount is greater than what's needed, only take what's needed
+        if (amount > actualPayment) {
+            amount = actualPayment;
         }
         
-        // Process principal payment through BullaClaim
-        if (principalPayment > 0) {
-            _bullaClaim.payClaimFrom(msg.sender, claimId, principalPayment);
+        // Transfer the total amount from sender to this contract, to avoid double approval
+        if (amount > 0) {
+            bool transferSuccess = IERC20(claim.token).transferFrom(msg.sender, address(this), amount);
+            if (!transferSuccess) revert TransferFailed();
+            
+            if (interestPayment > 0) {
+                bool interestTransferSuccess = IERC20(claim.token).transfer(creditor, interestPayment);
+                if (!interestTransferSuccess) revert TransferFailed();
+            }
+            
+            if (principalPayment > 0) {
+                // Send principal to creditor
+                bool principalTransferSuccess = IERC20(claim.token).transfer(creditor, principalPayment);
+                if (!principalTransferSuccess) revert TransferFailed();
+                
+                // Update claim state in BullaClaim
+                _bullaClaim.payClaimFromControllerWithoutTransfer(msg.sender, claimId, principalPayment);
+            }
         }
         
         emit LoanPayment(claimId, interestPayment, principalPayment, block.timestamp);

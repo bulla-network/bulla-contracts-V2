@@ -189,14 +189,10 @@ contract TestBullaFrendLend is Test {
     function testEndToEndLoanFlow() public {
         // Approve WETH for transfer from creditor to BullaFrendLend
         vm.prank(creditor);
-        weth.approve(address(bullaClaim), 2 ether);
-
-        // Also approve the BullaFrendLend contract directly - this is needed for the token transfer
-        vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 2 ether);
         
         vm.prank(debtor);
-        weth.approve(address(bullaClaim), 2 ether);
+        weth.approve(address(bullaFrendLend), 2 ether);
         
         LoanOffer memory offer = LoanOffer({
             interestBPS: 500, 
@@ -261,9 +257,6 @@ contract TestBullaFrendLend is Test {
         uint256 paymentAmount = remainingPrincipal + currentInterest;
         
         vm.prank(debtor);
-        weth.approve(address(bullaFrendLend), paymentAmount);
-                
-        vm.prank(debtor);
         bullaFrendLend.payLoan(claimId, paymentAmount);
 
         assertEq(weth.balanceOf(creditor), initialCreditorWeth - remainingPrincipal + paymentAmount, "Creditor final WETH balance incorrect");
@@ -302,11 +295,9 @@ contract TestBullaFrendLend is Test {
     function testPartialLoanPayments() public {
         vm.startPrank(creditor);
         weth.approve(address(bullaFrendLend), 2 ether);
-        weth.approve(address(bullaClaim), 2 ether);
         vm.stopPrank();
 
         vm.startPrank(debtor);
-        weth.approve(address(bullaClaim), 2 ether);
         weth.approve(address(bullaFrendLend), 2 ether);
         vm.stopPrank();
         
@@ -369,10 +360,9 @@ contract TestBullaFrendLend is Test {
         
         // Make first partial payment
         uint256 firstPaymentAmount = 0.3 ether;
-        vm.startPrank(debtor);
-        weth.approve(address(bullaFrendLend), firstPaymentAmount);
+        vm.prank(debtor);
         bullaFrendLend.payLoan(claimId, firstPaymentAmount);
-        vm.stopPrank();
+        
         // Check loan state after first payment
         (uint256 remainingPrincipal1, uint256 currentInterest1) = bullaFrendLend.getTotalAmountDue(claimId);
         Loan memory loanAfterFirstPayment = bullaFrendLend.getLoan(claimId);
@@ -385,10 +375,8 @@ contract TestBullaFrendLend is Test {
         
         // Make second partial payment
         uint256 secondPaymentAmount = 0.4 ether;
-        vm.startPrank(debtor);
-        weth.approve(address(bullaFrendLend), secondPaymentAmount);
+        vm.prank(debtor);
         bullaFrendLend.payLoan(claimId, secondPaymentAmount);
-        vm.stopPrank();
         
         // Check loan state after second payment
         (uint256 remainingPrincipal2, uint256 currentInterest2) = bullaFrendLend.getTotalAmountDue(claimId);
@@ -402,10 +390,9 @@ contract TestBullaFrendLend is Test {
         (uint256 finalRemainingPrincipal, uint256 finalInterest) = bullaFrendLend.getTotalAmountDue(claimId);
         uint256 finalPaymentAmount = finalRemainingPrincipal + finalInterest;
         
-        vm.startPrank(debtor);
-        weth.approve(address(bullaFrendLend), finalPaymentAmount);
+        vm.prank(debtor);
         bullaFrendLend.payLoan(claimId, finalPaymentAmount);
-        vm.stopPrank();
+        
         // Check that loan is now paid
         Loan memory finalLoan = bullaFrendLend.getLoan(claimId);
         assertEq(uint8(finalLoan.status), uint8(Status.Paid), "Loan should be paid after final payment");
@@ -505,12 +492,6 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 2 ether);
         
-        vm.prank(creditor);
-        weth.approve(address(bullaClaim), 2 ether);
-        
-        vm.prank(debtor);
-        weth.approve(address(bullaClaim), 2 ether);
-        
         vm.prank(debtor);
         weth.approve(address(bullaFrendLend), 5 ether);
         
@@ -566,10 +547,6 @@ contract TestBullaFrendLend is Test {
         
         vm.prank(debtor);
         weth.deposit{value: 3 ether}(); 
-        
-        // Set a high approval for the excessive payment
-        vm.prank(debtor);
-        weth.approve(address(bullaFrendLend), 5 ether);
         
         // Payment amount greater than loan + interest
         uint256 excessiveAmount = 3 ether;
