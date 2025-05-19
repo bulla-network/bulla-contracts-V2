@@ -304,10 +304,12 @@ contract TestBullaFrendLend is Test {
         weth.approve(address(bullaFrendLend), 2 ether);
         weth.approve(address(bullaClaim), 2 ether);
         vm.stopPrank();
+
         vm.startPrank(debtor);
         weth.approve(address(bullaClaim), 2 ether);
         weth.approve(address(bullaFrendLend), 2 ether);
         vm.stopPrank();
+        
         LoanOffer memory offer = LoanOffer({
             interestBPS: 500,
             termLength: 30 days,
