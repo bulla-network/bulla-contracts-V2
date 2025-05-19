@@ -10,9 +10,12 @@ import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/U
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {BullaFrendLend, LoanOffer, Loan, IncorrectFee, NotCreditor, InvalidTermLength, NativeTokenNotSupported, NotDebtor, NotAdmin} from "contracts/BullaFrendLend.sol";
 import {Deployer} from "script/Deployment.s.sol";
+import {MockERC20} from "contracts/mocks/MockERC20.sol";
 
 contract TestBullaFrendLend is Test {
     WETH public weth;
+    MockERC20 public usdc;
+    MockERC20 public dai;
     BullaClaim public bullaClaim;
     EIP712Helper public sigHelper;
     BullaFrendLend public bullaFrendLend;
@@ -27,6 +30,8 @@ contract TestBullaFrendLend is Test {
 
     function setUp() public {
         weth = new WETH();
+        usdc = new MockERC20("USD Coin", "USDC", 6);
+        dai = new MockERC20("Dai Stablecoin", "DAI", 18);
 
         bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
         sigHelper = new EIP712Helper(address(bullaClaim));
@@ -41,6 +46,14 @@ contract TestBullaFrendLend is Test {
         
         vm.prank(debtor);
         weth.deposit{value: 5 ether}();
+        
+        // Setup USDC
+        usdc.mint(creditor, 10_000 * 10**6);
+        usdc.mint(debtor, 10_000 * 10**6);
+        
+        // Setup DAI
+        dai.mint(creditor, 10_000 ether);
+        dai.mint(debtor, 10_000 ether);
     }
 
     function testOfferLoan() public {
@@ -679,5 +692,293 @@ contract TestBullaFrendLend is Test {
         uint256 amount = 1 ether;
         uint256 expectedFee = (amount * newProtocolFeeBPS) / 10000; // 0.2 ether
         assertEq(bullaFrendLend.calculateProtocolFee(amount), expectedFee, "Protocol fee calculation incorrect after update");
+    }
+
+    // helper function to check if token is in protocol fee tokens
+    function isTokenInProtocolFeeTokens(address token) internal view returns (bool) {
+        // we've defined at most 3 tokens in our test
+        for (uint256 i = 0; i < 3; i++) {
+            try bullaFrendLend.protocolFeeTokens(i) returns (address tokenAddr) {
+                if (tokenAddr == token) {
+                    return true;
+                }
+            } catch {
+                break;
+            }
+        }
+        return false;
+    }
+
+    function testProtocolFeeWithMultipleTokens() public {
+        vm.startPrank(creditor);
+        weth.approve(address(bullaFrendLend), 10 ether);
+        usdc.approve(address(bullaFrendLend), 10_000 * 10**6);
+        dai.approve(address(bullaFrendLend), 10_000 ether);
+        vm.stopPrank();
+        
+        vm.startPrank(debtor);
+        weth.approve(address(bullaFrendLend), 10 ether);
+        usdc.approve(address(bullaFrendLend), 10_000 * 10**6);
+        dai.approve(address(bullaFrendLend), 10_000 ether);
+        vm.stopPrank();
+        
+        bullaClaim.permitCreateClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 3,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 3,
+                isBindingAllowed: true
+            })
+        });
+        
+        bullaClaim.permitPayClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+        
+        LoanOffer memory wethOffer = LoanOffer({
+            interestBPS: 1000,
+            termLength: 30 days,
+            loanAmount: 1 ether,
+            creditor: creditor,
+            debtor: debtor,
+            description: "WETH Loan",
+            token: address(weth)
+        });
+        
+        vm.prank(creditor);
+        uint256 wethLoanId = bullaFrendLend.offerLoan{value: FEE}(wethOffer);
+        
+        vm.prank(debtor);
+        uint256 wethClaimId = bullaFrendLend.acceptLoan(wethLoanId);
+        
+        LoanOffer memory usdcOffer = LoanOffer({
+            interestBPS: 1000,
+            termLength: 30 days,
+            loanAmount: 1000 * 10**6,
+            creditor: creditor,
+            debtor: debtor,
+            description: "USDC Loan",
+            token: address(usdc)
+        });
+        
+        vm.prank(creditor);
+        uint256 usdcLoanId = bullaFrendLend.offerLoan{value: FEE}(usdcOffer);
+        
+        vm.prank(debtor);
+        uint256 usdcClaimId = bullaFrendLend.acceptLoan(usdcLoanId);
+        
+        LoanOffer memory daiOffer = LoanOffer({
+            interestBPS: 1000,
+            termLength: 30 days,
+            loanAmount: 1000 ether,
+            creditor: creditor,
+            debtor: debtor,
+            description: "DAI Loan",
+            token: address(dai)
+        });
+        
+        vm.prank(creditor);
+        uint256 daiLoanId = bullaFrendLend.offerLoan{value: FEE}(daiOffer);
+        
+        vm.prank(debtor);
+        uint256 daiClaimId = bullaFrendLend.acceptLoan(daiLoanId);
+        
+        vm.warp(block.timestamp + 15 days);
+        
+        vm.startPrank(debtor);        
+        (uint256 wethPrincipal, uint256 wethInterest) = bullaFrendLend.getTotalAmountDue(wethClaimId);
+        bullaFrendLend.payLoan(wethClaimId, wethPrincipal + wethInterest);
+        
+        (uint256 usdcPrincipal, uint256 usdcInterest) = bullaFrendLend.getTotalAmountDue(usdcClaimId);
+        bullaFrendLend.payLoan(usdcClaimId, usdcPrincipal + usdcInterest);
+        
+        (uint256 daiPrincipal, uint256 daiInterest) = bullaFrendLend.getTotalAmountDue(daiClaimId);
+        bullaFrendLend.payLoan(daiClaimId, daiPrincipal + daiInterest);
+        vm.stopPrank();
+        
+        uint256 expectedWethFee = bullaFrendLend.calculateProtocolFee(wethInterest);
+        uint256 expectedUsdcFee = bullaFrendLend.calculateProtocolFee(usdcInterest);
+        uint256 expectedDaiFee = bullaFrendLend.calculateProtocolFee(daiInterest);
+        
+        assertEq(weth.balanceOf(address(bullaFrendLend)), expectedWethFee, "WETH protocol fee not correct");
+        assertEq(usdc.balanceOf(address(bullaFrendLend)), expectedUsdcFee, "USDC protocol fee not correct");
+        assertEq(dai.balanceOf(address(bullaFrendLend)), expectedDaiFee, "DAI protocol fee not correct");
+        
+        assertEq(bullaFrendLend.protocolFeesByToken(address(weth)), expectedWethFee, "WETH fee tracking incorrect");
+        assertEq(bullaFrendLend.protocolFeesByToken(address(usdc)), expectedUsdcFee, "USDC fee tracking incorrect");
+        assertEq(bullaFrendLend.protocolFeesByToken(address(dai)), expectedDaiFee, "DAI fee tracking incorrect");
+        
+        assertTrue(isTokenInProtocolFeeTokens(address(weth)), "WETH not found in protocol fee tokens array");
+        assertTrue(isTokenInProtocolFeeTokens(address(usdc)), "USDC not found in protocol fee tokens array");
+        assertTrue(isTokenInProtocolFeeTokens(address(dai)), "DAI not found in protocol fee tokens array");
+    }
+    
+    function testWithdrawAllFees() public {
+        testProtocolFeeWithMultipleTokens();
+        
+        uint256 initialAdminEthBalance = admin.balance;
+        uint256 initialAdminWethBalance = weth.balanceOf(admin);
+        uint256 initialAdminUsdcBalance = usdc.balanceOf(admin);
+        uint256 initialAdminDaiBalance = dai.balanceOf(admin);
+        
+        uint256 contractEthBalance = address(bullaFrendLend).balance;
+        uint256 wethFee = bullaFrendLend.protocolFeesByToken(address(weth));
+        uint256 usdcFee = bullaFrendLend.protocolFeesByToken(address(usdc));
+        uint256 daiFee = bullaFrendLend.protocolFeesByToken(address(dai));
+                
+        // Admin withdraws fees
+        vm.prank(admin);
+        bullaFrendLend.withdrawAllFees();
+        
+        // Verify native token fees were transferred
+        assertEq(admin.balance, initialAdminEthBalance + contractEthBalance, "ETH fees not transferred correctly");
+        assertEq(address(bullaFrendLend).balance, 0, "Contract ETH balance should be 0 after withdrawal");
+        
+        // Verify ERC20 token fees were transferred
+        assertEq(weth.balanceOf(admin), initialAdminWethBalance + wethFee, "WETH fees not transferred correctly");
+        assertEq(usdc.balanceOf(admin), initialAdminUsdcBalance + usdcFee, "USDC fees not transferred correctly");
+        assertEq(dai.balanceOf(admin), initialAdminDaiBalance + daiFee, "DAI fees not transferred correctly");
+        
+        // Verify fee tracking was reset
+        assertEq(bullaFrendLend.protocolFeesByToken(address(weth)), 0, "WETH fee not reset after withdrawal");
+        assertEq(bullaFrendLend.protocolFeesByToken(address(usdc)), 0, "USDC fee not reset after withdrawal");
+        assertEq(bullaFrendLend.protocolFeesByToken(address(dai)), 0, "DAI fee not reset after withdrawal");
+        
+        // Verify token balances in contract are 0
+        assertEq(weth.balanceOf(address(bullaFrendLend)), 0, "Contract WETH balance should be 0 after withdrawal");
+        assertEq(usdc.balanceOf(address(bullaFrendLend)), 0, "Contract USDC balance should be 0 after withdrawal");
+        assertEq(dai.balanceOf(address(bullaFrendLend)), 0, "Contract DAI balance should be 0 after withdrawal");
+    }
+    
+    function testWithdrawEmptyFees() public {
+        uint256 initialAdminEthBalance = admin.balance;
+        
+        vm.prank(admin);
+        bullaFrendLend.withdrawAllFees();
+        
+        assertEq(admin.balance, initialAdminEthBalance, "Admin ETH balance should not change when no fees exist");
+    }
+    
+    function testTokenTrackingUniqueness() public {
+        vm.startPrank(creditor);
+        weth.approve(address(bullaFrendLend), 10 ether);
+        vm.stopPrank();
+        
+        vm.startPrank(debtor);
+        weth.approve(address(bullaFrendLend), 10 ether);
+        vm.stopPrank();
+        
+        bullaClaim.permitCreateClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 2,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 2,
+                isBindingAllowed: true
+            })
+        });
+        
+        bullaClaim.permitPayClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+        
+        // Create first WETH loan
+        LoanOffer memory wethOffer1 = LoanOffer({
+            interestBPS: 1000,
+            termLength: 30 days,
+            loanAmount: 1 ether,
+            creditor: creditor,
+            debtor: debtor,
+            description: "WETH Loan 1",
+            token: address(weth)
+        });
+        
+        vm.prank(creditor);
+        uint256 wethLoanId1 = bullaFrendLend.offerLoan{value: FEE}(wethOffer1);
+        
+        vm.prank(debtor);
+        uint256 wethClaimId1 = bullaFrendLend.acceptLoan(wethLoanId1);
+        
+        // Create second WETH loan
+        LoanOffer memory wethOffer2 = LoanOffer({
+            interestBPS: 1000,
+            termLength: 30 days,
+            loanAmount: 0.5 ether,
+            creditor: creditor,
+            debtor: debtor,
+            description: "WETH Loan 2",
+            token: address(weth)
+        });
+        
+        vm.prank(creditor);
+        uint256 wethLoanId2 = bullaFrendLend.offerLoan{value: FEE}(wethOffer2);
+        
+        vm.prank(debtor);
+        uint256 wethClaimId2 = bullaFrendLend.acceptLoan(wethLoanId2);
+        
+        vm.warp(block.timestamp + 15 days);
+        
+        // Make payments on both loans
+        vm.startPrank(debtor);
+        (uint256 principal1, uint256 interest1) = bullaFrendLend.getTotalAmountDue(wethClaimId1);
+        bullaFrendLend.payLoan(wethClaimId1, principal1 + interest1);
+        uint256 expectedFee1 = bullaFrendLend.calculateProtocolFee(interest1);
+        
+        (uint256 principal2, uint256 interest2) = bullaFrendLend.getTotalAmountDue(wethClaimId2);
+        bullaFrendLend.payLoan(wethClaimId2, principal2 + interest2);
+        uint256 expectedFee2 = bullaFrendLend.calculateProtocolFee(interest2);
+        vm.stopPrank();
+        
+        // Count WETH tokens in the array
+        uint256 wethTokenCount = 0;
+        for (uint256 i = 0; i < 3; i++) {
+            try bullaFrendLend.protocolFeeTokens(i) returns (address token) {
+                if (token == address(weth)) {
+                    wethTokenCount++;
+                }
+            } catch {
+                break;
+            }
+        }
+        
+        assertEq(wethTokenCount, 1, "WETH should only appear once in protocol fee tokens array");
+        assertEq(bullaFrendLend.protocolFeesByToken(address(weth)), expectedFee1 + expectedFee2, "WETH fees should accumulate correctly");
     }
 } 

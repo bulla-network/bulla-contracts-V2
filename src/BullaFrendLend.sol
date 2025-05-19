@@ -61,6 +61,10 @@ contract BullaFrendLend is BullaClaimControllerBase {
     uint256 public loanOfferCount;
     uint256 public protocolFeeBPS;
     
+    address[] public protocolFeeTokens;
+    mapping(address => uint256) public protocolFeesByToken;
+    mapping(address => bool) private _tokenExists;
+    
     mapping(uint256 => LoanOffer) public loanOffers;
     mapping(uint256 => LoanDetails) private _loanDetailsByClaimId;
     mapping(uint256 => ClaimMetadata) public loanOfferMetadata;
@@ -298,6 +302,15 @@ contract BullaFrendLend is BullaClaimControllerBase {
                 // Transfer interest net of protocol fees to creditor
                 bool interestTransferSuccess = IERC20(claim.token).transfer(creditor, creditorInterest);
                 if (!interestTransferSuccess) revert TransferFailed();
+                
+                // Track protocol fee for this token
+                if (protocolFee > 0) {
+                    if (!_tokenExists[claim.token]) {
+                        protocolFeeTokens.push(claim.token);
+                        _tokenExists[claim.token] = true;
+                    }
+                    protocolFeesByToken[claim.token] += protocolFee;
+                }
             }
             
             if (principalPayment > 0) {
@@ -318,11 +331,24 @@ contract BullaFrendLend is BullaClaimControllerBase {
      */
     function withdrawAllFees() external {
         if (msg.sender != admin) revert NotAdmin();
-        (bool _success, ) = admin.call{value: address(this).balance}(""); // withdraw fees related to loan offers in native token
-        if (!_success) revert WithdrawalFailed();
+        
+        // Withdraw fees related to loan offers in native token
+        if (address(this).balance > 0) {
+            (bool _success, ) = admin.call{value: address(this).balance}("");
+            if (!_success) revert WithdrawalFailed();
+        }
 
-        // bool success = IERC20(token).transfer(admin, protocolFees); // TODO: loop through tokens
-        // if (!success) revert WithdrawalFailed();
+        // Withdraw protocol fees in all tracked tokens
+        for (uint256 i = 0; i < protocolFeeTokens.length; i++) {
+            address token = protocolFeeTokens[i];
+            uint256 feeAmount = protocolFeesByToken[token];
+            
+            if (feeAmount > 0) {
+                protocolFeesByToken[token] = 0; // Reset fee amount before transfer
+                bool success = IERC20(token).transfer(admin, feeAmount);
+                if (!success) revert WithdrawalFailed();
+            }
+        }
     }
     
     /**
