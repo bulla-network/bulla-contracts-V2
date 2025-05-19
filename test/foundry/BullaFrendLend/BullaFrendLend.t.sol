@@ -606,4 +606,56 @@ contract TestBullaFrendLend is Test {
         vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotMinted.selector));
         bullaFrendLend.payLoan(nonExistentClaimId, 1 ether);
     }
+
+    function testLoanMetadataOnClaim() public {
+        vm.startPrank(creditor);
+        weth.approve(address(bullaFrendLend), 2 ether);
+        weth.approve(address(bullaClaim), 2 ether);
+        vm.stopPrank();
+        
+        // Create a loan offer with metadata
+        LoanOffer memory offer = LoanOffer({
+            interestBPS: 500,
+            termLength: 30 days,
+            loanAmount: 1 ether,
+            creditor: creditor,
+            debtor: debtor,
+            description: "Simple Metadata Test Loan",
+            token: address(weth)
+        });
+        
+        ClaimMetadata memory metadata = ClaimMetadata({
+            tokenURI: "ipfs://QmTestTokenURI",
+            attachmentURI: "ipfs://QmTestAttachmentURI"
+        });
+        
+        vm.prank(creditor);
+        uint256 loanId = bullaFrendLend.offerLoanWithMetadata{value: FEE}(offer, metadata);
+        
+        bullaClaim.permitCreateClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
+        });
+        
+        vm.prank(debtor);
+        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+        
+        // Get the claim metadata directly from BullaClaim contract
+        (string memory tokenURI, string memory attachmentURI) = bullaClaim.claimMetadata(claimId);
+        
+        // Verify the metadata was correctly stored on the claim
+        assertEq(tokenURI, "ipfs://QmTestTokenURI", "Token URI not correctly stored on claim");
+        assertEq(attachmentURI, "ipfs://QmTestAttachmentURI", "Attachment URI not correctly stored on claim");
+    }
 } 
