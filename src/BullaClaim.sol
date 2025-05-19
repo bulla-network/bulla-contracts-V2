@@ -255,6 +255,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
 
             claim.claimAmount = params.claimAmount.safeCastTo128(); //TODO: is this necessary?
             claim.debtor = params.debtor;
+            claim.originalCreditor = params.creditor;
 
             if (params.token != address(0)) claim.token = params.token;
             if (controller != address(0)) claim.controller = controller;
@@ -630,7 +631,8 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
             payerReceivesClaimOnPayment: claimStorage.payerReceivesClaimOnPayment,
             debtor: claimStorage.debtor,
             token: claimStorage.token,
-            controller: claimStorage.controller
+            controller: claimStorage.controller,
+            originalCreditor: claimStorage.originalCreditor
         });
     }
 

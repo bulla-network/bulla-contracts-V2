@@ -5,13 +5,24 @@ import "contracts/interfaces/IBullaClaim.sol";
 import "contracts/BullaClaimControllerBase.sol";
 import "contracts/types/Types.sol";
 
+struct PurchaseOrderState {
+    uint256 deliveryDate; // 0 if not a purchase order
+    bool isDelivered; // false = is still a purchase order, true = is invoice
+}
+
 // Data specific to invoices and not claims
 struct InvoiceDetails {
     uint256 dueBy;
+    PurchaseOrderState purchaseOrder;
 }
 
 error InvalidDueBy();
 error CreditorCannotBeDebtor();
+error InvalidDeliveryDate();
+error NotOriginalCreditor();
+error PurchaseOrderAlreadyDelivered();
+error InvoiceNotPending();
+error NotPurchaseOrder();
 
 struct Invoice {
     uint256 claimAmount;
@@ -22,12 +33,14 @@ struct Invoice {
     address debtor;
     address token;
     uint256 dueBy;
+    PurchaseOrderState purchaseOrder;
 }
 
 struct CreateInvoiceParams {
     address debtor;
     uint256 claimAmount;
     uint256 dueBy;
+    uint256 deliveryDate;
     string description;
     address token;
     ClaimBinding binding;
@@ -68,7 +81,8 @@ contract BullaInvoice is BullaClaimControllerBase {
             payerReceivesClaimOnPayment: claim.payerReceivesClaimOnPayment,
             debtor: claim.debtor,
             token: claim.token,
-            dueBy: invoiceDetails.dueBy
+            dueBy: invoiceDetails.dueBy,
+            purchaseOrder: invoiceDetails.purchaseOrder
         });
     }
 
@@ -91,7 +105,8 @@ contract BullaInvoice is BullaClaimControllerBase {
         });
 
         uint256 claimId = _bullaClaim.createClaimFrom(msg.sender, createClaimParams);
-        _invoiceDetailsByClaimId[claimId] = InvoiceDetails({dueBy: params.dueBy});
+
+        _invoiceDetailsByClaimId[claimId] = InvoiceDetails({dueBy: params.dueBy, purchaseOrder: PurchaseOrderState({deliveryDate: params.deliveryDate, isDelivered: false})});
 
         emit InvoiceCreated(claimId, params.dueBy);
 
@@ -122,11 +137,37 @@ contract BullaInvoice is BullaClaimControllerBase {
 
         uint256 claimId = _bullaClaim.createClaimWithMetadataFrom(msg.sender, createClaimParams, metadata);
 
-        _invoiceDetailsByClaimId[claimId] = InvoiceDetails({dueBy: params.dueBy});
+        _invoiceDetailsByClaimId[claimId] = InvoiceDetails({dueBy: params.dueBy, purchaseOrder: PurchaseOrderState({deliveryDate: params.deliveryDate, isDelivered: false})});
 
         emit InvoiceCreated(claimId, params.dueBy);
 
         return claimId;
+    }
+
+    function deliverPurchaseOrder(uint256 claimId) external {
+        Claim memory claim = _bullaClaim.getClaim(claimId);
+        _checkController(claim.controller);
+
+        InvoiceDetails memory invoiceDetails = _invoiceDetailsByClaimId[claimId];
+
+        if (claim.originalCreditor != msg.sender) {
+            revert NotOriginalCreditor();
+        }
+
+        if (invoiceDetails.purchaseOrder.deliveryDate == 0) {
+            revert NotPurchaseOrder();
+        }
+
+        if (invoiceDetails.purchaseOrder.isDelivered) {
+            revert PurchaseOrderAlreadyDelivered();
+        }
+
+        if (claim.status != Status.Pending && claim.status != Status.Repaying) {
+            revert InvoiceNotPending();
+        }
+
+
+        _invoiceDetailsByClaimId[claimId].purchaseOrder.isDelivered = true;
     }
 
     /**
@@ -178,6 +219,10 @@ contract BullaInvoice is BullaClaimControllerBase {
         
         if (params.dueBy != 0 && (params.dueBy < block.timestamp || params.dueBy > type(uint40).max)) {
             revert InvalidDueBy();
+        }
+
+        if (params.deliveryDate != 0 && (params.deliveryDate < block.timestamp || params.deliveryDate > type(uint40).max)) {
+            revert InvalidDeliveryDate();
         }
     }
 }
