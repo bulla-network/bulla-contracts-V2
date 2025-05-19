@@ -594,7 +594,7 @@ contract TestBullaFrendLend is Test {
         assertEq(actualDebtorPayment, expectedPayment, "Debtor should have paid exactly the principal + interest");
         assertEq(actualCreditorReceived, expectedPayment, "Creditor should have received exactly the principal + interest");
         
-        assertEq(excessiveAmount - actualDebtorPayment, excessiveAmount - expectedPayment, "Excess payment should have been refunded");
+        assertGt(excessiveAmount, actualDebtorPayment, "Excess payment should have been refunded");
     }
     
     function testPayNonExistentLoan() public {
