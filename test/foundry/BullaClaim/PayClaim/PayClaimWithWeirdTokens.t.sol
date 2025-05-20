@@ -94,8 +94,9 @@ contract TestPayClaimWithWeirdTokens is Test {
         for (uint256 i = 0; i < tokens.length; i++) {
             ERC20 token = tokens[i];
 
-            vm.prank(creditor);
+            vm.startPrank(creditor);
             uint256 claimId = _newClaim(address(token), CLAIM_AMOUNT);
+            vm.stopPrank();
 
             uint256 creditorBalanceBefore = token.balanceOf(creditor);
             uint256 debtorBalanceBefore = token.balanceOf(debtor);
@@ -130,8 +131,15 @@ contract TestPayClaimWithWeirdTokens is Test {
         feeToken.mint(debtor, CLAIM_AMOUNT * 2);
         tokenFeeAmount = (CLAIM_AMOUNT * feeToken.FEE_BPS()) / 10000;
 
+        CreateClaimParams memory params = new CreateClaimParamsBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withClaimAmount(CLAIM_AMOUNT)
+            .withToken(address(feeToken))
+            .build();
+            
         vm.prank(creditor);
-        uint256 claimId_creditorFee = _newClaim(address(feeToken), CLAIM_AMOUNT);
+        uint256 claimId_creditorFee = bullaClaim.createClaim(params);
 
         creditorBalanceBefore = feeToken.balanceOf(creditor);
         debtorBalanceBefore = feeToken.balanceOf(debtor);
@@ -156,8 +164,9 @@ contract TestPayClaimWithWeirdTokens is Test {
         assertEq(uint256(claim.status), uint256(Status.Paid));
 
         // ensure debtor fee
-        vm.prank(creditor);
+        vm.startPrank(creditor);
         uint256 claimId_debtorFee = _newClaim(address(feeToken), CLAIM_AMOUNT);
+        vm.stopPrank();
 
         creditorBalanceBefore = feeToken.balanceOf(creditor);
         debtorBalanceBefore = feeToken.balanceOf(debtor);

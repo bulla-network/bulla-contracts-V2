@@ -20,23 +20,25 @@ contract ERC721Test is DSTestPlus {
     }
 
     function _mint() private returns (uint256 claimId) {
-        hevm.prank(creditor);
+        hevm.startPrank(creditor);
         claimId = token.createClaim(
             new CreateClaimParamsBuilder()
                 .withCreditor(creditor)
                 .withDebtor(debtor)
                 .build()
         );
+        hevm.stopPrank();
     }
 
     function _mint(address _creator, address _creditor) private returns (uint256 claimId) {
-        hevm.prank(_creator);
+        hevm.startPrank(_creator);
         claimId = token.createClaim(
             new CreateClaimParamsBuilder()
                 .withCreditor(_creditor)
                 .withDebtor(debtor)
                 .build()
         );
+        hevm.stopPrank();
     }
 
     function testMint() public {

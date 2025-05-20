@@ -16,24 +16,33 @@ contract BullaClaimTestHelper is Test {
     string attachmentURI = "https://coolcatpics.com/1234";
 
     function _newClaim(address _creator, address _creditor, address _debtor) internal returns (uint256 claimId) {
-        vm.prank(_creator);
+        vm.startPrank(_creator);
         claimId = bullaClaim.createClaim(
-            new CreateClaimParamsBuilder()
-                .withCreditor(_creditor)
-                .withDebtor(_debtor)
-                .withToken(address(weth))
-                .build()
+            CreateClaimParams({
+                creditor: _creditor,
+                debtor: _debtor,
+                token: address(weth),
+                description: "",
+                binding: ClaimBinding.Unbound,
+                claimAmount: 1 ether,
+                payerReceivesClaimOnPayment: true
+            })
         );
+        vm.stopPrank();
     }
 
     function _newClaimFrom(address _from, address _creditor, address _debtor) internal returns (uint256 claimId) {
         claimId = bullaClaim.createClaimFrom(
             _from,
-            new CreateClaimParamsBuilder()
-                .withCreditor(_creditor)
-                .withDebtor(_debtor)
-                .withToken(address(weth))
-                .build()
+            CreateClaimParams({
+                creditor: _creditor,
+                debtor: _debtor,
+                token: address(weth),
+                description: "",
+                binding: ClaimBinding.Unbound,
+                claimAmount: 1 ether,
+                payerReceivesClaimOnPayment: true
+            })
         );
     }
 
@@ -43,11 +52,15 @@ contract BullaClaimTestHelper is Test {
     {
         claimId = bullaClaim.createClaimWithMetadataFrom(
             _from,
-            new CreateClaimParamsBuilder()
-                .withCreditor(_creditor)
-                .withDebtor(_debtor)
-                .withToken(address(weth))
-                .build(),
+            CreateClaimParams({
+                creditor: _creditor,
+                debtor: _debtor,
+                token: address(weth),
+                description: "",
+                binding: ClaimBinding.Unbound,
+                claimAmount: 1 ether,
+                payerReceivesClaimOnPayment: true
+            }),
             ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
         );
     }

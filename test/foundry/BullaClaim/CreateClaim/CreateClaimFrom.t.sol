@@ -107,7 +107,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
             })
         });
 
-        vm.prank(creditor);
+        vm.startPrank(creditor);
         uint256 claimId = controller.createClaim(
             new CreateClaimParamsBuilder()
                 .withCreditor(creditor)
@@ -115,6 +115,8 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
                 .withToken(address(weth))
                 .build()
         );
+        vm.stopPrank();
+        
         Claim memory claim = bullaClaim.getClaim(claimId);
         assertEq(claim.controller, address(controller));
     }
@@ -209,16 +211,18 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
             _isBindingAllowed: false // binding is not allowed
         });
 
-        vm.prank(operator);
-        vm.expectRevert(BullaClaim.CannotBindClaim.selector);
-        bullaClaim.createClaimFrom(
-            user,
-            new CreateClaimParamsBuilder()
+        CreateClaimParams memory params = new CreateClaimParamsBuilder()
                 .withCreditor(user)
                 .withDebtor(debtor)
                 .withToken(address(weth))
                 .withBinding(ClaimBinding.Bound)
-                .build()
+                .build();
+
+        vm.prank(operator);
+        vm.expectRevert(BullaClaim.CannotBindClaim.selector);
+        bullaClaim.createClaimFrom(
+            user,
+            params
         );
     }
 
@@ -244,6 +248,14 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
             _isBindingAllowed: _isBindingAllowed
         });
 
+        CreateClaimParams memory params = new CreateClaimParamsBuilder()
+                .withCreditor(isInvoice ? _user : debtor)
+                .withDebtor(isInvoice ? debtor : _user)
+                .withDescription("fuzzzin")
+                .withToken(address(0))
+                .withBinding(_isBindingAllowed && !isInvoice ? ClaimBinding.Bound : ClaimBinding.Unbound)
+                .build();
+
         if (
             (approvalType == CreateClaimApprovalType.CreditorOnly && !isInvoice)
                 || (approvalType == CreateClaimApprovalType.DebtorOnly && isInvoice)
@@ -267,13 +279,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
         vm.prank(_operator);
         bullaClaim.createClaimFrom(
             _user,
-            new CreateClaimParamsBuilder()
-                .withCreditor(isInvoice ? _user : debtor)
-                .withDebtor(isInvoice ? debtor : _user)
-                .withDescription("fuzzzin")
-                .withToken(address(0))
-                .withBinding(_isBindingAllowed && !isInvoice ? ClaimBinding.Bound : ClaimBinding.Unbound)
-                .build()
+            params
         );
     }
 }

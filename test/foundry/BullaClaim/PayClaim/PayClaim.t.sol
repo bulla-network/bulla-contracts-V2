@@ -40,7 +40,7 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
     event ClaimPayment(uint256 indexed claimId, address indexed paidBy, uint256 paymentAmount, uint256 totalPaidAmount);
 
     function _newClaim(address creator, bool isNative, uint256 claimAmount) private returns (uint256 claimId) {
-        vm.prank(creator);
+        vm.startPrank(creator);
         claimId = bullaClaim.createClaim(
             new CreateClaimParamsBuilder()
                 .withCreditor(creditor)
@@ -49,6 +49,7 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
                 .withToken(isNative ? address(0) : address(weth))
                 .build()
         );
+        vm.stopPrank();
     }
 
     function testPaymentNoFee() public {
@@ -86,7 +87,7 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
     }
 
     function testPayClaimWithNoTransferFlag() public {
-        vm.prank(creditor);
+        vm.startPrank(creditor);
         uint256 claimId = bullaClaim.createClaim(
             new CreateClaimParamsBuilder()
                 .withCreditor(creditor)
@@ -94,6 +95,7 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
                 .withPayerReceivesClaimOnPayment(false)
                 .build()
         );
+        vm.stopPrank();
 
         vm.prank(debtor);
         bullaClaim.payClaim{value: 1 ether}(claimId, 1 ether);
@@ -139,7 +141,7 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
 
         _permitCreateClaim(userPK, controller, 1, CreateClaimApprovalType.Approved, true);
 
-        vm.prank(controller);
+        vm.startPrank(controller);
         bullaClaim.createClaimFrom(
             userAddress,
             new CreateClaimParamsBuilder()
@@ -148,6 +150,7 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
                 .withPayerReceivesClaimOnPayment(false)
                 .build()
         );
+        vm.stopPrank();
 
         vm.prank(debtor);
         vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, debtor));
@@ -246,7 +249,7 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
 
     
     function testOriginalCreditorAfterPayment() public {
-        vm.prank(creditor);
+        vm.startPrank(creditor);
         uint256 claimId = bullaClaim.createClaim(
             new CreateClaimParamsBuilder()
                 .withCreditor(creditor)
@@ -254,7 +257,8 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
                 .withToken(address(weth))
                 .build()
         );
-        
+        vm.stopPrank();
+
         // Approve and pay claim
         vm.startPrank(debtor);
         weth.approve(address(bullaClaim), 1 ether);

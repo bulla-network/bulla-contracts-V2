@@ -49,15 +49,18 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
     }
 
     function testCreateClaimWithMetadata() public {
-        vm.expectEmit(true, true, true, true);
-        emit MetadataAdded(1, tokenURI, attachmentURI);
-        vm.prank(creditor);
-        uint256 claimId = bullaClaim.createClaimWithMetadata(
-            new CreateClaimParamsBuilder()
+        CreateClaimParams memory params = new CreateClaimParamsBuilder()
                 .withCreditor(creditor)
                 .withDebtor(debtor)
                 .withToken(address(weth))
-                .build(),
+                .build();
+
+        vm.expectEmit(true, true, true, true);
+        emit MetadataAdded(1, tokenURI, attachmentURI);
+        
+        vm.prank(creditor);
+        uint256 claimId = bullaClaim.createClaimWithMetadata(
+            params,
             ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
         );
 
@@ -86,8 +89,18 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
 
         _newClaimWithMetadataFrom(user, user, debtor);
 
+        CreateClaimParams memory params = new CreateClaimParamsBuilder()
+                .withCreditor(user)
+                .withDebtor(debtor)
+                .withToken(address(weth))
+                .build();
+
         vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector));
-        _newClaimWithMetadataFrom(user, user, debtor);
+        bullaClaim.createClaimWithMetadataFrom(
+            user,
+            params,
+            ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
+        );
     }
 
     function testCreateClaimWithMetadataFromFollowsSpec_binding() public {
@@ -99,14 +112,16 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
             _isBindingAllowed: false
         });
 
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.CannotBindClaim.selector));
-        bullaClaim.createClaimWithMetadataFrom(
-            user,
-            new CreateClaimParamsBuilder()
+        CreateClaimParams memory params = new CreateClaimParamsBuilder()
                 .withCreditor(debtor)
                 .withDebtor(user)
                 .withBinding(ClaimBinding.Bound)
-                .build(),
+                .build();
+
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.CannotBindClaim.selector));
+        bullaClaim.createClaimWithMetadataFrom(
+            user,
+            params,
             ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
         );
     }
@@ -120,13 +135,15 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
             _isBindingAllowed: true
         });
 
+        CreateClaimParams memory params = new CreateClaimParamsBuilder()
+                .withCreditor(debtor)
+                .withDebtor(user)
+                .build();
+
         vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector));
         bullaClaim.createClaimWithMetadataFrom(
             user,
-            new CreateClaimParamsBuilder()
-                .withCreditor(debtor)
-                .withDebtor(user)
-                .build(),
+            params,
             ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
         );
     }
@@ -140,20 +157,23 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
             _isBindingAllowed: true
         });
 
+        CreateClaimParams memory params = new CreateClaimParamsBuilder()
+                .withCreditor(user)
+                .withDebtor(debtor)
+                .withToken(address(weth))
+                .build();
+
         vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector));
         bullaClaim.createClaimWithMetadataFrom(
             user,
-            new CreateClaimParamsBuilder()
-                .withCreditor(user)
-                .withDebtor(creditor)
-                .build(),
+            params,
             ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
         );
     }
 
     function testOriginalCreditorWithMetadata() public {
         // Test with createClaimWithMetadata
-        vm.prank(creditor);
+        vm.startPrank(creditor);
         bullaClaim.createClaimWithMetadata(
             new CreateClaimParamsBuilder()
                 .withCreditor(creditor)
@@ -162,7 +182,8 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
                 .build(),
             ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
         );
-        
+        vm.stopPrank();
+
         _permitCreateClaim({
             _userPK: userPK,
             _operator: address(this),

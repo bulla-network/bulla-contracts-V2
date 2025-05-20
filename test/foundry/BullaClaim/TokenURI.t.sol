@@ -28,7 +28,7 @@ contract TestTokenURI is Test {
     function testTokenURIReturnsSetMetadata() public {
         string memory tokenURI = "tokenURI.com";
 
-        vm.prank(creditor);
+        vm.startPrank(creditor);
         uint256 claimId = bullaClaim.createClaimWithMetadata(
             new CreateClaimParamsBuilder()
                 .withCreditor(creditor)
@@ -36,6 +36,7 @@ contract TestTokenURI is Test {
                 .build(),
             ClaimMetadata({tokenURI: tokenURI, attachmentURI: "test1234"})
         );
+        vm.stopPrank();
 
         assertEq(bullaClaim.tokenURI(claimId), tokenURI);
     }
@@ -44,13 +45,14 @@ contract TestTokenURI is Test {
         address metadataGenerator = address(new ClaimMetadataGenerator());
         bullaClaim.setClaimMetadataGenerator(metadataGenerator);
 
-        vm.prank(creditor);
+        vm.startPrank(creditor);
         uint256 claimId = bullaClaim.createClaim(
             new CreateClaimParamsBuilder()
                 .withCreditor(creditor)
                 .withDebtor(debtor)
                 .build()
         );
+        vm.stopPrank();
 
         Claim memory claim = bullaClaim.getClaim(claimId);
 
@@ -64,13 +66,14 @@ contract TestTokenURI is Test {
     }
 
     function testRevertsIfNoMetadataGenerator() public {
-        vm.prank(creditor);
+        vm.startPrank(creditor);
         uint256 claimId = bullaClaim.createClaim(
             new CreateClaimParamsBuilder()
                 .withCreditor(creditor)
                 .withDebtor(debtor)
                 .build()
         );
+        vm.stopPrank();
 
         vm.expectRevert();
         bullaClaim.tokenURI(claimId);

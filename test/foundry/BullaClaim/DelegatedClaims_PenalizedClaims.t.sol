@@ -51,7 +51,7 @@ contract TestPenalizedClaim is Test {
             })
         });
 
-        vm.prank(creditor);
+        vm.startPrank(creditor);
         uint256 claimId = penalizedClaim.createClaim(
             new CreateClaimParamsBuilder()
                 .withCreditor(creditor)
@@ -59,6 +59,7 @@ contract TestPenalizedClaim is Test {
                 .withBinding(ClaimBinding.BindingPending)
                 .build()
         );
+        vm.stopPrank();
 
         bullaClaim.permitUpdateBinding({
             user: debtor,
@@ -116,7 +117,7 @@ contract TestPenalizedClaim is Test {
             })
         });
 
-        vm.prank(creditor);
+        vm.startPrank(creditor);
         uint256 claimId = penalizedClaim.createClaim(
             new CreateClaimParamsBuilder()
                 .withCreditor(creditor)
@@ -124,6 +125,7 @@ contract TestPenalizedClaim is Test {
                 .withBinding(ClaimBinding.BindingPending)
                 .build()
         );
+        vm.stopPrank();
 
         vm.startPrank(debtor);
 
