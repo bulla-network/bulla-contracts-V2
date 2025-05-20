@@ -10,6 +10,7 @@ import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/U
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {PenalizedClaim} from "contracts/mocks/PenalizedClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
+import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 
 contract TestPenalizedClaim is Test {
     WETH public weth;
@@ -52,15 +53,11 @@ contract TestPenalizedClaim is Test {
 
         vm.prank(creditor);
         uint256 claimId = penalizedClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(creditor)
+                .withDebtor(debtor)
+                .withBinding(ClaimBinding.BindingPending)
+                .build()
         );
 
         bullaClaim.permitUpdateBinding({
@@ -121,15 +118,11 @@ contract TestPenalizedClaim is Test {
 
         vm.prank(creditor);
         uint256 claimId = penalizedClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(creditor)
+                .withDebtor(debtor)
+                .withBinding(ClaimBinding.BindingPending)
+                .build()
         );
 
         vm.startPrank(debtor);

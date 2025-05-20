@@ -9,6 +9,7 @@ import {BullaClaim, CreateClaimApprovalType} from "contracts/BullaClaim.sol";
 import {PenalizedClaim} from "contracts/mocks/PenalizedClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
+import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 
 contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
     uint256 creditorPK = uint256(0x01);
@@ -52,15 +53,11 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
         emit MetadataAdded(1, tokenURI, attachmentURI);
         vm.prank(creditor);
         uint256 claimId = bullaClaim.createClaimWithMetadata(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(weth),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            }),
+            new CreateClaimParamsBuilder()
+                .withCreditor(creditor)
+                .withDebtor(debtor)
+                .withToken(address(weth))
+                .build(),
             ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
         );
 
@@ -105,15 +102,11 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
         vm.expectRevert(abi.encodeWithSelector(BullaClaim.CannotBindClaim.selector));
         bullaClaim.createClaimWithMetadataFrom(
             user,
-            CreateClaimParams({
-                creditor: debtor,
-                debtor: user,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(0),
-                binding: ClaimBinding.Bound,
-                payerReceivesClaimOnPayment: true
-            }),
+            new CreateClaimParamsBuilder()
+                .withCreditor(debtor)
+                .withDebtor(user)
+                .withBinding(ClaimBinding.Bound)
+                .build(),
             ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
         );
     }
@@ -130,15 +123,10 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
         vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector));
         bullaClaim.createClaimWithMetadataFrom(
             user,
-            CreateClaimParams({
-                creditor: debtor,
-                debtor: user,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(0),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            }),
+            new CreateClaimParamsBuilder()
+                .withCreditor(debtor)
+                .withDebtor(user)
+                .build(),
             ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
         );
     }
@@ -155,15 +143,10 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
         vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector));
         bullaClaim.createClaimWithMetadataFrom(
             user,
-            CreateClaimParams({
-                creditor: user,
-                debtor: creditor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(0),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            }),
+            new CreateClaimParamsBuilder()
+                .withCreditor(user)
+                .withDebtor(creditor)
+                .build(),
             ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
         );
     }
@@ -172,15 +155,11 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
         // Test with createClaimWithMetadata
         vm.prank(creditor);
         bullaClaim.createClaimWithMetadata(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(weth),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            }),
+            new CreateClaimParamsBuilder()
+                .withCreditor(creditor)
+                .withDebtor(debtor)
+                .withToken(address(weth))
+                .build(),
             ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
         );
         
@@ -194,15 +173,11 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
         
         uint256 claimId3 = bullaClaim.createClaimFrom(
             user,
-            CreateClaimParams({
-                creditor: user,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(weth),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(user)
+                .withDebtor(debtor)
+                .withToken(address(weth))
+                .build()
         );
         
         Claim memory claim3 = bullaClaim.getClaim(claimId3);

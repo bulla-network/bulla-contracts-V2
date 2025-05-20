@@ -8,6 +8,7 @@ import "contracts/types/Types.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {BullaClaimTestHelper, EIP712Helper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {Deployer} from "script/Deployment.s.sol";
+import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 
 contract TestPayClaimWithFee is BullaClaimTestHelper {
     address creditor = address(0xA11c3);
@@ -41,15 +42,12 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
     function _newClaim(address creator, bool isNative, uint256 claimAmount) private returns (uint256 claimId) {
         vm.prank(creator);
         claimId = bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: claimAmount,
-                token: isNative ? address(0) : address(weth),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(creditor)
+                .withDebtor(debtor)
+                .withClaimAmount(claimAmount)
+                .withToken(isNative ? address(0) : address(weth))
+                .build()
         );
     }
 
@@ -90,15 +88,11 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
     function testPayClaimWithNoTransferFlag() public {
         vm.prank(creditor);
         uint256 claimId = bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(0),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: false
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(creditor)
+                .withDebtor(debtor)
+                .withPayerReceivesClaimOnPayment(false)
+                .build()
         );
 
         vm.prank(debtor);
@@ -148,15 +142,11 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
         vm.prank(controller);
         bullaClaim.createClaimFrom(
             userAddress,
-            CreateClaimParams({
-                creditor: userAddress,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(0),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: false
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(userAddress)
+                .withDebtor(debtor)
+                .withPayerReceivesClaimOnPayment(false)
+                .build()
         );
 
         vm.prank(debtor);
@@ -258,15 +248,11 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
     function testOriginalCreditorAfterPayment() public {
         vm.prank(creditor);
         uint256 claimId = bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(weth),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(creditor)
+                .withDebtor(debtor)
+                .withToken(address(weth))
+                .build()
         );
         
         // Approve and pay claim

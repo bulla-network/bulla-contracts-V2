@@ -10,6 +10,7 @@ import {PenalizedClaim} from "contracts/mocks/PenalizedClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {ClaimMetadataGenerator} from "contracts/ClaimMetadataGenerator.sol";
+import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 
 contract TestCreateClaim is BullaClaimTestHelper {
     address creditor = address(0x01);
@@ -44,15 +45,10 @@ contract TestCreateClaim is BullaClaimTestHelper {
     function testCreateNativeClaim() public {
         vm.prank(creditor);
         uint256 claimId = bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(0),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(creditor)
+                .withDebtor(debtor)
+                .build()
         );
         Claim memory claim = bullaClaim.getClaim(claimId);
         assertEq(claim.token, address(0));
@@ -73,30 +69,22 @@ contract TestCreateClaim is BullaClaimTestHelper {
         vm.expectRevert();
         vm.prank(creditor);
         bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: uint256(type(uint128).max) + 1,
-                token: address(0),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(creditor)
+                .withDebtor(debtor)
+                .withClaimAmount(uint256(type(uint128).max) + 1)
+                .build()
         );
     }
 
     function testCannotCreateClaimWhenNotCreditorOrDebtor() public {
         vm.expectRevert(BullaClaim.NotCreditorOrDebtor.selector);
         bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: uint256(type(uint128).max) + 1,
-                token: address(0),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(creditor)
+                .withDebtor(debtor)
+                .withClaimAmount(uint256(type(uint128).max) + 1)
+                .build()
         );
     }
 
@@ -104,15 +92,12 @@ contract TestCreateClaim is BullaClaimTestHelper {
         // test creation of a pending bound claim
         vm.prank(creditor);
         uint256 claimId = bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(weth),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(creditor)
+                .withDebtor(debtor)
+                .withToken(address(weth))
+                .withBinding(ClaimBinding.BindingPending)
+                .build()
         );
         Claim memory claim = bullaClaim.getClaim(claimId);
         assertTrue(claim.binding == ClaimBinding.BindingPending);
@@ -120,15 +105,12 @@ contract TestCreateClaim is BullaClaimTestHelper {
         //test creation of a pending claim that is bound
         vm.prank(debtor);
         uint256 boundClaimId = bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(weth),
-                binding: ClaimBinding.Bound,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(creditor)
+                .withDebtor(debtor)
+                .withToken(address(weth))
+                .withBinding(ClaimBinding.Bound)
+                .build()
         );
         Claim memory boundClaim = bullaClaim.getClaim(boundClaimId);
         assertTrue(boundClaim.binding == ClaimBinding.Bound);
@@ -165,29 +147,23 @@ contract TestCreateClaim is BullaClaimTestHelper {
         vm.prank(debtor);
 
         bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(weth),
-                binding: ClaimBinding.Bound,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(creditor)
+                .withDebtor(debtor)
+                .withToken(address(weth))
+                .withBinding(ClaimBinding.Bound)
+                .build()
         );
 
         vm.expectRevert(BullaClaim.CannotBindClaim.selector);
         vm.prank(creditor);
         bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(weth),
-                binding: ClaimBinding.Bound,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(creditor)
+                .withDebtor(debtor)
+                .withToken(address(weth))
+                .withBinding(ClaimBinding.Bound)
+                .build()
         );
     }
 
@@ -196,15 +172,12 @@ contract TestCreateClaim is BullaClaimTestHelper {
         vm.expectRevert();
 
         bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: claimAmount,
-                token: address(weth),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(creditor)
+                .withDebtor(debtor)
+                .withClaimAmount(claimAmount)
+                .withToken(address(weth))
+                .build()
         );
     }
     
@@ -212,15 +185,12 @@ contract TestCreateClaim is BullaClaimTestHelper {
         vm.expectRevert(BullaClaim.ZeroAmount.selector);
         vm.prank(creditor);
         bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: 0,
-                token: address(weth),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(creditor)
+                .withDebtor(debtor)
+                .withClaimAmount(0)
+                .withToken(address(weth))
+                .build()
         );
     }
 
@@ -228,15 +198,12 @@ contract TestCreateClaim is BullaClaimTestHelper {
         vm.expectRevert(BullaClaim.CannotBindClaim.selector);
         vm.prank(creditor);
         bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(weth),
-                binding: ClaimBinding.Bound,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(creditor)
+                .withDebtor(debtor)
+                .withToken(address(weth))
+                .withBinding(ClaimBinding.Bound)
+                .build()
         );
     }
 
@@ -249,15 +216,11 @@ contract TestCreateClaim is BullaClaimTestHelper {
         
         vm.prank(creditor);
         uint256 claimId = bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(weth),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(creditor)
+                .withDebtor(debtor)
+                .withToken(address(weth))
+                .build()
         );
         
         // Transfer NFT to another address
@@ -278,15 +241,11 @@ contract TestCreateClaim is BullaClaimTestHelper {
         
         vm.prank(creditor);
         uint256 claimId = bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(weth),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(creditor)
+                .withDebtor(debtor)
+                .withToken(address(weth))
+                .build()
         );
         
         // Get the tokenURI and verify it contains creditor information
@@ -341,15 +300,14 @@ contract TestCreateClaim is BullaClaimTestHelper {
 
         vm.prank(creator);
         uint256 claimId = bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: _creditor,
-                debtor: _debtor,
-                description: "test description",
-                claimAmount: claimAmount,
-                token: token,
-                binding: ClaimBinding(binding),
-                payerReceivesClaimOnPayment: payerReceivesClaimOnPayment
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(_creditor)
+                .withDebtor(_debtor)
+                .withClaimAmount(claimAmount)
+                .withToken(token)
+                .withBinding(ClaimBinding(binding))
+                .withPayerReceivesClaimOnPayment(payerReceivesClaimOnPayment)
+                .build()
         );
 
         {

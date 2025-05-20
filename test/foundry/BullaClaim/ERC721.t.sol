@@ -5,6 +5,7 @@ import {DSTestPlus} from "solmate/test/utils/DSTestPlus.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {Claim, Status, ClaimBinding, LockState, CreateClaimParams} from "contracts/types/Types.sol";
 import {Deployer} from "script/Deployment.s.sol";
+import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 
 // run the solmate ERC721 spec against bulla claim to ensure functionality
 
@@ -21,30 +22,20 @@ contract ERC721Test is DSTestPlus {
     function _mint() private returns (uint256 claimId) {
         hevm.prank(creditor);
         claimId = token.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(0),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(creditor)
+                .withDebtor(debtor)
+                .build()
         );
     }
 
     function _mint(address _creator, address _creditor) private returns (uint256 claimId) {
         hevm.prank(_creator);
         claimId = token.createClaim(
-            CreateClaimParams({
-                creditor: _creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(0),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(_creditor)
+                .withDebtor(debtor)
+                .build()
         );
     }
 
@@ -130,15 +121,10 @@ contract ERC721Test is DSTestPlus {
 
     function testFailMintToZero() public {
         token.createClaim(
-            CreateClaimParams({
-                creditor: address(0),
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(0),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(address(0))
+                .withDebtor(debtor)
+                .build()
         );
     }
 

@@ -18,6 +18,7 @@ import {FeeOnTransferToken} from "contracts/mocks/FeeOnTransferToken.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {Claim, Status, ClaimBinding, CreateClaimParams, LockState} from "contracts/types/Types.sol";
 import {Deployer} from "script/Deployment.s.sol";
+import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 
 contract TestPayClaimWithWeirdTokens is Test {
     using Strings for uint256;
@@ -60,15 +61,12 @@ contract TestPayClaimWithWeirdTokens is Test {
 
     function _newClaim(address token, uint256 claimAmount) private returns (uint256 claimId) {
         claimId = bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: claimAmount,
-                token: token,
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(creditor)
+                .withDebtor(debtor)
+                .withClaimAmount(claimAmount)
+                .withToken(token)
+                .build()
         );
     }
 

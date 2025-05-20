@@ -10,6 +10,7 @@ import {BullaClaim, CreateClaimApprovalType} from "contracts/BullaClaim.sol";
 import {PenalizedClaim} from "contracts/mocks/PenalizedClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
+import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 
 /// @notice SPEC:
 /// A function can call this function to verify and "spend" `from`'s approval of `operator` to create a claim given the following:
@@ -108,15 +109,11 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
 
         vm.prank(creditor);
         uint256 claimId = controller.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(weth),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(creditor)
+                .withDebtor(debtor)
+                .withToken(address(weth))
+                .build()
         );
         Claim memory claim = bullaClaim.getClaim(claimId);
         assertEq(claim.controller, address(controller));
@@ -216,15 +213,12 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
         vm.expectRevert(BullaClaim.CannotBindClaim.selector);
         bullaClaim.createClaimFrom(
             user,
-            CreateClaimParams({
-                creditor: user,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(weth),
-                binding: ClaimBinding.Bound, // binding is set to bound
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(user)
+                .withDebtor(debtor)
+                .withToken(address(weth))
+                .withBinding(ClaimBinding.Bound)
+                .build()
         );
     }
 
@@ -273,15 +267,13 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
         vm.prank(_operator);
         bullaClaim.createClaimFrom(
             _user,
-            CreateClaimParams({
-                creditor: isInvoice ? _user : debtor,
-                debtor: isInvoice ? debtor : _user,
-                description: "fuzzzin",
-                claimAmount: 1 ether,
-                token: address(0),
-                binding: _isBindingAllowed && !isInvoice ? ClaimBinding.Bound : ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(isInvoice ? _user : debtor)
+                .withDebtor(isInvoice ? debtor : _user)
+                .withDescription("fuzzzin")
+                .withToken(address(0))
+                .withBinding(_isBindingAllowed && !isInvoice ? ClaimBinding.Bound : ClaimBinding.Unbound)
+                .build()
         );
     }
 }

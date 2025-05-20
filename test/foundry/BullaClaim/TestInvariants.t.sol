@@ -10,6 +10,7 @@ import {BullaClaim} from "contracts/BullaClaim.sol";
 import {BullaHelpers} from "contracts/libraries/BullaHelpers.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {Claim, Status, ClaimBinding, LockState, CreateClaimParams} from "contracts/types/Types.sol";
+import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 
 enum BullaClaimState {
     NoOwner,
@@ -111,15 +112,12 @@ contract TestInvariants is Test {
 
         vm.prank(creditor);
         claimId = bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: _claimAmount,
-                token: address(weth),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(creditor)
+                .withDebtor(debtor)
+                .withClaimAmount(_claimAmount)
+                .withToken(address(weth))
+                .build()
         );
 
         fullPaymentAmount = _claimAmount;

@@ -6,6 +6,7 @@ import {Claim, Status, ClaimBinding, LockState, CreateClaimParams, ClaimMetadata
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {ClaimMetadataGenerator} from "contracts/ClaimMetadataGenerator.sol";
 import {Deployer} from "script/Deployment.s.sol";
+import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 
 contract TestTokenURI is Test {
     BullaClaim public bullaClaim;
@@ -29,15 +30,10 @@ contract TestTokenURI is Test {
 
         vm.prank(creditor);
         uint256 claimId = bullaClaim.createClaimWithMetadata(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(0),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            }),
+            new CreateClaimParamsBuilder()
+                .withCreditor(creditor)
+                .withDebtor(debtor)
+                .build(),
             ClaimMetadata({tokenURI: tokenURI, attachmentURI: "test1234"})
         );
 
@@ -50,15 +46,10 @@ contract TestTokenURI is Test {
 
         vm.prank(creditor);
         uint256 claimId = bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(0),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(creditor)
+                .withDebtor(debtor)
+                .build()
         );
 
         Claim memory claim = bullaClaim.getClaim(claimId);
@@ -75,15 +66,10 @@ contract TestTokenURI is Test {
     function testRevertsIfNoMetadataGenerator() public {
         vm.prank(creditor);
         uint256 claimId = bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(0),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(creditor)
+                .withDebtor(debtor)
+                .build()
         );
 
         vm.expectRevert();

@@ -7,6 +7,7 @@ import {ERC1271WalletMock} from "contracts/mocks/ERC1271Wallet.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {Test} from "forge-std/Test.sol";
 import {EIP712Helper, privateKeyValidity, splitSig} from "test/foundry/BullaClaim/EIP712/Utils.sol";
+import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 
 /// @notice a base boilerplate class to inherit on PermitPayClaim tests
 contract PermitPayClaimTest is Test {
@@ -38,15 +39,11 @@ contract PermitPayClaimTest is Test {
 
     function _newClaim(address _creditor, address _debtor) internal returns (uint256 claimId) {
         claimId = bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: _creditor,
-                debtor: _debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(weth),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(_creditor)
+                .withDebtor(_debtor)
+                .withToken(address(weth))
+                .build()
         );
     }
 

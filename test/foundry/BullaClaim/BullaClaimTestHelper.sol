@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import "contracts/BullaClaim.sol";
 import {EIP712Helper} from "test/foundry/BullaClaim/EIP712/Utils.sol";
+import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 
 contract BullaClaimTestHelper is Test {
     WETH public weth;
@@ -17,30 +18,22 @@ contract BullaClaimTestHelper is Test {
     function _newClaim(address _creator, address _creditor, address _debtor) internal returns (uint256 claimId) {
         vm.prank(_creator);
         claimId = bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: _creditor,
-                debtor: _debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(weth),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(_creditor)
+                .withDebtor(_debtor)
+                .withToken(address(weth))
+                .build()
         );
     }
 
     function _newClaimFrom(address _from, address _creditor, address _debtor) internal returns (uint256 claimId) {
         claimId = bullaClaim.createClaimFrom(
             _from,
-            CreateClaimParams({
-                creditor: _creditor,
-                debtor: _debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(weth),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(_creditor)
+                .withDebtor(_debtor)
+                .withToken(address(weth))
+                .build()
         );
     }
 
@@ -50,15 +43,11 @@ contract BullaClaimTestHelper is Test {
     {
         claimId = bullaClaim.createClaimWithMetadataFrom(
             _from,
-            CreateClaimParams({
-                creditor: _creditor,
-                debtor: _debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(weth),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            }),
+            new CreateClaimParamsBuilder()
+                .withCreditor(_creditor)
+                .withDebtor(_debtor)
+                .withToken(address(weth))
+                .build(),
             ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
         );
     }
