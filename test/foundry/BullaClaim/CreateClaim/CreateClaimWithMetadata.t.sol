@@ -171,7 +171,7 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
     function testOriginalCreditorWithMetadata() public {
         // Test with createClaimWithMetadata
         vm.prank(creditor);
-        uint256 claimId2 = bullaClaim.createClaimWithMetadata(
+        bullaClaim.createClaimWithMetadata(
             CreateClaimParams({
                 creditor: creditor,
                 debtor: debtor,
