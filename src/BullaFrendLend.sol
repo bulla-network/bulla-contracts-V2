@@ -294,6 +294,11 @@ contract BullaFrendLend is BullaClaimControllerBase {
         uint256 creditorInterest = interestPayment - protocolFee;
         uint256 creditorTotal = creditorInterest + principalPayment;
         
+        // Update claim state in BullaClaim BEFORE transfers (for re-entrancy protection)
+        if (principalPayment > 0) {
+            _bullaClaim.payClaimFromControllerWithoutTransfer(msg.sender, claimId, principalPayment);
+        }
+        
         // Transfer the total amount from sender to this contract, to avoid double approval
         if (amount > 0) {
             bool transferSuccess = IERC20(claim.token).transferFrom(msg.sender, address(this), amount);
@@ -313,11 +318,6 @@ contract BullaFrendLend is BullaClaimControllerBase {
                 bool transferToCreditorSuccess = IERC20(claim.token).transfer(creditor, creditorTotal);
                 if (!transferToCreditorSuccess) revert TransferFailed();
             }
-            
-            if (principalPayment > 0) {
-            // Update claim state in BullaClaim
-            _bullaClaim.payClaimFromControllerWithoutTransfer(msg.sender, claimId, principalPayment);
-}
         }
         
         emit LoanPayment(claimId, interestPayment, principalPayment, protocolFee, block.timestamp);
