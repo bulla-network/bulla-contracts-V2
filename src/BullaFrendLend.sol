@@ -292,35 +292,32 @@ contract BullaFrendLend is BullaClaimControllerBase {
         
         uint256 protocolFee = calculateProtocolFee(interestPayment);
         uint256 creditorInterest = interestPayment - protocolFee;
+        uint256 creditorTotal = creditorInterest + principalPayment;
         
         // Transfer the total amount from sender to this contract, to avoid double approval
         if (amount > 0) {
             bool transferSuccess = IERC20(claim.token).transferFrom(msg.sender, address(this), amount);
             if (!transferSuccess) revert TransferFailed();
             
-            if (interestPayment > 0) {
-                // Transfer interest net of protocol fees to creditor
-                bool interestTransferSuccess = IERC20(claim.token).transfer(creditor, creditorInterest);
-                if (!interestTransferSuccess) revert TransferFailed();
-                
-                // Track protocol fee for this token
-                if (protocolFee > 0) {
-                    if (!_tokenExists[claim.token]) {
-                        protocolFeeTokens.push(claim.token);
-                        _tokenExists[claim.token] = true;
-                    }
-                    protocolFeesByToken[claim.token] += protocolFee;
+            // Track protocol fee for this token if any interest was paid
+            if (protocolFee > 0) {
+                if (!_tokenExists[claim.token]) {
+                    protocolFeeTokens.push(claim.token);
+                    _tokenExists[claim.token] = true;
                 }
+                protocolFeesByToken[claim.token] += protocolFee;
+            }
+            
+            if (creditorTotal > 0) {
+                // Transfer interest and principal to creditor
+                bool transferToCreditorSuccess = IERC20(claim.token).transfer(creditor, creditorTotal);
+                if (!transferToCreditorSuccess) revert TransferFailed();
             }
             
             if (principalPayment > 0) {
-                // Send principal to creditor
-                bool principalTransferSuccess = IERC20(claim.token).transfer(creditor, principalPayment);
-                if (!principalTransferSuccess) revert TransferFailed();
-                
-                // Update claim state in BullaClaim
-                _bullaClaim.payClaimFromControllerWithoutTransfer(msg.sender, claimId, principalPayment);
-            }
+            // Update claim state in BullaClaim
+            _bullaClaim.payClaimFromControllerWithoutTransfer(msg.sender, claimId, principalPayment);
+}
         }
         
         emit LoanPayment(claimId, interestPayment, principalPayment, protocolFee, block.timestamp);
