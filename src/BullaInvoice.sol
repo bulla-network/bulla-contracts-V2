@@ -1,9 +1,10 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.15;
 
 import "contracts/interfaces/IBullaClaim.sol";
 import "contracts/BullaClaimControllerBase.sol";
 import "contracts/types/Types.sol";
+import "contracts/libraries/CompoundInterestLib.sol";
 
 struct PurchaseOrderState {
     uint256 deliveryDate; // 0 if not a purchase order
@@ -14,6 +15,8 @@ struct PurchaseOrderState {
 struct InvoiceDetails {
     uint256 dueBy;
     PurchaseOrderState purchaseOrder;
+    InterestConfig lateFeeConfig;
+    InterestComputationState interestComputationState;
 }
 
 error InvalidDueBy();
@@ -23,6 +26,8 @@ error NotOriginalCreditor();
 error PurchaseOrderAlreadyDelivered();
 error InvoiceNotPending();
 error NotPurchaseOrder();
+error InvalidInterestConfig();
+error NotAuthorizedToConfigureInterest();
 
 struct Invoice {
     uint256 claimAmount;
@@ -34,6 +39,9 @@ struct Invoice {
     address token;
     uint256 dueBy;
     PurchaseOrderState purchaseOrder;
+    InterestConfig lateFeeConfig;
+    InterestComputationState interestComputationState;
+    InterestConfig interestConfig;
 }
 
 struct CreateInvoiceParams {
@@ -45,6 +53,8 @@ struct CreateInvoiceParams {
     address token;
     ClaimBinding binding;
     bool payerReceivesClaimOnPayment;
+    InterestConfig lateFeeConfig;
+    InterestConfig interestConfig;
 }
 
 /**
@@ -55,6 +65,8 @@ contract BullaInvoice is BullaClaimControllerBase {
     mapping(uint256 => InvoiceDetails) private _invoiceDetailsByClaimId;
 
     event InvoiceCreated(uint256 claimId, uint256 dueBy);
+    event InterestConfigured(uint256 claimId, uint16 interestRateBps, uint16 periodsPerYear);
+    event InterestAccrued(uint256 claimId, uint256 interestAmount, uint256 newTotalDue);
 
     /**
      * @notice Constructor
@@ -72,6 +84,22 @@ contract BullaInvoice is BullaClaimControllerBase {
         _checkController(claim.controller);
 
         InvoiceDetails memory invoiceDetails = _invoiceDetailsByClaimId[claimId];
+        
+        if ((claim.status == Status.Pending || claim.status == Status.Repaying) && 
+            block.timestamp > invoiceDetails.interestComputationState.lastAccrualTimestamp && 
+            invoiceDetails.interestConfig.interestRateBps > 0) {
+
+            // Refresh interest calculation
+            uint256 unpaidPrincipal = claim.claimAmount - claim.paidAmount;
+            if (unpaidPrincipal > 0) {
+                invoiceDetails.interestComputationState = CompoundInterestLib.computeInterest(
+                    unpaidPrincipal,
+                    invoiceDetails.dueBy,
+                    invoiceDetails.interestConfig, 
+                    invoiceDetails.interestComputationState
+                );
+            }
+        }
 
         return Invoice({
             claimAmount: claim.claimAmount,
@@ -82,7 +110,10 @@ contract BullaInvoice is BullaClaimControllerBase {
             debtor: claim.debtor,
             token: claim.token,
             dueBy: invoiceDetails.dueBy,
-            purchaseOrder: invoiceDetails.purchaseOrder
+            purchaseOrder: invoiceDetails.purchaseOrder,
+            lateFeeConfig: invoiceDetails.lateFeeConfig,
+            interestComputationState: invoiceDetails.interestComputationState,
+            interestConfig: invoiceDetails.interestConfig
         });
     }
 
@@ -93,6 +124,7 @@ contract BullaInvoice is BullaClaimControllerBase {
      */
     function createInvoice(CreateInvoiceParams memory params) external returns (uint256) {
         _validateCreateInvoiceParams(params);
+        _validateInterestConfig(params.interestConfig);
 
         CreateClaimParams memory createClaimParams = CreateClaimParams({
             creditor: msg.sender,
@@ -106,7 +138,33 @@ contract BullaInvoice is BullaClaimControllerBase {
 
         uint256 claimId = _bullaClaim.createClaimFrom(msg.sender, createClaimParams);
 
-        _invoiceDetailsByClaimId[claimId] = InvoiceDetails({dueBy: params.dueBy, purchaseOrder: PurchaseOrderState({deliveryDate: params.deliveryDate, isDelivered: false})});
+        _invoiceDetailsByClaimId[claimId] = InvoiceDetails({
+            dueBy: params.dueBy, 
+            purchaseOrder: PurchaseOrderState({
+                deliveryDate: params.deliveryDate, 
+                isDelivered: false
+            }),
+            lateFeeConfig: params.lateFeeConfig,
+            interestComputationState: InterestComputationState({
+                accruedInterest: 0,
+                lastAccrualTimestamp: params.dueBy
+            })
+        });
+        
+        // Store interest configuration if specified
+        if (params.interestConfig.interestRateBps > 0) {
+            _interestConfigByClaimId[claimId] = params.interestConfig;
+            _interestStateByClaimId[claimId] = InterestComputationState({
+                accruedInterest: 0,
+                lastAccrualTimestamp: params.dueBy
+            });
+            
+            emit InterestConfigured(
+                claimId, 
+                params.interestConfig.interestRateBps, 
+                params.interestConfig.numberOfPeriodsPerYear
+            );
+        }
 
         emit InvoiceCreated(claimId, params.dueBy);
 
@@ -137,7 +195,12 @@ contract BullaInvoice is BullaClaimControllerBase {
 
         uint256 claimId = _bullaClaim.createClaimWithMetadataFrom(msg.sender, createClaimParams, metadata);
 
-        _invoiceDetailsByClaimId[claimId] = InvoiceDetails({dueBy: params.dueBy, purchaseOrder: PurchaseOrderState({deliveryDate: params.deliveryDate, isDelivered: false})});
+        _invoiceDetailsByClaimId[claimId] =
+            InvoiceDetails({
+                dueBy: params.dueBy, 
+                purchaseOrder: PurchaseOrderState({deliveryDate: params.deliveryDate, isDelivered: false}), 
+                lateFeeConfig: params.lateFeeConfig,
+                interestComputationState: InterestComputationState({accruedInterest: 0, lastAccrualTimestamp: params.dueBy})});
 
         emit InvoiceCreated(claimId, params.dueBy);
 
@@ -171,14 +234,44 @@ contract BullaInvoice is BullaClaimControllerBase {
     }
 
     /**
-     * @notice Pays an invoice
+     * @notice Pays an invoice and updates interest before processing the payment
      * @param claimId The ID of the invoice to pay
      * @param amount The amount to pay
      */
     function payInvoice(uint256 claimId, uint256 amount) external payable {
         Claim memory claim = _bullaClaim.getClaim(claimId);
         _checkController(claim.controller);
-
+        
+        // Update interest before payment
+        uint256 newInterest = updateInterest(claimId);
+        
+        // If there's interest accrued, include it in the payment amount
+        // Since we can't modify the claim amount directly, 
+        // we need to ensure the payment covers both principal and accrued interest
+        uint256 totalDue = claim.claimAmount;
+        
+        if (state.accruedInterest > 0) {
+            // Calculate total amount due including interest
+            totalDue += state.accruedInterest;
+            
+            // If paying less than total, adjust based on proportions
+            if (amount < totalDue && amount > 0) {
+                uint256 principalPayment = (amount * claim.claimAmount) / totalDue;
+                uint256 interestPayment = amount - principalPayment;
+                
+                // Reduce tracked interest by interest payment
+                if (interestPayment > 0 && interestPayment <= state.accruedInterest) {
+                    _interestStateByClaimId[claimId].accruedInterest -= interestPayment;
+                    
+                    // We only send the principal portion to the underlying claim
+                    amount = principalPayment;
+                }
+            } else if (amount >= totalDue) {
+                // If paying in full, reset interest state
+                _interestStateByClaimId[claimId].accruedInterest = 0;
+            }
+        }
+        
         return _bullaClaim.payClaimFrom{value: msg.value}(msg.sender, claimId, amount);
     }
 
@@ -206,6 +299,40 @@ contract BullaInvoice is BullaClaimControllerBase {
         return _bullaClaim.cancelClaimFrom(msg.sender, claimId, note);
     }
 
+    /**
+     * @notice Configure interest parameters for an invoice
+     * @param claimId The ID of the invoice to configure
+     * @param config The interest configuration
+     */
+    function configureInterest(uint256 claimId, InterestConfig memory config) external {
+        Claim memory claim = _bullaClaim.getClaim(claimId);
+        _checkController(claim.controller);
+        
+        // Only the original creditor can configure interest
+        if (claim.originalCreditor != msg.sender) {
+            revert NotAuthorizedToConfigureInterest();
+        }
+        
+        // Validate the new config
+        _validateInterestConfig(config);
+        
+        // Update the interest configuration
+        _interestConfigByClaimId[claimId] = config;
+        
+        // Reset computation state if changing configuration
+        if (config.interestRateBps > 0) {
+            InvoiceDetails memory invoiceDetails = _invoiceDetailsByClaimId[claimId];
+            
+            _interestStateByClaimId[claimId] = InterestComputationState({
+                accruedInterest: _interestStateByClaimId[claimId].accruedInterest,
+                lastAccrualTimestamp: block.timestamp > invoiceDetails.dueBy ? 
+                    block.timestamp : invoiceDetails.dueBy
+            });
+        }
+        
+        emit InterestConfigured(claimId, config.interestRateBps, config.numberOfPeriodsPerYear);
+    }
+
     /// PRIVATE FUNCTIONS ///
 
     /**
@@ -223,6 +350,33 @@ contract BullaInvoice is BullaClaimControllerBase {
 
         if (params.deliveryDate != 0 && (params.deliveryDate < block.timestamp || params.deliveryDate > type(uint40).max)) {
             revert InvalidDeliveryDate();
+        }
+
+        if (params.lateFeeConfig.interestRateBps != 0) {
+            if (params.lateFeeConfig.numberOfPeriodsPerYear == 0 || params.lateFeeConfig.numberOfPeriodsPerYear > MAX_DAYS_PER_YEAR) {
+                revert InvalidPeriodsPerYear();
+            }
+        }
+    }
+
+    /**
+     * @notice Validates interest configuration
+     * @param config The interest configuration to validate
+     */
+    function _validateInterestConfig(InterestConfig memory config) private pure {
+        // Skip validation if interest is disabled
+        if (config.interestRateBps == 0) {
+            return;
+        }
+        
+        // Validate periods per year (daily max)
+        if (config.numberOfPeriodsPerYear == 0 || config.numberOfPeriodsPerYear > 365) {
+            revert InvalidInterestConfig();
+        }
+        
+        // Max rate validation (100% APR)
+        if (config.interestRateBps > 10000) {
+            revert InvalidInterestConfig();
         }
     }
 }
