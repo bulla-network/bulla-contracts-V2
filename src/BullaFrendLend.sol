@@ -257,11 +257,11 @@ contract BullaFrendLend is BullaClaimControllerBase {
 
     /**
      * @notice Calculate the protocol fee amount based on interest payment
-     * @param interestAmount The interest amount to calculate fee from
+     * @param grossInterestAmount The interest amount to calculate fee from
      * @return The protocol fee amount
      */
-    function calculateProtocolFee(uint256 interestAmount) public view returns (uint256) {
-        return Math.mulDiv(interestAmount, protocolFeeBPS, MAX_BPS);
+    function calculateProtocolFee(uint256 grossInterestAmount) private view returns (uint256) {
+        return Math.mulDiv(grossInterestAmount, protocolFeeBPS, MAX_BPS);
     }
 
     /**

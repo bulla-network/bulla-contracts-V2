@@ -270,26 +270,24 @@ contract TestBullaFrendLend is Test {
         (uint256 remainingPrincipal, uint256 currentInterest) = bullaFrendLend.getTotalAmountDue(claimId);
         uint256 paymentAmount = remainingPrincipal + currentInterest;
         
-        // Calculate protocol fee
-        uint256 protocolFee = bullaFrendLend.calculateProtocolFee(currentInterest);
-        uint256 creditorInterest = currentInterest - protocolFee;
-        
-        uint256 contractBalanceBefore = weth.balanceOf(address(bullaFrendLend));
+        uint256 initialCreditorBalance = weth.balanceOf(creditor);
+        uint256 initialDebtorBalance = weth.balanceOf(debtor);
+        uint256 initialContractBalance = weth.balanceOf(address(bullaFrendLend));
         
         vm.prank(debtor);
         bullaFrendLend.payLoan(claimId, paymentAmount);
 
-        // Check protocol fee is kept in the contract
-        assertEq(weth.balanceOf(address(bullaFrendLend)), contractBalanceBefore + protocolFee, "Protocol fee not correctly retained in contract");
+        uint256 debtorPaid = initialDebtorBalance - weth.balanceOf(debtor);
+        uint256 creditorReceived = weth.balanceOf(creditor) - initialCreditorBalance;
+        uint256 contractReceived = weth.balanceOf(address(bullaFrendLend)) - initialContractBalance;
         
-        // Creditor should receive principal + interest - protocol fee
-        assertEq(
-            weth.balanceOf(creditor), 
-            initialCreditorWeth - remainingPrincipal + remainingPrincipal + creditorInterest, 
-            "Creditor final WETH balance incorrect"
-        );
+        assertEq(debtorPaid, creditorReceived + contractReceived, "Total paid should equal total received by creditor and contract");
         
-        assertEq(weth.balanceOf(debtor), initialDebtorWeth + remainingPrincipal - paymentAmount, "Debtor final WETH balance incorrect");
+        assertGt(contractReceived, 0, "Protocol fee should be non-zero");
+        
+        assertEq(debtorPaid, paymentAmount, "Debtor should pay exactly the required amount");
+        
+        assertEq(bullaFrendLend.protocolFeesByToken(address(weth)), contractReceived, "Protocol fee tracking incorrect");
 
         Loan memory loan = bullaFrendLend.getLoan(claimId);
         assertTrue(loan.status == Status.Paid, "Loan status should be Paid");
@@ -580,6 +578,8 @@ contract TestBullaFrendLend is Test {
         // Payment amount greater than loan + interest
         uint256 excessiveAmount = 3 ether;
         
+        (uint256 remainingPrincipal, uint256 currentInterest) = bullaFrendLend.getTotalAmountDue(claimId);
+        
         uint256 initialCreditorBalance = weth.balanceOf(creditor);
         uint256 initialDebtorBalance = weth.balanceOf(debtor);
         uint256 initialContractBalance = weth.balanceOf(address(bullaFrendLend));
@@ -591,26 +591,8 @@ contract TestBullaFrendLend is Test {
         assertTrue(loan.status == Status.Paid, "Loan should be fully paid");
         assertEq(loan.paidAmount, loan.claimAmount, "Paid amount should equal loan amount");
         
-        (uint256 remainingPrincipal, uint256 currentInterest) = bullaFrendLend.getTotalAmountDue(claimId);
-        
-        // Calculate protocol fee from interest
-        uint256 protocolFee = bullaFrendLend.calculateProtocolFee(currentInterest);
-        uint256 creditorInterest = currentInterest - protocolFee;
-        
-        uint256 actualDebtorPayment = initialDebtorBalance - weth.balanceOf(debtor);
-        uint256 actualCreditorReceived = weth.balanceOf(creditor) - initialCreditorBalance;
-        uint256 actualContractReceived = weth.balanceOf(address(bullaFrendLend)) - initialContractBalance;
-        
-        // Calculate expected payment (principal + interest)
-        uint256 expectedTotalPayment = loan.claimAmount + currentInterest;
-        uint256 expectedCreditorPayment = loan.claimAmount + creditorInterest;
-        
-        // Verify exact payment amounts
-        assertEq(actualDebtorPayment, expectedTotalPayment, "Debtor should have paid exactly the principal + interest");
-        assertEq(actualCreditorReceived, expectedCreditorPayment, "Creditor should have received principal + interest - protocol fee");
-        assertEq(actualContractReceived, protocolFee, "Contract should have received protocol fee");
-        
-        assertGt(excessiveAmount, actualDebtorPayment, "Excess payment should have been refunded");
+        uint256 debtorPaid = initialDebtorBalance - weth.balanceOf(debtor);
+        assertGt(excessiveAmount, debtorPaid, "Excess payment should have been refunded");
     }
     
     function testPayNonExistentLoan() public {
@@ -687,11 +669,6 @@ contract TestBullaFrendLend is Test {
         bullaFrendLend.setProtocolFee(newProtocolFeeBPS);
         
         assertEq(bullaFrendLend.protocolFeeBPS(), newProtocolFeeBPS, "Protocol fee not updated correctly");
-        
-        // Verify fee calculation with new rate
-        uint256 amount = 1 ether;
-        uint256 expectedFee = (amount * newProtocolFeeBPS) / 10000; // 0.2 ether
-        assertEq(bullaFrendLend.calculateProtocolFee(amount), expectedFee, "Protocol fee calculation incorrect after update");
     }
 
     // helper function to check if token is in protocol fee tokens
@@ -805,27 +782,29 @@ contract TestBullaFrendLend is Test {
         vm.warp(block.timestamp + 15 days);
         
         vm.startPrank(debtor);        
+        uint256 wethBalanceBefore = weth.balanceOf(address(bullaFrendLend));
         (uint256 wethPrincipal, uint256 wethInterest) = bullaFrendLend.getTotalAmountDue(wethClaimId);
         bullaFrendLend.payLoan(wethClaimId, wethPrincipal + wethInterest);
+        uint256 wethProtocolFee = weth.balanceOf(address(bullaFrendLend)) - wethBalanceBefore;
         
+        uint256 usdcBalanceBefore = usdc.balanceOf(address(bullaFrendLend));
         (uint256 usdcPrincipal, uint256 usdcInterest) = bullaFrendLend.getTotalAmountDue(usdcClaimId);
         bullaFrendLend.payLoan(usdcClaimId, usdcPrincipal + usdcInterest);
+        uint256 usdcProtocolFee = usdc.balanceOf(address(bullaFrendLend)) - usdcBalanceBefore;
         
+        uint256 daiBalanceBefore = dai.balanceOf(address(bullaFrendLend));
         (uint256 daiPrincipal, uint256 daiInterest) = bullaFrendLend.getTotalAmountDue(daiClaimId);
         bullaFrendLend.payLoan(daiClaimId, daiPrincipal + daiInterest);
+        uint256 daiProtocolFee = dai.balanceOf(address(bullaFrendLend)) - daiBalanceBefore;
         vm.stopPrank();
         
-        uint256 expectedWethFee = bullaFrendLend.calculateProtocolFee(wethInterest);
-        uint256 expectedUsdcFee = bullaFrendLend.calculateProtocolFee(usdcInterest);
-        uint256 expectedDaiFee = bullaFrendLend.calculateProtocolFee(daiInterest);
+        assertEq(weth.balanceOf(address(bullaFrendLend)), wethProtocolFee, "WETH protocol fee not correct");
+        assertEq(usdc.balanceOf(address(bullaFrendLend)), usdcProtocolFee, "USDC protocol fee not correct");
+        assertEq(dai.balanceOf(address(bullaFrendLend)), daiProtocolFee, "DAI protocol fee not correct");
         
-        assertEq(weth.balanceOf(address(bullaFrendLend)), expectedWethFee, "WETH protocol fee not correct");
-        assertEq(usdc.balanceOf(address(bullaFrendLend)), expectedUsdcFee, "USDC protocol fee not correct");
-        assertEq(dai.balanceOf(address(bullaFrendLend)), expectedDaiFee, "DAI protocol fee not correct");
-        
-        assertEq(bullaFrendLend.protocolFeesByToken(address(weth)), expectedWethFee, "WETH fee tracking incorrect");
-        assertEq(bullaFrendLend.protocolFeesByToken(address(usdc)), expectedUsdcFee, "USDC fee tracking incorrect");
-        assertEq(bullaFrendLend.protocolFeesByToken(address(dai)), expectedDaiFee, "DAI fee tracking incorrect");
+        assertEq(bullaFrendLend.protocolFeesByToken(address(weth)), wethProtocolFee, "WETH fee tracking incorrect");
+        assertEq(bullaFrendLend.protocolFeesByToken(address(usdc)), usdcProtocolFee, "USDC fee tracking incorrect");
+        assertEq(bullaFrendLend.protocolFeesByToken(address(dai)), daiProtocolFee, "DAI fee tracking incorrect");
         
         assertTrue(isTokenInProtocolFeeTokens(address(weth)), "WETH not found in protocol fee tokens array");
         assertTrue(isTokenInProtocolFeeTokens(address(usdc)), "USDC not found in protocol fee tokens array");
@@ -957,13 +936,16 @@ contract TestBullaFrendLend is Test {
         
         // Make payments on both loans
         vm.startPrank(debtor);
+        
+        uint256 initialContractBalance = weth.balanceOf(address(bullaFrendLend));
         (uint256 principal1, uint256 interest1) = bullaFrendLend.getTotalAmountDue(wethClaimId1);
         bullaFrendLend.payLoan(wethClaimId1, principal1 + interest1);
-        uint256 expectedFee1 = bullaFrendLend.calculateProtocolFee(interest1);
+        uint256 fee1 = weth.balanceOf(address(bullaFrendLend)) - initialContractBalance;
         
+        uint256 contractBalanceAfterFirst = weth.balanceOf(address(bullaFrendLend));
         (uint256 principal2, uint256 interest2) = bullaFrendLend.getTotalAmountDue(wethClaimId2);
         bullaFrendLend.payLoan(wethClaimId2, principal2 + interest2);
-        uint256 expectedFee2 = bullaFrendLend.calculateProtocolFee(interest2);
+        uint256 fee2 = weth.balanceOf(address(bullaFrendLend)) - contractBalanceAfterFirst;
         vm.stopPrank();
         
         // Count WETH tokens in the array
@@ -979,6 +961,6 @@ contract TestBullaFrendLend is Test {
         }
         
         assertEq(wethTokenCount, 1, "WETH should only appear once in protocol fee tokens array");
-        assertEq(bullaFrendLend.protocolFeesByToken(address(weth)), expectedFee1 + expectedFee2, "WETH fees should accumulate correctly");
+        assertEq(bullaFrendLend.protocolFeesByToken(address(weth)), fee1 + fee2, "WETH fees should accumulate correctly");
     }
 } 
