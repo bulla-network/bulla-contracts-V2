@@ -8,6 +8,7 @@ import {EIP712Helper} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
+import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 
 /// @notice SPEC:
 /// A function can call this internal function to verify and "spend" `from`'s approval of `operator` to pay a claim under the following circumstances:
@@ -332,18 +333,14 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
     function testPayClaimFromWithNativeToken() public {
         vm.deal(operator, 1 ether);
 
+        CreateClaimParams memory params = new CreateClaimParamsBuilder()
+            .withCreditor(user2)
+            .withDebtor(user)
+            .withPayerReceivesClaimOnPayment(true)
+            .build();
+            
         vm.prank(user2);
-        uint256 claimId = bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: user2,
-                debtor: user,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(0), // native token
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
-        );
+        uint256 claimId = bullaClaim.createClaim(params);
 
         _permitPayClaim({_userPK: userPK, _operator: operator, _approvalDeadline: 0});
 

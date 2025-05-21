@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import "contracts/BullaClaim.sol";
 import {EIP712Helper} from "test/foundry/BullaClaim/EIP712/Utils.sol";
+import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 
 contract BullaClaimTestHelper is Test {
     WETH public weth;
@@ -15,18 +16,19 @@ contract BullaClaimTestHelper is Test {
     string attachmentURI = "https://coolcatpics.com/1234";
 
     function _newClaim(address _creator, address _creditor, address _debtor) internal returns (uint256 claimId) {
-        vm.prank(_creator);
+        vm.startPrank(_creator);
         claimId = bullaClaim.createClaim(
             CreateClaimParams({
                 creditor: _creditor,
                 debtor: _debtor,
-                description: "",
-                claimAmount: 1 ether,
                 token: address(weth),
+                description: "",
                 binding: ClaimBinding.Unbound,
+                claimAmount: 1 ether,
                 payerReceivesClaimOnPayment: true
             })
         );
+        vm.stopPrank();
     }
 
     function _newClaimFrom(address _from, address _creditor, address _debtor) internal returns (uint256 claimId) {
@@ -35,10 +37,10 @@ contract BullaClaimTestHelper is Test {
             CreateClaimParams({
                 creditor: _creditor,
                 debtor: _debtor,
-                description: "",
-                claimAmount: 1 ether,
                 token: address(weth),
+                description: "",
                 binding: ClaimBinding.Unbound,
+                claimAmount: 1 ether,
                 payerReceivesClaimOnPayment: true
             })
         );
@@ -53,10 +55,10 @@ contract BullaClaimTestHelper is Test {
             CreateClaimParams({
                 creditor: _creditor,
                 debtor: _debtor,
-                description: "",
-                claimAmount: 1 ether,
                 token: address(weth),
+                description: "",
                 binding: ClaimBinding.Unbound,
+                claimAmount: 1 ether,
                 payerReceivesClaimOnPayment: true
             }),
             ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
