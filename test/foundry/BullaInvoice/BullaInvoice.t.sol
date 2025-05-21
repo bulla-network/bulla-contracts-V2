@@ -11,6 +11,7 @@ import {BullaClaim} from "contracts/BullaClaim.sol";
 import {BullaInvoice, CreateInvoiceParams, Invoice, InvalidDueBy, CreditorCannotBeDebtor, InvalidDeliveryDate, NotOriginalCreditor, PurchaseOrderAlreadyDelivered, InvoiceNotPending, PurchaseOrderState, InvoiceDetails, NotPurchaseOrder} from "contracts/BullaInvoice.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {CreateInvoiceParamsBuilder} from "test/foundry/BullaInvoice/CreateInvoiceParamsBuilder.sol";
+import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 
 contract TestBullaInvoice is Test {
     WETH public weth;
@@ -993,18 +994,17 @@ contract TestBullaInvoice is Test {
     // Test trying to pay a claim that was not created by BullaInvoice
     function testPayDirectClaim() public {
         // Create a claim directly via BullaClaim
+        CreateClaimParams memory params = new CreateClaimParamsBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withClaimAmount(1 ether)
+            .withDescription("Direct Claim")
+            .withToken(address(0))
+            .withBinding(ClaimBinding.BindingPending)
+            .build();
+            
         vm.prank(creditor);
-        uint256 claimId = bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                claimAmount: 1 ether,
-                description: "Direct Claim",
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            })
-        );
+        uint256 claimId = bullaClaim.createClaim(params);
 
         // Try to pay via BullaInvoice
         vm.prank(debtor);
@@ -1015,18 +1015,14 @@ contract TestBullaInvoice is Test {
     // Test trying to update binding of a claim that was not created by BullaInvoice
     function testUpdateBindingDirectClaim() public {
         // Create a claim directly via BullaClaim
+        CreateClaimParams memory params = new CreateClaimParamsBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withBinding(ClaimBinding.BindingPending)
+            .build();
+            
         vm.prank(creditor);
-        uint256 claimId = bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                claimAmount: 1 ether,
-                description: "Direct Claim",
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            })
-        );
+        uint256 claimId = bullaClaim.createClaim(params);
 
         // Setup binding permit
         bullaClaim.permitUpdateBinding({
@@ -1050,18 +1046,15 @@ contract TestBullaInvoice is Test {
     // Test trying to cancel a claim that was not created by BullaInvoice
     function testCancelDirectClaim() public {
         // Create a claim directly via BullaClaim
+        CreateClaimParams memory params = new CreateClaimParamsBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withClaimAmount(1 ether)
+            .withBinding(ClaimBinding.BindingPending)
+            .build();
+            
         vm.prank(creditor);
-        uint256 claimId = bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                claimAmount: 1 ether,
-                description: "Direct Claim",
-                token: address(0),
-                binding: ClaimBinding.BindingPending,
-                payerReceivesClaimOnPayment: true
-            })
-        );
+        uint256 claimId = bullaClaim.createClaim(params);
 
         // Try to cancel via BullaInvoice
         vm.prank(creditor);

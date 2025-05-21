@@ -315,7 +315,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         bullaFrendLend.rejectLoanOffer(loanId);
 
-        (uint24 interestBPS, uint40 termLength, uint128 loanAmount, address offerCreditor, ,, ) = bullaFrendLend.loanOffers(loanId);
+        (, , , address offerCreditor, ,, ) = bullaFrendLend.loanOffers(loanId);
         assertEq(offerCreditor, address(0), "Offer should be deleted after rejection");
     }
 
@@ -391,7 +391,7 @@ contract TestBullaFrendLend is Test {
         bullaFrendLend.payLoan(claimId, firstPaymentAmount);
         
         // Check loan state after first payment
-        (uint256 remainingPrincipal1, uint256 currentInterest1) = bullaFrendLend.getTotalAmountDue(claimId);
+        (, uint256 currentInterest1) = bullaFrendLend.getTotalAmountDue(claimId);
         Loan memory loanAfterFirstPayment = bullaFrendLend.getLoan(claimId);
         
         assertEq(loanAfterFirstPayment.paidAmount, firstPaymentAmount - currentInterest1, "Paid amount after first payment incorrect");
@@ -406,7 +406,7 @@ contract TestBullaFrendLend is Test {
         bullaFrendLend.payLoan(claimId, secondPaymentAmount);
         
         // Check loan state after second payment
-        (uint256 remainingPrincipal2, uint256 currentInterest2) = bullaFrendLend.getTotalAmountDue(claimId);
+        (, uint256 currentInterest2) = bullaFrendLend.getTotalAmountDue(claimId);
         Loan memory loanAfterSecondPayment = bullaFrendLend.getLoan(claimId);
         
         assertEq(loanAfterSecondPayment.paidAmount, loanAfterFirstPayment.paidAmount + (secondPaymentAmount - currentInterest2), 
