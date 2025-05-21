@@ -302,6 +302,20 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         _payClaim(from, claimId, amount);
     }
 
+    /// @notice Allows a controller to pay a claim without transferring tokens
+    /// @dev This function is only callable by the controller of the claim
+    /// @param from The address that is paying the claim
+    /// @param claimId The ID of the claim to pay
+    /// @param amount The amount to pay
+    function payClaimFromControllerWithoutTransfer(address from, uint256 claimId, uint256 amount) external {
+        Claim memory claim = getClaim(claimId);
+        
+        // Only the controller can call this function
+        if (claim.controller != msg.sender) revert NotController(msg.sender);
+        
+        _updateClaimPaymentState(from, claimId, amount);
+    }
+
     /// @notice _spendPayClaimApproval() "spends" an operator's pay claim approval
     /// @notice SPEC:
     /// A function can call this internal function to verify and "spend" `from`'s approval of `operator` to pay a claim under the following circumstances:
@@ -392,7 +406,25 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         //      isn't trying to bypass controller specific logic (eg: late fees) and by going to this contract directly.
         if (claim.controller != address(0) && msg.sender != claim.controller) revert NotController(msg.sender);
 
-        // make sure the the amount requested is not 0
+        // Update payment state first to follow checks-effects-interactions pattern
+        _updateClaimPaymentState(from, claimId, paymentAmount);
+        
+        // Process token transfer after state is updated
+        claim.token == address(0)
+            ? creditor.safeTransferETH(paymentAmount)
+            : ERC20(claim.token).safeTransferFrom(from, creditor, paymentAmount);
+    }
+
+    /// @notice Updates claim payment state without transferring tokens
+    /// @param from The address that is paying the claim
+    /// @param claimId The ID of the claim to pay
+    /// @param paymentAmount The amount to pay
+    function _updateClaimPaymentState(address from, uint256 claimId, uint256 paymentAmount) internal {
+        _notLocked();
+        Claim memory claim = getClaim(claimId);
+        address creditor = _ownerOf[claimId];
+
+        // make sure the amount requested is not 0
         if (paymentAmount == 0) revert PayingZero();
 
         // make sure the claim can be paid (not completed, not rejected, not rescinded)
@@ -409,10 +441,6 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         // if the claim is now fully paid, update the status to paid
         // if the claim is still not fully paid, update the status to repaying
         claimStorage.status = claimPaid ? Status.Paid : Status.Repaying;
-
-        claim.token == address(0)
-            ? creditor.safeTransferETH(paymentAmount)
-            : ERC20(claim.token).safeTransferFrom(from, creditor, paymentAmount);
 
         emit ClaimPayment(claimId, from, paymentAmount, totalPaidAmount);
 

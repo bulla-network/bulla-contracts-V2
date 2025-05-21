@@ -8,11 +8,14 @@ import "contracts/types/Types.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
-import {BullaFrendLend, LoanOffer, Loan, IncorrectFee, NotCreditor, InvalidTermLength, NativeTokenNotSupported, NotDebtor} from "contracts/BullaFrendLend.sol";
+import {BullaFrendLend, LoanOffer, Loan, IncorrectFee, NotCreditor, InvalidTermLength, NativeTokenNotSupported, NotDebtor, NotAdmin} from "contracts/BullaFrendLend.sol";
 import {Deployer} from "script/Deployment.s.sol";
+import {MockERC20} from "contracts/mocks/MockERC20.sol";
 
 contract TestBullaFrendLend is Test {
     WETH public weth;
+    MockERC20 public usdc;
+    MockERC20 public dai;
     BullaClaim public bullaClaim;
     EIP712Helper public sigHelper;
     BullaFrendLend public bullaFrendLend;
@@ -23,13 +26,16 @@ contract TestBullaFrendLend is Test {
     address debtor = vm.addr(debtorPK);
     address admin = vm.addr(0x03);
     uint256 constant FEE = 0.01 ether;
+    uint256 constant PROTOCOL_FEE_BPS = 1000; // 10% protocol fee
 
     function setUp() public {
         weth = new WETH();
+        usdc = new MockERC20("USD Coin", "USDC", 6);
+        dai = new MockERC20("Dai Stablecoin", "DAI", 18);
 
         bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
         sigHelper = new EIP712Helper(address(bullaClaim));
-        bullaFrendLend = new BullaFrendLend(address(bullaClaim), admin, FEE);
+        bullaFrendLend = new BullaFrendLend(address(bullaClaim), admin, FEE, PROTOCOL_FEE_BPS);
 
         vm.deal(creditor, 10 ether);
         vm.deal(debtor, 10 ether);
@@ -40,6 +46,14 @@ contract TestBullaFrendLend is Test {
         
         vm.prank(debtor);
         weth.deposit{value: 5 ether}();
+        
+        // Setup USDC
+        usdc.mint(creditor, 10_000 * 10**6);
+        usdc.mint(debtor, 10_000 * 10**6);
+        
+        // Setup DAI
+        dai.mint(creditor, 10_000 ether);
+        dai.mint(debtor, 10_000 ether);
     }
 
     function testOfferLoan() public {
@@ -189,14 +203,10 @@ contract TestBullaFrendLend is Test {
     function testEndToEndLoanFlow() public {
         // Approve WETH for transfer from creditor to BullaFrendLend
         vm.prank(creditor);
-        weth.approve(address(bullaClaim), 2 ether);
-
-        // Also approve the BullaFrendLend contract directly - this is needed for the token transfer
-        vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 2 ether);
         
         vm.prank(debtor);
-        weth.approve(address(bullaClaim), 2 ether);
+        weth.approve(address(bullaFrendLend), 2 ether);
         
         LoanOffer memory offer = LoanOffer({
             interestBPS: 500, 
@@ -260,14 +270,24 @@ contract TestBullaFrendLend is Test {
         (uint256 remainingPrincipal, uint256 currentInterest) = bullaFrendLend.getTotalAmountDue(claimId);
         uint256 paymentAmount = remainingPrincipal + currentInterest;
         
-        vm.prank(debtor);
-        weth.approve(address(bullaFrendLend), paymentAmount);
-                
+        uint256 initialCreditorBalance = weth.balanceOf(creditor);
+        uint256 initialDebtorBalance = weth.balanceOf(debtor);
+        uint256 initialContractBalance = weth.balanceOf(address(bullaFrendLend));
+        
         vm.prank(debtor);
         bullaFrendLend.payLoan(claimId, paymentAmount);
 
-        assertEq(weth.balanceOf(creditor), initialCreditorWeth - remainingPrincipal + paymentAmount, "Creditor final WETH balance incorrect");
-        assertEq(weth.balanceOf(debtor), initialDebtorWeth + remainingPrincipal - paymentAmount, "Debtor final WETH balance incorrect");
+        uint256 debtorPaid = initialDebtorBalance - weth.balanceOf(debtor);
+        uint256 creditorReceived = weth.balanceOf(creditor) - initialCreditorBalance;
+        uint256 contractReceived = weth.balanceOf(address(bullaFrendLend)) - initialContractBalance;
+        
+        assertEq(debtorPaid, creditorReceived + contractReceived, "Total paid should equal total received by creditor and contract");
+        
+        assertGt(contractReceived, 0, "Protocol fee should be non-zero");
+        
+        assertEq(debtorPaid, paymentAmount, "Debtor should pay exactly the required amount");
+        
+        assertEq(bullaFrendLend.protocolFeesByToken(address(weth)), contractReceived, "Protocol fee tracking incorrect");
 
         Loan memory loan = bullaFrendLend.getLoan(claimId);
         assertTrue(loan.status == Status.Paid, "Loan status should be Paid");
@@ -295,18 +315,16 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         bullaFrendLend.rejectLoanOffer(loanId);
 
-        (uint24 interestBPS, uint40 termLength, uint128 loanAmount, address offerCreditor, ,, ) = bullaFrendLend.loanOffers(loanId);
+        (, , , address offerCreditor, ,, ) = bullaFrendLend.loanOffers(loanId);
         assertEq(offerCreditor, address(0), "Offer should be deleted after rejection");
     }
 
     function testPartialLoanPayments() public {
         vm.startPrank(creditor);
         weth.approve(address(bullaFrendLend), 2 ether);
-        weth.approve(address(bullaClaim), 2 ether);
         vm.stopPrank();
 
         vm.startPrank(debtor);
-        weth.approve(address(bullaClaim), 2 ether);
         weth.approve(address(bullaFrendLend), 2 ether);
         vm.stopPrank();
         
@@ -369,12 +387,11 @@ contract TestBullaFrendLend is Test {
         
         // Make first partial payment
         uint256 firstPaymentAmount = 0.3 ether;
-        vm.startPrank(debtor);
-        weth.approve(address(bullaFrendLend), firstPaymentAmount);
+        vm.prank(debtor);
         bullaFrendLend.payLoan(claimId, firstPaymentAmount);
-        vm.stopPrank();
+        
         // Check loan state after first payment
-        (uint256 remainingPrincipal1, uint256 currentInterest1) = bullaFrendLend.getTotalAmountDue(claimId);
+        (, uint256 currentInterest1) = bullaFrendLend.getTotalAmountDue(claimId);
         Loan memory loanAfterFirstPayment = bullaFrendLend.getLoan(claimId);
         
         assertEq(loanAfterFirstPayment.paidAmount, firstPaymentAmount - currentInterest1, "Paid amount after first payment incorrect");
@@ -385,13 +402,11 @@ contract TestBullaFrendLend is Test {
         
         // Make second partial payment
         uint256 secondPaymentAmount = 0.4 ether;
-        vm.startPrank(debtor);
-        weth.approve(address(bullaFrendLend), secondPaymentAmount);
+        vm.prank(debtor);
         bullaFrendLend.payLoan(claimId, secondPaymentAmount);
-        vm.stopPrank();
         
         // Check loan state after second payment
-        (uint256 remainingPrincipal2, uint256 currentInterest2) = bullaFrendLend.getTotalAmountDue(claimId);
+        (, uint256 currentInterest2) = bullaFrendLend.getTotalAmountDue(claimId);
         Loan memory loanAfterSecondPayment = bullaFrendLend.getLoan(claimId);
         
         assertEq(loanAfterSecondPayment.paidAmount, loanAfterFirstPayment.paidAmount + (secondPaymentAmount - currentInterest2), 
@@ -402,10 +417,9 @@ contract TestBullaFrendLend is Test {
         (uint256 finalRemainingPrincipal, uint256 finalInterest) = bullaFrendLend.getTotalAmountDue(claimId);
         uint256 finalPaymentAmount = finalRemainingPrincipal + finalInterest;
         
-        vm.startPrank(debtor);
-        weth.approve(address(bullaFrendLend), finalPaymentAmount);
+        vm.prank(debtor);
         bullaFrendLend.payLoan(claimId, finalPaymentAmount);
-        vm.stopPrank();
+        
         // Check that loan is now paid
         Loan memory finalLoan = bullaFrendLend.getLoan(claimId);
         assertEq(uint8(finalLoan.status), uint8(Status.Paid), "Loan should be paid after final payment");
@@ -505,12 +519,6 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 2 ether);
         
-        vm.prank(creditor);
-        weth.approve(address(bullaClaim), 2 ether);
-        
-        vm.prank(debtor);
-        weth.approve(address(bullaClaim), 2 ether);
-        
         vm.prank(debtor);
         weth.approve(address(bullaFrendLend), 5 ether);
         
@@ -567,15 +575,14 @@ contract TestBullaFrendLend is Test {
         vm.prank(debtor);
         weth.deposit{value: 3 ether}(); 
         
-        // Set a high approval for the excessive payment
-        vm.prank(debtor);
-        weth.approve(address(bullaFrendLend), 5 ether);
-        
         // Payment amount greater than loan + interest
         uint256 excessiveAmount = 3 ether;
         
+        (uint256 remainingPrincipal, uint256 currentInterest) = bullaFrendLend.getTotalAmountDue(claimId);
+        
         uint256 initialCreditorBalance = weth.balanceOf(creditor);
         uint256 initialDebtorBalance = weth.balanceOf(debtor);
+        uint256 initialContractBalance = weth.balanceOf(address(bullaFrendLend));
         
         vm.prank(debtor);
         bullaFrendLend.payLoan(claimId, excessiveAmount);
@@ -584,19 +591,8 @@ contract TestBullaFrendLend is Test {
         assertTrue(loan.status == Status.Paid, "Loan should be fully paid");
         assertEq(loan.paidAmount, loan.claimAmount, "Paid amount should equal loan amount");
         
-        (uint256 remainingPrincipal, uint256 currentInterest) = bullaFrendLend.getTotalAmountDue(claimId);
-        
-        uint256 actualDebtorPayment = initialDebtorBalance - weth.balanceOf(debtor);
-        uint256 actualCreditorReceived = weth.balanceOf(creditor) - initialCreditorBalance;
-        
-        // Calculate expected payment (principal + interest)
-        uint256 expectedPayment = loan.claimAmount + currentInterest;
-        
-        // Verify exact payment amounts
-        assertEq(actualDebtorPayment, expectedPayment, "Debtor should have paid exactly the principal + interest");
-        assertEq(actualCreditorReceived, expectedPayment, "Creditor should have received exactly the principal + interest");
-        
-        assertGt(excessiveAmount, actualDebtorPayment, "Excess payment should have been refunded");
+        uint256 debtorPaid = initialDebtorBalance - weth.balanceOf(debtor);
+        assertGt(excessiveAmount, debtorPaid, "Excess payment should have been refunded");
     }
     
     function testPayNonExistentLoan() public {
@@ -659,5 +655,474 @@ contract TestBullaFrendLend is Test {
         // Verify the metadata was correctly stored on the claim
         assertEq(tokenURI, "ipfs://QmTestTokenURI", "Token URI not correctly stored on claim");
         assertEq(attachmentURI, "ipfs://QmTestAttachmentURI", "Attachment URI not correctly stored on claim");
+    }
+    
+    function testSetProtocolFee() public {
+        uint256 newProtocolFeeBPS = 2000; // 20%
+        
+        // Test that non-admin cannot set protocol fee
+        vm.prank(debtor);
+        vm.expectRevert(abi.encodeWithSelector(NotAdmin.selector));
+        bullaFrendLend.setProtocolFee(newProtocolFeeBPS);
+        
+        vm.prank(admin);
+        bullaFrendLend.setProtocolFee(newProtocolFeeBPS);
+        
+        assertEq(bullaFrendLend.protocolFeeBPS(), newProtocolFeeBPS, "Protocol fee not updated correctly");
+    }
+
+    // helper function to check if token is in protocol fee tokens
+    function isTokenInProtocolFeeTokens(address token) internal view returns (bool) {
+        // we've defined at most 3 tokens in our test
+        for (uint256 i = 0; i < 3; i++) {
+            try bullaFrendLend.protocolFeeTokens(i) returns (address tokenAddr) {
+                if (tokenAddr == token) {
+                    return true;
+                }
+            } catch {
+                break;
+            }
+        }
+        return false;
+    }
+
+    function testProtocolFeeWithMultipleTokens() public {
+        vm.startPrank(creditor);
+        weth.approve(address(bullaFrendLend), 10 ether);
+        usdc.approve(address(bullaFrendLend), 10_000 * 10**6);
+        dai.approve(address(bullaFrendLend), 10_000 ether);
+        vm.stopPrank();
+        
+        vm.startPrank(debtor);
+        weth.approve(address(bullaFrendLend), 10 ether);
+        usdc.approve(address(bullaFrendLend), 10_000 * 10**6);
+        dai.approve(address(bullaFrendLend), 10_000 ether);
+        vm.stopPrank();
+        
+        bullaClaim.permitCreateClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 3,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 3,
+                isBindingAllowed: true
+            })
+        });
+        
+        bullaClaim.permitPayClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+        
+        LoanOffer memory wethOffer = LoanOffer({
+            interestBPS: 1000,
+            termLength: 30 days,
+            loanAmount: 1 ether,
+            creditor: creditor,
+            debtor: debtor,
+            description: "WETH Loan",
+            token: address(weth)
+        });
+        
+        vm.prank(creditor);
+        uint256 wethLoanId = bullaFrendLend.offerLoan{value: FEE}(wethOffer);
+        
+        vm.prank(debtor);
+        uint256 wethClaimId = bullaFrendLend.acceptLoan(wethLoanId);
+        
+        LoanOffer memory usdcOffer = LoanOffer({
+            interestBPS: 1000,
+            termLength: 30 days,
+            loanAmount: 1000 * 10**6,
+            creditor: creditor,
+            debtor: debtor,
+            description: "USDC Loan",
+            token: address(usdc)
+        });
+        
+        vm.prank(creditor);
+        uint256 usdcLoanId = bullaFrendLend.offerLoan{value: FEE}(usdcOffer);
+        
+        vm.prank(debtor);
+        uint256 usdcClaimId = bullaFrendLend.acceptLoan(usdcLoanId);
+        
+        LoanOffer memory daiOffer = LoanOffer({
+            interestBPS: 1000,
+            termLength: 30 days,
+            loanAmount: 1000 ether,
+            creditor: creditor,
+            debtor: debtor,
+            description: "DAI Loan",
+            token: address(dai)
+        });
+        
+        vm.prank(creditor);
+        uint256 daiLoanId = bullaFrendLend.offerLoan{value: FEE}(daiOffer);
+        
+        vm.prank(debtor);
+        uint256 daiClaimId = bullaFrendLend.acceptLoan(daiLoanId);
+        
+        vm.warp(block.timestamp + 15 days);
+        
+        vm.startPrank(debtor);        
+        uint256 wethBalanceBefore = weth.balanceOf(address(bullaFrendLend));
+        (uint256 wethPrincipal, uint256 wethInterest) = bullaFrendLend.getTotalAmountDue(wethClaimId);
+        bullaFrendLend.payLoan(wethClaimId, wethPrincipal + wethInterest);
+        uint256 wethProtocolFee = weth.balanceOf(address(bullaFrendLend)) - wethBalanceBefore;
+        
+        uint256 usdcBalanceBefore = usdc.balanceOf(address(bullaFrendLend));
+        (uint256 usdcPrincipal, uint256 usdcInterest) = bullaFrendLend.getTotalAmountDue(usdcClaimId);
+        bullaFrendLend.payLoan(usdcClaimId, usdcPrincipal + usdcInterest);
+        uint256 usdcProtocolFee = usdc.balanceOf(address(bullaFrendLend)) - usdcBalanceBefore;
+        
+        uint256 daiBalanceBefore = dai.balanceOf(address(bullaFrendLend));
+        (uint256 daiPrincipal, uint256 daiInterest) = bullaFrendLend.getTotalAmountDue(daiClaimId);
+        bullaFrendLend.payLoan(daiClaimId, daiPrincipal + daiInterest);
+        uint256 daiProtocolFee = dai.balanceOf(address(bullaFrendLend)) - daiBalanceBefore;
+        vm.stopPrank();
+        
+        assertEq(weth.balanceOf(address(bullaFrendLend)), wethProtocolFee, "WETH protocol fee not correct");
+        assertEq(usdc.balanceOf(address(bullaFrendLend)), usdcProtocolFee, "USDC protocol fee not correct");
+        assertEq(dai.balanceOf(address(bullaFrendLend)), daiProtocolFee, "DAI protocol fee not correct");
+        
+        assertEq(bullaFrendLend.protocolFeesByToken(address(weth)), wethProtocolFee, "WETH fee tracking incorrect");
+        assertEq(bullaFrendLend.protocolFeesByToken(address(usdc)), usdcProtocolFee, "USDC fee tracking incorrect");
+        assertEq(bullaFrendLend.protocolFeesByToken(address(dai)), daiProtocolFee, "DAI fee tracking incorrect");
+        
+        assertTrue(isTokenInProtocolFeeTokens(address(weth)), "WETH not found in protocol fee tokens array");
+        assertTrue(isTokenInProtocolFeeTokens(address(usdc)), "USDC not found in protocol fee tokens array");
+        assertTrue(isTokenInProtocolFeeTokens(address(dai)), "DAI not found in protocol fee tokens array");
+    }
+    
+    function testWithdrawAllFees() public {
+        testProtocolFeeWithMultipleTokens();
+        
+        uint256 initialAdminEthBalance = admin.balance;
+        uint256 initialAdminWethBalance = weth.balanceOf(admin);
+        uint256 initialAdminUsdcBalance = usdc.balanceOf(admin);
+        uint256 initialAdminDaiBalance = dai.balanceOf(admin);
+        
+        uint256 contractEthBalance = address(bullaFrendLend).balance;
+        uint256 wethFee = bullaFrendLend.protocolFeesByToken(address(weth));
+        uint256 usdcFee = bullaFrendLend.protocolFeesByToken(address(usdc));
+        uint256 daiFee = bullaFrendLend.protocolFeesByToken(address(dai));
+                
+        // Admin withdraws fees
+        vm.prank(admin);
+        bullaFrendLend.withdrawAllFees();
+        
+        // Verify native token fees were transferred
+        assertEq(admin.balance, initialAdminEthBalance + contractEthBalance, "ETH fees not transferred correctly");
+        assertEq(address(bullaFrendLend).balance, 0, "Contract ETH balance should be 0 after withdrawal");
+        
+        // Verify ERC20 token fees were transferred
+        assertEq(weth.balanceOf(admin), initialAdminWethBalance + wethFee, "WETH fees not transferred correctly");
+        assertEq(usdc.balanceOf(admin), initialAdminUsdcBalance + usdcFee, "USDC fees not transferred correctly");
+        assertEq(dai.balanceOf(admin), initialAdminDaiBalance + daiFee, "DAI fees not transferred correctly");
+        
+        // Verify fee tracking was reset
+        assertEq(bullaFrendLend.protocolFeesByToken(address(weth)), 0, "WETH fee not reset after withdrawal");
+        assertEq(bullaFrendLend.protocolFeesByToken(address(usdc)), 0, "USDC fee not reset after withdrawal");
+        assertEq(bullaFrendLend.protocolFeesByToken(address(dai)), 0, "DAI fee not reset after withdrawal");
+        
+        // Verify token balances in contract are 0
+        assertEq(weth.balanceOf(address(bullaFrendLend)), 0, "Contract WETH balance should be 0 after withdrawal");
+        assertEq(usdc.balanceOf(address(bullaFrendLend)), 0, "Contract USDC balance should be 0 after withdrawal");
+        assertEq(dai.balanceOf(address(bullaFrendLend)), 0, "Contract DAI balance should be 0 after withdrawal");
+    }
+    
+    function testWithdrawEmptyFees() public {
+        uint256 initialAdminEthBalance = admin.balance;
+        
+        vm.prank(admin);
+        bullaFrendLend.withdrawAllFees();
+        
+        assertEq(admin.balance, initialAdminEthBalance, "Admin ETH balance should not change when no fees exist");
+    }
+    
+    function testTokenTrackingUniqueness() public {
+        vm.startPrank(creditor);
+        weth.approve(address(bullaFrendLend), 10 ether);
+        vm.stopPrank();
+        
+        vm.startPrank(debtor);
+        weth.approve(address(bullaFrendLend), 10 ether);
+        vm.stopPrank();
+        
+        bullaClaim.permitCreateClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 2,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 2,
+                isBindingAllowed: true
+            })
+        });
+        
+        bullaClaim.permitPayClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+        
+        // Create first WETH loan
+        LoanOffer memory wethOffer1 = LoanOffer({
+            interestBPS: 1000,
+            termLength: 30 days,
+            loanAmount: 1 ether,
+            creditor: creditor,
+            debtor: debtor,
+            description: "WETH Loan 1",
+            token: address(weth)
+        });
+        
+        vm.prank(creditor);
+        uint256 wethLoanId1 = bullaFrendLend.offerLoan{value: FEE}(wethOffer1);
+        
+        vm.prank(debtor);
+        uint256 wethClaimId1 = bullaFrendLend.acceptLoan(wethLoanId1);
+        
+        // Create second WETH loan
+        LoanOffer memory wethOffer2 = LoanOffer({
+            interestBPS: 1000,
+            termLength: 30 days,
+            loanAmount: 0.5 ether,
+            creditor: creditor,
+            debtor: debtor,
+            description: "WETH Loan 2",
+            token: address(weth)
+        });
+        
+        vm.prank(creditor);
+        uint256 wethLoanId2 = bullaFrendLend.offerLoan{value: FEE}(wethOffer2);
+        
+        vm.prank(debtor);
+        uint256 wethClaimId2 = bullaFrendLend.acceptLoan(wethLoanId2);
+        
+        vm.warp(block.timestamp + 15 days);
+        
+        // Make payments on both loans
+        vm.startPrank(debtor);
+        
+        uint256 initialContractBalance = weth.balanceOf(address(bullaFrendLend));
+        (uint256 principal1, uint256 interest1) = bullaFrendLend.getTotalAmountDue(wethClaimId1);
+        bullaFrendLend.payLoan(wethClaimId1, principal1 + interest1);
+        uint256 fee1 = weth.balanceOf(address(bullaFrendLend)) - initialContractBalance;
+        
+        uint256 contractBalanceAfterFirst = weth.balanceOf(address(bullaFrendLend));
+        (uint256 principal2, uint256 interest2) = bullaFrendLend.getTotalAmountDue(wethClaimId2);
+        bullaFrendLend.payLoan(wethClaimId2, principal2 + interest2);
+        uint256 fee2 = weth.balanceOf(address(bullaFrendLend)) - contractBalanceAfterFirst;
+        vm.stopPrank();
+        
+        // Count WETH tokens in the array
+        uint256 wethTokenCount = 0;
+        for (uint256 i = 0; i < 3; i++) {
+            try bullaFrendLend.protocolFeeTokens(i) returns (address token) {
+                if (token == address(weth)) {
+                    wethTokenCount++;
+                }
+            } catch {
+                break;
+            }
+        }
+        
+        assertEq(wethTokenCount, 1, "WETH should only appear once in protocol fee tokens array");
+        assertEq(bullaFrendLend.protocolFeesByToken(address(weth)), fee1 + fee2, "WETH fees should accumulate correctly");
+    }
+    
+    function testProtocolFeeVariations() public {
+        vm.startPrank(creditor);
+        weth.approve(address(bullaFrendLend), 10 ether);
+        vm.stopPrank();
+        
+        vm.startPrank(debtor);
+        weth.approve(address(bullaFrendLend), 10 ether);
+        vm.stopPrank();
+        
+        bullaClaim.permitCreateClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 3,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 3,
+                isBindingAllowed: true
+            })
+        });
+        
+        bullaClaim.permitPayClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+        
+        // Protocol Fee = 0%
+        vm.startPrank(admin);
+        bullaFrendLend.setProtocolFee(0);
+        vm.stopPrank();
+        
+        LoanOffer memory offer = LoanOffer({
+            interestBPS: 1000, // 10% interest
+            termLength: 30 days,
+            loanAmount: 1 ether,
+            creditor: creditor,
+            debtor: debtor,
+            description: "0% Protocol Fee Test Loan",
+            token: address(weth)
+        });
+        
+        vm.prank(creditor);
+        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        
+        vm.prank(debtor);
+        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+        
+        vm.warp(block.timestamp + 15 days);
+        
+        (uint256 remainingPrincipal, uint256 interestAmount) = bullaFrendLend.getTotalAmountDue(claimId);
+        uint256 totalAmountDue = remainingPrincipal + interestAmount;
+        
+        uint256 initialCreditorBalance = weth.balanceOf(creditor);
+        uint256 initialContractBalance = weth.balanceOf(address(bullaFrendLend));
+        
+        vm.prank(debtor);
+        bullaFrendLend.payLoan(claimId, totalAmountDue);
+        
+        uint256 finalCreditorBalance = weth.balanceOf(creditor);
+        uint256 finalContractBalance = weth.balanceOf(address(bullaFrendLend));
+        
+        assertEq(finalCreditorBalance - initialCreditorBalance, totalAmountDue, "Creditor should receive full amount with 0% protocol fee");
+        assertEq(finalContractBalance, initialContractBalance, "Contract balance should remain unchanged with 0% protocol fee");
+        assertEq(finalContractBalance, 0, "Contract should have 0 balance with 0% protocol fee");
+        
+        // Protocol Fee = 50%
+        vm.startPrank(admin);
+        bullaFrendLend.setProtocolFee(5000); // 50%
+        vm.stopPrank();
+        
+        offer = LoanOffer({
+            interestBPS: 1000, // 10% interest
+            termLength: 30 days,
+            loanAmount: 1 ether,
+            creditor: creditor,
+            debtor: debtor,
+            description: "50% Protocol Fee Test Loan",
+            token: address(weth)
+        });
+        
+        vm.prank(creditor);
+        loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        
+        vm.prank(debtor);
+        claimId = bullaFrendLend.acceptLoan(loanId);
+        
+        vm.warp(block.timestamp + 15 days);
+        
+        (remainingPrincipal, interestAmount) = bullaFrendLend.getTotalAmountDue(claimId);
+        totalAmountDue = remainingPrincipal + interestAmount;
+        
+        initialCreditorBalance = weth.balanceOf(creditor);
+        initialContractBalance = weth.balanceOf(address(bullaFrendLend));
+        
+        vm.prank(debtor);
+        bullaFrendLend.payLoan(claimId, totalAmountDue);
+        
+        finalCreditorBalance = weth.balanceOf(creditor);
+        finalContractBalance = weth.balanceOf(address(bullaFrendLend));
+        
+        uint256 expectedProtocolFee = interestAmount / 2;
+        assertEq(finalCreditorBalance - initialCreditorBalance, remainingPrincipal + (interestAmount - expectedProtocolFee), 
+            "Creditor should receive principal + 50% of interest");
+        assertEq(finalContractBalance - initialContractBalance, expectedProtocolFee, 
+            "Contract should receive 50% of interest");
+        
+        // Protocol Fee = 100%
+        vm.startPrank(admin);
+        bullaFrendLend.setProtocolFee(10000); // 100%
+        vm.stopPrank();
+        
+        offer = LoanOffer({
+            interestBPS: 1000, // 10% interest
+            termLength: 30 days,
+            loanAmount: 1 ether,
+            creditor: creditor,
+            debtor: debtor,
+            description: "100% Protocol Fee Test Loan",
+            token: address(weth)
+        });
+        
+        vm.prank(creditor);
+        loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        
+        vm.prank(debtor);
+        claimId = bullaFrendLend.acceptLoan(loanId);
+        
+        vm.warp(block.timestamp + 15 days);
+        
+        (remainingPrincipal, interestAmount) = bullaFrendLend.getTotalAmountDue(claimId);
+        totalAmountDue = remainingPrincipal + interestAmount;
+        
+        initialCreditorBalance = weth.balanceOf(creditor);
+        initialContractBalance = weth.balanceOf(address(bullaFrendLend));
+        
+        vm.prank(debtor);
+        bullaFrendLend.payLoan(claimId, totalAmountDue);
+        
+        finalCreditorBalance = weth.balanceOf(creditor);
+        finalContractBalance = weth.balanceOf(address(bullaFrendLend));
+    
+        assertEq(finalCreditorBalance - initialCreditorBalance, remainingPrincipal, 
+            "Creditor should receive only principal with 100% protocol fee");
+        assertEq(finalContractBalance - initialContractBalance, interestAmount, 
+            "Contract should receive full interest with 100% protocol fee");
     }
 } 

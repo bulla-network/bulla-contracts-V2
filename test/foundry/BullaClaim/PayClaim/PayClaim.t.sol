@@ -8,6 +8,7 @@ import "contracts/types/Types.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {BullaClaimTestHelper, EIP712Helper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {Deployer} from "script/Deployment.s.sol";
+import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 
 contract TestPayClaimWithFee is BullaClaimTestHelper {
     address creditor = address(0xA11c3);
@@ -39,18 +40,16 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
     event ClaimPayment(uint256 indexed claimId, address indexed paidBy, uint256 paymentAmount, uint256 totalPaidAmount);
 
     function _newClaim(address creator, bool isNative, uint256 claimAmount) private returns (uint256 claimId) {
-        vm.prank(creator);
+        vm.startPrank(creator);
         claimId = bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: claimAmount,
-                token: isNative ? address(0) : address(weth),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(creditor)
+                .withDebtor(debtor)
+                .withClaimAmount(claimAmount)
+                .withToken(isNative ? address(0) : address(weth))
+                .build()
         );
+        vm.stopPrank();
     }
 
     function testPaymentNoFee() public {
@@ -88,18 +87,15 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
     }
 
     function testPayClaimWithNoTransferFlag() public {
-        vm.prank(creditor);
+        vm.startPrank(creditor);
         uint256 claimId = bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(0),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: false
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(creditor)
+                .withDebtor(debtor)
+                .withPayerReceivesClaimOnPayment(false)
+                .build()
         );
+        vm.stopPrank();
 
         vm.prank(debtor);
         bullaClaim.payClaim{value: 1 ether}(claimId, 1 ether);
@@ -145,19 +141,16 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
 
         _permitCreateClaim(userPK, controller, 1, CreateClaimApprovalType.Approved, true);
 
-        vm.prank(controller);
+        vm.startPrank(controller);
         bullaClaim.createClaimFrom(
             userAddress,
-            CreateClaimParams({
-                creditor: userAddress,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(0),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: false
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(userAddress)
+                .withDebtor(debtor)
+                .withPayerReceivesClaimOnPayment(false)
+                .build()
         );
+        vm.stopPrank();
 
         vm.prank(debtor);
         vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, debtor));
@@ -256,19 +249,16 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
 
     
     function testOriginalCreditorAfterPayment() public {
-        vm.prank(creditor);
+        vm.startPrank(creditor);
         uint256 claimId = bullaClaim.createClaim(
-            CreateClaimParams({
-                creditor: creditor,
-                debtor: debtor,
-                description: "",
-                claimAmount: 1 ether,
-                token: address(weth),
-                binding: ClaimBinding.Unbound,
-                payerReceivesClaimOnPayment: true
-            })
+            new CreateClaimParamsBuilder()
+                .withCreditor(creditor)
+                .withDebtor(debtor)
+                .withToken(address(weth))
+                .build()
         );
-        
+        vm.stopPrank();
+
         // Approve and pay claim
         vm.startPrank(debtor);
         weth.approve(address(bullaClaim), 1 ether);
