@@ -58,7 +58,8 @@ library CompoundInterestLib {
         
         // Calculate the number of periods since the dueBy date
         uint256 secondsPerPeriod = SECONDS_PER_YEAR / config.numberOfPeriodsPerYear;
-        uint256 currentPeriodNumber = (currentTimestamp - dueBy) / secondsPerPeriod;
+        // round up the period
+        uint256 currentPeriodNumber = Math.ceilDiv(currentTimestamp - dueBy, secondsPerPeriod);
         
         uint256 periodsElapsed = currentPeriodNumber - lastPeriodNumber;
         // If no complete period has elapsed, return the previously accrued interest
