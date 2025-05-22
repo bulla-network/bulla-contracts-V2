@@ -69,11 +69,11 @@ contract BullaFrendLend is BullaClaimControllerBase {
     mapping(uint256 => LoanDetails) private _loanDetailsByClaimId;
     mapping(uint256 => ClaimMetadata) public loanOfferMetadata;
 
-    event LoanOffered(uint256 indexed loanId, address indexed offeredBy, LoanOffer loanOffer, uint256 blocktime);
-    event LoanOfferAccepted(uint256 indexed loanId, uint256 indexed claimId, uint256 blocktime);
-    event LoanOfferRejected(uint256 indexed loanId, address indexed rejectedBy, uint256 blocktime);
-    event LoanPayment(uint256 indexed claimId, uint256 interestPayment, uint256 principalPayment, uint256 protocolFee, uint256 blocktime);
-    event ProtocolFeeUpdated(uint256 oldFee, uint256 newFee, uint256 blocktime);
+    event LoanOffered(uint256 indexed loanId, address indexed offeredBy, LoanOffer loanOffer);
+    event LoanOfferAccepted(uint256 indexed loanId, uint256 indexed claimId);
+    event LoanOfferRejected(uint256 indexed loanId, address indexed rejectedBy);
+    event LoanPayment(uint256 indexed claimId, uint256 interestPayment, uint256 principalPayment, uint256 protocolFee);
+    event ProtocolFeeUpdated(uint256 oldFee, uint256 newFee);
 
     /**
      * @param bullaClaim Address of the IBullaClaim contract to delegate calls to
@@ -160,7 +160,7 @@ contract BullaFrendLend is BullaClaimControllerBase {
         
         loanOfferMetadata[offerId] = metadata;
 
-        emit LoanOffered(offerId, msg.sender, offer, block.timestamp);
+        emit LoanOffered(offerId, msg.sender, offer);
 
         return offerId;
     }
@@ -180,7 +180,7 @@ contract BullaFrendLend is BullaClaimControllerBase {
         uint256 offerId = ++loanOfferCount;
         loanOffers[offerId] = offer;
 
-        emit LoanOffered(offerId, msg.sender, offer, block.timestamp);
+        emit LoanOffered(offerId, msg.sender, offer);
 
         return offerId;
     }
@@ -198,7 +198,7 @@ contract BullaFrendLend is BullaClaimControllerBase {
         delete loanOffers[offerId];
         delete loanOfferMetadata[offerId];
 
-        emit LoanOfferRejected(offerId, msg.sender, block.timestamp);
+        emit LoanOfferRejected(offerId, msg.sender);
     }
 
     /**
@@ -250,7 +250,7 @@ contract BullaFrendLend is BullaClaimControllerBase {
         // Then transfer from this contract to debtor
         bool transferSuccess = IERC20(offer.token).transfer(offer.debtor, offer.loanAmount);
         if (!transferSuccess) revert TransferFailed();
-        emit LoanOfferAccepted(offerId, claimId, block.timestamp);
+        emit LoanOfferAccepted(offerId, claimId);
 
         return claimId;
     }
@@ -267,29 +267,21 @@ contract BullaFrendLend is BullaClaimControllerBase {
     /**
      * @notice Pays a loan
      * @param claimId The ID of the loan to pay
-     * @param amount The amount to pay
+     * @param paymentAmount The amount to pay
      */
-    function payLoan(uint256 claimId, uint256 amount) external {
+    function payLoan(uint256 claimId, uint256 paymentAmount) external {
         Claim memory claim = _bullaClaim.getClaim(claimId);
         _checkController(claim.controller);
         address creditor = _bullaClaim.ownerOf(claimId);
 
         (uint256 remainingPrincipal, uint256 currentInterest) = getTotalAmountDue(claimId);
         
-        uint256 interestPayment = Math.min(amount, currentInterest);
-        uint256 principalPayment = amount - interestPayment;
-        
-        // Cap principal payment to remaining principal
-        principalPayment = Math.min(principalPayment, remainingPrincipal);
+        uint256 interestPayment = Math.min(paymentAmount, currentInterest);
+        uint256 principalPayment = Math.min(paymentAmount - interestPayment, remainingPrincipal);
         
         // Calculate total actual payment (interest + principal)
-        uint256 actualPayment = interestPayment + principalPayment;
+        paymentAmount = interestPayment + principalPayment;
 
-        // If amount is greater than what's needed, only take what's needed
-        if (amount > actualPayment) {
-            amount = actualPayment;
-        }
-        
         uint256 protocolFee = calculateProtocolFee(interestPayment);
         uint256 creditorInterest = interestPayment - protocolFee;
         uint256 creditorTotal = creditorInterest + principalPayment;
@@ -300,8 +292,8 @@ contract BullaFrendLend is BullaClaimControllerBase {
         }
         
         // Transfer the total amount from sender to this contract, to avoid double approval
-        if (amount > 0) {
-            bool transferSuccess = IERC20(claim.token).transferFrom(msg.sender, address(this), amount);
+        if (paymentAmount > 0) {
+            bool transferSuccess = IERC20(claim.token).transferFrom(msg.sender, address(this), paymentAmount);
             if (!transferSuccess) revert TransferFailed();
             
             // Track protocol fee for this token if any interest was paid
@@ -320,7 +312,7 @@ contract BullaFrendLend is BullaClaimControllerBase {
             }
         }
         
-        emit LoanPayment(claimId, interestPayment, principalPayment, protocolFee, block.timestamp);
+        emit LoanPayment(claimId, interestPayment, principalPayment, protocolFee);
     }
 
     /**
@@ -359,6 +351,6 @@ contract BullaFrendLend is BullaClaimControllerBase {
         uint256 oldFee = protocolFeeBPS;
         protocolFeeBPS = _protocolFeeBPS;
         
-        emit ProtocolFeeUpdated(oldFee, _protocolFeeBPS, block.timestamp);
+        emit ProtocolFeeUpdated(oldFee, _protocolFeeBPS);
     }
 }

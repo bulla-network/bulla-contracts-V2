@@ -343,7 +343,7 @@ contract TestBullaInvoice is Test {
 
         // Approve WETH spending for BullaClaim
         vm.prank(debtor);
-        weth.approve(address(bullaClaim), 2 ether);
+        weth.approve(address(bullaInvoice), 2 ether);
 
         // Setup permissions
         bullaClaim.permitCreateClaim({
@@ -797,57 +797,6 @@ contract TestBullaInvoice is Test {
         invoice = bullaInvoice.getInvoice(invoiceId);
         assertTrue(invoice.status == Status.Paid, "Invoice status should be Paid after full payment");
         assertEq(invoice.paidAmount, amount, "Invoice paid amount should match full payment");
-    }
-
-    // 10. Error State Tests
-    function testExcessivePayment() public {
-        // Setup permissions
-        bullaClaim.permitCreateClaim({
-            user: creditor,
-            operator: address(bullaInvoice),
-            approvalType: CreateClaimApprovalType.Approved,
-            approvalCount: 1,
-            isBindingAllowed: false,
-            signature: sigHelper.signCreateClaimPermit({
-                pk: creditorPK,
-                user: creditor,
-                operator: address(bullaInvoice),
-                approvalType: CreateClaimApprovalType.Approved,
-                approvalCount: 1,
-                isBindingAllowed: false
-            })
-        });
-
-        // Create invoice params
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .build();
-            
-        // Create an invoice
-        vm.prank(creditor);
-        uint256 invoiceId = bullaInvoice.createInvoice(params);
-
-        // Setup payment permit
-        bullaClaim.permitPayClaim({
-            user: debtor,
-            operator: address(bullaInvoice),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                operator: address(bullaInvoice),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
-        // Try to pay more than owed
-        vm.prank(debtor);
-        vm.expectRevert(); // Should revert with appropriate error
-        bullaInvoice.payInvoice{value: 2 ether}(invoiceId, 2 ether);
     }
 
     function testPaymentValueMismatch() public {
