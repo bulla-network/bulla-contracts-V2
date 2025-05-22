@@ -16,7 +16,7 @@ struct InterestComputationState {
 
 uint16 constant MAX_DAYS_PER_YEAR = 365;
 uint256 constant SECONDS_PER_YEAR = 31536000;
-uint256 constant MAX_MBPS = 100_00_000;
+uint256 constant MAX_BPS = 10_000;
 uint256 constant ONE = 10**18;
 
 library CompoundInterestLib {
@@ -41,7 +41,6 @@ library CompoundInterestLib {
 
     /**
      * @notice Computes the interest for a given principal, dueBy date, and interest configuration
-     * @dev We assume that the interest configuration has been validated and is immutable
      * @param remainingPrincipal The remaining principal to compute interest for
      * @param dueBy The dueBy date
      * @param lastPeriodNumber The last period number
@@ -50,33 +49,35 @@ library CompoundInterestLib {
     function computeInterest(uint256 remainingPrincipal, uint256 dueBy, uint256 lastPeriodNumber, InterestConfig memory config, InterestComputationState memory state) public view returns (InterestComputationState memory) {
         uint256 currentTimestamp = block.timestamp;
 
-        if (config.interestRateBps == 0 
+        if (config.interestRateBps == 0
+            || config.numberOfPeriodsPerYear == 0
+            || config.numberOfPeriodsPerYear > MAX_DAYS_PER_YEAR
             || dueBy == 0
             || dueBy >= currentTimestamp) {
             return state;
         }
+
+        uint256 numberOfPeriodsPerYear = uint256(config.numberOfPeriodsPerYear);
         
         // Calculate the number of periods since the dueBy date
-        uint256 secondsPerPeriod = SECONDS_PER_YEAR / config.numberOfPeriodsPerYear;
-        uint256 currentPeriodNumber = (currentTimestamp - dueBy) / secondsPerPeriod;
+        uint256 secondsPerPeriod = SECONDS_PER_YEAR / numberOfPeriodsPerYear;
+        uint256 currentPeriodNumber = currentTimestamp > dueBy ? (currentTimestamp - dueBy) / secondsPerPeriod : 0;
         
-        uint256 periodsElapsed = currentPeriodNumber - lastPeriodNumber;
+        uint256 periodsElapsed = currentPeriodNumber > lastPeriodNumber ? currentPeriodNumber - lastPeriodNumber : 0;
         // If no complete period has elapsed, return the previously accrued interest
         if (periodsElapsed == 0) {
             return state;
         }
         
         // Calculate interest rate per period scaled to 18 decimal places
-        uint256 ratePerPeriodScaled = Math.mulDiv(config.interestRateBps, ONE, config.numberOfPeriodsPerYear);
+        uint256 ratePerPeriodScaled = Math.mulDiv(uint256(config.interestRateBps), ONE, numberOfPeriodsPerYear * MAX_BPS);
         
         // Calculate compound factor: (1 + r)^n
         // Using the formula: x^n = exp(n * ln(x))
         uint256 compoundFactor = _calculateCompoundFactor(ONE + ratePerPeriodScaled, periodsElapsed);
-
-        uint256 amountToCompound = remainingPrincipal + state.accruedInterest;
         
         // Apply compound factor to current total amount
-        uint256 totalWithInterest = Math.mulDiv(amountToCompound, compoundFactor, ONE);
+        uint256 totalWithInterest = Math.mulDiv(remainingPrincipal + state.accruedInterest, compoundFactor, ONE);
 
         // remove the principal from the total amount to get the current total accrued interest
         uint256 totalAccruedInterest = totalWithInterest - remainingPrincipal;
@@ -96,19 +97,6 @@ library CompoundInterestLib {
     function _calculateCompoundFactor(uint256 base, uint256 exponent) private pure returns (uint256 result) {
         result = ONE;
         
-        // For small exponents, calculate directly
-        if (exponent <= 10) {
-            uint256 term = ONE;
-            
-            for (uint256 i = 0; i < exponent; i++) {
-                term = Math.mulDiv(term, base, ONE);
-                result = term;
-            }
-            
-            return result;
-        }
-        
-        // For larger exponents, use square and multiply algorithm
         while (exponent > 0) {
             if (exponent % 2 == 1) {
                 result = (result * base) / ONE;
