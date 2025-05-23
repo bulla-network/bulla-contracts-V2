@@ -42,7 +42,6 @@ struct Invoice {
     PurchaseOrderState purchaseOrder;
     InterestConfig lateFeeConfig;
     InterestComputationState interestComputationState;
-    InterestConfig interestConfig;
 }
 
 struct CreateInvoiceParams {
@@ -87,20 +86,13 @@ contract BullaInvoice is BullaClaimControllerBase {
 
         InvoiceDetails memory invoiceDetails = _invoiceDetailsByClaimId[claimId];
         
-        if ((claim.status == Status.Pending || claim.status == Status.Repaying) && 
-            invoiceDetails.lateFeeConfig.interestRateBps > 0) {
-
-            // Refresh interest calculation
-            uint256 unpaidPrincipal = claim.claimAmount - claim.paidAmount;
-            if (unpaidPrincipal > 0) {
-                invoiceDetails.interestComputationState = CompoundInterestLib.computeInterest(
-                    unpaidPrincipal,
-                    invoiceDetails.dueBy,
-                    invoiceDetails.interestComputationState.latestPeriodNumber,
-                    invoiceDetails.lateFeeConfig, 
-                    invoiceDetails.interestComputationState
-                );
-            }
+        if (claim.status == Status.Pending || claim.status == Status.Repaying) {
+            invoiceDetails.interestComputationState = CompoundInterestLib.computeInterest(
+                claim.claimAmount - claim.paidAmount,
+                invoiceDetails.dueBy,
+                invoiceDetails.lateFeeConfig, 
+                invoiceDetails.interestComputationState
+            );
         }
 
         return Invoice({
@@ -114,8 +106,7 @@ contract BullaInvoice is BullaClaimControllerBase {
             dueBy: invoiceDetails.dueBy,
             purchaseOrder: invoiceDetails.purchaseOrder,
             lateFeeConfig: invoiceDetails.lateFeeConfig,
-            interestComputationState: invoiceDetails.interestComputationState,
-            interestConfig: invoiceDetails.lateFeeConfig
+            interestComputationState: invoiceDetails.interestComputationState
         });
     }
 
@@ -233,7 +224,6 @@ contract BullaInvoice is BullaClaimControllerBase {
         InterestComputationState memory interestComputationState = CompoundInterestLib.computeInterest(
             claim.claimAmount - claim.paidAmount,
             invoiceDetails.dueBy,
-            invoiceDetails.interestComputationState.latestPeriodNumber,
             invoiceDetails.lateFeeConfig,
             invoiceDetails.interestComputationState);
 

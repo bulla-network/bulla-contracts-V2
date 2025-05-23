@@ -41,19 +41,20 @@ library CompoundInterestLib {
 
     /**
      * @notice Computes the interest for a given principal, dueBy date, and interest configuration
+     * @dev An implication is made that if remainingPrincipal is 0, there cannot be any interest accrued
      * @param remainingPrincipal The remaining principal to compute interest for
      * @param dueBy The dueBy date
-     * @param lastPeriodNumber The last period number
      * @param config The interest configuration
     */
-    function computeInterest(uint256 remainingPrincipal, uint256 dueBy, uint256 lastPeriodNumber, InterestConfig memory config, InterestComputationState memory state) public view returns (InterestComputationState memory) {
+    function computeInterest(uint256 remainingPrincipal, uint256 dueBy, InterestConfig memory config, InterestComputationState memory state) public view returns (InterestComputationState memory) {
         uint256 currentTimestamp = block.timestamp;
 
         if (config.interestRateBps == 0
             || config.numberOfPeriodsPerYear == 0
             || config.numberOfPeriodsPerYear > MAX_DAYS_PER_YEAR
             || dueBy == 0
-            || dueBy >= currentTimestamp) {
+            || dueBy >= currentTimestamp
+            || remainingPrincipal == 0) {
             return state;
         }
 
@@ -63,7 +64,7 @@ library CompoundInterestLib {
         uint256 secondsPerPeriod = SECONDS_PER_YEAR / numberOfPeriodsPerYear;
         uint256 currentPeriodNumber = currentTimestamp > dueBy ? (currentTimestamp - dueBy) / secondsPerPeriod : 0;
         
-        uint256 periodsElapsed = currentPeriodNumber > lastPeriodNumber ? currentPeriodNumber - lastPeriodNumber : 0;
+        uint256 periodsElapsed = currentPeriodNumber > state.latestPeriodNumber ? currentPeriodNumber - state.latestPeriodNumber : 0;
         // If no complete period has elapsed, return the previously accrued interest
         if (periodsElapsed == 0) {
             return state;

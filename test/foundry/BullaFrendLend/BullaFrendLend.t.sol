@@ -488,7 +488,7 @@ contract TestBullaFrendLend is Test {
 
         // Check interest after exactly 1/4 year
         vm.warp(acceptTime + 91.25 days);
-        uint256 interest1 = bullaFrendLend.calculateCurrentInterest(claimId);
+        (, uint256 interest1) = bullaFrendLend.getTotalAmountDue(claimId);
         
         // After 1/4 year, we should have approximately 2.5% interest (10% / 4)
         // 1 ether * 0.025 = 0.025 ether
@@ -497,7 +497,7 @@ contract TestBullaFrendLend is Test {
         
         // Check interest after exactly 1/2 year (182.5 days)
         vm.warp(acceptTime + 182.5 days);
-        uint256 interest2 = bullaFrendLend.calculateCurrentInterest(claimId);
+        (, uint256 interest2) = bullaFrendLend.getTotalAmountDue(claimId);
         
         // After 1/2 year, we should have approximately 5% interest (10% / 2)
         // 1 ether * 0.05 = 0.05 ether
@@ -506,7 +506,7 @@ contract TestBullaFrendLend is Test {
         
         // Check interest after exactly 1 year (365 days)
         vm.warp(acceptTime + 365 days);
-        uint256 interest3 = bullaFrendLend.calculateCurrentInterest(claimId);
+        (, uint256 interest3) = bullaFrendLend.getTotalAmountDue(claimId);
         
         // After 1 year, we should have approximately 10% interest
         // 1 ether * 0.1 = 0.1 ether

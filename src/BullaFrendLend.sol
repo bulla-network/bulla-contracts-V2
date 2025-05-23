@@ -6,6 +6,7 @@ import "contracts/BullaClaimControllerBase.sol";
 import "contracts/types/Types.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
+import {InterestConfig, InterestComputationState, CompoundInterestLib} from "contracts/libraries/CompoundInterestLib.sol";
 
 uint256 constant MAX_BPS = 10_000;
 
@@ -23,13 +24,13 @@ error InvalidProtocolFee();
 
 struct LoanDetails {
     uint256 dueBy;        
-    uint24 interestBPS;    
-    uint40 termLength;    
+    InterestConfig interestConfig;
+    InterestComputationState interestComputationState;
 }
 
 struct LoanOffer {
-    uint24 interestBPS;    // can be 0
-    uint40 termLength;     // cannot be 0
+    uint256 termLength;
+    InterestConfig interestConfig;
     uint128 loanAmount;    
     address creditor;      
     address debtor;        
@@ -47,8 +48,8 @@ struct Loan {
     address token;
     address controller;
     uint256 dueBy;
-    uint24 interestBPS;
-    uint40 termLength;
+    InterestConfig interestConfig;
+    InterestComputationState interestComputationState;
 }
 
 /**
@@ -75,6 +76,8 @@ contract BullaFrendLend is BullaClaimControllerBase {
     event LoanPayment(uint256 indexed claimId, uint256 interestPayment, uint256 principalPayment, uint256 protocolFee);
     event ProtocolFeeUpdated(uint256 oldFee, uint256 newFee);
 
+    ClaimMetadata private _emptyMetadata;
+
     /**
      * @param bullaClaim Address of the IBullaClaim contract to delegate calls to
      * @param _admin Address of the contract administrator
@@ -86,23 +89,7 @@ contract BullaFrendLend is BullaClaimControllerBase {
         fee = _fee;
         if (_protocolFeeBPS > MAX_BPS) revert InvalidProtocolFee();
         protocolFeeBPS = _protocolFeeBPS;
-    }
-
-    /**
-     * @notice Calculate the current interest amount for a loan
-     * @param claimId The ID of the loan
-     * @return The current interest amount
-     */
-    function calculateCurrentInterest(uint256 claimId) public view returns (uint256) {
-        LoanDetails memory loanDetails = _loanDetailsByClaimId[claimId];
-        Claim memory claim = _bullaClaim.getClaim(claimId);
-        
-        // Calculate time elapsed in seconds
-        uint256 timeElapsed = block.timestamp - (loanDetails.dueBy - loanDetails.termLength);
-        
-        // Calculate APR-based interest: principal * (interestBPS / MAX_BPS) * (timeElapsed / SECONDS_PER_YEAR)
-        uint256 SECONDS_PER_YEAR = 365 days;
-        return (claim.claimAmount * loanDetails.interestBPS * timeElapsed) / (MAX_BPS * SECONDS_PER_YEAR);
+        _emptyMetadata = ClaimMetadata({tokenURI: "", attachmentURI: ""});
     }
 
     /**
@@ -112,9 +99,10 @@ contract BullaFrendLend is BullaClaimControllerBase {
      * @return interest The current interest amount accrued
      */
     function getTotalAmountDue(uint256 claimId) public view returns (uint256 remainingPrincipal, uint256 interest) {
-        Claim memory claim = _bullaClaim.getClaim(claimId);
-        remainingPrincipal = claim.claimAmount - claim.paidAmount;
-        interest = calculateCurrentInterest(claimId);
+        Loan memory loan = getLoan(claimId);
+
+        remainingPrincipal = loan.claimAmount - loan.paidAmount;
+        interest = loan.interestComputationState.accruedInterest;
     }
 
     /**
@@ -122,11 +110,20 @@ contract BullaFrendLend is BullaClaimControllerBase {
      * @param claimId The ID of the claim associated with the loan
      * @return The loan details
      */
-    function getLoan(uint256 claimId) external view returns (Loan memory) {
+    function getLoan(uint256 claimId) public view returns (Loan memory) {
         Claim memory claim = _bullaClaim.getClaim(claimId);
         _checkController(claim.controller);
         
         LoanDetails memory loanDetails = _loanDetailsByClaimId[claimId];
+
+        if (claim.status == Status.Pending || claim.status == Status.Repaying) {
+            loanDetails.interestComputationState = CompoundInterestLib.computeInterest(
+                claim.claimAmount - claim.paidAmount,
+                loanDetails.dueBy,
+                loanDetails.interestConfig,
+                loanDetails.interestComputationState
+            );
+        }
         
         return Loan({
             claimAmount: claim.claimAmount,
@@ -138,8 +135,8 @@ contract BullaFrendLend is BullaClaimControllerBase {
             token: claim.token,
             controller: claim.controller,
             dueBy: loanDetails.dueBy,
-            interestBPS: loanDetails.interestBPS,
-            termLength: loanDetails.termLength
+            interestConfig: loanDetails.interestConfig,
+            interestComputationState: loanDetails.interestComputationState
         });
     }
 
@@ -150,35 +147,27 @@ contract BullaFrendLend is BullaClaimControllerBase {
      * @return The ID of the created loan offer
      */
     function offerLoanWithMetadata(LoanOffer calldata offer, ClaimMetadata calldata metadata) external payable returns (uint256) {
-        if (msg.value != fee) revert IncorrectFee();
-        if (msg.sender != offer.creditor) revert NotCreditor();
-        if (offer.termLength == 0) revert InvalidTermLength();
-        if (offer.token == address(0)) revert NativeTokenNotSupported();
-
-        uint256 offerId = ++loanOfferCount;
-        loanOffers[offerId] = offer;
-        
-        loanOfferMetadata[offerId] = metadata;
-
-        emit LoanOffered(offerId, msg.sender, offer);
-
-        return offerId;
+        return _offerLoan(offer, metadata);
     }
 
-
-        /**
+    /**
      * @notice Allows a user to create and offer a loan to a potential debtor
      * @param offer The loan offer parameters
      * @return The ID of the created loan offer
      */
     function offerLoan(LoanOffer calldata offer) external payable returns (uint256) {
-        if (msg.value != fee) revert IncorrectFee();
-        if (msg.sender != offer.creditor) revert NotCreditor();
-        if (offer.termLength == 0) revert InvalidTermLength();
-        if (offer.token == address(0)) revert NativeTokenNotSupported();
+        return _offerLoan(offer, _emptyMetadata);
+    }
+
+    function _offerLoan(LoanOffer calldata offer, ClaimMetadata memory metadata) private returns (uint256) {
+        _validateLoanOffer(offer);
 
         uint256 offerId = ++loanOfferCount;
         loanOffers[offerId] = offer;
+        
+        if (bytes(metadata.tokenURI).length > 0 || bytes(metadata.attachmentURI).length > 0) {
+            loanOfferMetadata[offerId] = metadata;
+        }
 
         emit LoanOffered(offerId, msg.sender, offer);
 
@@ -238,8 +227,11 @@ contract BullaFrendLend is BullaClaimControllerBase {
 
         _loanDetailsByClaimId[claimId] = LoanDetails({
             dueBy: block.timestamp + offer.termLength,
-            interestBPS: offer.interestBPS,
-            termLength: offer.termLength
+            interestConfig: offer.interestConfig,
+            interestComputationState: InterestComputationState({
+                accruedInterest: 0,
+                latestPeriodNumber: 0
+            })
         });
 
         // Transfer token from creditor to debtor via the contract
@@ -274,9 +266,9 @@ contract BullaFrendLend is BullaClaimControllerBase {
         _checkController(claim.controller);
         address creditor = _bullaClaim.ownerOf(claimId);
 
-        (uint256 remainingPrincipal, uint256 currentInterest) = getTotalAmountDue(claimId);
-        
-        uint256 interestPayment = Math.min(paymentAmount, currentInterest);
+        (uint256 remainingPrincipal, uint256 interest) = getTotalAmountDue(claimId);
+
+        uint256 interestPayment = Math.min(paymentAmount, interest);
         uint256 principalPayment = Math.min(paymentAmount - interestPayment, remainingPrincipal);
         
         // Calculate total actual payment (interest + principal)
@@ -352,5 +344,14 @@ contract BullaFrendLend is BullaClaimControllerBase {
         protocolFeeBPS = _protocolFeeBPS;
         
         emit ProtocolFeeUpdated(oldFee, _protocolFeeBPS);
+    }
+
+    function _validateLoanOffer(LoanOffer calldata offer) private view {
+        if (msg.value != fee) revert IncorrectFee();
+        if (msg.sender != offer.creditor) revert NotCreditor();
+        if (offer.termLength == 0) revert InvalidTermLength();
+        if (offer.token == address(0)) revert NativeTokenNotSupported();
+
+        CompoundInterestLib.validateInterestConfig(offer.interestConfig);
     }
 }
