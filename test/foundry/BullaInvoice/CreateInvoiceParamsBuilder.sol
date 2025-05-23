@@ -2,6 +2,7 @@
 pragma solidity ^0.8.14;
 
 import {CreateInvoiceParams, ClaimBinding} from "contracts/BullaInvoice.sol";
+import {InterestConfig} from "contracts/libraries/CompoundInterestLib.sol";
 
 contract CreateInvoiceParamsBuilder {
     address private _debtor;
@@ -12,6 +13,7 @@ contract CreateInvoiceParamsBuilder {
     address private _token;
     ClaimBinding private _binding;
     bool private _payerReceivesClaimOnPayment;
+    InterestConfig private _lateFeeConfig;
 
     constructor() {
         // Default values
@@ -23,6 +25,10 @@ contract CreateInvoiceParamsBuilder {
         _token = address(0); // ETH by default
         _binding = ClaimBinding.BindingPending;
         _payerReceivesClaimOnPayment = true;
+        _lateFeeConfig = InterestConfig({
+            interestRateBps: 0,
+            numberOfPeriodsPerYear: 0
+        });
     }
 
     function withDebtor(address debtor) public returns (CreateInvoiceParamsBuilder) {
@@ -65,6 +71,11 @@ contract CreateInvoiceParamsBuilder {
         return this;
     }
 
+    function withLateFeeConfig(InterestConfig memory lateFeeConfig) public returns (CreateInvoiceParamsBuilder) {
+        _lateFeeConfig = lateFeeConfig;
+        return this;
+    }
+
     function build() public view returns (CreateInvoiceParams memory) {
         return CreateInvoiceParams({
             debtor: _debtor,
@@ -74,7 +85,8 @@ contract CreateInvoiceParamsBuilder {
             description: _description,
             token: _token,
             binding: _binding,
-            payerReceivesClaimOnPayment: _payerReceivesClaimOnPayment
+            payerReceivesClaimOnPayment: _payerReceivesClaimOnPayment,
+            lateFeeConfig: _lateFeeConfig
         });
     }
 } 

@@ -578,11 +578,7 @@ contract TestBullaFrendLend is Test {
         // Payment amount greater than loan + interest
         uint256 excessiveAmount = 3 ether;
         
-        (uint256 remainingPrincipal, uint256 currentInterest) = bullaFrendLend.getTotalAmountDue(claimId);
-        
-        uint256 initialCreditorBalance = weth.balanceOf(creditor);
         uint256 initialDebtorBalance = weth.balanceOf(debtor);
-        uint256 initialContractBalance = weth.balanceOf(address(bullaFrendLend));
         
         vm.prank(debtor);
         bullaFrendLend.payLoan(claimId, excessiveAmount);

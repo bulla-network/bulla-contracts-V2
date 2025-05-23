@@ -308,6 +308,8 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     /// @param claimId The ID of the claim to pay
     /// @param amount The amount to pay
     function payClaimFromControllerWithoutTransfer(address from, uint256 claimId, uint256 amount) external {
+        _spendPayClaimApproval(from, msg.sender, claimId, amount);
+
         Claim memory claim = getClaim(claimId);
         
         // Only the controller can call this function
@@ -397,7 +399,6 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     ///         2. The claim is minted and not burned
     ///         ... TODO
     function _payClaim(address from, uint256 claimId, uint256 paymentAmount) internal {
-        _notLocked();
         Claim memory claim = getClaim(claimId);
         address creditor = _ownerOf[claimId];
 
