@@ -25,7 +25,8 @@ contract BullaClaimTestHelper is Test {
                 description: "",
                 binding: ClaimBinding.Unbound,
                 claimAmount: 1 ether,
-                payerReceivesClaimOnPayment: true
+                payerReceivesClaimOnPayment: true,
+                dueBy: 0
             })
         );
         vm.stopPrank();
@@ -41,7 +42,8 @@ contract BullaClaimTestHelper is Test {
                 description: "",
                 binding: ClaimBinding.Unbound,
                 claimAmount: 1 ether,
-                payerReceivesClaimOnPayment: true
+                payerReceivesClaimOnPayment: true,
+                dueBy: 0
             })
         );
     }
@@ -59,7 +61,8 @@ contract BullaClaimTestHelper is Test {
                 description: "",
                 binding: ClaimBinding.Unbound,
                 claimAmount: 1 ether,
-                payerReceivesClaimOnPayment: true
+                payerReceivesClaimOnPayment: true,
+                dueBy: 0
             }),
             ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
         );

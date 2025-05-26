@@ -15,13 +15,11 @@ struct PurchaseOrderState {
 
 // Data specific to invoices and not claims
 struct InvoiceDetails {
-    uint256 dueBy;
     PurchaseOrderState purchaseOrder;
     InterestConfig lateFeeConfig;
     InterestComputationState interestComputationState;
 }
 
-error InvalidDueBy();
 error CreditorCannotBeDebtor();
 error InvalidDeliveryDate();
 error NotOriginalCreditor();
@@ -89,7 +87,7 @@ contract BullaInvoice is BullaClaimControllerBase {
         if (claim.status == Status.Pending || claim.status == Status.Repaying) {
             invoiceDetails.interestComputationState = CompoundInterestLib.computeInterest(
                 claim.claimAmount - claim.paidAmount,
-                invoiceDetails.dueBy,
+                claim.dueBy,
                 invoiceDetails.lateFeeConfig, 
                 invoiceDetails.interestComputationState
             );
@@ -103,7 +101,7 @@ contract BullaInvoice is BullaClaimControllerBase {
             payerReceivesClaimOnPayment: claim.payerReceivesClaimOnPayment,
             debtor: claim.debtor,
             token: claim.token,
-            dueBy: invoiceDetails.dueBy,
+            dueBy: claim.dueBy,
             purchaseOrder: invoiceDetails.purchaseOrder,
             lateFeeConfig: invoiceDetails.lateFeeConfig,
             interestComputationState: invoiceDetails.interestComputationState
@@ -125,13 +123,13 @@ contract BullaInvoice is BullaClaimControllerBase {
             description: params.description,
             token: params.token,
             binding: params.binding,
-            payerReceivesClaimOnPayment: params.payerReceivesClaimOnPayment
+            payerReceivesClaimOnPayment: params.payerReceivesClaimOnPayment,
+            dueBy: params.dueBy
         });
 
         uint256 claimId = _bullaClaim.createClaimFrom(msg.sender, createClaimParams);
 
         _invoiceDetailsByClaimId[claimId] = InvoiceDetails({
-            dueBy: params.dueBy, 
             purchaseOrder: PurchaseOrderState({
                 deliveryDate: params.deliveryDate, 
                 isDelivered: false
@@ -167,14 +165,14 @@ contract BullaInvoice is BullaClaimControllerBase {
             description: params.description,
             token: params.token,
             binding: params.binding,
-            payerReceivesClaimOnPayment: params.payerReceivesClaimOnPayment
+            payerReceivesClaimOnPayment: params.payerReceivesClaimOnPayment,
+            dueBy: params.dueBy
         });
 
         uint256 claimId = _bullaClaim.createClaimWithMetadataFrom(msg.sender, createClaimParams, metadata);
 
         _invoiceDetailsByClaimId[claimId] =
             InvoiceDetails({
-                dueBy: params.dueBy, 
                 purchaseOrder: PurchaseOrderState({deliveryDate: params.deliveryDate, isDelivered: false}), 
                 lateFeeConfig: params.lateFeeConfig,    
                 interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})});
@@ -223,7 +221,7 @@ contract BullaInvoice is BullaClaimControllerBase {
 
         InterestComputationState memory interestComputationState = CompoundInterestLib.computeInterest(
             claim.claimAmount - claim.paidAmount,
-            invoiceDetails.dueBy,
+            claim.dueBy,
             invoiceDetails.lateFeeConfig,
             invoiceDetails.interestComputationState);
 
@@ -297,10 +295,6 @@ contract BullaInvoice is BullaClaimControllerBase {
     function _validateCreateInvoiceParams(CreateInvoiceParams memory params) private view {
         if (msg.sender == params.debtor) {
             revert CreditorCannotBeDebtor();
-        }
-        
-        if (params.dueBy != 0 && (params.dueBy < block.timestamp || params.dueBy > type(uint40).max)) {
-            revert InvalidDueBy();
         }
 
         if (params.deliveryDate != 0 && (params.deliveryDate < block.timestamp || params.deliveryDate > type(uint40).max)) {
