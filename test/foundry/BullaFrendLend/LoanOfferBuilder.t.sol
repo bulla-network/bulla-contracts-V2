@@ -17,14 +17,14 @@ contract LoanOfferBuilder {
         // Default values
         _termLength = 30 days;
         _interestConfig = InterestConfig({
-            interestRateBps: 1000, // 10% APR
+            interestRateBps: 500, // 5% APR
             numberOfPeriodsPerYear: 12 // Monthly compounding
         });
         _loanAmount = 1 ether;
-        _creditor = address(0x1);
-        _debtor = address(0x2);
-        _description = "Test Loan Offer";
-        _token = address(0x3); // Mock token address
+        _creditor = address(0x0);
+        _debtor = address(0x0);
+        _description = "";
+        _token = address(0x0); // Mock token address
     }
 
     function withTermLength(uint256 termLength) public returns (LoanOfferBuilder) {
@@ -34,6 +34,16 @@ contract LoanOfferBuilder {
 
     function withInterestConfig(InterestConfig memory interestConfig) public returns (LoanOfferBuilder) {
         _interestConfig = interestConfig;
+        return this;
+    }
+
+    function withInterestRateBps(uint16 interestRateBps) public returns (LoanOfferBuilder) {
+        _interestConfig.interestRateBps = interestRateBps;
+        return this;
+    }
+
+    function withNumberOfPeriodsPerYear(uint16 numberOfPeriodsPerYear) public returns (LoanOfferBuilder) {
+        _interestConfig.numberOfPeriodsPerYear = numberOfPeriodsPerYear;
         return this;
     }
 
