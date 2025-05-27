@@ -44,6 +44,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
                             ERRORS / MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
+    error InvalidDueBy();
     error Locked();
     error CannotBindClaim();
     error InvalidApproval();
@@ -238,6 +239,9 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     function _createClaim(address from, CreateClaimParams calldata params) internal returns (uint256) {
         if (lockState != LockState.Unlocked) revert Locked();
         if (from != params.debtor && from != params.creditor) revert NotCreditorOrDebtor();
+        if (params.dueBy != 0 && (params.dueBy < block.timestamp || params.dueBy > type(uint40).max)) {
+            revert InvalidDueBy();
+        }
 
         // you need the permission of the debtor to bind a claim
         if (params.binding == ClaimBinding.Bound && from != params.debtor) revert CannotBindClaim();
@@ -261,6 +265,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
             if (controller != address(0)) claim.controller = controller;
             if (params.binding != ClaimBinding.Unbound) claim.binding = params.binding;
             if (params.payerReceivesClaimOnPayment) claim.payerReceivesClaimOnPayment = true;
+            if (params.dueBy != 0) claim.dueBy = uint40(params.dueBy);
         }
 
         emit ClaimCreated(
@@ -661,7 +666,8 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
             debtor: claimStorage.debtor,
             token: claimStorage.token,
             controller: claimStorage.controller,
-            originalCreditor: claimStorage.originalCreditor
+            originalCreditor: claimStorage.originalCreditor,
+            dueBy: claimStorage.dueBy
         });
     }
 

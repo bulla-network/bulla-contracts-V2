@@ -8,7 +8,7 @@ import "contracts/types/Types.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
-import {BullaInvoice, CreateInvoiceParams, Invoice, InvalidDueBy, CreditorCannotBeDebtor, InvalidDeliveryDate, NotOriginalCreditor, PurchaseOrderAlreadyDelivered, InvoiceNotPending, PurchaseOrderState, InvoiceDetails, NotPurchaseOrder} from "contracts/BullaInvoice.sol";
+import {BullaInvoice, CreateInvoiceParams, Invoice, CreditorCannotBeDebtor, InvalidDeliveryDate, NotOriginalCreditor, PurchaseOrderAlreadyDelivered, InvoiceNotPending, PurchaseOrderState, InvoiceDetails, NotPurchaseOrder} from "contracts/BullaInvoice.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {CreateInvoiceParamsBuilder} from "test/foundry/BullaInvoice/CreateInvoiceParamsBuilder.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
@@ -481,7 +481,7 @@ contract TestBullaInvoice is Test {
 
         // Try to create an invoice with past due date
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(InvalidDueBy.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.InvalidDueBy.selector));
         bullaInvoice.createInvoice(pastDueParams);
 
         // Create params with far future due date
@@ -492,7 +492,7 @@ contract TestBullaInvoice is Test {
 
         // Try to create an invoice with too far future due date
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(InvalidDueBy.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.InvalidDueBy.selector));
         bullaInvoice.createInvoice(farFutureParams);
     }
 
@@ -1159,7 +1159,7 @@ contract TestBullaInvoice is Test {
 
         // Try to create an invoice with metadata and past due date
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(InvalidDueBy.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.InvalidDueBy.selector));
         bullaInvoice.createInvoiceWithMetadata(
             params,
             metadata
@@ -1199,7 +1199,7 @@ contract TestBullaInvoice is Test {
 
         // Try to create an invoice with metadata and too far future due date
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(InvalidDueBy.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.InvalidDueBy.selector));
         bullaInvoice.createInvoiceWithMetadata(
             params,
             metadata

@@ -49,6 +49,7 @@ struct CreateClaimParams {
     address token;
     ClaimBinding binding;
     bool payerReceivesClaimOnPayment;
+    uint256 dueBy;
 }
 
 struct ClaimMetadata {
@@ -66,7 +67,8 @@ struct ClaimStorage {
     Status status;
     ClaimBinding binding; // the debtor can allow themselves to be bound to a claim, which makes a claim unrejectable
     bool payerReceivesClaimOnPayment; // an optional flag which allows the token to be transferred to the payer, acting as a "receipt NFT"
-} // takes 4 storage slots
+    uint40 dueBy; // when the claim is due (0 means no due date)
+} // takes 5 storage slots
 
 // a cheaper struct for working / manipulating memory (unpacked is cheapter)
 struct Claim {
@@ -79,6 +81,7 @@ struct Claim {
     address debtor;
     address token;
     address controller;
+    uint256 dueBy;
 }
 
 ////// APPROVALS //////

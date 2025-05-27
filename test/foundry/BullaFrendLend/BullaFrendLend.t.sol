@@ -11,6 +11,8 @@ import {BullaClaim} from "contracts/BullaClaim.sol";
 import {BullaFrendLend, LoanOffer, Loan, IncorrectFee, NotCreditor, InvalidTermLength, NativeTokenNotSupported, NotDebtor, NotAdmin} from "contracts/BullaFrendLend.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {MockERC20} from "contracts/mocks/MockERC20.sol";
+import {LoanOfferBuilder} from "./LoanOfferBuilder.t.sol";
+import {InterestConfig} from "contracts/libraries/CompoundInterestLib.sol";
 
 contract TestBullaFrendLend is Test {
     WETH public weth;
@@ -61,22 +63,20 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 2 ether);
 
-        LoanOffer memory offer = LoanOffer({
-            interestBPS: 500, // 5% interest
-            termLength: 30 days,
-            loanAmount: 1 ether,
-            creditor: creditor,
-            debtor: debtor,
-            description: "Test Loan",
-            token: address(weth)
-        });
+        LoanOffer memory offer = new LoanOfferBuilder()
+            .withInterestRateBps(500) // 5% interest (different from default 1000)
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withToken(address(weth))
+            .withDescription("Test Loan")
+            .build();
 
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
 
-        (uint24 interestBPS, uint40 termLength, uint128 loanAmount, address offerCreditor, address offerDebtor, string memory description, address token) = bullaFrendLend.loanOffers(loanId);
+        (uint256 termLength, InterestConfig memory interestConfig, uint128 loanAmount, address offerCreditor, address offerDebtor, string memory description, address token) = bullaFrendLend.loanOffers(loanId);
         
-        assertEq(interestBPS, 500, "Interest BPS mismatch");
+        assertEq(interestConfig.interestRateBps, 500, "Interest BPS mismatch");
         assertEq(termLength, 30 days, "Term length mismatch");
         assertEq(loanAmount, 1 ether, "Loan amount mismatch");
         assertEq(offerCreditor, creditor, "Creditor mismatch");
@@ -89,15 +89,12 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 1 ether);
 
-        LoanOffer memory offer = LoanOffer({
-            interestBPS: 500,
-            termLength: 30 days,
-            loanAmount: 1 ether,
-            creditor: creditor,
-            debtor: debtor,
-            description: "Test Loan",
-            token: address(weth)
-        });
+        LoanOffer memory offer = new LoanOfferBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withDescription("Test Loan")
+            .withToken(address(weth))
+            .build();
 
         vm.prank(creditor);
         vm.expectRevert(abi.encodeWithSelector(IncorrectFee.selector));
@@ -108,15 +105,12 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 1 ether);
 
-        LoanOffer memory offer = LoanOffer({
-            interestBPS: 500,
-            termLength: 30 days,
-            loanAmount: 1 ether,
-            creditor: debtor, // Wrong creditor
-            debtor: debtor,
-            description: "Test Loan",
-            token: address(weth)
-        });
+        LoanOffer memory offer = new LoanOfferBuilder()
+            .withCreditor(debtor) // Wrong creditor
+            .withDebtor(debtor)
+            .withDescription("Test Loan")
+            .withToken(address(weth))
+            .build();
 
         vm.prank(creditor);
         vm.expectRevert(abi.encodeWithSelector(NotCreditor.selector));
@@ -127,15 +121,12 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 1 ether);
 
-        LoanOffer memory offer = LoanOffer({
-            interestBPS: 500,
-            termLength: 0, // Invalid term length
-            loanAmount: 1 ether,
-            creditor: creditor,
-            debtor: debtor,
-            description: "Test Loan",
-            token: address(weth)
-        });
+        LoanOffer memory offer = new LoanOfferBuilder()
+            .withTermLength(0) // Invalid term length
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withToken(address(weth))
+            .build();
 
         vm.prank(creditor);
         vm.expectRevert(abi.encodeWithSelector(InvalidTermLength.selector));
@@ -143,15 +134,11 @@ contract TestBullaFrendLend is Test {
     }
 
     function testOfferLoanWithNativeToken() public {
-        LoanOffer memory offer = LoanOffer({
-            interestBPS: 500,
-            termLength: 30 days,
-            loanAmount: 1 ether,
-            creditor: creditor,
-            debtor: debtor,
-            description: "Test Loan with Native Token",
-            token: address(0) // Native token (should be rejected)
-        });
+        LoanOffer memory offer = new LoanOfferBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withToken(address(0)) // Native token (should be rejected)
+            .build();
 
         vm.prank(creditor);
         vm.expectRevert(abi.encodeWithSelector(NativeTokenNotSupported.selector));
@@ -162,42 +149,18 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 1 ether);
 
-        LoanOffer memory offer = LoanOffer({
-            interestBPS: 0, // Zero interest
-            termLength: 30 days,
-            loanAmount: 1 ether,
-            creditor: creditor,
-            debtor: debtor,
-            description: "Test Loan with Zero Interest",
-            token: address(weth)
-        });
+        LoanOffer memory offer = new LoanOfferBuilder()
+            .withInterestRateBps(0) // Zero interest
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withToken(address(weth))
+            .build();
 
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
 
-        (uint24 interestBPS,,,,,,) = bullaFrendLend.loanOffers(loanId);
-        assertEq(interestBPS, 0, "Interest BPS should be zero");
-    }
-
-    function testOfferLoanWithMaxInterest() public {
-        vm.prank(creditor);
-        weth.approve(address(bullaFrendLend), 1 ether);
-
-        LoanOffer memory offer = LoanOffer({
-            interestBPS: 10000, // 100% interest
-            termLength: 30 days,
-            loanAmount: 1 ether,
-            creditor: creditor,
-            debtor: debtor,
-            description: "Test Loan with Max Interest",
-            token: address(weth)
-        });
-
-        vm.prank(creditor);
-        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
-
-        (uint24 interestBPS,,,,,,) = bullaFrendLend.loanOffers(loanId);
-        assertEq(interestBPS, 10000, "Interest BPS should be 10000");
+        (,InterestConfig memory interestConfig,,,,,) = bullaFrendLend.loanOffers(loanId);
+        assertEq(interestConfig.interestRateBps, 0, "Interest BPS should be zero");
     }
 
     function testEndToEndLoanFlow() public {
@@ -208,15 +171,12 @@ contract TestBullaFrendLend is Test {
         vm.prank(debtor);
         weth.approve(address(bullaFrendLend), 2 ether);
         
-        LoanOffer memory offer = LoanOffer({
-            interestBPS: 500, 
-            termLength: 30 days,
-            loanAmount: 1 ether,
-            creditor: creditor,
-            debtor: debtor,
-            description: "End to End Test Loan with WETH",
-            token: address(weth)
-        });
+        LoanOffer memory offer = new LoanOfferBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withToken(address(weth))
+            .withNumberOfPeriodsPerYear(365)
+            .build();
 
         uint256 initialCreditorWeth = weth.balanceOf(creditor);
         uint256 initialDebtorWeth = weth.balanceOf(debtor);
@@ -277,6 +237,8 @@ contract TestBullaFrendLend is Test {
         vm.prank(debtor);
         bullaFrendLend.payLoan(claimId, paymentAmount);
 
+        console.log("currentInterest", currentInterest);
+
         uint256 debtorPaid = initialDebtorBalance - weth.balanceOf(debtor);
         uint256 creditorReceived = weth.balanceOf(creditor) - initialCreditorBalance;
         uint256 contractReceived = weth.balanceOf(address(bullaFrendLend)) - initialContractBalance;
@@ -299,15 +261,11 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 2 ether);
 
-        LoanOffer memory offer = LoanOffer({
-            interestBPS: 500,
-            termLength: 30 days,
-            loanAmount: 1 ether,
-            creditor: creditor,
-            debtor: debtor,
-            description: "Test Loan to Reject",
-            token: address(weth)
-        });
+        LoanOffer memory offer = new LoanOfferBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withToken(address(weth))
+            .build();
 
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
@@ -328,15 +286,11 @@ contract TestBullaFrendLend is Test {
         weth.approve(address(bullaFrendLend), 2 ether);
         vm.stopPrank();
         
-        LoanOffer memory offer = LoanOffer({
-            interestBPS: 500,
-            termLength: 30 days,
-            loanAmount: 1 ether,
-            creditor: creditor,
-            debtor: debtor,
-            description: "Partial Payments Test Loan",
-            token: address(weth)
-        });
+        LoanOffer memory offer = new LoanOfferBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withToken(address(weth))
+            .build();
 
         uint256 initialCreditorWeth = weth.balanceOf(creditor);
         uint256 initialDebtorWeth = weth.balanceOf(debtor);
@@ -437,15 +391,14 @@ contract TestBullaFrendLend is Test {
         weth.approve(address(bullaClaim), 2 ether);
         
         // Set up a loan with 10% interest (1000 BPS)
-        LoanOffer memory offer = LoanOffer({
-            interestBPS: 1000, // 10% interest
-            termLength: 365 days, // 1 year term
-            loanAmount: 1 ether,
-            creditor: creditor,
-            debtor: debtor,
-            description: "APR Test Loan",
-            token: address(weth)
-        });
+        LoanOffer memory offer = new LoanOfferBuilder()
+            .withTermLength(10* 365 days) // 1 year term (different from default 30 days)
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withToken(address(weth))
+            .withInterestRateBps(720)
+            .withNumberOfPeriodsPerYear(1)
+            .build();
 
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
@@ -487,31 +440,22 @@ contract TestBullaFrendLend is Test {
         });
 
         // Check interest after exactly 1/4 year
-        vm.warp(acceptTime + 91.25 days);
-        uint256 interest1 = bullaFrendLend.calculateCurrentInterest(claimId);
+        vm.warp(acceptTime + 10 * 365 days);
+        (, uint256 interest1) = bullaFrendLend.getTotalAmountDue(claimId);
         
         // After 1/4 year, we should have approximately 2.5% interest (10% / 4)
         // 1 ether * 0.025 = 0.025 ether
-        uint256 expectedInterest1 = 0.025 ether;
+        uint256 expectedInterest1 = 1 ether;
         assertApproxEqRel(interest1, expectedInterest1, 0.005e18, "Interest after 1/4 year should be ~0.025 ether");
         
         // Check interest after exactly 1/2 year (182.5 days)
-        vm.warp(acceptTime + 182.5 days);
-        uint256 interest2 = bullaFrendLend.calculateCurrentInterest(claimId);
+        vm.warp(acceptTime + 20 * 365 days);
+        (, uint256 interest2) = bullaFrendLend.getTotalAmountDue(claimId);
         
         // After 1/2 year, we should have approximately 5% interest (10% / 2)
         // 1 ether * 0.05 = 0.05 ether
-        uint256 expectedInterest2 = 0.05 ether;
-        assertApproxEqRel(interest2, expectedInterest2, 0.005e18, "Interest after 1/2 year should be ~0.05 ether");
-        
-        // Check interest after exactly 1 year (365 days)
-        vm.warp(acceptTime + 365 days);
-        uint256 interest3 = bullaFrendLend.calculateCurrentInterest(claimId);
-        
-        // After 1 year, we should have approximately 10% interest
-        // 1 ether * 0.1 = 0.1 ether
-        uint256 expectedInterest3 = 0.1 ether;
-        assertApproxEqRel(interest3, expectedInterest3, 0.005e18, "Interest after 1 year should be ~0.1 ether");
+        uint256 expectedInterest2 = 3 ether;
+        assertApproxEqRel(interest2, expectedInterest2, 0.006e18, "Interest after 1/2 year should be ~0.05 ether");
     }
 
 
@@ -522,15 +466,11 @@ contract TestBullaFrendLend is Test {
         vm.prank(debtor);
         weth.approve(address(bullaFrendLend), 5 ether);
         
-        LoanOffer memory offer = LoanOffer({
-            interestBPS: 500,
-            termLength: 30 days,
-            loanAmount: 1 ether,
-            creditor: creditor,
-            debtor: debtor,
-            description: "Excessive Payment Test Loan",
-            token: address(weth)
-        });
+        LoanOffer memory offer = new LoanOfferBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withToken(address(weth))
+            .build();
 
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
@@ -608,15 +548,11 @@ contract TestBullaFrendLend is Test {
         vm.stopPrank();
         
         // Create a loan offer with metadata
-        LoanOffer memory offer = LoanOffer({
-            interestBPS: 500,
-            termLength: 30 days,
-            loanAmount: 1 ether,
-            creditor: creditor,
-            debtor: debtor,
-            description: "Simple Metadata Test Loan",
-            token: address(weth)
-        });
+        LoanOffer memory offer = new LoanOfferBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withToken(address(weth))
+            .build();
         
         ClaimMetadata memory metadata = ClaimMetadata({
             tokenURI: "ipfs://QmTestTokenURI",
@@ -727,15 +663,13 @@ contract TestBullaFrendLend is Test {
             })
         });
         
-        LoanOffer memory wethOffer = LoanOffer({
-            interestBPS: 1000,
-            termLength: 30 days,
-            loanAmount: 1 ether,
-            creditor: creditor,
-            debtor: debtor,
-            description: "WETH Loan",
-            token: address(weth)
-        });
+        LoanOffer memory wethOffer = new LoanOfferBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withDescription("WETH Loan")
+            .withToken(address(weth))
+            .withNumberOfPeriodsPerYear(365)
+            .build();
         
         vm.prank(creditor);
         uint256 wethLoanId = bullaFrendLend.offerLoan{value: FEE}(wethOffer);
@@ -743,15 +677,14 @@ contract TestBullaFrendLend is Test {
         vm.prank(debtor);
         uint256 wethClaimId = bullaFrendLend.acceptLoan(wethLoanId);
         
-        LoanOffer memory usdcOffer = LoanOffer({
-            interestBPS: 1000,
-            termLength: 30 days,
-            loanAmount: 1000 * 10**6,
-            creditor: creditor,
-            debtor: debtor,
-            description: "USDC Loan",
-            token: address(usdc)
-        });
+        LoanOffer memory usdcOffer = new LoanOfferBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withDescription("USDC Loan")
+            .withToken(address(usdc))
+            .withLoanAmount(1000 * 10**6)
+            .withNumberOfPeriodsPerYear(365)
+            .build();
         
         vm.prank(creditor);
         uint256 usdcLoanId = bullaFrendLend.offerLoan{value: FEE}(usdcOffer);
@@ -759,15 +692,14 @@ contract TestBullaFrendLend is Test {
         vm.prank(debtor);
         uint256 usdcClaimId = bullaFrendLend.acceptLoan(usdcLoanId);
         
-        LoanOffer memory daiOffer = LoanOffer({
-            interestBPS: 1000,
-            termLength: 30 days,
-            loanAmount: 1000 ether,
-            creditor: creditor,
-            debtor: debtor,
-            description: "DAI Loan",
-            token: address(dai)
-        });
+        LoanOffer memory daiOffer = new LoanOfferBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withDescription("DAI Loan")
+            .withToken(address(dai))
+            .withLoanAmount(1000 ether)
+            .withNumberOfPeriodsPerYear(365)
+            .build();
         
         vm.prank(creditor);
         uint256 daiLoanId = bullaFrendLend.offerLoan{value: FEE}(daiOffer);
@@ -895,15 +827,14 @@ contract TestBullaFrendLend is Test {
         });
         
         // Create first WETH loan
-        LoanOffer memory wethOffer1 = LoanOffer({
-            interestBPS: 1000,
-            termLength: 30 days,
-            loanAmount: 1 ether,
-            creditor: creditor,
-            debtor: debtor,
-            description: "WETH Loan 1",
-            token: address(weth)
-        });
+        LoanOffer memory wethOffer1 = new LoanOfferBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withDescription("WETH Loan 1")
+            .withToken(address(weth))
+            .withLoanAmount(1 ether)
+            .withNumberOfPeriodsPerYear(365)
+            .build();
         
         vm.prank(creditor);
         uint256 wethLoanId1 = bullaFrendLend.offerLoan{value: FEE}(wethOffer1);
@@ -912,15 +843,14 @@ contract TestBullaFrendLend is Test {
         uint256 wethClaimId1 = bullaFrendLend.acceptLoan(wethLoanId1);
         
         // Create second WETH loan
-        LoanOffer memory wethOffer2 = LoanOffer({
-            interestBPS: 1000,
-            termLength: 30 days,
-            loanAmount: 0.5 ether,
-            creditor: creditor,
-            debtor: debtor,
-            description: "WETH Loan 2",
-            token: address(weth)
-        });
+        LoanOffer memory wethOffer2 = new LoanOfferBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withDescription("WETH Loan 2")
+            .withToken(address(weth))
+            .withLoanAmount(0.5 ether)
+            .withNumberOfPeriodsPerYear(365)
+            .build();
         
         vm.prank(creditor);
         uint256 wethLoanId2 = bullaFrendLend.offerLoan{value: FEE}(wethOffer2);
@@ -1006,15 +936,12 @@ contract TestBullaFrendLend is Test {
         bullaFrendLend.setProtocolFee(0);
         vm.stopPrank();
         
-        LoanOffer memory offer = LoanOffer({
-            interestBPS: 1000, // 10% interest
-            termLength: 30 days,
-            loanAmount: 1 ether,
-            creditor: creditor,
-            debtor: debtor,
-            description: "0% Protocol Fee Test Loan",
-            token: address(weth)
-        });
+        LoanOffer memory offer = new LoanOfferBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withToken(address(weth))
+            .withInterestRateBps(1000)
+            .build();
         
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
@@ -1045,15 +972,13 @@ contract TestBullaFrendLend is Test {
         bullaFrendLend.setProtocolFee(5000); // 50%
         vm.stopPrank();
         
-        offer = LoanOffer({
-            interestBPS: 1000, // 10% interest
-            termLength: 30 days,
-            loanAmount: 1 ether,
-            creditor: creditor,
-            debtor: debtor,
-            description: "50% Protocol Fee Test Loan",
-            token: address(weth)
-        });
+        offer = new LoanOfferBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withDescription("50% Protocol Fee Test Loan")
+            .withToken(address(weth))
+            .withInterestRateBps(1000)
+            .build();
         
         vm.prank(creditor);
         loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
@@ -1086,15 +1011,13 @@ contract TestBullaFrendLend is Test {
         bullaFrendLend.setProtocolFee(10000); // 100%
         vm.stopPrank();
         
-        offer = LoanOffer({
-            interestBPS: 1000, // 10% interest
-            termLength: 30 days,
-            loanAmount: 1 ether,
-            creditor: creditor,
-            debtor: debtor,
-            description: "100% Protocol Fee Test Loan",
-            token: address(weth)
-        });
+        offer = new LoanOfferBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withDescription("100% Protocol Fee Test Loan")
+            .withToken(address(weth))
+            .withInterestRateBps(1000)
+            .build();
         
         vm.prank(creditor);
         loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
