@@ -42,12 +42,8 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
     function _newClaim(address creator, bool isNative, uint256 claimAmount) private returns (uint256 claimId) {
         vm.startPrank(creator);
         claimId = bullaClaim.createClaim(
-            new CreateClaimParamsBuilder()
-                .withCreditor(creditor)
-                .withDebtor(debtor)
-                .withClaimAmount(claimAmount)
-                .withToken(isNative ? address(0) : address(weth))
-                .build()
+            new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withClaimAmount(claimAmount)
+                .withToken(isNative ? address(0) : address(weth)).build()
         );
         vm.stopPrank();
     }
@@ -89,11 +85,9 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
     function testPayClaimWithNoTransferFlag() public {
         vm.startPrank(creditor);
         uint256 claimId = bullaClaim.createClaim(
-            new CreateClaimParamsBuilder()
-                .withCreditor(creditor)
-                .withDebtor(debtor)
-                .withPayerReceivesClaimOnPayment(false)
-                .build()
+            new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withPayerReceivesClaimOnPayment(
+                false
+            ).build()
         );
         vm.stopPrank();
 
@@ -144,11 +138,9 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
         vm.startPrank(controller);
         bullaClaim.createClaimFrom(
             userAddress,
-            new CreateClaimParamsBuilder()
-                .withCreditor(userAddress)
-                .withDebtor(debtor)
-                .withPayerReceivesClaimOnPayment(false)
-                .build()
+            new CreateClaimParamsBuilder().withCreditor(userAddress).withDebtor(debtor).withPayerReceivesClaimOnPayment(
+                false
+            ).build()
         );
         vm.stopPrank();
 
@@ -247,15 +239,10 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
         assertEq(uint256(claim.status), uint256(Status.Repaying));
     }
 
-    
     function testOriginalCreditorAfterPayment() public {
         vm.startPrank(creditor);
         uint256 claimId = bullaClaim.createClaim(
-            new CreateClaimParamsBuilder()
-                .withCreditor(creditor)
-                .withDebtor(debtor)
-                .withToken(address(weth))
-                .build()
+            new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build()
         );
         vm.stopPrank();
 
@@ -264,7 +251,7 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
         weth.approve(address(bullaClaim), 1 ether);
         bullaClaim.payClaim(claimId, 1 ether);
         vm.stopPrank();
-        
+
         // Check ownership transferred but originalCreditor preserved
         assertEq(bullaClaim.ownerOf(claimId), debtor);
         Claim memory claim = bullaClaim.getClaim(claimId);

@@ -41,12 +41,8 @@ contract TestUpdateBinding is BullaClaimTestHelper {
 
     function _newClaim(ClaimBinding binding) internal returns (uint256 claimId, Claim memory claim) {
         claimId = bullaClaim.createClaim(
-            new CreateClaimParamsBuilder()
-                .withCreditor(creditor)
-                .withDebtor(debtor)
-                .withToken(address(weth))
-                .withBinding(binding)
-                .build()
+            new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth))
+                .withBinding(binding).build()
         );
         claim = bullaClaim.getClaim(claimId);
     }
@@ -386,12 +382,8 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         vm.startPrank(controllerAddress);
         uint256 claimId = bullaClaim.createClaimFrom(
             creditor,
-            new CreateClaimParamsBuilder()
-                .withCreditor(creditor)
-                .withDebtor(debtor)
-                .withToken(address(weth))
-                .withBinding(ClaimBinding.BindingPending)
-                .build()
+            new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth))
+                .withBinding(ClaimBinding.BindingPending).build()
         );
         vm.stopPrank();
 

@@ -333,12 +333,9 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
     function testPayClaimFromWithNativeToken() public {
         vm.deal(operator, 1 ether);
 
-        CreateClaimParams memory params = new CreateClaimParamsBuilder()
-            .withCreditor(user2)
-            .withDebtor(user)
-            .withPayerReceivesClaimOnPayment(true)
-            .build();
-            
+        CreateClaimParams memory params = new CreateClaimParamsBuilder().withCreditor(user2).withDebtor(user)
+            .withPayerReceivesClaimOnPayment(true).build();
+
         vm.prank(user2);
         uint256 claimId = bullaClaim.createClaim(params);
 

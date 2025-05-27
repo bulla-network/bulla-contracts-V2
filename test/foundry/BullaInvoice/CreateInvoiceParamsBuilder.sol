@@ -26,10 +26,7 @@ contract CreateInvoiceParamsBuilder {
         _token = address(0); // ETH by default
         _binding = ClaimBinding.BindingPending;
         _payerReceivesClaimOnPayment = true;
-        _lateFeeConfig = InterestConfig({
-            interestRateBps: 0,
-            numberOfPeriodsPerYear: 0
-        });
+        _lateFeeConfig = InterestConfig({interestRateBps: 0, numberOfPeriodsPerYear: 0});
         _impairmentGracePeriod = 7 days; // 7 days grace period by default
     }
 
@@ -97,4 +94,4 @@ contract CreateInvoiceParamsBuilder {
             impairmentGracePeriod: _impairmentGracePeriod
         });
     }
-} 
+}

@@ -97,13 +97,8 @@ contract TestInvariants is Test {
         uint256 claimId;
         uint256 fullPaymentAmount;
 
-        CreateClaimParams memory params = new CreateClaimParamsBuilder()
-            .withCreditor(creditor)
-            .withDebtor(debtor)
-            .withClaimAmount(_claimAmount)
-            .withDescription("")
-            .withToken(address(weth))
-            .build();
+        CreateClaimParams memory params = new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withClaimAmount(_claimAmount).withDescription("").withToken(address(weth)).build();
 
         vm.expectEmit(true, true, true, true);
         emit ClaimCreated(

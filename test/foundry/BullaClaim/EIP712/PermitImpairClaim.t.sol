@@ -306,4 +306,4 @@ contract TestPermitImpairClaim is Test {
         assertEq(approval.approvalCount, approvalCount, "approvalCount");
         assertEq(approval.nonce, 1, "nonce");
     }
-} 
+}

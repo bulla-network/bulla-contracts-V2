@@ -85,4 +85,4 @@ contract CreateClaimParamsBuilder {
             impairmentGracePeriod: _impairmentGracePeriod
         });
     }
-} 
+}

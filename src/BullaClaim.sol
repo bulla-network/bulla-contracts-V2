@@ -328,10 +328,10 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         _spendPayClaimApproval(from, msg.sender, claimId, amount);
 
         Claim memory claim = getClaim(claimId);
-        
+
         // Only the controller can call this function
         if (claim.controller != msg.sender) revert NotController(msg.sender);
-        
+
         _updateClaimPaymentState(from, claimId, amount);
     }
 
@@ -426,7 +426,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
 
         // Update payment state first to follow checks-effects-interactions pattern
         _updateClaimPaymentState(from, claimId, paymentAmount);
-        
+
         // Process token transfer after state is updated
         claim.token == address(0)
             ? creditor.safeTransferETH(paymentAmount)
@@ -446,7 +446,9 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         if (paymentAmount == 0) revert PayingZero();
 
         // make sure the claim can be paid (not completed, not rejected, not rescinded)
-        if (claim.status != Status.Pending && claim.status != Status.Repaying && claim.status != Status.Impaired) revert ClaimNotPending();
+        if (claim.status != Status.Pending && claim.status != Status.Repaying && claim.status != Status.Impaired) {
+            revert ClaimNotPending();
+        }
 
         uint256 totalPaidAmount = claim.paidAmount + paymentAmount;
         bool claimPaid = totalPaidAmount == claim.claimAmount;
@@ -516,7 +518,9 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         // check if the claim is controlled
         if (claim.controller != address(0) && msg.sender != claim.controller) revert NotController(msg.sender);
         // make sure the claim is in pending status
-        if (claim.status != Status.Pending && claim.status != Status.Repaying && claim.status != Status.Impaired) revert ClaimNotPending();
+        if (claim.status != Status.Pending && claim.status != Status.Repaying && claim.status != Status.Impaired) {
+            revert ClaimNotPending();
+        }
         // make sure the sender is authorized
         if (from != creditor && from != claim.debtor) revert NotCreditorOrDebtor();
         // make sure the binding is valid

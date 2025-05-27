@@ -67,7 +67,7 @@ contract BullaInvoice is BullaClaimControllerBase {
 
     event InvoiceCreated(uint256 claimId, uint256 dueBy);
     event InvoicePaid(uint256 claimId, uint256 interestPaid);
-    
+
     /**
      * @notice Constructor
      * @param bullaClaim Address of the IBullaClaim contract to delegate calls to
@@ -84,12 +84,12 @@ contract BullaInvoice is BullaClaimControllerBase {
         _checkController(claim.controller);
 
         InvoiceDetails memory invoiceDetails = _invoiceDetailsByClaimId[claimId];
-        
+
         if (claim.status == Status.Pending || claim.status == Status.Repaying || claim.status == Status.Impaired) {
             invoiceDetails.interestComputationState = CompoundInterestLib.computeInterest(
                 claim.claimAmount - claim.paidAmount,
                 claim.dueBy,
-                invoiceDetails.lateFeeConfig, 
+                invoiceDetails.lateFeeConfig,
                 invoiceDetails.interestComputationState
             );
         }
@@ -132,15 +132,9 @@ contract BullaInvoice is BullaClaimControllerBase {
         uint256 claimId = _bullaClaim.createClaimFrom(msg.sender, createClaimParams);
 
         _invoiceDetailsByClaimId[claimId] = InvoiceDetails({
-            purchaseOrder: PurchaseOrderState({
-                deliveryDate: params.deliveryDate, 
-                isDelivered: false
-            }),
+            purchaseOrder: PurchaseOrderState({deliveryDate: params.deliveryDate, isDelivered: false}),
             lateFeeConfig: params.lateFeeConfig,
-            interestComputationState: InterestComputationState({
-                accruedInterest: 0,
-                latestPeriodNumber: 0
-            })
+            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
         });
 
         emit InvoiceCreated(claimId, params.dueBy);
@@ -174,11 +168,11 @@ contract BullaInvoice is BullaClaimControllerBase {
 
         uint256 claimId = _bullaClaim.createClaimWithMetadataFrom(msg.sender, createClaimParams, metadata);
 
-        _invoiceDetailsByClaimId[claimId] =
-            InvoiceDetails({
-                purchaseOrder: PurchaseOrderState({deliveryDate: params.deliveryDate, isDelivered: false}), 
-                lateFeeConfig: params.lateFeeConfig,    
-                interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})});
+        _invoiceDetailsByClaimId[claimId] = InvoiceDetails({
+            purchaseOrder: PurchaseOrderState({deliveryDate: params.deliveryDate, isDelivered: false}),
+            lateFeeConfig: params.lateFeeConfig,
+            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
+        });
 
         emit InvoiceCreated(claimId, params.dueBy);
 
@@ -207,7 +201,6 @@ contract BullaInvoice is BullaClaimControllerBase {
             revert InvoiceNotPending();
         }
 
-
         _invoiceDetailsByClaimId[claimId].purchaseOrder.isDelivered = true;
     }
 
@@ -226,10 +219,12 @@ contract BullaInvoice is BullaClaimControllerBase {
             claim.claimAmount - claim.paidAmount,
             claim.dueBy,
             invoiceDetails.lateFeeConfig,
-            invoiceDetails.interestComputationState);
+            invoiceDetails.interestComputationState
+        );
 
         uint256 totalInterestBeingPaid = Math.min(paymentAmount, interestComputationState.accruedInterest);
-        uint256 principalBeingPaid = Math.min(paymentAmount - totalInterestBeingPaid, claim.claimAmount - claim.paidAmount);
+        uint256 principalBeingPaid =
+            Math.min(paymentAmount - totalInterestBeingPaid, claim.claimAmount - claim.paidAmount);
         paymentAmount = principalBeingPaid + totalInterestBeingPaid;
 
         if (paymentAmount == 0) {
@@ -253,8 +248,8 @@ contract BullaInvoice is BullaClaimControllerBase {
 
         if (paymentAmount > 0) {
             // TODO: if protocol fee, will need two transfers, like frendlend
-            claim.token == address(0) ? 
-                creditor.safeTransferETH(paymentAmount)
+            claim.token == address(0)
+                ? creditor.safeTransferETH(paymentAmount)
                 : ERC20(claim.token).safeTransferFrom(msg.sender, creditor, paymentAmount);
 
             // TODO: protocol fee much like in Frendlend
@@ -311,7 +306,10 @@ contract BullaInvoice is BullaClaimControllerBase {
             revert CreditorCannotBeDebtor();
         }
 
-        if (params.deliveryDate != 0 && (params.deliveryDate < block.timestamp || params.deliveryDate > type(uint40).max)) {
+        if (
+            params.deliveryDate != 0
+                && (params.deliveryDate < block.timestamp || params.deliveryDate > type(uint40).max)
+        ) {
             revert InvalidDeliveryDate();
         }
 

@@ -49,11 +49,12 @@ contract LoanOfferBuilder {
         return this;
     }
 
-    function withInterestRate(uint16 interestRateBps, uint16 numberOfPeriodsPerYear) public returns (LoanOfferBuilder) {
-        _interestConfig = InterestConfig({
-            interestRateBps: interestRateBps,
-            numberOfPeriodsPerYear: numberOfPeriodsPerYear
-        });
+    function withInterestRate(uint16 interestRateBps, uint16 numberOfPeriodsPerYear)
+        public
+        returns (LoanOfferBuilder)
+    {
+        _interestConfig =
+            InterestConfig({interestRateBps: interestRateBps, numberOfPeriodsPerYear: numberOfPeriodsPerYear});
         return this;
     }
 
@@ -99,4 +100,4 @@ contract LoanOfferBuilder {
             impairmentGracePeriod: _impairmentGracePeriod
         });
     }
-} 
+}

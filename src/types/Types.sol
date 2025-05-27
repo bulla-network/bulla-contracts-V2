@@ -10,6 +10,7 @@ enum Status {
     Rejected, // status reserved for the debtor to cancel a claim
     Rescinded, // status reserved for the creditor to cancel a claim
     Impaired // status reserved for the creditor to mark a claim as impaired
+
 }
 
 enum ClaimBinding {

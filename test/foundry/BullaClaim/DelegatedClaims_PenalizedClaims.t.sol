@@ -53,11 +53,9 @@ contract TestPenalizedClaim is Test {
 
         vm.startPrank(creditor);
         uint256 claimId = penalizedClaim.createClaim(
-            new CreateClaimParamsBuilder()
-                .withCreditor(creditor)
-                .withDebtor(debtor)
-                .withBinding(ClaimBinding.BindingPending)
-                .build()
+            new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withBinding(
+                ClaimBinding.BindingPending
+            ).build()
         );
         vm.stopPrank();
 
@@ -119,11 +117,9 @@ contract TestPenalizedClaim is Test {
 
         vm.startPrank(creditor);
         uint256 claimId = penalizedClaim.createClaim(
-            new CreateClaimParamsBuilder()
-                .withCreditor(creditor)
-                .withDebtor(debtor)
-                .withBinding(ClaimBinding.BindingPending)
-                .build()
+            new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withBinding(
+                ClaimBinding.BindingPending
+            ).build()
         );
         vm.stopPrank();
 

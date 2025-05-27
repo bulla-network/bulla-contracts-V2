@@ -48,6 +48,7 @@ describe("permitCreateClaim", async () => {
       token: ethers.constants.AddressZero, // native token
       controller: penalizedClaim.address,
       binding: ClaimBinding.Unbound,
+      impairmentGracePeriod: 0,
     };
 
     // approve penalized claim to create bound claims for alice

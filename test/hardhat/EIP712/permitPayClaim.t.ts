@@ -96,6 +96,7 @@ describe("permitPayClaim", async () => {
       token: weth.address,
       controller: ethers.constants.AddressZero,
       binding: ClaimBinding.Unbound,
+      impairmentGracePeriod: 0,
     };
 
     await (await bullaClaim.connect(alice).createClaim(claim)).wait();
