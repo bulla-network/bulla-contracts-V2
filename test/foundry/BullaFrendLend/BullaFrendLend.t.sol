@@ -13,6 +13,7 @@ import {Deployer} from "script/Deployment.s.sol";
 import {MockERC20} from "contracts/mocks/MockERC20.sol";
 import {LoanOfferBuilder} from "./LoanOfferBuilder.t.sol";
 import {InterestConfig} from "contracts/libraries/CompoundInterestLib.sol";
+import "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 
 contract TestBullaFrendLend is Test {
     WETH public weth;
@@ -24,9 +25,10 @@ contract TestBullaFrendLend is Test {
 
     uint256 creditorPK = uint256(0x01);
     uint256 debtorPK = uint256(0x02);
+    uint256 adminPK = uint256(0x03);
     address creditor = vm.addr(creditorPK);
     address debtor = vm.addr(debtorPK);
-    address admin = vm.addr(0x03);
+    address admin = vm.addr(adminPK);
     uint256 constant FEE = 0.01 ether;
     uint256 constant PROTOCOL_FEE_BPS = 1000; // 10% protocol fee
 
@@ -58,6 +60,20 @@ contract TestBullaFrendLend is Test {
         dai.mint(debtor, 10_000 ether);
     }
 
+    function _permitImpairClaim(uint256 pk,  address operator, uint64 approvalCount) internal {
+        bullaClaim.permitImpairClaim({
+            user: vm.addr(pk),
+            operator: operator,
+            approvalCount: approvalCount,
+            signature: sigHelper.signImpairClaimPermit({
+                pk: pk,
+                user: vm.addr(pk),
+                operator: operator,
+                approvalCount: approvalCount
+            })
+        });
+    }
+
     function testOfferLoan() public {
         // Approve WETH for transfer
         vm.prank(creditor);
@@ -74,7 +90,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
 
-        (uint256 termLength, InterestConfig memory interestConfig, uint128 loanAmount, address offerCreditor, address offerDebtor, string memory description, address token) = bullaFrendLend.loanOffers(loanId);
+        (uint256 termLength, InterestConfig memory interestConfig, uint128 loanAmount, address offerCreditor, address offerDebtor, string memory description, address token, uint256 impairmentGracePeriod) = bullaFrendLend.loanOffers(loanId);
         
         assertEq(interestConfig.interestRateBps, 500, "Interest BPS mismatch");
         assertEq(termLength, 30 days, "Term length mismatch");
@@ -83,6 +99,7 @@ contract TestBullaFrendLend is Test {
         assertEq(offerDebtor, debtor, "Debtor mismatch");
         assertEq(description, "Test Loan", "Description mismatch");
         assertEq(token, address(weth), "Token address mismatch");
+        assertEq(impairmentGracePeriod, 7 days, "Impairment grace period mismatch");
     }
 
     function testOfferLoanWithIncorrectFee() public {
@@ -159,7 +176,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
 
-        (,InterestConfig memory interestConfig,,,,,) = bullaFrendLend.loanOffers(loanId);
+        (,InterestConfig memory interestConfig,,,,,, ) = bullaFrendLend.loanOffers(loanId);
         assertEq(interestConfig.interestRateBps, 0, "Interest BPS should be zero");
     }
 
@@ -273,7 +290,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         bullaFrendLend.rejectLoanOffer(loanId);
 
-        (, , , address offerCreditor, ,, ) = bullaFrendLend.loanOffers(loanId);
+        (, , , address offerCreditor, ,, , ) = bullaFrendLend.loanOffers(loanId);
         assertEq(offerCreditor, address(0), "Offer should be deleted after rejection");
     }
 
@@ -1010,38 +1027,637 @@ contract TestBullaFrendLend is Test {
         vm.startPrank(admin);
         bullaFrendLend.setProtocolFee(10000); // 100%
         vm.stopPrank();
-        
-        offer = new LoanOfferBuilder()
+        // Verify protocol fee handling
+        uint256 protocolFee = interestAmount * bullaFrendLend.protocolFeeBPS() / 10000; // MAX_BPS = 10000
+        uint256 expectedCreditorAmount = remainingPrincipal + (interestAmount - protocolFee);
+
+        assertEq(finalCreditorBalance - initialCreditorBalance, expectedCreditorAmount, 
+            "Creditor should receive principal + net interest");
+        assertEq(finalContractBalance - initialContractBalance, protocolFee, 
+            "Contract should receive protocol fee");
+    }
+
+    /*///////////////////////////////////////////////////////////////
+                        IMPAIR LOAN TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function testImpairLoan_Success() public {
+        // Setup approvals
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 2 ether);
+
+        bullaClaim.permitCreateClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
+        });
+
+        bullaClaim.permitCancelClaim({
+            user: creditor,
+            operator: address(bullaFrendLend),
+            approvalCount: 1,
+            signature: sigHelper.signCancelClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaFrendLend),
+                approvalCount: 1
+            })
+        });
+
+        bullaClaim.permitImpairClaim({
+            user: creditor,
+            operator: address(bullaFrendLend),
+            approvalCount: 1,
+            signature: sigHelper.signImpairClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaFrendLend),
+                approvalCount: 1
+            })
+        });
+
+        LoanOffer memory offer = new LoanOfferBuilder()
             .withCreditor(creditor)
             .withDebtor(debtor)
-            .withDescription("100% Protocol Fee Test Loan")
+            .withToken(address(weth))
+            .withTermLength(30 days)
+            .build();
+
+        vm.prank(creditor);
+        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+
+        vm.prank(debtor);
+        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+
+        // Verify loan is active
+        Claim memory claimBefore = bullaClaim.getClaim(claimId);
+        assertEq(uint256(claimBefore.status), uint256(Status.Pending), "Loan should be pending");
+
+        // Move past the due date
+        vm.warp(block.timestamp + 38 days);
+
+        // Impair the loan
+        vm.prank(creditor);
+        bullaFrendLend.impairLoan(claimId);
+
+        // Verify loan is impaired
+        Claim memory claimAfter = bullaClaim.getClaim(claimId);
+        assertEq(uint256(claimAfter.status), uint256(Status.Impaired), "Loan should be impaired");
+    }
+
+    function testImpairLoan_WithPartialPayment() public {
+        // Setup approvals
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 2 ether);
+        
+        vm.prank(debtor);
+        weth.approve(address(bullaFrendLend), 2 ether);
+
+        bullaClaim.permitCreateClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
+        });
+
+        bullaClaim.permitPayClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        bullaClaim.permitCancelClaim({
+            user: creditor,
+            operator: address(bullaFrendLend),
+            approvalCount: 1,
+            signature: sigHelper.signCancelClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaFrendLend),
+                approvalCount: 1
+            })
+        });
+
+        bullaClaim.permitImpairClaim({
+            user: creditor,
+            operator: address(bullaFrendLend),
+            approvalCount: 1,
+            signature: sigHelper.signImpairClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaFrendLend),
+                approvalCount: 1
+            })
+        });
+
+        LoanOffer memory offer = new LoanOfferBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
             .withToken(address(weth))
             .withInterestRateBps(1000)
             .build();
-        
+
         vm.prank(creditor);
-        loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+
+        vm.prank(debtor);
+        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+
+        // Make partial payment
+        vm.warp(block.timestamp + 10 days);
         
         vm.prank(debtor);
-        claimId = bullaFrendLend.acceptLoan(loanId);
+        bullaFrendLend.payLoan(claimId, 0.5 ether);
+
+        Claim memory claimAfterPayment = bullaClaim.getClaim(claimId);
+        assertEq(uint256(claimAfterPayment.status), uint256(Status.Repaying), "Loan should be repaying");
+        assertEq(claimAfterPayment.paidAmount, 0.5 ether, "Partial payment should be recorded");
+
+        vm.warp(block.timestamp + 28 days);
+
+        // Impair the loan
+        vm.prank(creditor);
+        bullaFrendLend.impairLoan(claimId);
+
+        // Verify loan is impaired but payment amount is preserved
+        Claim memory claimAfterImpairment = bullaClaim.getClaim(claimId);
+        assertEq(uint256(claimAfterImpairment.status), uint256(Status.Impaired), "Loan should be impaired");
+        assertEq(claimAfterImpairment.paidAmount, 0.5 ether, "Payment amount should be preserved");
+    }
+
+    function testCannotImpairLoan_NotCreditor() public {
+        // Setup approvals
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 2 ether);
+
+        bullaClaim.permitCreateClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
+        });
+
+        LoanOffer memory offer = new LoanOfferBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withToken(address(weth))
+            .build();
+
+        vm.prank(creditor);
+        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+
+        vm.prank(debtor);
+        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+
+        _permitImpairClaim(debtorPK, address(bullaFrendLend), 1);
+        _permitImpairClaim(adminPK, address(bullaFrendLend), 1);
+
+
+        // Debtor cannot impair loan
+        vm.prank(debtor);
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotCreditor.selector));
+        bullaFrendLend.impairLoan(claimId);
+
+        // Random user cannot impair loan
+        vm.prank(admin);
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotCreditor.selector));
+        bullaFrendLend.impairLoan(claimId);
+    }
+
+    function testCannotImpairLoan_WrongController() public {
+        // Create a claim directly via BullaClaim (not through BullaFrendLend)
+        CreateClaimParams memory params = new CreateClaimParamsBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withClaimAmount(1 ether)
+            .withToken(address(weth))
+            .build();
+
+        vm.prank(creditor);
+        uint256 claimId = bullaClaim.createClaim(params);
+
+        _permitImpairClaim(creditorPK, address(bullaFrendLend), 1);
+
+        // Try to impair via BullaFrendLend - should fail since it's not the controller
+        vm.prank(creditor);
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, address(creditor)));
+        bullaFrendLend.impairLoan(claimId);
+    }
+
+    function testImpairLoan_InterestAccrual() public {
+        // Setup approvals
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 2 ether);
+
+        bullaClaim.permitCreateClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
+        });
+
+        bullaClaim.permitCancelClaim({
+            user: creditor,
+            operator: address(bullaFrendLend),
+            approvalCount: 1,
+            signature: sigHelper.signCancelClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaFrendLend),
+                approvalCount: 1
+            })
+        });
+
+        bullaClaim.permitImpairClaim({
+            user: creditor,
+            operator: address(bullaFrendLend),
+            approvalCount: 1,
+            signature: sigHelper.signImpairClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaFrendLend),
+                approvalCount: 1
+            })
+        });
+
+        LoanOffer memory offer = new LoanOfferBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withToken(address(weth))
+            .withInterestRateBps(1000) // 10% annual interest
+            .withNumberOfPeriodsPerYear(365)
+            .build();
+
+        vm.prank(creditor);
+        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+
+        vm.prank(debtor);
+        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+
+        // Wait some time for interest to accrue
+        vm.warp(block.timestamp + 38 days);
+
+        (uint256 principalBefore, uint256 interestBefore) = bullaFrendLend.getTotalAmountDue(claimId);
+
+        // Impair the loan
+        vm.prank(creditor);
+        bullaFrendLend.impairLoan(claimId);
+
+        // Interest should continue to accrue on impaired loans
+        vm.warp(block.timestamp + 30 days);
+
+        (uint256 principalAfter, uint256 interestAfter) = bullaFrendLend.getTotalAmountDue(claimId);
+
+        assertEq(principalBefore, principalAfter, "Principal should remain the same");
+        assertGt(interestAfter, interestBefore, "Interest should continue to accrue on impaired loans");
+    }
+
+    function testPayImpairedLoan_Success() public {
+        // Setup approvals
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 2 ether);
         
+        vm.prank(debtor);
+        weth.approve(address(bullaFrendLend), 2 ether);
+
+        bullaClaim.permitCreateClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
+        });
+
+        bullaClaim.permitPayClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        bullaClaim.permitCancelClaim({
+            user: creditor,
+            operator: address(bullaFrendLend),
+            approvalCount: 1,
+            signature: sigHelper.signCancelClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaFrendLend),
+                approvalCount: 1
+            })
+        });
+
+        bullaClaim.permitImpairClaim({
+            user: creditor,
+            operator: address(bullaFrendLend),
+            approvalCount: 1,
+            signature: sigHelper.signImpairClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaFrendLend),
+                approvalCount: 1
+            })
+        });
+
+        LoanOffer memory offer = new LoanOfferBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withToken(address(weth))
+            .withInterestRateBps(1000)
+            .build();
+
+        vm.prank(creditor);
+        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+
+        vm.prank(debtor);
+        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+
+        vm.warp(block.timestamp + 38 days);
+
+        // Impair the loan
+        vm.prank(creditor);
+        bullaFrendLend.impairLoan(claimId);
+
+        // Wait for interest to accrue
         vm.warp(block.timestamp + 15 days);
-        
-        (remainingPrincipal, interestAmount) = bullaFrendLend.getTotalAmountDue(claimId);
-        totalAmountDue = remainingPrincipal + interestAmount;
-        
-        initialCreditorBalance = weth.balanceOf(creditor);
-        initialContractBalance = weth.balanceOf(address(bullaFrendLend));
-        
+
+        // Should still be able to pay impaired loan
+        (uint256 principal, uint256 interest) = bullaFrendLend.getTotalAmountDue(claimId);
+        uint256 totalAmount = principal + interest;
+
+        uint256 creditorBalanceBefore = weth.balanceOf(creditor);
+        uint256 contractBalanceBefore = weth.balanceOf(address(bullaFrendLend));
+
         vm.prank(debtor);
-        bullaFrendLend.payLoan(claimId, totalAmountDue);
-        
-        finalCreditorBalance = weth.balanceOf(creditor);
-        finalContractBalance = weth.balanceOf(address(bullaFrendLend));
-    
-        assertEq(finalCreditorBalance - initialCreditorBalance, remainingPrincipal, 
-            "Creditor should receive only principal with 100% protocol fee");
-        assertEq(finalContractBalance - initialContractBalance, interestAmount, 
-            "Contract should receive full interest with 100% protocol fee");
+        bullaFrendLend.payLoan(claimId, totalAmount);
+
+        // Verify payment was processed correctly
+        Claim memory claimAfter = bullaClaim.getClaim(claimId);
+        assertEq(uint256(claimAfter.status), uint256(Status.Paid), "Loan should be paid");
+
+        // Verify protocol fee handling
+        uint256 protocolFee = interest * bullaFrendLend.protocolFeeBPS() / 10000; // MAX_BPS = 10000
+        uint256 expectedCreditorAmount = principal + (interest - protocolFee);
+
+        assertEq(weth.balanceOf(creditor) - creditorBalanceBefore, expectedCreditorAmount, 
+            "Creditor should receive principal + net interest");
+        assertEq(weth.balanceOf(address(bullaFrendLend)) - contractBalanceBefore, protocolFee, 
+            "Contract should receive protocol fee");
+    }
+
+    function testImpairLoan_StatusTransitions() public {
+        // Setup approvals
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 2 ether);
+
+        bullaClaim.permitCreateClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 2, // Multiple claims
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 2,
+                isBindingAllowed: true
+            })
+        });
+
+        bullaClaim.permitCancelClaim({
+            user: creditor,
+            operator: address(bullaFrendLend),
+            approvalCount: 2,
+            signature: sigHelper.signCancelClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaFrendLend),
+                approvalCount: 2
+            })
+        });
+
+        bullaClaim.permitImpairClaim({
+            user: creditor,
+            operator: address(bullaFrendLend),
+            approvalCount: 2,
+            signature: sigHelper.signImpairClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaFrendLend),
+                approvalCount: 2
+            })
+        });
+
+        // Create first loan
+        LoanOffer memory offer1 = new LoanOfferBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withToken(address(weth))
+            .withDescription("First Loan")
+            .build();
+
+        vm.prank(creditor);
+        uint256 loanId1 = bullaFrendLend.offerLoan{value: FEE}(offer1);
+
+        vm.prank(debtor);
+        uint256 claimId1 = bullaFrendLend.acceptLoan(loanId1);
+
+        // Create second loan
+        LoanOffer memory offer2 = new LoanOfferBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withToken(address(weth))
+            .withDescription("Second Loan")
+            .build();
+
+        vm.prank(creditor);
+        uint256 loanId2 = bullaFrendLend.offerLoan{value: FEE}(offer2);
+
+        vm.prank(debtor);
+        uint256 claimId2 = bullaFrendLend.acceptLoan(loanId2);
+
+        // Verify both loans are pending
+        Claim memory claim1 = bullaClaim.getClaim(claimId1);
+        Claim memory claim2 = bullaClaim.getClaim(claimId2);
+        assertTrue(uint256(claim1.status) == uint256(Status.Pending), "First loan should be pending");
+        assertTrue(uint256(claim2.status) == uint256(Status.Pending), "Second loan should be pending");
+
+        vm.warp(block.timestamp + 38 days);
+
+        // Impair first loan
+        vm.prank(creditor);
+        bullaFrendLend.impairLoan(claimId1);
+
+        // Verify first loan is impaired, second remains pending
+        claim1 = bullaClaim.getClaim(claimId1);
+        claim2 = bullaClaim.getClaim(claimId2);
+        assertEq(uint256(claim1.status), uint256(Status.Impaired), "First loan should be impaired");
+        assertEq(uint256(claim2.status), uint256(Status.Pending), "Second loan should remain pending");
+
+        // Try to impair already impaired loan (should fail)
+        vm.prank(creditor);
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.ClaimNotPending.selector));
+        bullaFrendLend.impairLoan(claimId1);
+    }
+
+    function testImpairLoan_MultipleTokens() public {
+        // Setup approvals for multiple tokens
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 2 ether);
+        vm.prank(creditor);
+        usdc.approve(address(bullaFrendLend), 1000 * 10**6);
+
+        bullaClaim.permitCreateClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 2,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 2,
+                isBindingAllowed: true
+            })
+        });
+
+        bullaClaim.permitCancelClaim({
+            user: creditor,
+            operator: address(bullaFrendLend),
+            approvalCount: 2,
+            signature: sigHelper.signCancelClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaFrendLend),
+                approvalCount: 2
+            })
+        });
+
+        bullaClaim.permitImpairClaim({
+            user: creditor,
+            operator: address(bullaFrendLend),
+            approvalCount: 2,
+            signature: sigHelper.signImpairClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaFrendLend),
+                approvalCount: 2
+            })
+        });
+
+        // Create WETH loan
+        LoanOffer memory wethOffer = new LoanOfferBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withToken(address(weth))
+            .withDescription("WETH Loan")
+            .build();
+
+        vm.prank(creditor);
+        uint256 wethLoanId = bullaFrendLend.offerLoan{value: FEE}(wethOffer);
+
+        vm.prank(debtor);
+        uint256 wethClaimId = bullaFrendLend.acceptLoan(wethLoanId);
+
+        // Create USDC loan
+        LoanOffer memory usdcOffer = new LoanOfferBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withToken(address(usdc))
+            .withLoanAmount(1000 * 10**6)
+            .withDescription("USDC Loan")
+            .build();
+
+        vm.prank(creditor);
+        uint256 usdcLoanId = bullaFrendLend.offerLoan{value: FEE}(usdcOffer);
+
+        vm.prank(debtor);
+        uint256 usdcClaimId = bullaFrendLend.acceptLoan(usdcLoanId);
+
+        vm.warp(block.timestamp + 38 days);
+
+        // Impair both loans
+        vm.prank(creditor);
+        bullaFrendLend.impairLoan(wethClaimId);
+
+        vm.prank(creditor);
+        bullaFrendLend.impairLoan(usdcClaimId);
+
+        // Verify both loans are impaired
+        Claim memory wethClaim = bullaClaim.getClaim(wethClaimId);
+        Claim memory usdcClaim = bullaClaim.getClaim(usdcClaimId);
+
+        assertEq(uint256(wethClaim.status), uint256(Status.Impaired), "WETH loan should be impaired");
+        assertEq(uint256(usdcClaim.status), uint256(Status.Impaired), "USDC loan should be impaired");
+        assertEq(wethClaim.token, address(weth), "WETH loan token should be correct");
+        assertEq(usdcClaim.token, address(usdc), "USDC loan token should be correct");
     }
 } 

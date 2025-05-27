@@ -52,6 +52,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     error PastApprovalDeadline();
     error NotOwner();
     error NotCreditorOrDebtor();
+    error NotCreditor();
     error NotController(address sender);
     error ClaimBound();
     error ClaimNotPending();
@@ -62,6 +63,8 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     error ZeroAmount();
     error PaymentUnderApproved();
     error OverPaying(uint256 paymentAmount);
+    error StillInGracePeriod();
+    error NoDueBy();
 
     function _notLocked() internal view {
         if (lockState == LockState.Locked) revert Locked();
@@ -93,6 +96,8 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
 
     event ClaimRescinded(uint256 indexed claimId, address indexed from, string note);
 
+    event ClaimImpaired(uint256 indexed claimId);
+
     event CreateClaimApproved(
         address indexed user,
         address indexed operator,
@@ -112,6 +117,8 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     event UpdateBindingApproved(address indexed user, address indexed operator, uint256 approvalCount);
 
     event CancelClaimApproved(address indexed user, address indexed operator, uint256 approvalCount);
+
+    event ImpairClaimApproved(address indexed user, address indexed operator, uint256 approvalCount);
 
     constructor(address _extensionRegistry, LockState _lockState)
         ERC721("BullaClaim", "CLAIM")
@@ -242,6 +249,10 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         if (params.dueBy != 0 && (params.dueBy < block.timestamp || params.dueBy > type(uint40).max)) {
             revert InvalidDueBy();
         }
+        // validate impairment grace period
+        if (params.impairmentGracePeriod > type(uint40).max) {
+            revert InvalidDueBy(); // reuse this error for consistency since it's about time validation
+        }
 
         // you need the permission of the debtor to bind a claim
         if (params.binding == ClaimBinding.Bound && from != params.debtor) revert CannotBindClaim();
@@ -266,6 +277,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
             if (params.binding != ClaimBinding.Unbound) claim.binding = params.binding;
             if (params.payerReceivesClaimOnPayment) claim.payerReceivesClaimOnPayment = true;
             if (params.dueBy != 0) claim.dueBy = uint40(params.dueBy);
+            if (params.impairmentGracePeriod != 0) claim.impairmentGracePeriod = uint40(params.impairmentGracePeriod);
         }
 
         emit ClaimCreated(
@@ -434,7 +446,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         if (paymentAmount == 0) revert PayingZero();
 
         // make sure the claim can be paid (not completed, not rejected, not rescinded)
-        if (claim.status != Status.Pending && claim.status != Status.Repaying) revert ClaimNotPending();
+        if (claim.status != Status.Pending && claim.status != Status.Repaying && claim.status != Status.Impaired) revert ClaimNotPending();
 
         uint256 totalPaidAmount = claim.paidAmount + paymentAmount;
         bool claimPaid = totalPaidAmount == claim.claimAmount;
@@ -504,7 +516,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         // check if the claim is controlled
         if (claim.controller != address(0) && msg.sender != claim.controller) revert NotController(msg.sender);
         // make sure the claim is in pending status
-        if (claim.status != Status.Pending && claim.status != Status.Repaying) revert ClaimNotPending();
+        if (claim.status != Status.Pending && claim.status != Status.Repaying && claim.status != Status.Impaired) revert ClaimNotPending();
         // make sure the sender is authorized
         if (from != creditor && from != claim.debtor) revert NotCreditorOrDebtor();
         // make sure the binding is valid
@@ -553,6 +565,21 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         return;
     }
 
+    /// @notice "spends" an operator's impairClaim approval
+    /// @notice SPEC:
+    /// A function can call this function to verify and "spend" `from`'s approval of `operator` to impair a claim given:
+    ///     S1. `operator` has > 0 approvalCount from `from` address -> otherwise: reverts
+    ///
+    /// RES1: If the above is true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return
+    function _spendImpairClaimApproval(address user, address operator) internal {
+        ImpairClaimApproval storage approval = approvals[user][operator].impairClaim;
+
+        if (approval.approvalCount == 0) revert NotApproved();
+        if (approval.approvalCount != type(uint64).max) approval.approvalCount--;
+
+        return;
+    }
+
     /// @notice allows a creditor to rescind a claim or a debtor to reject a claim
     /// @notice SPEC:
     ///     this function will rescind or reject a claim given:
@@ -579,6 +606,56 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         } else {
             revert NotCreditorOrDebtor();
         }
+    }
+
+    /**
+     * /// IMPAIR CLAIM ///
+     */
+
+    /// @notice allows a creditor to impair a claim
+    /// @notice SPEC:
+    ///     1. call impairClaim on behalf of the msg.sender
+    function impairClaim(uint256 claimId) external {
+        _impairClaim(msg.sender, claimId);
+    }
+
+    /// @notice allows an operator to impair a claim on behalf of a creditor
+    /// @notice SPEC:
+    ///     1. verify and spend msg.sender's approval to impair claim
+    ///     2. impair the claim on `from`'s behalf
+    function impairClaimFrom(address from, uint256 claimId) external {
+        _spendImpairClaimApproval(from, msg.sender);
+
+        _impairClaim(from, claimId);
+    }
+
+    /// @notice allows a creditor to impair a claim
+    /// @notice SPEC:
+    ///     this function will impair a claim given:
+    ///     1. The contract is not locked
+    ///     2. The claim exists and is not burned
+    ///     3. The caller is the creditor (owner of the claim NFT)
+    ///     4. The claim is in pending or repaying status
+    ///     5. If claim has a dueBy date, the grace period must have passed
+    ///     6. If claim has no dueBy date (dueBy = 0), it cannot be impaired
+    function _impairClaim(address from, uint256 claimId) internal {
+        _notLocked();
+        // load the claim from storage
+        Claim memory claim = getClaim(claimId);
+        address creditor = _ownerOf[claimId];
+
+        if (claim.controller != address(0) && msg.sender != claim.controller) revert NotController(msg.sender);
+        // make sure the claim can be impaired (pending or repaying)
+        if (claim.status != Status.Pending && claim.status != Status.Repaying) revert ClaimNotPending();
+        // only the creditor can impair a claim
+        if (from != creditor) revert NotCreditor();
+
+        // Grace period validation
+        if (claim.dueBy == 0) revert NoDueBy();
+        if (block.timestamp < claim.dueBy + claim.impairmentGracePeriod) revert StillInGracePeriod();
+
+        claims[claimId].status = Status.Impaired;
+        emit ClaimImpaired(claimId);
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -649,6 +726,14 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         );
     }
 
+    /// @notice permits an operator to impair claims on user's behalf
+    /// @dev see BullaClaimPermitLib.sol for spec
+    function permitImpairClaim(address user, address operator, uint64 approvalCount, bytes calldata signature) public {
+        BullaClaimPermitLib.permitImpairClaim(
+            approvals[user][operator], extensionRegistry, _domainSeparatorV4(), user, operator, approvalCount, signature
+        );
+    }
+
     /*///////////////////////////////////////////////////////////////
                         VIEW / UTILITY FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -667,7 +752,8 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
             token: claimStorage.token,
             controller: claimStorage.controller,
             originalCreditor: claimStorage.originalCreditor,
-            dueBy: claimStorage.dueBy
+            dueBy: claimStorage.dueBy,
+            impairmentGracePeriod: claimStorage.impairmentGracePeriod
         });
     }
 

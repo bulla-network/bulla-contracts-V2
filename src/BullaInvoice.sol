@@ -52,6 +52,7 @@ struct CreateInvoiceParams {
     ClaimBinding binding;
     bool payerReceivesClaimOnPayment;
     InterestConfig lateFeeConfig;
+    uint256 impairmentGracePeriod;
 }
 
 /**
@@ -84,7 +85,7 @@ contract BullaInvoice is BullaClaimControllerBase {
 
         InvoiceDetails memory invoiceDetails = _invoiceDetailsByClaimId[claimId];
         
-        if (claim.status == Status.Pending || claim.status == Status.Repaying) {
+        if (claim.status == Status.Pending || claim.status == Status.Repaying || claim.status == Status.Impaired) {
             invoiceDetails.interestComputationState = CompoundInterestLib.computeInterest(
                 claim.claimAmount - claim.paidAmount,
                 claim.dueBy,
@@ -124,7 +125,8 @@ contract BullaInvoice is BullaClaimControllerBase {
             token: params.token,
             binding: params.binding,
             payerReceivesClaimOnPayment: params.payerReceivesClaimOnPayment,
-            dueBy: params.dueBy
+            dueBy: params.dueBy,
+            impairmentGracePeriod: params.impairmentGracePeriod
         });
 
         uint256 claimId = _bullaClaim.createClaimFrom(msg.sender, createClaimParams);
@@ -166,7 +168,8 @@ contract BullaInvoice is BullaClaimControllerBase {
             token: params.token,
             binding: params.binding,
             payerReceivesClaimOnPayment: params.payerReceivesClaimOnPayment,
-            dueBy: params.dueBy
+            dueBy: params.dueBy,
+            impairmentGracePeriod: params.impairmentGracePeriod
         });
 
         uint256 claimId = _bullaClaim.createClaimWithMetadataFrom(msg.sender, createClaimParams, metadata);
@@ -284,6 +287,17 @@ contract BullaInvoice is BullaClaimControllerBase {
         _checkController(claim.controller);
 
         return _bullaClaim.cancelClaimFrom(msg.sender, claimId, note);
+    }
+
+    /**
+     * @notice Impairs an invoice
+     * @param claimId The ID of the invoice to impair
+     */
+    function impairInvoice(uint256 claimId) external {
+        Claim memory claim = _bullaClaim.getClaim(claimId);
+        _checkController(claim.controller);
+
+        return _bullaClaim.impairClaimFrom(msg.sender, claimId);
     }
 
     /// PRIVATE FUNCTIONS ///

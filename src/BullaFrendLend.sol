@@ -21,6 +21,7 @@ error TransferFailed();
 error LoanOfferNotFound();
 error NativeTokenNotSupported();
 error InvalidProtocolFee();
+error InvalidGracePeriod();
 
 struct LoanDetails {
     uint256 acceptedAt;
@@ -35,7 +36,8 @@ struct LoanOffer {
     address creditor;      
     address debtor;        
     string description;    
-    address token;         
+    address token;
+    uint256 impairmentGracePeriod;
 }
 
 struct Loan {
@@ -117,7 +119,7 @@ contract BullaFrendLend is BullaClaimControllerBase {
         
         LoanDetails memory loanDetails = _loanDetailsByClaimId[claimId];
 
-        if (claim.status == Status.Pending || claim.status == Status.Repaying) {
+        if (claim.status == Status.Pending || claim.status == Status.Repaying || claim.status == Status.Impaired) {
             loanDetails.interestComputationState = CompoundInterestLib.computeInterest(
                 claim.claimAmount - claim.paidAmount,
                 loanDetails.acceptedAt,
@@ -217,7 +219,8 @@ contract BullaFrendLend is BullaClaimControllerBase {
             token: offer.token,
             binding: ClaimBinding.Bound, // Loans are bound claims, avoiding the 1 wei transfer used in V1
             payerReceivesClaimOnPayment: true,
-            dueBy: block.timestamp + offer.termLength
+            dueBy: block.timestamp + offer.termLength,
+            impairmentGracePeriod: offer.impairmentGracePeriod
         });
 
         // Create the claim via BullaClaim
@@ -311,6 +314,17 @@ contract BullaFrendLend is BullaClaimControllerBase {
     }
 
     /**
+     * @notice Allows a creditor to impair a loan
+     * @param claimId The ID of the loan to impair
+     */
+    function impairLoan(uint256 claimId) external {
+        Claim memory claim = _bullaClaim.getClaim(claimId);
+        _checkController(claim.controller);
+
+        return _bullaClaim.impairClaimFrom(msg.sender, claimId);
+    }
+
+    /**
      * @notice Allows admin to withdraw accumulated protocol fees and loanOffer fees
      */
     function withdrawAllFees() external {
@@ -354,6 +368,7 @@ contract BullaFrendLend is BullaClaimControllerBase {
         if (msg.sender != offer.creditor) revert NotCreditor();
         if (offer.termLength == 0) revert InvalidTermLength();
         if (offer.token == address(0)) revert NativeTokenNotSupported();
+        if (offer.impairmentGracePeriod > type(uint40).max) revert InvalidGracePeriod();
 
         CompoundInterestLib.validateInterestConfig(offer.interestConfig);
     }

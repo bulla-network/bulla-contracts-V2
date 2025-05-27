@@ -86,7 +86,7 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
             signature: signature
         });
 
-        (, PayClaimApproval memory approval,,) = bullaClaim.approvals(alice, bob);
+        (, PayClaimApproval memory approval,,,) = bullaClaim.approvals(alice, bob);
         assertTrue(approval.approvalType == approvalType, "approvalType");
         assertEq(approval.approvalDeadline, 0, "deadline");
         assertEq(approval.nonce, 2, "nonce");
@@ -112,7 +112,7 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
             signature: bytes("")
         });
 
-        (, PayClaimApproval memory approval,,) = bullaClaim.approvals(alice, bob);
+        (, PayClaimApproval memory approval,,,) = bullaClaim.approvals(alice, bob);
         assertTrue(approval.approvalType == approvalType, "approvalType");
         assertEq(approval.approvalDeadline, 0, "deadline");
         assertEq(approval.nonce, 2, "nonce");
@@ -123,7 +123,7 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
     function testRevokeDeleteSpecificApprovals() public {
         _setUp(PayClaimApprovalType.IsApprovedForSpecific);
 
-        (, PayClaimApproval memory approval,,) = bullaClaim.approvals(alice, bob);
+        (, PayClaimApproval memory approval,,,) = bullaClaim.approvals(alice, bob);
         assertEq(approval.claimApprovals.length, 4, "claim approvals");
 
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](0);
@@ -144,7 +144,7 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
             })
         });
 
-        (, approval,,) = bullaClaim.approvals(alice, bob);
+        (, approval,,,) = bullaClaim.approvals(alice, bob);
         assertEq(approval.claimApprovals.length, 0, "claim approvals");
     }
 

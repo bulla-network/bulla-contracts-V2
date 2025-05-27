@@ -12,6 +12,7 @@ contract CreateClaimParamsBuilder {
     ClaimBinding private _binding;
     bool private _payerReceivesClaimOnPayment;
     uint256 private _dueBy;
+    uint256 private _impairmentGracePeriod;
 
     constructor() {
         // Default values
@@ -23,6 +24,7 @@ contract CreateClaimParamsBuilder {
         _binding = ClaimBinding.Unbound;
         _payerReceivesClaimOnPayment = true;
         _dueBy = 0; // No due date by default
+        _impairmentGracePeriod = 7 days; // 7 days grace period by default
     }
 
     function withCreditor(address creditor) public returns (CreateClaimParamsBuilder) {
@@ -65,6 +67,11 @@ contract CreateClaimParamsBuilder {
         return this;
     }
 
+    function withImpairmentGracePeriod(uint256 impairmentGracePeriod) public returns (CreateClaimParamsBuilder) {
+        _impairmentGracePeriod = impairmentGracePeriod;
+        return this;
+    }
+
     function build() public view returns (CreateClaimParams memory) {
         return CreateClaimParams({
             creditor: _creditor,
@@ -74,7 +81,8 @@ contract CreateClaimParamsBuilder {
             token: _token,
             binding: _binding,
             payerReceivesClaimOnPayment: _payerReceivesClaimOnPayment,
-            dueBy: _dueBy
+            dueBy: _dueBy,
+            impairmentGracePeriod: _impairmentGracePeriod
         });
     }
 } 

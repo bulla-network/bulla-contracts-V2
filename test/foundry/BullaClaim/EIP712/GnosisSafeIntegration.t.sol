@@ -113,7 +113,7 @@ contract TestGnosisSafeSignatures is Test {
             signature: bytes("")
         });
 
-        (CreateClaimApproval memory approval,,,) = bullaClaim.approvals(safeAddress, operator);
+        (CreateClaimApproval memory approval,,,,) = bullaClaim.approvals(safeAddress, operator);
 
         assertEq(approval.approvalCount, approvalCount);
     }
@@ -159,7 +159,7 @@ contract TestGnosisSafeSignatures is Test {
             signature: signature
         });
 
-        (CreateClaimApproval memory approval,,,) = bullaClaim.approvals(safeAddress, operator);
+        (CreateClaimApproval memory approval,,,,) = bullaClaim.approvals(safeAddress, operator);
         assertEq(approval.approvalCount, approvalCount);
     }
 }

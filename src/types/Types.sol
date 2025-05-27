@@ -8,8 +8,8 @@ enum Status {
     Repaying, // status for a claim where 0 < paid amount < claim amount
     Paid, // status for a claim that is fully paid
     Rejected, // status reserved for the debtor to cancel a claim
-    Rescinded // status reserved for the creditor to cancel a claim
-
+    Rescinded, // status reserved for the creditor to cancel a claim
+    Impaired // status reserved for the creditor to mark a claim as impaired
 }
 
 enum ClaimBinding {
@@ -50,6 +50,7 @@ struct CreateClaimParams {
     ClaimBinding binding;
     bool payerReceivesClaimOnPayment;
     uint256 dueBy;
+    uint256 impairmentGracePeriod; // seconds after dueBy that claim cannot be impaired
 }
 
 struct ClaimMetadata {
@@ -68,6 +69,7 @@ struct ClaimStorage {
     ClaimBinding binding; // the debtor can allow themselves to be bound to a claim, which makes a claim unrejectable
     bool payerReceivesClaimOnPayment; // an optional flag which allows the token to be transferred to the payer, acting as a "receipt NFT"
     uint40 dueBy; // when the claim is due (0 means no due date)
+    uint40 impairmentGracePeriod; // seconds after dueBy that claim cannot be impaired
 } // takes 5 storage slots
 
 // a cheaper struct for working / manipulating memory (unpacked is cheapter)
@@ -82,6 +84,7 @@ struct Claim {
     address token;
     address controller;
     uint256 dueBy;
+    uint256 impairmentGracePeriod;
 }
 
 ////// APPROVALS //////
@@ -123,9 +126,15 @@ struct CancelClaimApproval {
     uint64 nonce;
 }
 
+struct ImpairClaimApproval {
+    uint64 approvalCount;
+    uint64 nonce;
+}
+
 struct Approvals {
     CreateClaimApproval createClaim;
     PayClaimApproval payClaim;
     UpdateBindingApproval updateBinding;
     CancelClaimApproval cancelClaim;
+    ImpairClaimApproval impairClaim;
 }

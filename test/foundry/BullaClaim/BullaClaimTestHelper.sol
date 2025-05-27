@@ -26,7 +26,8 @@ contract BullaClaimTestHelper is Test {
                 binding: ClaimBinding.Unbound,
                 claimAmount: 1 ether,
                 payerReceivesClaimOnPayment: true,
-                dueBy: 0
+                dueBy: 0,
+                impairmentGracePeriod: 0
             })
         );
         vm.stopPrank();
@@ -43,7 +44,8 @@ contract BullaClaimTestHelper is Test {
                 binding: ClaimBinding.Unbound,
                 claimAmount: 1 ether,
                 payerReceivesClaimOnPayment: true,
-                dueBy: 0
+                dueBy: 0,
+                impairmentGracePeriod: 0
             })
         );
     }
@@ -62,7 +64,8 @@ contract BullaClaimTestHelper is Test {
                 binding: ClaimBinding.Unbound,
                 claimAmount: 1 ether,
                 payerReceivesClaimOnPayment: true,
-                dueBy: 0
+                dueBy: 0,
+                impairmentGracePeriod: 0
             }),
             ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
         );
@@ -132,5 +135,10 @@ contract BullaClaimTestHelper is Test {
     function _permitCancelClaim(uint256 _userPK, address _operator, uint64 _approvalCount) internal {
         bytes memory sig = sigHelper.signCancelClaimPermit(_userPK, vm.addr(_userPK), _operator, _approvalCount);
         bullaClaim.permitCancelClaim(vm.addr(_userPK), _operator, _approvalCount, sig);
+    }
+
+    function _permitImpairClaim(uint256 _userPK, address _operator, uint64 _approvalCount) internal {
+        bytes memory sig = sigHelper.signImpairClaimPermit(_userPK, vm.addr(_userPK), _operator, _approvalCount);
+        bullaClaim.permitImpairClaim(vm.addr(_userPK), _operator, _approvalCount, sig);
     }
 }
