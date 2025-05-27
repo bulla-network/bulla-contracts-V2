@@ -11,6 +11,7 @@ contract CreateClaimParamsBuilder {
     address private _token;
     ClaimBinding private _binding;
     bool private _payerReceivesClaimOnPayment;
+    uint256 private _dueBy;
 
     constructor() {
         // Default values
@@ -21,6 +22,7 @@ contract CreateClaimParamsBuilder {
         _token = address(0); // ETH by default
         _binding = ClaimBinding.Unbound;
         _payerReceivesClaimOnPayment = true;
+        _dueBy = 0; // No due date by default
     }
 
     function withCreditor(address creditor) public returns (CreateClaimParamsBuilder) {
@@ -58,6 +60,11 @@ contract CreateClaimParamsBuilder {
         return this;
     }
 
+    function withDueBy(uint256 dueBy) public returns (CreateClaimParamsBuilder) {
+        _dueBy = dueBy;
+        return this;
+    }
+
     function build() public view returns (CreateClaimParams memory) {
         return CreateClaimParams({
             creditor: _creditor,
@@ -66,7 +73,8 @@ contract CreateClaimParamsBuilder {
             description: _description,
             token: _token,
             binding: _binding,
-            payerReceivesClaimOnPayment: _payerReceivesClaimOnPayment
+            payerReceivesClaimOnPayment: _payerReceivesClaimOnPayment,
+            dueBy: _dueBy
         });
     }
 } 

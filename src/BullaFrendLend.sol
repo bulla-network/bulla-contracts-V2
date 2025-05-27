@@ -23,7 +23,6 @@ error NativeTokenNotSupported();
 error InvalidProtocolFee();
 
 struct LoanDetails {
-    uint256 dueBy;
     uint256 acceptedAt;
     InterestConfig interestConfig;
     InterestComputationState interestComputationState;
@@ -136,7 +135,7 @@ contract BullaFrendLend is BullaClaimControllerBase {
             debtor: claim.debtor,
             token: claim.token,
             controller: claim.controller,
-            dueBy: loanDetails.dueBy,
+            dueBy: claim.dueBy,
             acceptedAt: loanDetails.acceptedAt,
             interestConfig: loanDetails.interestConfig,
             interestComputationState: loanDetails.interestComputationState
@@ -217,7 +216,8 @@ contract BullaFrendLend is BullaClaimControllerBase {
             description: offer.description,
             token: offer.token,
             binding: ClaimBinding.Bound, // Loans are bound claims, avoiding the 1 wei transfer used in V1
-            payerReceivesClaimOnPayment: true
+            payerReceivesClaimOnPayment: true,
+            dueBy: block.timestamp + offer.termLength
         });
 
         // Create the claim via BullaClaim
@@ -229,13 +229,12 @@ contract BullaFrendLend is BullaClaimControllerBase {
         }
 
         _loanDetailsByClaimId[claimId] = LoanDetails({
-            dueBy: block.timestamp + offer.termLength,
+            acceptedAt: block.timestamp,
             interestConfig: offer.interestConfig,
             interestComputationState: InterestComputationState({
                 accruedInterest: 0,
                 latestPeriodNumber: 0
-            }),
-            acceptedAt: block.timestamp
+            })
         });
 
         // Transfer token from creditor to debtor via the contract
