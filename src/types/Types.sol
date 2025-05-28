@@ -132,10 +132,16 @@ struct ImpairClaimApproval {
     uint64 nonce;
 }
 
+struct MarkAsPaidApproval {
+    uint64 approvalCount;
+    uint64 nonce;
+}
+
 struct Approvals {
     CreateClaimApproval createClaim;
     PayClaimApproval payClaim;
     UpdateBindingApproval updateBinding;
     CancelClaimApproval cancelClaim;
     ImpairClaimApproval impairClaim;
+    MarkAsPaidApproval markAsPaid;
 }

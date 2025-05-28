@@ -98,6 +98,8 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
 
     event ClaimImpaired(uint256 indexed claimId);
 
+    event ClaimMarkedAsPaid(uint256 indexed claimId, address indexed from);
+
     event CreateClaimApproved(
         address indexed user,
         address indexed operator,
@@ -119,6 +121,8 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     event CancelClaimApproved(address indexed user, address indexed operator, uint256 approvalCount);
 
     event ImpairClaimApproved(address indexed user, address indexed operator, uint256 approvalCount);
+
+    event MarkAsPaidApproved(address indexed user, address indexed operator, uint256 approvalCount);
 
     constructor(address _extensionRegistry, LockState _lockState)
         ERC721("BullaClaim", "CLAIM")
@@ -662,6 +666,68 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         emit ClaimImpaired(claimId);
     }
 
+    /**
+     * /// MARK CLAIM AS PAID ///
+     */
+
+    /// @notice "spends" an operator's markAsPaid approval
+    /// @notice SPEC:
+    /// A function can call this function to verify and "spend" `from`'s approval of `operator` to mark a claim as paid given:
+    ///     S1. `operator` has > 0 approvalCount from `from` address -> otherwise: reverts
+    ///
+    /// RES1: If the above is true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return
+    function _spendMarkAsPaidApproval(address user, address operator) internal {
+        MarkAsPaidApproval storage approval = approvals[user][operator].markAsPaid;
+
+        if (approval.approvalCount == 0) revert NotApproved();
+        if (approval.approvalCount != type(uint64).max) approval.approvalCount--;
+
+        return;
+    }
+
+    /// @notice allows a creditor to manually mark a claim as paid even if not fully paid
+    /// @notice SPEC:
+    ///     1. call markClaimAsPaid on behalf of the msg.sender
+    function markClaimAsPaid(uint256 claimId) external {
+        _markClaimAsPaid(msg.sender, claimId);
+    }
+
+    /// @notice allows an operator to mark a claim as paid on behalf of a creditor
+    /// @notice SPEC:
+    ///     1. verify and spend msg.sender's approval to mark claims as paid
+    ///     2. mark the claim as paid on `from`'s behalf
+    function markClaimAsPaidFrom(address from, uint256 claimId) external {
+        _spendMarkAsPaidApproval(from, msg.sender);
+
+        _markClaimAsPaid(from, claimId);
+    }
+
+    /// @notice allows a creditor to manually mark a claim as paid even if not fully paid
+    /// @notice SPEC:
+    ///     this function will mark a claim as paid given:
+    ///     1. The contract is not locked
+    ///     2. The claim exists and is not burned
+    ///     3. The caller is the creditor (owner of the claim NFT)
+    ///     4. The claim is in pending, repaying, or impaired status
+    function _markClaimAsPaid(address from, uint256 claimId) internal {
+        _notLocked();
+        // load the claim from storage
+        Claim memory claim = getClaim(claimId);
+        address creditor = _ownerOf[claimId];
+
+        if (claim.controller != address(0) && msg.sender != claim.controller) revert NotController(msg.sender);
+        // make sure the claim can be marked as paid (pending, repaying, or impaired)
+        if (claim.status != Status.Pending && claim.status != Status.Repaying && claim.status != Status.Impaired) {
+            revert ClaimNotPending();
+        }
+        // only the creditor can mark a claim as paid
+        if (from != creditor) revert NotCreditor();
+
+        claims[claimId].status = Status.Paid;
+        
+        emit ClaimMarkedAsPaid(claimId, from);
+    }
+
     /*///////////////////////////////////////////////////////////////
                              PERMIT FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -734,6 +800,13 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     /// @dev see BullaClaimPermitLib.sol for spec
     function permitImpairClaim(address user, address operator, uint64 approvalCount, bytes calldata signature) public {
         BullaClaimPermitLib.permitImpairClaim(
+            approvals[user][operator], extensionRegistry, _domainSeparatorV4(), user, operator, approvalCount, signature
+        );
+    }
+
+    /// @notice permits an operator to mark claims as paid on user's behalf
+    function permitMarkAsPaid(address user, address operator, uint64 approvalCount, bytes calldata signature) public {
+        BullaClaimPermitLib.permitMarkAsPaid(
             approvals[user][operator], extensionRegistry, _domainSeparatorV4(), user, operator, approvalCount, signature
         );
     }
