@@ -11,6 +11,7 @@ import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {SafeCastLib} from "solmate/utils/SafeCastLib.sol";
 import {BoringBatchable} from "contracts/libraries/BoringBatchable.sol";
 import {BullaClaimPermitLib} from "contracts/libraries/BullaClaimPermitLib.sol";
+import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
 import {ERC721} from "solmate/tokens/ERC721.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {ClaimMetadataGenerator} from "contracts/ClaimMetadataGenerator.sol";
@@ -44,27 +45,15 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
                             ERRORS / MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
-    error InvalidDueBy();
     error Locked();
-    error CannotBindClaim();
     error InvalidApproval();
     error InvalidSignature();
     error PastApprovalDeadline();
     error NotOwner();
-    error NotCreditorOrDebtor();
-    error NotCreditor();
     error NotController(address sender);
-    error ClaimBound();
-    error ClaimNotPending();
     error ClaimPending();
     error NotMinted();
-    error NotApproved();
-    error PayingZero();
-    error ZeroAmount();
     error PaymentUnderApproved();
-    error OverPaying(uint256 paymentAmount);
-    error StillInGracePeriod();
-    error NoDueBy();
 
     function _notLocked() internal view {
         if (lockState == LockState.Locked) revert Locked();
@@ -217,17 +206,8 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     ) internal {
         CreateClaimApproval memory approval = approvals[from][operator].createClaim;
 
-        // spec.S1
-        if (approval.approvalCount == 0) revert NotApproved();
-        // spec.S3
-        if (binding == ClaimBinding.Bound && !approval.isBindingAllowed) revert CannotBindClaim();
-        // spec.S2
-        if (
-            (approval.approvalType == CreateClaimApprovalType.CreditorOnly && from != creditor)
-                || (approval.approvalType == CreateClaimApprovalType.DebtorOnly && from != debtor)
-        ) {
-            revert NotApproved();
-        }
+        // Use validation library for approval validation
+        BullaClaimValidationLib.validateCreateClaimApproval(approval, from, creditor, debtor, binding);
 
         if (approval.approvalCount != type(uint64).max) {
             // spec.RES1, spec.RES2
@@ -249,18 +229,9 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     /// @return The newly created tokenId
     function _createClaim(address from, CreateClaimParams calldata params) internal returns (uint256) {
         if (lockState != LockState.Unlocked) revert Locked();
-        if (from != params.debtor && from != params.creditor) revert NotCreditorOrDebtor();
-        if (params.dueBy != 0 && (params.dueBy < block.timestamp || params.dueBy > type(uint40).max)) {
-            revert InvalidDueBy();
-        }
-        // validate impairment grace period
-        if (params.impairmentGracePeriod > type(uint40).max) {
-            revert InvalidDueBy(); // reuse this error for consistency since it's about time validation
-        }
 
-        // you need the permission of the debtor to bind a claim
-        if (params.binding == ClaimBinding.Bound && from != params.debtor) revert CannotBindClaim();
-        if (params.claimAmount == 0) revert ZeroAmount();
+        // Use validation library for parameter validation
+        BullaClaimValidationLib.validateCreateClaimParams(from, params);
 
         uint256 claimId;
         // from is only != to msg.sender if the claim is delegated
@@ -362,53 +333,25 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     function _spendPayClaimApproval(address from, address operator, uint256 claimId, uint256 amount) internal {
         PayClaimApproval storage approval = approvals[from][operator].payClaim;
 
-        if (approval.approvalType == PayClaimApprovalType.Unapproved) revert NotApproved();
-        if (approval.approvalDeadline != 0 && block.timestamp > approval.approvalDeadline) {
-            revert PastApprovalDeadline();
-        }
-        // no-op, because `operator` is approved
+        // Use validation library for approval validation
+        (uint256 approvalIndex,) = BullaClaimValidationLib.validatePayClaimApproval(approval, claimId, amount);
+
+        // If approved for all, no storage updates needed
         if (approval.approvalType == PayClaimApprovalType.IsApprovedForAll) return;
 
-        uint256 i;
-        ClaimPaymentApproval[] memory _paymentApprovals = approval.claimApprovals;
-        uint256 totalApprovals = _paymentApprovals.length;
-        bool approvalFound;
-
-        for (; i < totalApprovals; ++i) {
-            // if a matching approval is found
-            if (_paymentApprovals[i].claimId == claimId) {
-                approvalFound = true;
-                // check if the approval is expired or under approved
-                if (
-                    (
-                        _paymentApprovals[i].approvalDeadline != 0
-                            && block.timestamp > _paymentApprovals[i].approvalDeadline
-                    )
-                ) {
-                    revert PastApprovalDeadline();
-                }
-                if (amount > _paymentApprovals[i].approvedAmount) revert PaymentUnderApproved();
-
-                // if the approval is fully spent, we can delete it
-                if (amount == _paymentApprovals[i].approvedAmount) {
-                    // perform a swap and pop
-                    // if the approval is not the last approval in the array, copy the last approval and overwrite `i`
-                    if (i != totalApprovals - 1) {
-                        approval.claimApprovals[i] = approval.claimApprovals[totalApprovals - 1];
-                    }
-
-                    // delete the last approval (which is either the spent approval, or the duplicated one)
-                    approval.claimApprovals.pop();
-                } else {
-                    // otherwise we decrement it in place
-                    // this cast is safe because we check if amount > approvedAmount and approvedAmount is a uint128
-                    approval.claimApprovals[i].approvedAmount -= uint128(amount);
-                }
-                break;
+        // Handle specific approval spending
+        uint256 i = approvalIndex;
+        if (amount == approval.claimApprovals[i].approvedAmount) {
+            // Approval is fully spent, remove it
+            uint256 totalApprovals = approval.claimApprovals.length;
+            if (i != totalApprovals - 1) {
+                approval.claimApprovals[i] = approval.claimApprovals[totalApprovals - 1];
             }
+            approval.claimApprovals.pop();
+        } else {
+            // Partially spend the approval
+            approval.claimApprovals[i].approvedAmount -= uint128(amount);
         }
-
-        if (!approvalFound) revert NotApproved();
     }
 
     /// @notice Allows any user to pay a claim with the token the claim is denominated in
@@ -446,18 +389,9 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         Claim memory claim = getClaim(claimId);
         address creditor = _ownerOf[claimId];
 
-        // make sure the amount requested is not 0
-        if (paymentAmount == 0) revert PayingZero();
-
-        // make sure the claim can be paid (not completed, not rejected, not rescinded)
-        if (claim.status != Status.Pending && claim.status != Status.Repaying && claim.status != Status.Impaired) {
-            revert ClaimNotPending();
-        }
-
-        uint256 totalPaidAmount = claim.paidAmount + paymentAmount;
-        bool claimPaid = totalPaidAmount == claim.claimAmount;
-
-        if (totalPaidAmount > claim.claimAmount) revert OverPaying(paymentAmount);
+        // Use validation library for payment validation and calculation
+        (uint256 totalPaidAmount, bool claimPaid) =
+            BullaClaimValidationLib.validateAndCalculatePayment(claim, paymentAmount);
 
         ClaimStorage storage claimStorage = claims[claimId];
 
@@ -502,7 +436,9 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     function _spendUpdateBindingApproval(address user, address operator) internal {
         UpdateBindingApproval storage approval = approvals[user][operator].updateBinding;
 
-        if (approval.approvalCount == 0) revert NotApproved();
+        // Use validation library for approval validation
+        BullaClaimValidationLib.validateSimpleApproval(approval.approvalCount);
+
         if (approval.approvalCount != type(uint64).max) approval.approvalCount--;
 
         return;
@@ -521,16 +457,9 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
 
         // check if the claim is controlled
         if (claim.controller != address(0) && msg.sender != claim.controller) revert NotController(msg.sender);
-        // make sure the claim is in pending status
-        if (claim.status != Status.Pending && claim.status != Status.Repaying && claim.status != Status.Impaired) {
-            revert ClaimNotPending();
-        }
-        // make sure the sender is authorized
-        if (from != creditor && from != claim.debtor) revert NotCreditorOrDebtor();
-        // make sure the binding is valid
-        if (from == creditor && binding == ClaimBinding.Bound) revert CannotBindClaim();
-        // make sure the debtor isn't trying to unbind themselves
-        if (from == claim.debtor && claim.binding == ClaimBinding.Bound) revert ClaimBound();
+
+        // Use validation library for binding update validation
+        BullaClaimValidationLib.validateBindingUpdate(from, claim, creditor, binding);
 
         claims[claimId].binding = binding;
 
@@ -567,22 +496,9 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     function _spendCancelClaimApproval(address user, address operator) internal {
         CancelClaimApproval storage approval = approvals[user][operator].cancelClaim;
 
-        if (approval.approvalCount == 0) revert NotApproved();
-        if (approval.approvalCount != type(uint64).max) approval.approvalCount--;
+        // Use validation library for approval validation
+        BullaClaimValidationLib.validateSimpleApproval(approval.approvalCount);
 
-        return;
-    }
-
-    /// @notice "spends" an operator's impairClaim approval
-    /// @notice SPEC:
-    /// A function can call this function to verify and "spend" `from`'s approval of `operator` to impair a claim given:
-    ///     S1. `operator` has > 0 approvalCount from `from` address -> otherwise: reverts
-    ///
-    /// RES1: If the above is true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return
-    function _spendImpairClaimApproval(address user, address operator) internal {
-        ImpairClaimApproval storage approval = approvals[user][operator].impairClaim;
-
-        if (approval.approvalCount == 0) revert NotApproved();
         if (approval.approvalCount != type(uint64).max) approval.approvalCount--;
 
         return;
@@ -598,21 +514,19 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         _notLocked();
         // load the claim from storage
         Claim memory claim = getClaim(claimId);
+        address creditor = _ownerOf[claimId];
 
-        if (claim.binding == ClaimBinding.Bound && claim.debtor == from) revert ClaimBound();
         if (claim.controller != address(0) && msg.sender != claim.controller) revert NotController(msg.sender);
-        // make sure the claim can be rejected (not completed, rejected, rescinded, or repaying)
-        // TODO: what if the debtor starts paying, but the creditor wants to rescind
-        if (claim.status != Status.Pending) revert ClaimNotPending();
+
+        // Use validation library for cancellation validation
+        BullaClaimValidationLib.validateClaimCancellation(from, claim, creditor);
 
         if (from == claim.debtor) {
             claims[claimId].status = Status.Rejected;
             emit ClaimRejected(claimId, from, note);
-        } else if (from == _ownerOf[claimId]) {
+        } else {
             claims[claimId].status = Status.Rescinded;
             emit ClaimRescinded(claimId, from, note);
-        } else {
-            revert NotCreditorOrDebtor();
         }
     }
 
@@ -637,6 +551,23 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         _impairClaim(from, claimId);
     }
 
+    /// @notice "spends" an operator's impairClaim approval
+    /// @notice SPEC:
+    /// A function can call this function to verify and "spend" `from`'s approval of `operator` to impair a claim given:
+    ///     S1. `operator` has > 0 approvalCount from `from` address -> otherwise: reverts
+    ///
+    /// RES1: If the above is true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return
+    function _spendImpairClaimApproval(address user, address operator) internal {
+        ImpairClaimApproval storage approval = approvals[user][operator].impairClaim;
+
+        // Use validation library for approval validation
+        BullaClaimValidationLib.validateSimpleApproval(approval.approvalCount);
+
+        if (approval.approvalCount != type(uint64).max) approval.approvalCount--;
+
+        return;
+    }
+
     /// @notice allows a creditor to impair a claim
     /// @notice SPEC:
     ///     this function will impair a claim given:
@@ -653,14 +584,9 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         address creditor = _ownerOf[claimId];
 
         if (claim.controller != address(0) && msg.sender != claim.controller) revert NotController(msg.sender);
-        // make sure the claim can be impaired (pending or repaying)
-        if (claim.status != Status.Pending && claim.status != Status.Repaying) revert ClaimNotPending();
-        // only the creditor can impair a claim
-        if (from != creditor) revert NotCreditor();
 
-        // Grace period validation
-        if (claim.dueBy == 0) revert NoDueBy();
-        if (block.timestamp < claim.dueBy + claim.impairmentGracePeriod) revert StillInGracePeriod();
+        // Use validation library for impairment validation
+        BullaClaimValidationLib.validateClaimImpairment(from, claim, creditor);
 
         claims[claimId].status = Status.Impaired;
         emit ClaimImpaired(claimId);
@@ -679,7 +605,9 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     function _spendMarkAsPaidApproval(address user, address operator) internal {
         MarkAsPaidApproval storage approval = approvals[user][operator].markAsPaid;
 
-        if (approval.approvalCount == 0) revert NotApproved();
+        // Use validation library for approval validation
+        BullaClaimValidationLib.validateSimpleApproval(approval.approvalCount);
+
         if (approval.approvalCount != type(uint64).max) approval.approvalCount--;
 
         return;
@@ -716,12 +644,9 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         address creditor = _ownerOf[claimId];
 
         if (claim.controller != address(0) && msg.sender != claim.controller) revert NotController(msg.sender);
-        // make sure the claim can be marked as paid (pending, repaying, or impaired)
-        if (claim.status != Status.Pending && claim.status != Status.Repaying && claim.status != Status.Impaired) {
-            revert ClaimNotPending();
-        }
-        // only the creditor can mark a claim as paid
-        if (from != creditor) revert NotCreditor();
+
+        // Use validation library for mark as paid validation
+        BullaClaimValidationLib.validateMarkAsPaid(from, claim, creditor);
 
         claims[claimId].status = Status.Paid;
 

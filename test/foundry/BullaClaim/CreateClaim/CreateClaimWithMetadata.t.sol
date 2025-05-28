@@ -10,6 +10,7 @@ import {PenalizedClaim} from "contracts/mocks/PenalizedClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
+import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
 
 contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
     uint256 creditorPK = uint256(0x01);
@@ -88,7 +89,7 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
         CreateClaimParams memory params =
             new CreateClaimParamsBuilder().withCreditor(user).withDebtor(debtor).withToken(address(weth)).build();
 
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotApproved.selector));
         bullaClaim.createClaimWithMetadataFrom(
             user, params, ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
         );
@@ -106,7 +107,7 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
         CreateClaimParams memory params =
             new CreateClaimParamsBuilder().withCreditor(debtor).withDebtor(user).withBinding(ClaimBinding.Bound).build();
 
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.CannotBindClaim.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.CannotBindClaim.selector));
         bullaClaim.createClaimWithMetadataFrom(
             user, params, ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
         );
@@ -123,7 +124,7 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
 
         CreateClaimParams memory params = new CreateClaimParamsBuilder().withCreditor(debtor).withDebtor(user).build();
 
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotApproved.selector));
         bullaClaim.createClaimWithMetadataFrom(
             user, params, ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
         );
@@ -141,7 +142,7 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
         CreateClaimParams memory params =
             new CreateClaimParamsBuilder().withCreditor(user).withDebtor(debtor).withToken(address(weth)).build();
 
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotApproved.selector));
         bullaClaim.createClaimWithMetadataFrom(
             user, params, ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
         );

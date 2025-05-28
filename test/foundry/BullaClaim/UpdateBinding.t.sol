@@ -10,6 +10,7 @@ import {EIP712Helper} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
+import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
 
 /// @notice covers test cases for updateBinding() and updateBindingFrom()
 /// @notice SPEC: updateBinding() TODO
@@ -139,11 +140,11 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         bullaClaim.updateBinding(claimId, ClaimBinding.Bound);
 
         // in the case of trying to set the claim to unbound
-        vm.expectRevert(BullaClaim.ClaimBound.selector);
+        vm.expectRevert(BullaClaimValidationLib.ClaimBound.selector);
         bullaClaim.updateBinding(claimId, ClaimBinding.Unbound);
 
         // in the case of trying to set the claim to binding pending
-        vm.expectRevert(BullaClaim.ClaimBound.selector);
+        vm.expectRevert(BullaClaimValidationLib.ClaimBound.selector);
         bullaClaim.updateBinding(claimId, ClaimBinding.BindingPending);
         vm.stopPrank();
 
@@ -162,10 +163,10 @@ contract TestUpdateBinding is BullaClaimTestHelper {
 
         // an operator cannot unbind a debtor
         vm.startPrank(operator);
-        vm.expectRevert(BullaClaim.ClaimBound.selector);
+        vm.expectRevert(BullaClaimValidationLib.ClaimBound.selector);
         bullaClaim.updateBindingFrom(debtor, claimId, ClaimBinding.Unbound);
 
-        vm.expectRevert(BullaClaim.ClaimBound.selector);
+        vm.expectRevert(BullaClaimValidationLib.ClaimBound.selector);
         bullaClaim.updateBindingFrom(debtor, claimId, ClaimBinding.BindingPending);
     }
 
@@ -234,7 +235,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         }
 
         if (claimStatus != Status.Repaying && claimStatus != Status.Pending) {
-            vm.expectRevert(BullaClaim.ClaimNotPending.selector);
+            vm.expectRevert(BullaClaimValidationLib.ClaimNotPending.selector);
         }
         vm.prank(debtor);
         bullaClaim.updateBinding(claimId, ClaimBinding.Unbound);
@@ -319,7 +320,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         (claimId,) = _newClaim(ClaimBinding.Unbound);
         vm.stopPrank();
 
-        vm.expectRevert(abi.encodeWithSignature("CannotBindClaim()"));
+        vm.expectRevert(BullaClaimValidationLib.CannotBindClaim.selector);
 
         // creditor tries to bind
         vm.prank(creditor);
@@ -330,7 +331,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         (claimId,) = _newClaim(ClaimBinding.BindingPending);
         vm.stopPrank();
 
-        vm.expectRevert(abi.encodeWithSignature("CannotBindClaim()"));
+        vm.expectRevert(BullaClaimValidationLib.CannotBindClaim.selector);
 
         vm.prank(creditor);
         bullaClaim.updateBinding(claimId, ClaimBinding.Bound);
@@ -342,7 +343,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         (claimId,) = _newClaim(ClaimBinding.Unbound);
         vm.stopPrank();
 
-        vm.expectRevert(abi.encodeWithSignature("CannotBindClaim()"));
+        vm.expectRevert(BullaClaimValidationLib.CannotBindClaim.selector);
 
         // creditor tries to bind
         vm.prank(operator);
@@ -353,7 +354,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         (claimId,) = _newClaim(ClaimBinding.BindingPending);
         vm.stopPrank();
 
-        vm.expectRevert(abi.encodeWithSignature("CannotBindClaim()"));
+        vm.expectRevert(BullaClaimValidationLib.CannotBindClaim.selector);
 
         vm.prank(operator);
         bullaClaim.updateBindingFrom(creditor, claimId, ClaimBinding.Bound);
@@ -368,7 +369,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         (uint256 claimId,) = _newClaim(ClaimBinding.BindingPending);
         vm.stopPrank();
 
-        vm.expectRevert(BullaClaim.NotCreditorOrDebtor.selector);
+        vm.expectRevert(BullaClaimValidationLib.NotCreditorOrDebtor.selector);
 
         vm.prank(caller);
         bullaClaim.updateBinding(claimId, newBinding);
@@ -450,7 +451,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         assertEq(approval.approvalCount, 0, "Should have 0 approvals");
 
         vm.prank(operator);
-        vm.expectRevert(BullaClaim.NotApproved.selector);
+        vm.expectRevert(BullaClaimValidationLib.NotApproved.selector);
         bullaClaim.updateBindingFrom(creditor, claimId, ClaimBinding.BindingPending);
     }
 }

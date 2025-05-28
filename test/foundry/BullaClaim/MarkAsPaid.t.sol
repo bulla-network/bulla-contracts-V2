@@ -20,6 +20,7 @@ import {PenalizedClaim} from "contracts/mocks/PenalizedClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
+import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
 
 contract TestMarkAsPaid is BullaClaimTestHelper {
     uint256 creditorPK = uint256(0x01);
@@ -199,12 +200,12 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
 
         // Debtor cannot mark as paid
         vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotCreditor.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotCreditor.selector));
         bullaClaim.markClaimAsPaid(claimId);
 
         // Random user cannot mark as paid
         vm.prank(randomUser);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotCreditor.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotCreditor.selector));
         bullaClaim.markClaimAsPaid(claimId);
     }
 
@@ -230,7 +231,7 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
         uint256 claimId = _newClaim(creditor, creditor, debtor);
 
         vm.prank(operator);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotApproved.selector));
         bullaClaim.markClaimAsPaidFrom(creditor, claimId);
     }
 
@@ -252,7 +253,7 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
 
         // Cannot mark as paid a claim that's already paid
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.ClaimNotPending.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.ClaimNotPending.selector));
         bullaClaim.markClaimAsPaid(claimId);
     }
 
@@ -268,7 +269,7 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
 
         // Cannot mark as paid a rejected claim
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.ClaimNotPending.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.ClaimNotPending.selector));
         bullaClaim.markClaimAsPaid(claimId);
     }
 
@@ -284,7 +285,7 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
 
         // Cannot mark as paid a rescinded claim
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.ClaimNotPending.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.ClaimNotPending.selector));
         bullaClaim.markClaimAsPaid(claimId);
     }
 
@@ -300,7 +301,7 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
 
         // Cannot mark as paid again
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.ClaimNotPending.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.ClaimNotPending.selector));
         bullaClaim.markClaimAsPaid(claimId);
     }
 
@@ -337,7 +338,7 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
 
         // Should not be able to update binding on paid claim
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.ClaimNotPending.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.ClaimNotPending.selector));
         bullaClaim.updateBinding(claimId, ClaimBinding.BindingPending);
     }
 
@@ -433,7 +434,7 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
         bullaClaim.transferFrom(creditor, randomUser, claimId2);
 
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotCreditor.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotCreditor.selector));
         bullaClaim.markClaimAsPaid(claimId2);
     }
 

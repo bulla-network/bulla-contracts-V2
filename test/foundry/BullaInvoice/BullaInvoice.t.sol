@@ -24,6 +24,7 @@ import {
 import {Deployer} from "script/Deployment.s.sol";
 import {CreateInvoiceParamsBuilder} from "test/foundry/BullaInvoice/CreateInvoiceParamsBuilder.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
+import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
 
 contract TestBullaInvoice is Test {
     WETH public weth;
@@ -477,7 +478,7 @@ contract TestBullaInvoice is Test {
 
         // Try to create an invoice with past due date
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.InvalidDueBy.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.InvalidDueBy.selector));
         bullaInvoice.createInvoice(pastDueParams);
 
         // Create params with far future due date
@@ -488,7 +489,7 @@ contract TestBullaInvoice is Test {
 
         // Try to create an invoice with too far future due date
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.InvalidDueBy.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.InvalidDueBy.selector));
         bullaInvoice.createInvoice(farFutureParams);
     }
 
@@ -634,7 +635,7 @@ contract TestBullaInvoice is Test {
         // Try to cancel without proper permissions (no permit)
         address randomUser = vm.addr(0x03);
         vm.prank(randomUser);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector)); // Should fail - random user can't cancel
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotApproved.selector)); // Should fail - random user can't cancel
         bullaInvoice.cancelInvoice(invoiceId, "Unauthorized cancellation");
     }
 
@@ -667,7 +668,7 @@ contract TestBullaInvoice is Test {
         address randomUser = vm.addr(0x03);
         vm.deal(randomUser, 2 ether);
         vm.prank(randomUser);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector)); // Should fail - random user can't pay without permit
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotApproved.selector)); // Should fail - random user can't pay without permit
         bullaInvoice.payInvoice{value: 1 ether}(invoiceId, 1 ether);
     }
 
@@ -1111,7 +1112,7 @@ contract TestBullaInvoice is Test {
 
         // Try to create an invoice with metadata and past due date
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.InvalidDueBy.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.InvalidDueBy.selector));
         bullaInvoice.createInvoiceWithMetadata(params, metadata);
     }
 
@@ -1147,7 +1148,7 @@ contract TestBullaInvoice is Test {
 
         // Try to create an invoice with metadata and too far future due date
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.InvalidDueBy.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.InvalidDueBy.selector));
         bullaInvoice.createInvoiceWithMetadata(params, metadata);
     }
 
@@ -1176,7 +1177,7 @@ contract TestBullaInvoice is Test {
 
         // Try to create an invoice where creditor (msg.sender) is the same as debtor
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(CreditorCannotBeDebtor.selector));
+        vm.expectRevert(CreditorCannotBeDebtor.selector);
         bullaInvoice.createInvoice(params);
     }
 
@@ -1211,7 +1212,7 @@ contract TestBullaInvoice is Test {
 
         // Try to create an invoice with metadata where creditor (msg.sender) is the same as debtor
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(CreditorCannotBeDebtor.selector));
+        vm.expectRevert(CreditorCannotBeDebtor.selector);
         bullaInvoice.createInvoiceWithMetadata(params, metadata);
     }
 
@@ -1370,12 +1371,12 @@ contract TestBullaInvoice is Test {
         // Try to deliver from non-original creditor account
         address notCreditor = address(0x1234);
         vm.prank(notCreditor);
-        vm.expectRevert(NotOriginalCreditor.selector);
+        vm.expectRevert(abi.encodeWithSelector(NotOriginalCreditor.selector));
         bullaInvoice.deliverPurchaseOrder(invoiceId);
 
         // Try to deliver from debtor account
         vm.prank(debtor);
-        vm.expectRevert(NotOriginalCreditor.selector);
+        vm.expectRevert(abi.encodeWithSelector(NotOriginalCreditor.selector));
         bullaInvoice.deliverPurchaseOrder(invoiceId);
     }
 
@@ -1425,7 +1426,7 @@ contract TestBullaInvoice is Test {
 
         // Try to deliver the purchase order - should revert
         vm.prank(creditor);
-        vm.expectRevert(InvoiceNotPending.selector);
+        vm.expectRevert(abi.encodeWithSelector(InvoiceNotPending.selector));
         bullaInvoice.deliverPurchaseOrder(invoiceId);
     }
 
@@ -1462,7 +1463,7 @@ contract TestBullaInvoice is Test {
 
         // Still can mark as delivered even with 0 delivery date
         vm.prank(creditor);
-        vm.expectRevert(NotPurchaseOrder.selector);
+        vm.expectRevert(abi.encodeWithSelector(NotPurchaseOrder.selector));
         bullaInvoice.deliverPurchaseOrder(invoiceId);
     }
 
@@ -1735,7 +1736,7 @@ contract TestBullaInvoice is Test {
 
         // Attempt to deliver from new creditor - should fail
         vm.prank(newCreditor);
-        vm.expectRevert(NotOriginalCreditor.selector);
+        vm.expectRevert(abi.encodeWithSelector(NotOriginalCreditor.selector));
         bullaInvoice.deliverPurchaseOrder(invoiceId);
 
         // Verify purchase order is still not delivered

@@ -24,6 +24,7 @@ import {MockERC20} from "contracts/mocks/MockERC20.sol";
 import {LoanOfferBuilder} from "./LoanOfferBuilder.t.sol";
 import {InterestConfig} from "contracts/libraries/CompoundInterestLib.sol";
 import "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
+import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
 
 contract TestBullaFrendLend is Test {
     WETH public weth;
@@ -1241,12 +1242,12 @@ contract TestBullaFrendLend is Test {
 
         // Debtor cannot impair loan
         vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotCreditor.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotCreditor.selector));
         bullaFrendLend.impairLoan(claimId);
 
         // Random user cannot impair loan
         vm.prank(admin);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotCreditor.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotCreditor.selector));
         bullaFrendLend.impairLoan(claimId);
     }
 
@@ -1540,7 +1541,7 @@ contract TestBullaFrendLend is Test {
 
         // Try to impair already impaired loan (should fail)
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.ClaimNotPending.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.ClaimNotPending.selector));
         bullaFrendLend.impairLoan(claimId1);
     }
 

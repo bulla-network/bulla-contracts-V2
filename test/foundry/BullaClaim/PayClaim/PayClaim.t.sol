@@ -9,6 +9,7 @@ import {BullaClaim} from "contracts/BullaClaim.sol";
 import {BullaClaimTestHelper, EIP712Helper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
+import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
 
 contract TestPayClaimWithFee is BullaClaimTestHelper {
     address creditor = address(0xA11c3);
@@ -153,7 +154,7 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
         uint256 CLAIM_AMOUNT = 1 ether;
         uint256 claimId = _newClaim(creditor, true, CLAIM_AMOUNT);
 
-        vm.expectRevert(BullaClaim.PayingZero.selector);
+        vm.expectRevert(BullaClaimValidationLib.PayingZero.selector);
         bullaClaim.payClaim{value: 0}(claimId, 0);
     }
 
@@ -173,7 +174,7 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
         uint256 claimId = _newClaim(creditor, true, CLAIM_AMOUNT);
 
         vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.OverPaying.selector, 2 ether));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.OverPaying.selector, 2 ether));
         bullaClaim.payClaim{value: 2 ether}(claimId, 2 ether);
     }
 
@@ -184,7 +185,7 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
         vm.prank(debtor);
         bullaClaim.cancelClaim(claimId, "no. Regards, the debtor");
 
-        vm.expectRevert(BullaClaim.ClaimNotPending.selector);
+        vm.expectRevert(BullaClaimValidationLib.ClaimNotPending.selector);
         bullaClaim.payClaim{value: CLAIM_AMOUNT}(claimId, CLAIM_AMOUNT);
     }
 
@@ -195,7 +196,7 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
         vm.prank(creditor);
         bullaClaim.cancelClaim(claimId, "no. Yours truly, the creditor");
 
-        vm.expectRevert(BullaClaim.ClaimNotPending.selector);
+        vm.expectRevert(BullaClaimValidationLib.ClaimNotPending.selector);
         bullaClaim.payClaim{value: CLAIM_AMOUNT}(claimId, CLAIM_AMOUNT);
     }
 
@@ -207,7 +208,7 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
         bullaClaim.payClaim{value: CLAIM_AMOUNT}(claimId, CLAIM_AMOUNT);
 
         vm.prank(debtor);
-        vm.expectRevert(BullaClaim.ClaimNotPending.selector);
+        vm.expectRevert(BullaClaimValidationLib.ClaimNotPending.selector);
         bullaClaim.payClaim{value: 1 ether}(claimId, 1 ether);
     }
 

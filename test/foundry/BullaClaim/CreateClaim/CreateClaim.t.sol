@@ -19,6 +19,7 @@ import {Deployer} from "script/Deployment.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {ClaimMetadataGenerator} from "contracts/ClaimMetadataGenerator.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
+import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
 
 contract TestCreateClaim is BullaClaimTestHelper {
     address creditor = address(0x01);
@@ -82,10 +83,12 @@ contract TestCreateClaim is BullaClaimTestHelper {
     }
 
     function testCannotCreateClaimWhenNotCreditorOrDebtor() public {
-        CreateClaimParams memory params = new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor)
-            .withClaimAmount(uint256(type(uint128).max) + 1).build();
+        CreateClaimParams memory params =
+            new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withClaimAmount(1 ether).build();
 
-        vm.expectRevert(BullaClaim.NotCreditorOrDebtor.selector);
+        address randomUser = address(0x1234);
+        vm.prank(randomUser);
+        vm.expectRevert(BullaClaimValidationLib.NotCreditorOrDebtor.selector);
         bullaClaim.createClaim(params);
     }
 
@@ -128,7 +131,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
         CreateClaimParams memory params2 = new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor)
             .withToken(address(weth)).withBinding(ClaimBinding.Bound).build();
 
-        vm.expectRevert(BullaClaim.CannotBindClaim.selector);
+        vm.expectRevert(BullaClaimValidationLib.CannotBindClaim.selector);
         vm.prank(creditor);
         bullaClaim.createClaim(params2);
     }
@@ -147,7 +150,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
         CreateClaimParams memory params = new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor)
             .withClaimAmount(0).withToken(address(weth)).build();
 
-        vm.expectRevert(BullaClaim.ZeroAmount.selector);
+        vm.expectRevert(BullaClaimValidationLib.ZeroAmount.selector);
         vm.prank(creditor);
         bullaClaim.createClaim(params);
     }
@@ -156,7 +159,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
         CreateClaimParams memory params = new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor)
             .withToken(address(weth)).withBinding(ClaimBinding.Bound).build();
 
-        vm.expectRevert(BullaClaim.CannotBindClaim.selector);
+        vm.expectRevert(BullaClaimValidationLib.CannotBindClaim.selector);
         vm.prank(creditor);
         bullaClaim.createClaim(params);
     }
