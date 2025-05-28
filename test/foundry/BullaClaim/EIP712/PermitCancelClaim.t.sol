@@ -54,7 +54,7 @@ contract TestPermitCancelClaim is Test {
 
         bullaClaim.permitCancelClaim({user: alice, operator: bob, approvalCount: approvalCount, signature: signature});
 
-        (,,, CancelClaimApproval memory approval,) = bullaClaim.approvals(alice, bob);
+        (,,, CancelClaimApproval memory approval,,) = bullaClaim.approvals(alice, bob);
 
         assertTrue(approval.approvalCount == approvalCount, "approvalCount");
         assertTrue(approval.nonce == 1, "approvalCount");
@@ -73,7 +73,7 @@ contract TestPermitCancelClaim is Test {
 
         bullaClaim.permitCancelClaim({user: alice, operator: bob, approvalCount: approvalCount, signature: bytes("")});
 
-        (,,, CancelClaimApproval memory approval,) = bullaClaim.approvals(alice, bob);
+        (,,, CancelClaimApproval memory approval,,) = bullaClaim.approvals(alice, bob);
 
         assertTrue(approval.approvalCount == approvalCount, "approvalCount");
         assertTrue(approval.nonce == 1, "approvalCount");
@@ -100,7 +100,7 @@ contract TestPermitCancelClaim is Test {
 
         bullaClaim.permitCancelClaim({user: alice, operator: bob, approvalCount: 0, signature: signature});
 
-        (,,, CancelClaimApproval memory approval,) = bullaClaim.approvals(alice, bob);
+        (,,, CancelClaimApproval memory approval,,) = bullaClaim.approvals(alice, bob);
 
         assertTrue(approval.approvalCount == 0, "approvalCount");
         assertTrue(approval.nonce == 2, "nonce");
@@ -125,7 +125,7 @@ contract TestPermitCancelClaim is Test {
 
         bullaClaim.permitCancelClaim({user: alice, operator: bob, approvalCount: 0, signature: bytes("")});
 
-        (,,, CancelClaimApproval memory approval,) = bullaClaim.approvals(alice, bob);
+        (,,, CancelClaimApproval memory approval,,) = bullaClaim.approvals(alice, bob);
 
         assertTrue(approval.approvalCount == 0, "approvalCount");
         assertTrue(approval.nonce == 2, "nonce");
@@ -301,7 +301,7 @@ contract TestPermitCancelClaim is Test {
             signature: signature
         });
 
-        (,,, CancelClaimApproval memory approval,) = bullaClaim.approvals(user, operator);
+        (,,, CancelClaimApproval memory approval,,) = bullaClaim.approvals(user, operator);
 
         assertEq(approval.approvalCount, approvalCount, "approvalCount");
         assertEq(approval.nonce, 1, "nonce");

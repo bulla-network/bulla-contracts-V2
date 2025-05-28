@@ -79,12 +79,12 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
         // have the creditor permit bob to act as a operator
         _permitCreateClaim({_userPK: userPK, _operator: operator, _approvalCount: 1});
 
-        (CreateClaimApproval memory approval,,,,) = bullaClaim.approvals(user, operator);
+        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvals(user, operator);
         uint256 approvalCount = approval.approvalCount;
 
         vm.prank(operator);
         _newClaimFrom(user, user, debtor);
-        (approval,,,,) = bullaClaim.approvals(user, operator);
+        (approval,,,,,) = bullaClaim.approvals(user, operator);
 
         assertEq(approval.approvalCount, approvalCount - 1);
     }
@@ -149,7 +149,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
         vm.prank(operator);
         _newClaimFrom(user, user, debtor);
 
-        (CreateClaimApproval memory approval,,,,) = bullaClaim.approvals(user, operator);
+        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvals(user, operator);
 
         assertEq(approval.approvalCount, 0);
         assertTrue(approval.approvalType == CreateClaimApprovalType.Unapproved);
@@ -162,7 +162,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
         vm.prank(operator);
         _newClaimFrom(user, user, debtor);
 
-        (CreateClaimApproval memory approval,,,,) = bullaClaim.approvals(user, operator);
+        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvals(user, operator);
 
         assertEq(approval.approvalCount, type(uint64).max);
     }

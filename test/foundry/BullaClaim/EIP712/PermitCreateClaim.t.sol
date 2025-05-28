@@ -98,7 +98,7 @@ contract TestPermitCreateClaim is Test {
             signature: signature
         });
 
-        (CreateClaimApproval memory approval,,,,) = bullaClaim.approvals(alice, bob);
+        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvals(alice, bob);
 
         assertEq(approval.isBindingAllowed, isBindingAllowed, "isBindingAllowed");
         assertTrue(approval.approvalType == approvalType, "approvalType");
@@ -135,7 +135,7 @@ contract TestPermitCreateClaim is Test {
             signature: bytes("")
         });
 
-        (CreateClaimApproval memory approval,,,,) = bullaClaim.approvals(alice, bob);
+        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvals(alice, bob);
 
         assertEq(approval.isBindingAllowed, isBindingAllowed, "isBindingAllowed");
         assertTrue(approval.approvalType == approvalType, "approvalType");
@@ -192,7 +192,7 @@ contract TestPermitCreateClaim is Test {
             signature: signature
         });
 
-        (CreateClaimApproval memory approval,,,,) = bullaClaim.approvals(alice, bob);
+        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvals(alice, bob);
         assertEq(approval.approvalCount, 0, "approvalCount");
         assertTrue(approval.approvalType == CreateClaimApprovalType.Unapproved, "approvalType");
     }
@@ -250,7 +250,7 @@ contract TestPermitCreateClaim is Test {
             signature: bytes("")
         });
 
-        (CreateClaimApproval memory approval,,,,) = bullaClaim.approvals(alice, bob);
+        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvals(alice, bob);
         assertEq(approval.approvalCount, 0, "approvalCount");
         assertTrue(approval.approvalType == CreateClaimApprovalType.Unapproved, "approvalType");
         assertTrue(approval.isBindingAllowed == false, "bindingAllowed");
@@ -695,7 +695,7 @@ contract TestPermitCreateClaim is Test {
             signature: sig
         });
 
-        (CreateClaimApproval memory approval,,,,) = bullaClaim.approvals(user, operator);
+        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvals(user, operator);
 
         assertEq(approval.nonce, 1, "nonce");
         assertEq(approval.approvalCount, approvalCount, "approvalCount");

@@ -509,7 +509,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
         vm.prank(operator);
         bullaClaim.cancelClaimFrom(debtor, claimId, note);
 
-        (,,, CancelClaimApproval memory approval,) = bullaClaim.approvals(debtor, operator);
+        (,,, CancelClaimApproval memory approval,,) = bullaClaim.approvals(debtor, operator);
         assertEq(approval.approvalCount, approvalCount - 1);
 
         // test for rescind
@@ -527,7 +527,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
         vm.prank(operator);
         bullaClaim.cancelClaimFrom(creditor, claimId, note);
 
-        (,,, approval,) = bullaClaim.approvals(creditor, operator);
+        (,,, approval,,) = bullaClaim.approvals(creditor, operator);
         assertEq(approval.approvalCount, approvalCount - 1);
     }
 
@@ -562,7 +562,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
         vm.prank(operator);
         bullaClaim.cancelClaimFrom(debtor, claimId, "Nope");
 
-        (,,, CancelClaimApproval memory approval,) = bullaClaim.approvals(debtor, operator);
+        (,,, CancelClaimApproval memory approval,,) = bullaClaim.approvals(debtor, operator);
         assertEq(approval.approvalCount, type(uint64).max);
     }
 }

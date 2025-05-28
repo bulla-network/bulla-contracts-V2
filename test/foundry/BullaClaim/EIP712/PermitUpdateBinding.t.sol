@@ -54,7 +54,7 @@ contract TestPermitUpdateBinding is Test {
 
         bullaClaim.permitUpdateBinding({user: alice, operator: bob, approvalCount: approvalCount, signature: signature});
 
-        (,, UpdateBindingApproval memory approval,,) = bullaClaim.approvals(alice, bob);
+        (,, UpdateBindingApproval memory approval,,,) = bullaClaim.approvals(alice, bob);
 
         assertTrue(approval.approvalCount == approvalCount, "approvalCount");
         assertTrue(approval.nonce == 1, "approvalCount");
@@ -73,7 +73,7 @@ contract TestPermitUpdateBinding is Test {
 
         bullaClaim.permitUpdateBinding({user: alice, operator: bob, approvalCount: approvalCount, signature: bytes("")});
 
-        (,, UpdateBindingApproval memory approval,,) = bullaClaim.approvals(alice, bob);
+        (,, UpdateBindingApproval memory approval,,,) = bullaClaim.approvals(alice, bob);
 
         assertTrue(approval.approvalCount == approvalCount, "approvalCount");
         assertTrue(approval.nonce == 1, "approvalCount");
@@ -100,7 +100,7 @@ contract TestPermitUpdateBinding is Test {
 
         bullaClaim.permitUpdateBinding({user: alice, operator: bob, approvalCount: 0, signature: signature});
 
-        (,, UpdateBindingApproval memory approval,,) = bullaClaim.approvals(alice, bob);
+        (,, UpdateBindingApproval memory approval,,,) = bullaClaim.approvals(alice, bob);
 
         assertTrue(approval.approvalCount == 0, "approvalCount");
         assertTrue(approval.nonce == 2, "nonce");
@@ -123,7 +123,7 @@ contract TestPermitUpdateBinding is Test {
 
         bullaClaim.permitUpdateBinding({user: alice, operator: bob, approvalCount: 0, signature: bytes("")});
 
-        (,, UpdateBindingApproval memory approval,,) = bullaClaim.approvals(alice, bob);
+        (,, UpdateBindingApproval memory approval,,,) = bullaClaim.approvals(alice, bob);
 
         assertTrue(approval.approvalCount == 0, "approvalCount");
         assertTrue(approval.nonce == 2, "nonce");
@@ -296,7 +296,7 @@ contract TestPermitUpdateBinding is Test {
             signature: signature
         });
 
-        (,, UpdateBindingApproval memory approval,,) = bullaClaim.approvals(user, operator);
+        (,, UpdateBindingApproval memory approval,,,) = bullaClaim.approvals(user, operator);
 
         assertEq(approval.nonce, 1, "nonce");
         assertEq(approval.approvalCount, approvalCount, "approvalCount");
