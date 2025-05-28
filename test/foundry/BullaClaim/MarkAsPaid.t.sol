@@ -304,6 +304,7 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
                         INTEGRATION TESTS
     //////////////////////////////////////////////////////////////*/
 
+    // Tests that binding cannot be updated on a paid claim, as paid claims represent completed obligations
     function testUpdateBindingMarkedAsPaidClaim_Fails() public {
         uint256 claimId = _newClaim(creditor, creditor, debtor);
 
@@ -501,22 +502,5 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
         assertEq(uint256(claim3.status), uint256(Status.Pending), "Claim 3 should remain pending");
 
         assertEq(claim2.paidAmount, 0.5 ether, "Claim 2 should retain payment amount");
-    }
-
-    /*///////////////////////////////////////////////////////////////
-                           HELPER FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    function _permitMarkAsPaid(uint256 pk, address operator, uint64 approvalCount) internal {
-        address user = vm.addr(pk);
-        
-        bytes memory signature = sigHelper.signMarkAsPaidPermit({
-            pk: pk,
-            user: user,
-            operator: operator,
-            approvalCount: approvalCount
-        });
-        
-        bullaClaim.permitMarkAsPaid(user, operator, approvalCount, signature);
     }
 } 

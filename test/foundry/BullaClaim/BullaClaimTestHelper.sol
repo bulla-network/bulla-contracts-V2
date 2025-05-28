@@ -141,4 +141,9 @@ contract BullaClaimTestHelper is Test {
         bytes memory sig = sigHelper.signImpairClaimPermit(_userPK, vm.addr(_userPK), _operator, _approvalCount);
         bullaClaim.permitImpairClaim(vm.addr(_userPK), _operator, _approvalCount, sig);
     }
+
+    function _permitMarkAsPaid(uint256 _userPK, address _operator, uint64 _approvalCount) internal {
+        bytes memory sig = sigHelper.signMarkAsPaidPermit(_userPK, vm.addr(_userPK), _operator, _approvalCount);
+        bullaClaim.permitMarkAsPaid(vm.addr(_userPK), _operator, _approvalCount, sig);
+    }
 }
