@@ -167,6 +167,29 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
         assertEq(uint256(claimAfter.status), uint256(Status.Paid), "Claim should be marked as paid");
     }
 
+    function testMarkAsPaid_WithSubstantialPartialPayment() public {
+        // Create a claim
+        uint256 claimId = _newClaim(creditor, creditor, debtor);
+        
+        // Pay 99% of the claim
+        vm.startPrank(debtor);
+        weth.approve(address(bullaClaim), 0.99 ether);
+        bullaClaim.payClaim(claimId, 0.99 ether);
+        vm.stopPrank();
+        
+        Claim memory claimBefore = bullaClaim.getClaim(claimId);
+        assertEq(uint256(claimBefore.status), uint256(Status.Repaying), "Claim should be repaying");
+        assertEq(claimBefore.paidAmount, 0.99 ether, "Paid amount should be 0.99 ether");
+        
+        // Mark the claim as paid despite the small remaining balance
+        vm.prank(creditor);
+        bullaClaim.markClaimAsPaid(claimId);
+        
+        Claim memory claimAfter = bullaClaim.getClaim(claimId);
+        assertEq(uint256(claimAfter.status), uint256(Status.Paid), "Claim should be marked as paid");
+        assertEq(claimAfter.paidAmount, 0.99 ether, "Paid amount should remain 0.99 ether");
+    }
+
     /*///////////////////////////////////////////////////////////////
                         ACCESS CONTROL TESTS
     //////////////////////////////////////////////////////////////*/
