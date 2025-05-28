@@ -32,7 +32,7 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
     address randomUser = vm.addr(randomPK);
     address operator = vm.addr(operatorPK);
 
-    event ClaimMarkedAsPaid(uint256 indexed claimId, address indexed from);
+    event ClaimMarkedAsPaid(uint256 indexed claimId);
 
     function setUp() public {
         weth = new WETH();
@@ -60,7 +60,7 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
         uint256 claimId = _newClaim(creditor, creditor, debtor);
 
         vm.expectEmit(true, true, false, true);
-        emit ClaimMarkedAsPaid(claimId, creditor);
+        emit ClaimMarkedAsPaid(claimId);
 
         vm.prank(creditor);
         bullaClaim.markClaimAsPaid(claimId);
@@ -83,7 +83,7 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
         assertEq(uint256(claimBefore.status), uint256(Status.Repaying), "Claim should be repaying");
 
         vm.expectEmit(true, true, false, true);
-        emit ClaimMarkedAsPaid(claimId, creditor);
+        emit ClaimMarkedAsPaid(claimId);
 
         vm.prank(creditor);
         bullaClaim.markClaimAsPaid(claimId);
@@ -103,7 +103,7 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
         uint256 approvalCountBefore = approval.approvalCount;
 
         vm.expectEmit(true, true, false, true);
-        emit ClaimMarkedAsPaid(claimId, creditor);
+        emit ClaimMarkedAsPaid(claimId);
 
         vm.prank(operator);
         bullaClaim.markClaimAsPaidFrom(creditor, claimId);
@@ -134,7 +134,7 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
         _permitMarkAsPaid(creditorPK, address(controller), 1);
 
         vm.expectEmit(true, true, false, true);
-        emit ClaimMarkedAsPaid(claimId, creditor);
+        emit ClaimMarkedAsPaid(claimId);
 
         vm.prank(address(controller));
         bullaClaim.markClaimAsPaidFrom(creditor, claimId);
@@ -170,21 +170,21 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
     function testMarkAsPaid_WithSubstantialPartialPayment() public {
         // Create a claim
         uint256 claimId = _newClaim(creditor, creditor, debtor);
-        
+
         // Pay 99% of the claim
         vm.startPrank(debtor);
         weth.approve(address(bullaClaim), 0.99 ether);
         bullaClaim.payClaim(claimId, 0.99 ether);
         vm.stopPrank();
-        
+
         Claim memory claimBefore = bullaClaim.getClaim(claimId);
         assertEq(uint256(claimBefore.status), uint256(Status.Repaying), "Claim should be repaying");
         assertEq(claimBefore.paidAmount, 0.99 ether, "Paid amount should be 0.99 ether");
-        
+
         // Mark the claim as paid despite the small remaining balance
         vm.prank(creditor);
         bullaClaim.markClaimAsPaid(claimId);
-        
+
         Claim memory claimAfter = bullaClaim.getClaim(claimId);
         assertEq(uint256(claimAfter.status), uint256(Status.Paid), "Claim should be marked as paid");
         assertEq(claimAfter.paidAmount, 0.99 ether, "Paid amount should remain 0.99 ether");
@@ -349,7 +349,7 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
         uint256 claimId = _newClaim(creditor, creditor, debtor);
 
         vm.expectEmit(true, true, false, true);
-        emit ClaimMarkedAsPaid(claimId, creditor);
+        emit ClaimMarkedAsPaid(claimId);
 
         vm.prank(creditor);
         bullaClaim.markClaimAsPaid(claimId);
@@ -362,7 +362,7 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
         _permitMarkAsPaid(creditorPK, operator, 1);
 
         vm.expectEmit(true, true, false, true);
-        emit ClaimMarkedAsPaid(claimId, creditor);
+        emit ClaimMarkedAsPaid(claimId);
 
         vm.prank(operator);
         bullaClaim.markClaimAsPaidFrom(creditor, claimId);
@@ -480,7 +480,7 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
 
         // Mark as paid
         vm.expectEmit(true, true, false, true);
-        emit ClaimMarkedAsPaid(claimId, _creditor);
+        emit ClaimMarkedAsPaid(claimId);
 
         vm.prank(_creditor);
         bullaClaim.markClaimAsPaid(claimId);
@@ -526,4 +526,4 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
 
         assertEq(claim2.paidAmount, 0.5 ether, "Claim 2 should retain payment amount");
     }
-} 
+}

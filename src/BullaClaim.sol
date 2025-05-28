@@ -98,7 +98,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
 
     event ClaimImpaired(uint256 indexed claimId);
 
-    event ClaimMarkedAsPaid(uint256 indexed claimId, address indexed from);
+    event ClaimMarkedAsPaid(uint256 indexed claimId);
 
     event CreateClaimApproved(
         address indexed user,
@@ -724,8 +724,8 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         if (from != creditor) revert NotCreditor();
 
         claims[claimId].status = Status.Paid;
-        
-        emit ClaimMarkedAsPaid(claimId, from);
+
+        emit ClaimMarkedAsPaid(claimId);
     }
 
     /*///////////////////////////////////////////////////////////////

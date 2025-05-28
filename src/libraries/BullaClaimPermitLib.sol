@@ -766,9 +766,7 @@ library BullaClaimPermitLib {
             abi.encodePacked(
                 "\x19\x01",
                 domainSeparator,
-                getPermitMarkAsPaidDigest(
-                    extensionRegistry, user, operator, approvalCount, approvals.markAsPaid.nonce
-                )
+                getPermitMarkAsPaidDigest(extensionRegistry, user, operator, approvalCount, approvals.markAsPaid.nonce)
             )
         );
 

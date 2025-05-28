@@ -238,12 +238,10 @@ contract EIP712Helper {
         return abi.encodePacked(r, s, v);
     }
 
-    function signMarkAsPaidPermit(
-        uint256 pk,
-        address user,
-        address operator,
-        uint64 approvalCount
-    ) public returns (bytes memory) {
+    function signMarkAsPaidPermit(uint256 pk, address user, address operator, uint64 approvalCount)
+        public
+        returns (bytes memory)
+    {
         bytes32 digest = getPermitMarkAsPaidDigest(user, operator, approvalCount);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
         return abi.encodePacked(r, s, v);

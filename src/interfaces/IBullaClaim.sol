@@ -55,7 +55,7 @@ interface IBullaClaim {
 
     event ClaimImpaired(uint256 indexed claimId, address indexed from, string note);
 
-    event ClaimMarkedAsPaid(uint256 indexed claimId, address indexed from);
+    event ClaimMarkedAsPaid(uint256 indexed claimId);
 
     event MarkAsPaidApproved(address indexed user, address indexed operator, uint256 approvalCount);
 

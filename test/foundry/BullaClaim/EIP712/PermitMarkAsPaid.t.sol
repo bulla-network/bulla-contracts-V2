@@ -64,8 +64,7 @@ contract TestPermitMarkAsPaid is Test {
         address alice = address(eip1271Wallet);
         address bob = address(0xB0b);
 
-        bytes32 digest =
-            sigHelper.getPermitMarkAsPaidDigest({user: alice, operator: bob, approvalCount: approvalCount});
+        bytes32 digest = sigHelper.getPermitMarkAsPaidDigest({user: alice, operator: bob, approvalCount: approvalCount});
         eip1271Wallet.sign(digest);
 
         vm.expectEmit(true, true, true, true);
@@ -185,8 +184,7 @@ contract TestPermitMarkAsPaid is Test {
         address bob = address(0xB0b);
 
         // build a digest based on alice's approval
-        bytes32 digest =
-            sigHelper.getPermitMarkAsPaidDigest({user: alice, operator: bob, approvalCount: approvalCount});
+        bytes32 digest = sigHelper.getPermitMarkAsPaidDigest({user: alice, operator: bob, approvalCount: approvalCount});
 
         // sign the digest with the wrong key
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(badGuyPK, digest);
@@ -245,12 +243,7 @@ contract TestPermitMarkAsPaid is Test {
         );
 
         vm.expectRevert(BullaClaim.InvalidSignature.selector);
-        bullaClaim.permitMarkAsPaid({
-            user: user,
-            operator: operator,
-            approvalCount: approvalCount,
-            signature: signature
-        });
+        bullaClaim.permitMarkAsPaid({user: user, operator: operator, approvalCount: approvalCount, signature: signature});
     }
 
     /// @notice sanity check to ensure that existance of code at the operator address doesn't break anything
@@ -294,16 +287,11 @@ contract TestPermitMarkAsPaid is Test {
         vm.expectEmit(true, true, true, true);
         emit MarkAsPaidApproved(user, operator, approvalCount);
 
-        bullaClaim.permitMarkAsPaid({
-            user: user,
-            operator: operator,
-            approvalCount: approvalCount,
-            signature: signature
-        });
+        bullaClaim.permitMarkAsPaid({user: user, operator: operator, approvalCount: approvalCount, signature: signature});
 
         (,,,,, MarkAsPaidApproval memory approval) = bullaClaim.approvals(user, operator);
 
         assertEq(approval.approvalCount, approvalCount, "approvalCount");
         assertEq(approval.nonce, 1, "nonce");
     }
-} 
+}
