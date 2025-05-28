@@ -39,11 +39,7 @@ contract PermitPayClaimTest is Test {
 
     function _newClaim(address _creditor, address _debtor) internal returns (uint256 claimId) {
         claimId = bullaClaim.createClaim(
-            new CreateClaimParamsBuilder()
-                .withCreditor(_creditor)
-                .withDebtor(_debtor)
-                .withToken(address(weth))
-                .build()
+            new CreateClaimParamsBuilder().withCreditor(_creditor).withDebtor(_debtor).withToken(address(weth)).build()
         );
     }
 

@@ -47,7 +47,7 @@ contract EIP712Helper {
         uint64 approvalCount,
         bool isBindingAllowed
     ) internal view returns (bytes32) {
-        (CreateClaimApproval memory approvals,,,) = bullaClaim.approvals(user, operator);
+        (CreateClaimApproval memory approvals,,,,) = bullaClaim.approvals(user, operator);
 
         return keccak256(
             abi.encode(
@@ -94,7 +94,7 @@ contract EIP712Helper {
         uint256 approvalDeadline,
         ClaimPaymentApprovalParam[] calldata paymentApprovals
     ) public view returns (bytes32) {
-        (, PayClaimApproval memory approval,,) = bullaClaim.approvals(user, operator);
+        (, PayClaimApproval memory approval,,,) = bullaClaim.approvals(user, operator);
         return keccak256(
             abi.encodePacked(
                 "\x19\x01",
@@ -117,7 +117,7 @@ contract EIP712Helper {
         view
         returns (bytes32)
     {
-        (,, UpdateBindingApproval memory approval,) = bullaClaim.approvals(user, operator);
+        (,, UpdateBindingApproval memory approval,,) = bullaClaim.approvals(user, operator);
         return keccak256(
             abi.encodePacked(
                 "\x19\x01",
@@ -134,12 +134,29 @@ contract EIP712Helper {
         view
         returns (bytes32)
     {
-        (,,, CancelClaimApproval memory approval) = bullaClaim.approvals(user, operator);
+        (,,, CancelClaimApproval memory approval,) = bullaClaim.approvals(user, operator);
         return keccak256(
             abi.encodePacked(
                 "\x19\x01",
                 DOMAIN_SEPARATOR,
                 BullaClaimPermitLib.getPermitCancelClaimDigest(
+                    bullaClaim.extensionRegistry(), user, operator, approvalCount, approval.nonce
+                )
+            )
+        );
+    }
+
+    function getPermitImpairClaimDigest(address user, address operator, uint64 approvalCount)
+        public
+        view
+        returns (bytes32)
+    {
+        (,,,, ImpairClaimApproval memory approval) = bullaClaim.approvals(user, operator);
+        return keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                DOMAIN_SEPARATOR,
+                BullaClaimPermitLib.getPermitImpairClaimDigest(
                     bullaClaim.extensionRegistry(), user, operator, approvalCount, approval.nonce
                 )
             )
@@ -189,6 +206,16 @@ contract EIP712Helper {
         returns (bytes memory)
     {
         bytes32 digest = getPermitCancelClaimDigest(user, operator, approvalCount);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
+        return abi.encodePacked(r, s, v);
+    }
+
+    function signImpairClaimPermit(uint256 pk, address user, address operator, uint64 approvalCount)
+        public
+        returns (bytes memory)
+    {
+        bytes32 digest = getPermitImpairClaimDigest(user, operator, approvalCount);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
         return abi.encodePacked(r, s, v);

@@ -21,23 +21,13 @@ contract ERC721Test is DSTestPlus {
 
     function _mint() private returns (uint256 claimId) {
         hevm.startPrank(creditor);
-        claimId = token.createClaim(
-            new CreateClaimParamsBuilder()
-                .withCreditor(creditor)
-                .withDebtor(debtor)
-                .build()
-        );
+        claimId = token.createClaim(new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).build());
         hevm.stopPrank();
     }
 
     function _mint(address _creator, address _creditor) private returns (uint256 claimId) {
         hevm.startPrank(_creator);
-        claimId = token.createClaim(
-            new CreateClaimParamsBuilder()
-                .withCreditor(_creditor)
-                .withDebtor(debtor)
-                .build()
-        );
+        claimId = token.createClaim(new CreateClaimParamsBuilder().withCreditor(_creditor).withDebtor(debtor).build());
         hevm.stopPrank();
     }
 
@@ -122,12 +112,7 @@ contract ERC721Test is DSTestPlus {
     }
 
     function testFailMintToZero() public {
-        token.createClaim(
-            new CreateClaimParamsBuilder()
-                .withCreditor(address(0))
-                .withDebtor(debtor)
-                .build()
-        );
+        token.createClaim(new CreateClaimParamsBuilder().withCreditor(address(0)).withDebtor(debtor).build());
     }
 
     function testFailApproveUnMinted() public {

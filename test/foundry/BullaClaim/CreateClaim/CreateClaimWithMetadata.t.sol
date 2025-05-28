@@ -49,19 +49,15 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
     }
 
     function testCreateClaimWithMetadata() public {
-        CreateClaimParams memory params = new CreateClaimParamsBuilder()
-                .withCreditor(creditor)
-                .withDebtor(debtor)
-                .withToken(address(weth))
-                .build();
+        CreateClaimParams memory params =
+            new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
 
         vm.expectEmit(true, true, true, true);
         emit MetadataAdded(1, tokenURI, attachmentURI);
-        
+
         vm.prank(creditor);
         uint256 claimId = bullaClaim.createClaimWithMetadata(
-            params,
-            ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
+            params, ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
         );
 
         (string memory _tokenURI, string memory _attachmentURI) = bullaClaim.claimMetadata(claimId);
@@ -89,17 +85,12 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
 
         _newClaimWithMetadataFrom(user, user, debtor);
 
-        CreateClaimParams memory params = new CreateClaimParamsBuilder()
-                .withCreditor(user)
-                .withDebtor(debtor)
-                .withToken(address(weth))
-                .build();
+        CreateClaimParams memory params =
+            new CreateClaimParamsBuilder().withCreditor(user).withDebtor(debtor).withToken(address(weth)).build();
 
         vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector));
         bullaClaim.createClaimWithMetadataFrom(
-            user,
-            params,
-            ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
+            user, params, ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
         );
     }
 
@@ -112,17 +103,12 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
             _isBindingAllowed: false
         });
 
-        CreateClaimParams memory params = new CreateClaimParamsBuilder()
-                .withCreditor(debtor)
-                .withDebtor(user)
-                .withBinding(ClaimBinding.Bound)
-                .build();
+        CreateClaimParams memory params =
+            new CreateClaimParamsBuilder().withCreditor(debtor).withDebtor(user).withBinding(ClaimBinding.Bound).build();
 
         vm.expectRevert(abi.encodeWithSelector(BullaClaim.CannotBindClaim.selector));
         bullaClaim.createClaimWithMetadataFrom(
-            user,
-            params,
-            ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
+            user, params, ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
         );
     }
 
@@ -135,16 +121,11 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
             _isBindingAllowed: true
         });
 
-        CreateClaimParams memory params = new CreateClaimParamsBuilder()
-                .withCreditor(debtor)
-                .withDebtor(user)
-                .build();
+        CreateClaimParams memory params = new CreateClaimParamsBuilder().withCreditor(debtor).withDebtor(user).build();
 
         vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector));
         bullaClaim.createClaimWithMetadataFrom(
-            user,
-            params,
-            ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
+            user, params, ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
         );
     }
 
@@ -157,17 +138,12 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
             _isBindingAllowed: true
         });
 
-        CreateClaimParams memory params = new CreateClaimParamsBuilder()
-                .withCreditor(user)
-                .withDebtor(debtor)
-                .withToken(address(weth))
-                .build();
+        CreateClaimParams memory params =
+            new CreateClaimParamsBuilder().withCreditor(user).withDebtor(debtor).withToken(address(weth)).build();
 
         vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector));
         bullaClaim.createClaimWithMetadataFrom(
-            user,
-            params,
-            ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
+            user, params, ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
         );
     }
 
@@ -175,11 +151,7 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
         // Test with createClaimWithMetadata
         vm.startPrank(creditor);
         bullaClaim.createClaimWithMetadata(
-            new CreateClaimParamsBuilder()
-                .withCreditor(creditor)
-                .withDebtor(debtor)
-                .withToken(address(weth))
-                .build(),
+            new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build(),
             ClaimMetadata({tokenURI: tokenURI, attachmentURI: attachmentURI})
         );
         vm.stopPrank();
@@ -191,16 +163,11 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
             _approvalType: CreateClaimApprovalType.Approved,
             _isBindingAllowed: false
         });
-        
+
         uint256 claimId3 = bullaClaim.createClaimFrom(
-            user,
-            new CreateClaimParamsBuilder()
-                .withCreditor(user)
-                .withDebtor(debtor)
-                .withToken(address(weth))
-                .build()
+            user, new CreateClaimParamsBuilder().withCreditor(user).withDebtor(debtor).withToken(address(weth)).build()
         );
-        
+
         Claim memory claim3 = bullaClaim.getClaim(claimId3);
         assertEq(claim3.originalCreditor, user);
     }

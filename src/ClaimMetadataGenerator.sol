@@ -18,6 +18,8 @@ contract ClaimMetadataGenerator {
             return "Rejected";
         } else if (status == Status.Rescinded) {
             return "Rescinded";
+        } else if (status == Status.Impaired) {
+            return "Impaired";
         } else {
             return "";
         }

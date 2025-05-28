@@ -8,7 +8,19 @@ import "contracts/types/Types.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
-import {BullaInvoice, CreateInvoiceParams, Invoice, CreditorCannotBeDebtor, InvalidDeliveryDate, NotOriginalCreditor, PurchaseOrderAlreadyDelivered, InvoiceNotPending, PurchaseOrderState, InvoiceDetails, NotPurchaseOrder} from "contracts/BullaInvoice.sol";
+import {
+    BullaInvoice,
+    CreateInvoiceParams,
+    Invoice,
+    CreditorCannotBeDebtor,
+    InvalidDeliveryDate,
+    NotOriginalCreditor,
+    PurchaseOrderAlreadyDelivered,
+    InvoiceNotPending,
+    PurchaseOrderState,
+    InvoiceDetails,
+    NotPurchaseOrder
+} from "contracts/BullaInvoice.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {CreateInvoiceParamsBuilder} from "test/foundry/BullaInvoice/CreateInvoiceParamsBuilder.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
@@ -53,10 +65,8 @@ contract TestBullaInvoice is Test {
         });
 
         // Create invoice params
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .build();
-            
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).build();
+
         // Create an invoice as creditor
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -89,10 +99,8 @@ contract TestBullaInvoice is Test {
         });
 
         // Create invoice params
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .build();
-            
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).build();
+
         // Create an invoice
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -138,10 +146,8 @@ contract TestBullaInvoice is Test {
         });
 
         // Create invoice params
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .build();
-            
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).build();
+
         // Create an invoice
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -192,10 +198,8 @@ contract TestBullaInvoice is Test {
         });
 
         // Create invoice params
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .build();
-            
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).build();
+
         // Create an invoice
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -241,10 +245,8 @@ contract TestBullaInvoice is Test {
         });
 
         // Create invoice params
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .build();
-            
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).build();
+
         // Create an invoice
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -291,10 +293,8 @@ contract TestBullaInvoice is Test {
         });
 
         // Create invoice params
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .build();
-            
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).build();
+
         // Create an invoice
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -363,11 +363,9 @@ contract TestBullaInvoice is Test {
         });
 
         // Create invoice params with WETH as token
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .withDescription("Token Payment Invoice")
-            .withToken(address(weth))
-            .build();
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withDescription(
+            "Token Payment Invoice"
+        ).withToken(address(weth)).build();
 
         // Create an invoice with WETH as token
         vm.prank(creditor);
@@ -432,10 +430,8 @@ contract TestBullaInvoice is Test {
             ClaimMetadata({tokenURI: "Monthly Service", attachmentURI: "Additional details about this invoice"});
 
         // Create invoice params with metadata
-        CreateInvoiceParams memory invoiceParams = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .withDescription("Test Invoice with Metadata")
-            .build();
+        CreateInvoiceParams memory invoiceParams =
+            new CreateInvoiceParamsBuilder().withDebtor(debtor).withDescription("Test Invoice with Metadata").build();
 
         // Create an invoice with metadata
         vm.prank(creditor);
@@ -474,9 +470,9 @@ contract TestBullaInvoice is Test {
         vm.warp(block.timestamp + 1 days);
 
         // Create params with past due date
-        CreateInvoiceParams memory pastDueParams = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .withDueBy(block.timestamp - 1 days) // Past date
+        CreateInvoiceParams memory pastDueParams = new CreateInvoiceParamsBuilder().withDebtor(debtor).withDueBy(
+            block.timestamp - 1 days
+        ) // Past date
             .build();
 
         // Try to create an invoice with past due date
@@ -485,9 +481,9 @@ contract TestBullaInvoice is Test {
         bullaInvoice.createInvoice(pastDueParams);
 
         // Create params with far future due date
-        CreateInvoiceParams memory farFutureParams = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .withDueBy(uint256(type(uint40).max) + 1) // Too far in the future
+        CreateInvoiceParams memory farFutureParams = new CreateInvoiceParamsBuilder().withDebtor(debtor).withDueBy(
+            uint256(type(uint40).max) + 1
+        ) // Too far in the future
             .build();
 
         // Try to create an invoice with too far future due date
@@ -517,11 +513,9 @@ contract TestBullaInvoice is Test {
 
         // Set due date and create invoice params
         uint256 dueDate = block.timestamp + 30 days;
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .withDueBy(dueDate)
-            .build();
-            
+        CreateInvoiceParams memory params =
+            new CreateInvoiceParamsBuilder().withDebtor(debtor).withDueBy(dueDate).build();
+
         // Create an invoice
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -575,11 +569,9 @@ contract TestBullaInvoice is Test {
 
         // Set due date and create invoice params
         uint256 dueDate = block.timestamp + 30 days;
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .withDueBy(dueDate)
-            .build();
-            
+        CreateInvoiceParams memory params =
+            new CreateInvoiceParamsBuilder().withDebtor(debtor).withDueBy(dueDate).build();
+
         // Create an invoice
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -633,10 +625,8 @@ contract TestBullaInvoice is Test {
         });
 
         // Create invoice params
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .build();
-            
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).build();
+
         // Create an invoice
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -667,10 +657,8 @@ contract TestBullaInvoice is Test {
         });
 
         // Create invoice params
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .build();
-            
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).build();
+
         // Create an invoice
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -708,13 +696,9 @@ contract TestBullaInvoice is Test {
         });
 
         // Create invoice params with fuzzing values
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .withClaimAmount(amount)
-            .withDueBy(dueBy)
-            .withDescription("Fuzz Test Invoice")
-            .build();
-            
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withClaimAmount(amount)
+            .withDueBy(dueBy).withDescription("Fuzz Test Invoice").build();
+
         // Create an invoice
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -750,12 +734,9 @@ contract TestBullaInvoice is Test {
         });
 
         // Create invoice params with fuzzing values
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .withClaimAmount(amount)
-            .withDescription("Fuzz Test Invoice")
-            .build();
-            
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withClaimAmount(amount)
+            .withDescription("Fuzz Test Invoice").build();
+
         // Create an invoice
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -818,10 +799,8 @@ contract TestBullaInvoice is Test {
         });
 
         // Create invoice params
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .build();
-            
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).build();
+
         // Create an invoice
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -868,10 +847,8 @@ contract TestBullaInvoice is Test {
         });
 
         // Create invoice params
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .build();
-            
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).build();
+
         // Create an invoice
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -925,12 +902,10 @@ contract TestBullaInvoice is Test {
         });
 
         // Create invoice params with zero due date
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .withDueBy(0) // No due date
-            .withDescription("Test Invoice with No Due Date")
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withDueBy(0)
+            .withDescription("Test Invoice with No Due Date") // No due date
             .build();
-            
+
         // Create an invoice with dueBy = 0
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -943,15 +918,11 @@ contract TestBullaInvoice is Test {
     // Test trying to pay a claim that was not created by BullaInvoice
     function testPayDirectClaim() public {
         // Create a claim directly via BullaClaim
-        CreateClaimParams memory params = new CreateClaimParamsBuilder()
-            .withCreditor(creditor)
-            .withDebtor(debtor)
-            .withClaimAmount(1 ether)
-            .withDescription("Direct Claim")
-            .withToken(address(0))
-            .withBinding(ClaimBinding.BindingPending)
-            .build();
-            
+        CreateClaimParams memory params = new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withClaimAmount(1 ether).withDescription("Direct Claim").withToken(address(0)).withBinding(
+            ClaimBinding.BindingPending
+        ).build();
+
         vm.prank(creditor);
         uint256 claimId = bullaClaim.createClaim(params);
 
@@ -964,12 +935,9 @@ contract TestBullaInvoice is Test {
     // Test trying to update binding of a claim that was not created by BullaInvoice
     function testUpdateBindingDirectClaim() public {
         // Create a claim directly via BullaClaim
-        CreateClaimParams memory params = new CreateClaimParamsBuilder()
-            .withCreditor(creditor)
-            .withDebtor(debtor)
-            .withBinding(ClaimBinding.BindingPending)
-            .build();
-            
+        CreateClaimParams memory params = new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withBinding(ClaimBinding.BindingPending).build();
+
         vm.prank(creditor);
         uint256 claimId = bullaClaim.createClaim(params);
 
@@ -995,13 +963,9 @@ contract TestBullaInvoice is Test {
     // Test trying to cancel a claim that was not created by BullaInvoice
     function testCancelDirectClaim() public {
         // Create a claim directly via BullaClaim
-        CreateClaimParams memory params = new CreateClaimParamsBuilder()
-            .withCreditor(creditor)
-            .withDebtor(debtor)
-            .withClaimAmount(1 ether)
-            .withBinding(ClaimBinding.BindingPending)
-            .build();
-            
+        CreateClaimParams memory params = new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withClaimAmount(1 ether).withBinding(ClaimBinding.BindingPending).build();
+
         vm.prank(creditor);
         uint256 claimId = bullaClaim.createClaim(params);
 
@@ -1030,9 +994,7 @@ contract TestBullaInvoice is Test {
             })
         });
 
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .build();
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).build();
 
         // Create an invoice via BullaInvoice
         vm.prank(creditor);
@@ -1063,9 +1025,7 @@ contract TestBullaInvoice is Test {
             })
         });
 
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .build();
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).build();
 
         // Create an invoice via BullaInvoice
         vm.prank(creditor);
@@ -1100,18 +1060,13 @@ contract TestBullaInvoice is Test {
         ClaimMetadata memory metadata =
             ClaimMetadata({tokenURI: "Invoice with Zero Due Date", attachmentURI: "No due date specified"});
 
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .withDueBy(0) // No due date
-            .withDescription("Test Invoice with Metadata and No Due Date")
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withDueBy(0)
+            .withDescription("Test Invoice with Metadata and No Due Date") // No due date
             .build();
 
         // Create an invoice with metadata and dueBy = 0
         vm.prank(creditor);
-        uint256 invoiceId = bullaInvoice.createInvoiceWithMetadata(
-            params,
-            metadata
-        );
+        uint256 invoiceId = bullaInvoice.createInvoiceWithMetadata(params, metadata);
 
         // Verify invoice was created correctly with dueBy = 0
         Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
@@ -1150,20 +1105,14 @@ contract TestBullaInvoice is Test {
 
         vm.warp(block.timestamp + 1 days);
 
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .withClaimAmount(1 ether)
-            .withDueBy(block.timestamp - 1 days) // Past date
-            .withDescription("Test Invoice with Metadata and Past Due Date")
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withClaimAmount(1 ether)
+            .withDueBy(block.timestamp - 1 days).withDescription("Test Invoice with Metadata and Past Due Date") // Past date
             .build();
 
         // Try to create an invoice with metadata and past due date
         vm.prank(creditor);
         vm.expectRevert(abi.encodeWithSelector(BullaClaim.InvalidDueBy.selector));
-        bullaInvoice.createInvoiceWithMetadata(
-            params,
-            metadata
-        );
+        bullaInvoice.createInvoiceWithMetadata(params, metadata);
     }
 
     // Test creating invoice with metadata and too far future due date (should fail)
@@ -1191,19 +1140,15 @@ contract TestBullaInvoice is Test {
             attachmentURI: "This should fail due to far future due date"
         });
 
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .withDueBy(uint256(type(uint40).max) + 1) // Too far in the future
-            .withDescription("Test Invoice with Metadata and Far Future Due Date")
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withDueBy(
+            uint256(type(uint40).max) + 1
+        ).withDescription("Test Invoice with Metadata and Far Future Due Date") // Too far in the future
             .build();
 
         // Try to create an invoice with metadata and too far future due date
         vm.prank(creditor);
         vm.expectRevert(abi.encodeWithSelector(BullaClaim.InvalidDueBy.selector));
-        bullaInvoice.createInvoiceWithMetadata(
-            params,
-            metadata
-        );
+        bullaInvoice.createInvoiceWithMetadata(params, metadata);
     }
 
     // Test creditor cannot be debtor in createInvoice
@@ -1225,10 +1170,9 @@ contract TestBullaInvoice is Test {
             })
         });
 
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(creditor)
-            .withDescription("Test Invoice with Same Creditor and Debtor")
-            .build();
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(creditor).withDescription(
+            "Test Invoice with Same Creditor and Debtor"
+        ).build();
 
         // Try to create an invoice where creditor (msg.sender) is the same as debtor
         vm.prank(creditor);
@@ -1261,18 +1205,14 @@ contract TestBullaInvoice is Test {
             attachmentURI: "This should fail due to creditor being same as debtor"
         });
 
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(creditor)
-            .withDescription("Test Invoice with Metadata and Same Creditor and Debtor")
-            .build();
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(creditor).withDescription(
+            "Test Invoice with Metadata and Same Creditor and Debtor"
+        ).build();
 
         // Try to create an invoice with metadata where creditor (msg.sender) is the same as debtor
         vm.prank(creditor);
         vm.expectRevert(abi.encodeWithSelector(CreditorCannotBeDebtor.selector));
-        bullaInvoice.createInvoiceWithMetadata(
-            params,
-            metadata
-        );
+        bullaInvoice.createInvoiceWithMetadata(params, metadata);
     }
 
     /// PURCHASE ORDER TESTS ///
@@ -1299,11 +1239,9 @@ contract TestBullaInvoice is Test {
         uint256 deliveryDate = block.timestamp + 7 days;
 
         // Create invoice params with delivery date
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .withDeliveryDate(deliveryDate)
-            .build();
-            
+        CreateInvoiceParams memory params =
+            new CreateInvoiceParamsBuilder().withDebtor(debtor).withDeliveryDate(deliveryDate).build();
+
         // Create an invoice as creditor
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -1332,16 +1270,14 @@ contract TestBullaInvoice is Test {
                 isBindingAllowed: false
             })
         });
-        
+
         vm.warp(30 days);
 
         // Create invoice params with past delivery date
         uint256 pastDeliveryDate = block.timestamp - 1 days;
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .withDeliveryDate(pastDeliveryDate)
-            .build();
-            
+        CreateInvoiceParams memory params =
+            new CreateInvoiceParamsBuilder().withDebtor(debtor).withDeliveryDate(pastDeliveryDate).build();
+
         // Create should revert with InvalidDeliveryDate
         vm.prank(creditor);
         vm.expectRevert(InvalidDeliveryDate.selector);
@@ -1349,11 +1285,8 @@ contract TestBullaInvoice is Test {
 
         // Create invoice params with future delivery date beyond uint40
         uint256 farFutureDeliveryDate = uint256(type(uint40).max) + 1;
-        params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .withDeliveryDate(farFutureDeliveryDate)
-            .build();
-            
+        params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withDeliveryDate(farFutureDeliveryDate).build();
+
         // Create should revert with InvalidDeliveryDate
         vm.prank(creditor);
         vm.expectRevert(InvalidDeliveryDate.selector);
@@ -1380,11 +1313,9 @@ contract TestBullaInvoice is Test {
 
         // Create invoice params with delivery date
         uint256 deliveryDate = block.timestamp + 7 days;
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .withDeliveryDate(deliveryDate)
-            .build();
-            
+        CreateInvoiceParams memory params =
+            new CreateInvoiceParamsBuilder().withDebtor(debtor).withDeliveryDate(deliveryDate).build();
+
         // Create an invoice as creditor
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -1429,11 +1360,9 @@ contract TestBullaInvoice is Test {
 
         // Create invoice params with delivery date
         uint256 deliveryDate = block.timestamp + 7 days;
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .withDeliveryDate(deliveryDate)
-            .build();
-            
+        CreateInvoiceParams memory params =
+            new CreateInvoiceParamsBuilder().withDebtor(debtor).withDeliveryDate(deliveryDate).build();
+
         // Create an invoice as creditor
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -1470,11 +1399,9 @@ contract TestBullaInvoice is Test {
 
         // Create invoice params with delivery date
         uint256 deliveryDate = block.timestamp + 7 days;
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .withDeliveryDate(deliveryDate)
-            .build();
-            
+        CreateInvoiceParams memory params =
+            new CreateInvoiceParamsBuilder().withDebtor(debtor).withDeliveryDate(deliveryDate).build();
+
         // Create an invoice
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -1521,11 +1448,9 @@ contract TestBullaInvoice is Test {
         });
 
         // Create invoice params with zero delivery date (not a purchase order)
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .withDeliveryDate(0)  // Explicitly set to 0
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withDeliveryDate(0) // Explicitly set to 0
             .build();
-            
+
         // Create an invoice as creditor
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -1539,7 +1464,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         vm.expectRevert(NotPurchaseOrder.selector);
         bullaInvoice.deliverPurchaseOrder(invoiceId);
-
     }
 
     function testCreateInvoiceWithMetadataAndPurchaseOrder() public {
@@ -1564,19 +1488,14 @@ contract TestBullaInvoice is Test {
         uint256 deliveryDate = block.timestamp + 7 days;
 
         // Create invoice params with delivery date
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .withDeliveryDate(deliveryDate)
-            .build();
-            
+        CreateInvoiceParams memory params =
+            new CreateInvoiceParamsBuilder().withDebtor(debtor).withDeliveryDate(deliveryDate).build();
+
         // Create an invoice with metadata
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoiceWithMetadata(
             params,
-            ClaimMetadata({
-                tokenURI: "https://example.com/token/1",
-                attachmentURI: "https://example.com/attachment/1"
-            })
+            ClaimMetadata({tokenURI: "https://example.com/token/1", attachmentURI: "https://example.com/attachment/1"})
         );
 
         // Verify invoice was created correctly
@@ -1629,11 +1548,9 @@ contract TestBullaInvoice is Test {
         uint256 deliveryDate = block.timestamp + 7 days;
 
         // Create invoice params with delivery date
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .withDeliveryDate(deliveryDate)
-            .build();
-            
+        CreateInvoiceParams memory params =
+            new CreateInvoiceParamsBuilder().withDebtor(debtor).withDeliveryDate(deliveryDate).build();
+
         // Create an invoice as creditor
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -1678,8 +1595,12 @@ contract TestBullaInvoice is Test {
         invoice = bullaInvoice.getInvoice(invoiceId);
         assertTrue(invoice.status == Status.Paid, "Invoice status should be Paid");
         assertEq(invoice.paidAmount, 1 ether, "Invoice paid amount mismatch");
-        assertTrue(invoice.purchaseOrder.isDelivered, "Purchase order should still be marked as delivered after payment");
-        assertEq(invoice.purchaseOrder.deliveryDate, deliveryDate, "Delivery date should remain unchanged after payment");
+        assertTrue(
+            invoice.purchaseOrder.isDelivered, "Purchase order should still be marked as delivered after payment"
+        );
+        assertEq(
+            invoice.purchaseOrder.deliveryDate, deliveryDate, "Delivery date should remain unchanged after payment"
+        );
     }
 
     function testPartialPaymentOfPurchaseOrder() public {
@@ -1704,12 +1625,11 @@ contract TestBullaInvoice is Test {
         uint256 deliveryDate = block.timestamp + 7 days;
 
         // Create invoice params with delivery date
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .withDeliveryDate(deliveryDate)
-            .withClaimAmount(2 ether) // Larger amount to test partial payment
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withDeliveryDate(
+            deliveryDate
+        ).withClaimAmount(2 ether) // Larger amount to test partial payment
             .build();
-            
+
         // Create an invoice as creditor
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -1748,7 +1668,10 @@ contract TestBullaInvoice is Test {
         invoice = bullaInvoice.getInvoice(invoiceId);
         assertTrue(invoice.status == Status.Repaying, "Invoice status should be Repaying after partial payment");
         assertEq(invoice.paidAmount, 1 ether, "Invoice paid amount should be 1 ether");
-        assertTrue(invoice.purchaseOrder.isDelivered, "Purchase order should still be marked as delivered after partial payment");
+        assertTrue(
+            invoice.purchaseOrder.isDelivered,
+            "Purchase order should still be marked as delivered after partial payment"
+        );
         assertEq(invoice.purchaseOrder.deliveryDate, deliveryDate, "Delivery date should remain unchanged");
 
         // Make final payment
@@ -1759,7 +1682,9 @@ contract TestBullaInvoice is Test {
         invoice = bullaInvoice.getInvoice(invoiceId);
         assertTrue(invoice.status == Status.Paid, "Invoice status should be Paid after full payment");
         assertEq(invoice.paidAmount, 2 ether, "Invoice paid amount should be 2 ether");
-        assertTrue(invoice.purchaseOrder.isDelivered, "Purchase order should still be marked as delivered after full payment");
+        assertTrue(
+            invoice.purchaseOrder.isDelivered, "Purchase order should still be marked as delivered after full payment"
+        );
         assertEq(invoice.purchaseOrder.deliveryDate, deliveryDate, "Delivery date should remain unchanged");
     }
 
@@ -1785,11 +1710,9 @@ contract TestBullaInvoice is Test {
         uint256 deliveryDate = block.timestamp + 7 days;
 
         // Create invoice params with delivery date
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
-            .withDebtor(debtor)
-            .withDeliveryDate(deliveryDate)
-            .build();
-            
+        CreateInvoiceParams memory params =
+            new CreateInvoiceParamsBuilder().withDebtor(debtor).withDeliveryDate(deliveryDate).build();
+
         // Create an invoice as creditor
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -1802,31 +1725,31 @@ contract TestBullaInvoice is Test {
 
         // Create new creditor address
         address newCreditor = address(0x1234);
-        
+
         // Transfer invoice to new creditor
         vm.prank(creditor);
         bullaClaim.safeTransferFrom(creditor, newCreditor, invoiceId);
-        
+
         // Verify ownership transfer
         assertEq(bullaClaim.ownerOf(invoiceId), newCreditor, "New creditor should own the invoice");
-        
+
         // Attempt to deliver from new creditor - should fail
         vm.prank(newCreditor);
         vm.expectRevert(NotOriginalCreditor.selector);
         bullaInvoice.deliverPurchaseOrder(invoiceId);
-        
+
         // Verify purchase order is still not delivered
         invoice = bullaInvoice.getInvoice(invoiceId);
         assertFalse(invoice.purchaseOrder.isDelivered, "Purchase order should not be delivered after failed attempt");
-        
+
         // Original creditor can still deliver
         vm.prank(creditor);
         bullaInvoice.deliverPurchaseOrder(invoiceId);
-        
+
         // Verify purchase order is now delivered
         invoice = bullaInvoice.getInvoice(invoiceId);
         assertTrue(invoice.purchaseOrder.isDelivered, "Purchase order should be delivered by original creditor");
-        
+
         // Verify ownership hasn't changed
         assertEq(bullaClaim.ownerOf(invoiceId), newCreditor, "New creditor should still own the invoice");
     }

@@ -33,6 +33,8 @@ library BullaClaimPermitLib {
 
     event CancelClaimApproved(address indexed user, address indexed operator, uint256 approvalCount);
 
+    event ImpairClaimApproved(address indexed user, address indexed operator, uint256 approvalCount);
+
     bytes32 constant CREATE_CLAIM_TYPEHASH = keccak256(
         bytes(
             "ApproveCreateClaimExtension(address user,address operator,string message,uint8 approvalType,uint256 approvalCount,bool isBindingAllowed,uint256 nonce)"
@@ -57,6 +59,12 @@ library BullaClaimPermitLib {
     bytes32 constant UPDATE_BINDING_TYPEHASH = keccak256(
         bytes(
             "ApproveUpdateBindingExtension(address user,address operator,string message,uint256 approvalCount,uint256 nonce)"
+        )
+    );
+
+    bytes32 constant IMPAIR_CLAIM_TYPEHASH = keccak256(
+        bytes(
+            "ApproveImpairClaimExtension(address user,address operator,string message,uint256 approvalCount,uint256 nonce)"
         )
     );
 
@@ -177,6 +185,31 @@ library BullaClaimPermitLib {
             );
     }
 
+    function getPermitImpairClaimMessage(
+        BullaExtensionRegistry extensionRegistry,
+        address operator,
+        uint64 approvalCount
+    ) public view returns (string memory) {
+        return approvalCount > 0 // approve case:
+            ? string.concat(
+                "I grant ",
+                approvalCount != type(uint64).max ? "limited " : "",
+                "approval to the following contract: ",
+                extensionRegistry.getExtensionForSignature(operator),
+                " (",
+                operator.toHexString(), // note: will _not_ be checksummed
+                ") to impair claims on my behalf."
+            ) // revoke case
+            : string.concat(
+                "I revoke approval for the following contract: ",
+                extensionRegistry.getExtensionForSignature(operator),
+                " (",
+                operator.toHexString(),
+                ") ",
+                "to impair claims on my behalf."
+            );
+    }
+
     /*
     ////// PERMIT DIGESTS //////
     */
@@ -289,6 +322,25 @@ library BullaClaimPermitLib {
                 user,
                 operator,
                 keccak256(bytes(getPermitUpdateBindingMessage(extensionRegistry, operator, approvalCount))),
+                approvalCount,
+                nonce
+            )
+        );
+    }
+
+    function getPermitImpairClaimDigest(
+        BullaExtensionRegistry extensionRegistry,
+        address user,
+        address operator,
+        uint64 approvalCount,
+        uint64 nonce
+    ) public view returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                BullaClaimPermitLib.IMPAIR_CLAIM_TYPEHASH,
+                user,
+                operator,
+                keccak256(bytes(getPermitImpairClaimMessage(extensionRegistry, operator, approvalCount))),
                 approvalCount,
                 nonce
             )
@@ -592,5 +644,46 @@ library BullaClaimPermitLib {
         approvals.cancelClaim.nonce++;
 
         emit CancelClaimApproved(user, operator, approvalCount);
+    }
+
+    /// @notice permitImpairClaim() allows a user, via a signature, to appove an operator to call impairClaim on their behalf
+    /// @notice SPEC:
+    /// A user can specify an operator address to call `impairClaim` on their behalf under the following conditions:
+    ///     SIG1. The recovered signer from the EIP712 signature == `user` -> otherwise: reverts
+    ///     SIG2. `user` is not the 0 address -> otherwise: reverts
+    ///     SIG3. `extensionRegistry` is not address(0)
+    /// This function can approve an operator to impair claims given:
+    ///     AI1: 0 < `approvalCount` < type(uint64).max -> otherwise reverts
+    /// This function can revoke an operator's approval to impair claims given:
+    ///     RI1: approvalCount == 0
+    ///
+    ///     RES1: approvalCount is stored
+    ///     RES2: the nonce is incremented
+    ///     RES3: the ImpairClaimApproved event is emitted
+    function permitImpairClaim(
+        Approvals storage approvals,
+        BullaExtensionRegistry extensionRegistry,
+        bytes32 domainSeparator,
+        address user,
+        address operator,
+        uint64 approvalCount,
+        bytes calldata signature
+    ) public {
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                domainSeparator,
+                getPermitImpairClaimDigest(
+                    extensionRegistry, user, operator, approvalCount, approvals.impairClaim.nonce
+                )
+            )
+        );
+
+        if (!SignatureChecker.isValidSignatureNow(user, digest, signature)) revert BullaClaim.InvalidSignature();
+
+        approvals.impairClaim.approvalCount = approvalCount;
+        approvals.impairClaim.nonce++;
+
+        emit ImpairClaimApproved(user, operator, approvalCount);
     }
 }

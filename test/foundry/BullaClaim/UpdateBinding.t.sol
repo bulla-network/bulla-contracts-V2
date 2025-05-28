@@ -41,12 +41,8 @@ contract TestUpdateBinding is BullaClaimTestHelper {
 
     function _newClaim(ClaimBinding binding) internal returns (uint256 claimId, Claim memory claim) {
         claimId = bullaClaim.createClaim(
-            new CreateClaimParamsBuilder()
-                .withCreditor(creditor)
-                .withDebtor(debtor)
-                .withToken(address(weth))
-                .withBinding(binding)
-                .build()
+            new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth))
+                .withBinding(binding).build()
         );
         claim = bullaClaim.getClaim(claimId);
     }
@@ -386,12 +382,8 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         vm.startPrank(controllerAddress);
         uint256 claimId = bullaClaim.createClaimFrom(
             creditor,
-            new CreateClaimParamsBuilder()
-                .withCreditor(creditor)
-                .withDebtor(debtor)
-                .withToken(address(weth))
-                .withBinding(ClaimBinding.BindingPending)
-                .build()
+            new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth))
+                .withBinding(ClaimBinding.BindingPending).build()
         );
         vm.stopPrank();
 
@@ -421,9 +413,9 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         vm.prank(operator);
         bullaClaim.updateBindingFrom(creditor, claimId, ClaimBinding.BindingPending);
 
-        (,, UpdateBindingApproval memory approval,) = bullaClaim.approvals(creditor, operator);
+        (,, UpdateBindingApproval memory approval,,) = bullaClaim.approvals(creditor, operator);
 
-        assertEq(approval.approvalCount, 11);
+        assertEq(approval.approvalCount, 11, "Should have 11 approvals");
 
         // doesn't decrement if approvalCount is uint64.max
         vm.startPrank(creditor);
@@ -435,9 +427,11 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         vm.prank(operator);
         bullaClaim.updateBindingFrom(creditor, claimId, ClaimBinding.BindingPending);
 
-        (,, approval,) = bullaClaim.approvals(creditor, operator);
+        (,, approval,,) = bullaClaim.approvals(creditor, operator);
 
         assertEq(approval.approvalCount, type(uint64).max);
+        Claim memory claim = bullaClaim.getClaim(claimId);
+        assertEq(uint256(claim.binding), uint256(ClaimBinding.BindingPending), "Binding should be updated");
     }
 
     /// @notice SPEC._spendUpdateBindingApproval.S1
@@ -451,9 +445,9 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         vm.prank(operator);
         bullaClaim.updateBindingFrom(creditor, claimId, ClaimBinding.BindingPending);
 
-        (,, UpdateBindingApproval memory approval,) = bullaClaim.approvals(creditor, operator);
+        (,, UpdateBindingApproval memory approval,,) = bullaClaim.approvals(creditor, operator);
 
-        assertEq(approval.approvalCount, 0);
+        assertEq(approval.approvalCount, 0, "Should have 0 approvals");
 
         vm.prank(operator);
         vm.expectRevert(BullaClaim.NotApproved.selector);

@@ -52,6 +52,8 @@ interface IBullaClaim {
 
     event ClaimRescinded(uint256 indexed claimId, address indexed from, string note);
 
+    event ClaimImpaired(uint256 indexed claimId, address indexed from, string note);
+
     event CreateClaimApproved(
         address indexed user,
         address indexed operator,
@@ -151,6 +153,10 @@ interface IBullaClaim {
     function cancelClaim(uint256 claimId, string memory note) external;
 
     function cancelClaimFrom(address from, uint256 claimId, string memory note) external;
+
+    function impairClaim(uint256 claimId) external;
+
+    function impairClaimFrom(address from, uint256 claimId) external;
 
     function burn(uint256 tokenId) external;
 

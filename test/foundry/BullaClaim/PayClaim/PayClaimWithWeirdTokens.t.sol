@@ -61,12 +61,8 @@ contract TestPayClaimWithWeirdTokens is Test {
 
     function _newClaim(address token, uint256 claimAmount) private returns (uint256 claimId) {
         claimId = bullaClaim.createClaim(
-            new CreateClaimParamsBuilder()
-                .withCreditor(creditor)
-                .withDebtor(debtor)
-                .withClaimAmount(claimAmount)
-                .withToken(token)
-                .build()
+            new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withClaimAmount(claimAmount)
+                .withToken(token).build()
         );
     }
 
@@ -131,13 +127,9 @@ contract TestPayClaimWithWeirdTokens is Test {
         feeToken.mint(debtor, CLAIM_AMOUNT * 2);
         tokenFeeAmount = (CLAIM_AMOUNT * feeToken.FEE_BPS()) / 10000;
 
-        CreateClaimParams memory params = new CreateClaimParamsBuilder()
-            .withCreditor(creditor)
-            .withDebtor(debtor)
-            .withClaimAmount(CLAIM_AMOUNT)
-            .withToken(address(feeToken))
-            .build();
-            
+        CreateClaimParams memory params = new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withClaimAmount(CLAIM_AMOUNT).withToken(address(feeToken)).build();
+
         vm.prank(creditor);
         uint256 claimId_creditorFee = bullaClaim.createClaim(params);
 
