@@ -21,6 +21,7 @@ error InvalidTermLength();
 error WithdrawalFailed();
 error TransferFailed();
 error LoanOfferNotFound();
+error LoanRequestNotFound();
 error NativeTokenNotSupported();
 error InvalidProtocolFee();
 error InvalidGracePeriod();
@@ -32,6 +33,17 @@ struct LoanDetails {
 }
 
 struct LoanOffer {
+    uint256 termLength;
+    InterestConfig interestConfig;
+    uint128 loanAmount;
+    address creditor;
+    address debtor;
+    string description;
+    address token;
+    uint256 impairmentGracePeriod;
+}
+
+struct LoanRequest {
     uint256 termLength;
     InterestConfig interestConfig;
     uint128 loanAmount;
@@ -59,12 +71,14 @@ struct Loan {
 
 /**
  * @title BullaFrendLend
- * @notice A wrapper contract for IBullaClaim that allows creditors to offer loans that debtors can accept
+ * @notice A wrapper contract for IBullaClaim that allows both creditors to offer loans that debtors can accept,
+ *         and debtors to request loans that creditors can accept
  */
 contract BullaFrendLend is BullaClaimControllerBase {
     address public admin;
     uint256 public fee;
     uint256 public loanOfferCount;
+    uint256 public loanRequestCount;
     uint256 public protocolFeeBPS;
 
     address[] public protocolFeeTokens;
@@ -72,12 +86,17 @@ contract BullaFrendLend is BullaClaimControllerBase {
     mapping(address => bool) private _tokenExists;
 
     mapping(uint256 => LoanOffer) public loanOffers;
+    mapping(uint256 => LoanRequest) public loanRequests;
     mapping(uint256 => LoanDetails) private _loanDetailsByClaimId;
     mapping(uint256 => ClaimMetadata) public loanOfferMetadata;
+    mapping(uint256 => ClaimMetadata) public loanRequestMetadata;
 
     event LoanOffered(uint256 indexed loanId, address indexed offeredBy, LoanOffer loanOffer);
     event LoanOfferAccepted(uint256 indexed loanId, uint256 indexed claimId);
     event LoanOfferRejected(uint256 indexed loanId, address indexed rejectedBy);
+    event LoanRequested(uint256 indexed requestId, address indexed requestedBy, LoanRequest loanRequest);
+    event LoanRequestAccepted(uint256 indexed requestId, uint256 indexed claimId);
+    event LoanRequestRejected(uint256 indexed requestId, address indexed rejectedBy);
     event LoanPayment(uint256 indexed claimId, uint256 interestPayment, uint256 principalPayment, uint256 protocolFee);
     event ProtocolFeeUpdated(uint256 oldFee, uint256 newFee);
 
@@ -259,6 +278,115 @@ contract BullaFrendLend is BullaClaimControllerBase {
     }
 
     /**
+     * @notice Allows a debtor to request a loan from a potential creditor with metadata
+     * @param request The loan request parameters
+     * @param metadata Metadata for the claim (will be used when the loan is accepted)
+     * @return The ID of the created loan request
+     */
+    function requestLoanWithMetadata(LoanRequest calldata request, ClaimMetadata calldata metadata)
+        external
+        payable
+        returns (uint256)
+    {
+        return _requestLoan(request, metadata);
+    }
+
+    /**
+     * @notice Allows a debtor to request a loan from a potential creditor
+     * @param request The loan request parameters
+     * @return The ID of the created loan request
+     */
+    function requestLoan(LoanRequest calldata request) external payable returns (uint256) {
+        return _requestLoan(request, _emptyMetadata);
+    }
+
+    function _requestLoan(LoanRequest calldata request, ClaimMetadata memory metadata) private returns (uint256) {
+        _validateLoanRequest(request);
+
+        uint256 requestId = ++loanRequestCount;
+        loanRequests[requestId] = request;
+
+        if (bytes(metadata.tokenURI).length > 0 || bytes(metadata.attachmentURI).length > 0) {
+            loanRequestMetadata[requestId] = metadata;
+        }
+
+        emit LoanRequested(requestId, msg.sender, request);
+
+        return requestId;
+    }
+
+    /**
+     * @notice Allows a debtor or creditor to reject or rescind a loan request
+     * @param requestId The ID of the loan request to reject
+     */
+    function rejectLoanRequest(uint256 requestId) external {
+        LoanRequest memory request = loanRequests[requestId];
+
+        if (request.debtor == address(0)) revert LoanRequestNotFound();
+        if (msg.sender != request.creditor && msg.sender != request.debtor) revert NotCreditorOrDebtor();
+
+        delete loanRequests[requestId];
+        delete loanRequestMetadata[requestId];
+
+        emit LoanRequestRejected(requestId, msg.sender);
+    }
+
+    /**
+     * @notice Allows a creditor to accept a loan request and provide funding
+     * @param requestId The ID of the loan request to accept
+     * @return The ID of the created claim
+     */
+    function acceptLoanRequest(uint256 requestId) external returns (uint256) {
+        LoanRequest memory request = loanRequests[requestId];
+
+        if (request.debtor == address(0)) revert LoanRequestNotFound();
+        if (msg.sender != request.creditor) revert NotCreditor();
+
+        ClaimMetadata memory metadata = loanRequestMetadata[requestId];
+
+        // Clean up storage
+        delete loanRequests[requestId];
+        delete loanRequestMetadata[requestId];
+
+        CreateClaimParams memory claimParams = CreateClaimParams({
+            creditor: request.creditor,
+            debtor: request.debtor,
+            claimAmount: request.loanAmount,
+            description: request.description,
+            token: request.token,
+            binding: ClaimBinding.Bound, // loans are bound claims
+            payerReceivesClaimOnPayment: true,
+            dueBy: block.timestamp + request.termLength,
+            impairmentGracePeriod: request.impairmentGracePeriod
+        });
+
+        uint256 claimId;
+        if (bytes(metadata.tokenURI).length > 0 || bytes(metadata.attachmentURI).length > 0) {
+            claimId = _bullaClaim.createClaimWithMetadataFrom(msg.sender, claimParams, metadata);
+        } else {
+            claimId = _bullaClaim.createClaimFrom(msg.sender, claimParams);
+        }
+
+        _loanDetailsByClaimId[claimId] = LoanDetails({
+            acceptedAt: block.timestamp,
+            interestConfig: request.interestConfig,
+            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
+        });
+
+        // Transfer token from creditor to debtor via the contract
+        // First, transfer from creditor to this contract
+        bool transferFromSuccess = IERC20(request.token).transferFrom(request.creditor, address(this), request.loanAmount);
+        if (!transferFromSuccess) revert TransferFailed();
+
+        // Then transfer from this contract to debtor
+        bool transferSuccess = IERC20(request.token).transfer(request.debtor, request.loanAmount);
+        if (!transferSuccess) revert TransferFailed();
+        emit LoanRequestAccepted(requestId, claimId);
+
+        return claimId;
+    }
+
+    /**
      * @notice Calculate the protocol fee amount based on interest payment
      * @param grossInterestAmount The interest amount to calculate fee from
      * @return The protocol fee amount
@@ -387,5 +515,15 @@ contract BullaFrendLend is BullaClaimControllerBase {
         if (offer.impairmentGracePeriod > type(uint40).max) revert InvalidGracePeriod();
 
         CompoundInterestLib.validateInterestConfig(offer.interestConfig);
+    }
+
+    function _validateLoanRequest(LoanRequest calldata request) private view {
+        if (msg.value != fee) revert IncorrectFee();
+        if (msg.sender != request.debtor) revert NotDebtor();
+        if (request.termLength == 0) revert InvalidTermLength();
+        if (request.token == address(0)) revert NativeTokenNotSupported();
+        if (request.impairmentGracePeriod > type(uint40).max) revert InvalidGracePeriod();
+
+        CompoundInterestLib.validateInterestConfig(request.interestConfig);
     }
 }
