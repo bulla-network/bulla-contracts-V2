@@ -330,6 +330,17 @@ contract BullaFrendLend is BullaClaimControllerBase {
     }
 
     /**
+     * @notice Allows a creditor to manually mark a loan as paid
+     * @param claimId The ID of the loan to mark as paid
+     */
+    function markLoanAsPaid(uint256 claimId) external {
+        Claim memory claim = _bullaClaim.getClaim(claimId);
+        _checkController(claim.controller);
+
+        return _bullaClaim.markClaimAsPaidFrom(msg.sender, claimId);
+    }
+
+    /**
      * @notice Allows admin to withdraw accumulated protocol fees and loanOffer fees
      */
     function withdrawAllFees() external {

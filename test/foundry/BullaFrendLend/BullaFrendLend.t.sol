@@ -1632,4 +1632,267 @@ contract TestBullaFrendLend is Test {
         assertEq(wethClaim.token, address(weth), "WETH loan token should be correct");
         assertEq(usdcClaim.token, address(usdc), "USDC loan token should be correct");
     }
+
+    /*///////////////////////////////////////////////////////////////
+                    MARK LOAN AS PAID TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function _permitMarkAsPaid(uint256 pk, address operator, uint64 approvalCount) internal {
+        bullaClaim.permitMarkAsPaid({
+            user: vm.addr(pk),
+            operator: operator,
+            approvalCount: approvalCount,
+            signature: sigHelper.signMarkAsPaidPermit({
+                pk: pk,
+                user: vm.addr(pk),
+                operator: operator,
+                approvalCount: approvalCount
+            })
+        });
+    }
+
+    function testMarkLoanAsPaid_Success() public {
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 2 ether);
+
+        bullaClaim.permitCreateClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
+        });
+
+        _permitMarkAsPaid(creditorPK, address(bullaFrendLend), 1);
+
+        LoanOffer memory offer = new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
+            address(weth)
+        ).withTermLength(30 days).build();
+
+        vm.prank(creditor);
+        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+
+        vm.prank(debtor);
+        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+
+        // Verify loan is active
+        Claim memory claimBefore = bullaClaim.getClaim(claimId);
+        assertEq(uint256(claimBefore.status), uint256(Status.Pending), "Loan should be pending");
+
+        // Check balances before marking as paid
+        uint256 debtorBalanceBefore = weth.balanceOf(debtor);
+        uint256 creditorBalanceBefore = weth.balanceOf(creditor);
+
+        // Mark the loan as paid
+        vm.prank(creditor);
+        bullaFrendLend.markLoanAsPaid(claimId);
+
+        // Verify loan is marked as paid
+        Claim memory claimAfter = bullaClaim.getClaim(claimId);
+        assertEq(uint256(claimAfter.status), uint256(Status.Paid), "Loan should be marked as paid");
+
+        // Verify that no token transfers occurred
+        assertEq(weth.balanceOf(debtor), debtorBalanceBefore, "Debtor balance should remain unchanged");
+        assertEq(weth.balanceOf(creditor), creditorBalanceBefore, "Creditor balance should remain unchanged");
+    }
+
+    function testMarkLoanAsPaid_WithPartialPayment() public {
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 2 ether);
+
+        vm.prank(debtor);
+        weth.approve(address(bullaFrendLend), 2 ether);
+
+        bullaClaim.permitCreateClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
+        });
+
+        bullaClaim.permitPayClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        _permitMarkAsPaid(creditorPK, address(bullaFrendLend), 1);
+
+        LoanOffer memory offer = new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
+            address(weth)
+        ).withInterestRateBps(1000).build();
+
+        vm.prank(creditor);
+        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+
+        vm.prank(debtor);
+        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+
+        // Make partial payment
+        vm.warp(block.timestamp + 10 days);
+
+        vm.prank(debtor);
+        bullaFrendLend.payLoan(claimId, 0.5 ether);
+
+        Claim memory claimAfterPayment = bullaClaim.getClaim(claimId);
+        assertEq(uint256(claimAfterPayment.status), uint256(Status.Repaying), "Loan should be repaying");
+        assertEq(claimAfterPayment.paidAmount, 0.5 ether, "Partial payment should be recorded");
+
+        // Mark the loan as paid
+        vm.prank(creditor);
+        bullaFrendLend.markLoanAsPaid(claimId);
+
+        // Verify loan is marked as paid but payment amount is preserved
+        Claim memory claimAfterMarkedPaid = bullaClaim.getClaim(claimId);
+        assertEq(uint256(claimAfterMarkedPaid.status), uint256(Status.Paid), "Loan should be marked as paid");
+        assertEq(claimAfterMarkedPaid.paidAmount, 0.5 ether, "Payment amount should be preserved");
+    }
+
+    function testCannotMarkLoanAsPaid_NotCreditor() public {
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 2 ether);
+
+        bullaClaim.permitCreateClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
+        });
+
+        _permitMarkAsPaid(creditorPK, address(bullaFrendLend), 1);
+        _permitMarkAsPaid(debtorPK, address(bullaFrendLend), 1);
+        _permitMarkAsPaid(adminPK, address(bullaFrendLend), 1);
+
+        LoanOffer memory offer =
+            new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
+
+        vm.prank(creditor);
+        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+
+        vm.prank(debtor);
+        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+
+        // Debtor cannot mark loan as paid
+        vm.prank(debtor);
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotCreditor.selector));
+        bullaFrendLend.markLoanAsPaid(claimId);
+
+        // Random user cannot mark loan as paid
+        vm.prank(admin);
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotCreditor.selector));
+        bullaFrendLend.markLoanAsPaid(claimId);
+    }
+
+    function testCannotMarkLoanAsPaid_WrongController() public {
+        // Create a claim directly via BullaClaim (not through BullaFrendLend)
+        CreateClaimParams memory params = new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withClaimAmount(1 ether).withToken(address(weth)).build();
+
+        vm.prank(creditor);
+        uint256 claimId = bullaClaim.createClaim(params);
+
+        _permitMarkAsPaid(creditorPK, address(bullaFrendLend), 1);
+
+        // Try to mark as paid via BullaFrendLend - should fail since it's not the controller
+        vm.prank(creditor);
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, address(creditor)));
+        bullaFrendLend.markLoanAsPaid(claimId);
+    }
+
+    function testMarkLoanAsPaid_FromImpairedStatus() public {
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 2 ether);
+
+        bullaClaim.permitCreateClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
+        });
+
+        bullaClaim.permitImpairClaim({
+            user: creditor,
+            operator: address(bullaFrendLend),
+            approvalCount: 1,
+            signature: sigHelper.signImpairClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaFrendLend),
+                approvalCount: 1
+            })
+        });
+
+        _permitMarkAsPaid(creditorPK, address(bullaFrendLend), 1);
+
+        LoanOffer memory offer = new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
+            address(weth)
+        ).withTermLength(30 days).build();
+
+        vm.prank(creditor);
+        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+
+        vm.prank(debtor);
+        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+
+        // First impair the loan
+        vm.warp(block.timestamp + 38 days);
+        vm.prank(creditor);
+        bullaFrendLend.impairLoan(claimId);
+
+        Claim memory claimAfterImpairment = bullaClaim.getClaim(claimId);
+        assertEq(uint256(claimAfterImpairment.status), uint256(Status.Impaired), "Loan should be impaired");
+
+        // Then mark it as paid
+        vm.prank(creditor);
+        bullaFrendLend.markLoanAsPaid(claimId);
+
+        // Verify loan is marked as paid
+        Claim memory claimAfterMarkedPaid = bullaClaim.getClaim(claimId);
+        assertEq(uint256(claimAfterMarkedPaid.status), uint256(Status.Paid), "Loan should be marked as paid");
+    }
 }
