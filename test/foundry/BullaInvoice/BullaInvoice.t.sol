@@ -34,8 +34,10 @@ contract TestBullaInvoice is Test {
 
     uint256 creditorPK = uint256(0x01);
     uint256 debtorPK = uint256(0x02);
+    uint256 adminPK = uint256(0x03);
     address creditor = vm.addr(creditorPK);
     address debtor = vm.addr(debtorPK);
+    address admin = vm.addr(adminPK);
 
     function setUp() public {
         weth = new WETH();
@@ -1753,5 +1755,404 @@ contract TestBullaInvoice is Test {
 
         // Verify ownership hasn't changed
         assertEq(bullaClaim.ownerOf(invoiceId), newCreditor, "New creditor should still own the invoice");
+    }
+
+    /*///////////////////////////////////////////////////////////////
+                        MARK INVOICE AS PAID TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function _permitMarkAsPaid(uint256 pk, address operator, uint64 approvalCount) internal {
+        bullaClaim.permitMarkAsPaid({
+            user: vm.addr(pk),
+            operator: operator,
+            approvalCount: approvalCount,
+            signature: sigHelper.signMarkAsPaidPermit({
+                pk: pk,
+                user: vm.addr(pk),
+                operator: operator,
+                approvalCount: approvalCount
+            })
+        });
+    }
+
+    function testMarkInvoiceAsPaid_Success() public {
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            operator: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        Invoice memory invoiceBefore = bullaInvoice.getInvoice(invoiceId);
+        assertEq(uint256(invoiceBefore.status), uint256(Status.Pending), "Invoice should be pending");
+
+        // Set up mark as paid permission
+        _permitMarkAsPaid(creditorPK, address(bullaInvoice), 1);
+
+        // Check balances before marking as paid
+        uint256 debtorBalanceBefore = debtor.balance;
+        uint256 creditorBalanceBefore = creditor.balance;
+
+        // Mark the invoice as paid
+        vm.prank(creditor);
+        bullaInvoice.markInvoiceAsPaid(invoiceId);
+
+        // Verify invoice is marked as paid
+        Invoice memory invoiceAfter = bullaInvoice.getInvoice(invoiceId);
+        assertEq(uint256(invoiceAfter.status), uint256(Status.Paid), "Invoice should be marked as paid");
+
+        // Verify that no token transfers occurred
+        assertEq(debtor.balance, debtorBalanceBefore, "Debtor balance should remain unchanged");
+        assertEq(creditor.balance, creditorBalanceBefore, "Creditor balance should remain unchanged");
+    }
+
+    function testMarkInvoiceAsPaid_WithPartialPayment() public {
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            operator: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        bullaClaim.permitPayClaim({
+            user: debtor,
+            operator: address(bullaInvoice),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaInvoice),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        // Make partial payment (0.4 ETH)
+        vm.prank(debtor);
+        bullaInvoice.payInvoice{value: 0.4 ether}(invoiceId, 0.4 ether);
+
+        // Verify partial payment
+        Invoice memory invoiceAfterPayment = bullaInvoice.getInvoice(invoiceId);
+        assertEq(uint256(invoiceAfterPayment.status), uint256(Status.Repaying), "Invoice should be repaying");
+        assertEq(invoiceAfterPayment.paidAmount, 0.4 ether, "Invoice paid amount should match partial payment");
+
+        // Set up mark as paid permission
+        _permitMarkAsPaid(creditorPK, address(bullaInvoice), 1);
+
+        // Mark the invoice as paid
+        vm.prank(creditor);
+        bullaInvoice.markInvoiceAsPaid(invoiceId);
+
+        // Verify invoice is marked as paid but payment amount is preserved
+        Invoice memory invoiceAfterMarkedPaid = bullaInvoice.getInvoice(invoiceId);
+        assertEq(uint256(invoiceAfterMarkedPaid.status), uint256(Status.Paid), "Invoice should be marked as paid");
+        assertEq(invoiceAfterMarkedPaid.paidAmount, 0.4 ether, "Payment amount should be preserved");
+    }
+
+    function testCannotMarkInvoiceAsPaid_NotCreditor() public {
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            operator: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Set up mark as paid permission for all users (so they pass the approval check and reach the NotCreditor validation)
+        _permitMarkAsPaid(creditorPK, address(bullaInvoice), 1);
+        _permitMarkAsPaid(debtorPK, address(bullaInvoice), 1);
+        _permitMarkAsPaid(adminPK, address(bullaInvoice), 1);
+
+        // Debtor cannot mark invoice as paid
+        vm.prank(debtor);
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotCreditor.selector));
+        bullaInvoice.markInvoiceAsPaid(invoiceId);
+
+        // Random user cannot mark invoice as paid
+        vm.prank(admin);
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotCreditor.selector));
+        bullaInvoice.markInvoiceAsPaid(invoiceId);
+    }
+
+    function testCannotMarkInvoiceAsPaid_WrongController() public {
+        // Create a claim directly via BullaClaim (not through BullaInvoice)
+        CreateClaimParams memory params = new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withClaimAmount(1 ether).withToken(address(0)).build();
+
+        vm.prank(creditor);
+        uint256 claimId = bullaClaim.createClaim(params);
+
+        // Set up mark as paid permission
+        _permitMarkAsPaid(creditorPK, address(bullaInvoice), 1);
+
+        // Try to mark as paid via BullaInvoice - should fail since it's not the controller
+        vm.prank(creditor);
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, address(creditor)));
+        bullaInvoice.markInvoiceAsPaid(claimId);
+    }
+
+    function testMarkInvoiceAsPaid_FromImpairedStatus() public {
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            operator: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        bullaClaim.permitImpairClaim({
+            user: creditor,
+            operator: address(bullaInvoice),
+            approvalCount: 1,
+            signature: sigHelper.signImpairClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaInvoice),
+                approvalCount: 1
+            })
+        });
+
+        uint256 dueDate = block.timestamp + 30 days;
+        CreateInvoiceParams memory params =
+            new CreateInvoiceParamsBuilder().withDebtor(debtor).withDueBy(dueDate).build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // First impair the invoice
+        vm.warp(dueDate + 8 days); // Move past due date + grace period
+        vm.prank(creditor);
+        bullaInvoice.impairInvoice(invoiceId);
+
+        Invoice memory invoiceAfterImpairment = bullaInvoice.getInvoice(invoiceId);
+        assertEq(uint256(invoiceAfterImpairment.status), uint256(Status.Impaired), "Invoice should be impaired");
+
+        // Set up mark as paid permission
+        _permitMarkAsPaid(creditorPK, address(bullaInvoice), 1);
+
+        // Then mark it as paid
+        vm.prank(creditor);
+        bullaInvoice.markInvoiceAsPaid(invoiceId);
+
+        // Verify invoice is marked as paid
+        Invoice memory invoiceAfterMarkedPaid = bullaInvoice.getInvoice(invoiceId);
+        assertEq(uint256(invoiceAfterMarkedPaid.status), uint256(Status.Paid), "Invoice should be marked as paid");
+    }
+
+    function testMarkInvoiceAsPaid_WithPurchaseOrder() public {
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            operator: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        // Future delivery date (7 days from now)
+        uint256 deliveryDate = block.timestamp + 7 days;
+
+        // Create invoice params with delivery date
+        CreateInvoiceParams memory params =
+            new CreateInvoiceParamsBuilder().withDebtor(debtor).withDeliveryDate(deliveryDate).build();
+
+        // Create an invoice as creditor
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Mark the purchase order as delivered
+        vm.prank(creditor);
+        bullaInvoice.deliverPurchaseOrder(invoiceId);
+
+        // Verify purchase order is delivered
+        Invoice memory invoiceAfterDelivery = bullaInvoice.getInvoice(invoiceId);
+        assertTrue(invoiceAfterDelivery.purchaseOrder.isDelivered, "Purchase order should be delivered");
+        assertEq(uint256(invoiceAfterDelivery.status), uint256(Status.Pending), "Invoice should still be pending");
+
+        // Set up mark as paid permission
+        _permitMarkAsPaid(creditorPK, address(bullaInvoice), 1);
+
+        // Check balances before marking as paid
+        uint256 debtorBalanceBefore = debtor.balance;
+        uint256 creditorBalanceBefore = creditor.balance;
+
+        // Mark the invoice as paid
+        vm.prank(creditor);
+        bullaInvoice.markInvoiceAsPaid(invoiceId);
+
+        // Verify that no exchange of money has taken place
+        assertEq(debtor.balance, debtorBalanceBefore, "Debtor balance should remain unchanged");
+        assertEq(creditor.balance, creditorBalanceBefore, "Creditor balance should remain unchanged");
+
+        // Verify invoice is marked as paid and purchase order state is preserved
+        Invoice memory invoiceAfterMarkedPaid = bullaInvoice.getInvoice(invoiceId);
+        assertEq(uint256(invoiceAfterMarkedPaid.status), uint256(Status.Paid), "Invoice should be marked as paid");
+        assertTrue(
+            invoiceAfterMarkedPaid.purchaseOrder.isDelivered,
+            "Purchase order should still be marked as delivered after marking as paid"
+        );
+        assertEq(
+            invoiceAfterMarkedPaid.purchaseOrder.deliveryDate,
+            deliveryDate,
+            "Delivery date should remain unchanged after marking as paid"
+        );
+    }
+
+    function testMarkInvoiceAsPaid_WithMetadata() public {
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            operator: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        ClaimMetadata memory metadata =
+            ClaimMetadata({tokenURI: "Monthly Service", attachmentURI: "Additional details about this invoice"});
+
+        CreateInvoiceParams memory invoiceParams =
+            new CreateInvoiceParamsBuilder().withDebtor(debtor).withDescription("Test Invoice with Metadata").build();
+
+        // Create an invoice with metadata
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoiceWithMetadata(invoiceParams, metadata);
+
+        // Set up mark as paid permission
+        _permitMarkAsPaid(creditorPK, address(bullaInvoice), 1);
+
+        // Mark the invoice as paid
+        vm.prank(creditor);
+        bullaInvoice.markInvoiceAsPaid(invoiceId);
+
+        // Verify invoice is marked as paid
+        Invoice memory invoiceAfter = bullaInvoice.getInvoice(invoiceId);
+        assertEq(uint256(invoiceAfter.status), uint256(Status.Paid), "Invoice should be marked as paid");
+
+        // Verify metadata still exists after marking as paid
+        (string memory tokenURI, string memory attachmentURI) = bullaClaim.claimMetadata(invoiceId);
+        assertEq(tokenURI, "Monthly Service", "Token URI metadata should be preserved");
+        assertEq(attachmentURI, "Additional details about this invoice", "Attachment URI metadata should be preserved");
+    }
+
+    function testMarkInvoiceAsPaid_AfterOwnershipTransfer() public {
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            operator: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                operator: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Create new creditor address with a known private key
+        uint256 newCreditorPK = uint256(0x1234);
+        address newCreditor = vm.addr(newCreditorPK);
+
+        // Transfer invoice to new creditor
+        vm.prank(creditor);
+        bullaClaim.safeTransferFrom(creditor, newCreditor, invoiceId);
+
+        // Verify ownership transfer
+        assertEq(bullaClaim.ownerOf(invoiceId), newCreditor, "New creditor should own the invoice");
+
+        // Set up mark as paid permission for new creditor
+        bullaClaim.permitMarkAsPaid({
+            user: newCreditor,
+            operator: address(bullaInvoice),
+            approvalCount: 1,
+            signature: sigHelper.signMarkAsPaidPermit({
+                pk: newCreditorPK,
+                user: newCreditor,
+                operator: address(bullaInvoice),
+                approvalCount: 1
+            })
+        });
+
+        // Mark as paid using new creditor
+        vm.prank(newCreditor);
+        bullaInvoice.markInvoiceAsPaid(invoiceId);
+
+        // Verify invoice is marked as paid
+        Invoice memory invoiceAfter = bullaInvoice.getInvoice(invoiceId);
+        assertEq(uint256(invoiceAfter.status), uint256(Status.Paid), "Invoice should be marked as paid");
     }
 }

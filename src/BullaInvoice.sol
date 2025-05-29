@@ -295,6 +295,17 @@ contract BullaInvoice is BullaClaimControllerBase {
         return _bullaClaim.impairClaimFrom(msg.sender, claimId);
     }
 
+    /**
+     * @notice Allows a creditor to manually mark an invoice as paid
+     * @param claimId The ID of the invoice to mark as paid
+     */
+    function markInvoiceAsPaid(uint256 claimId) external {
+        Claim memory claim = _bullaClaim.getClaim(claimId);
+        _checkController(claim.controller);
+
+        return _bullaClaim.markClaimAsPaidFrom(msg.sender, claimId);
+    }
+
     /// PRIVATE FUNCTIONS ///
 
     /**
