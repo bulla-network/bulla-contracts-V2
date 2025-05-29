@@ -17,6 +17,7 @@ interface IBullaClaim {
     error PastApprovalDeadline();
     error NotOwner();
     error NotCreditorOrDebtor();
+    error NotCreditor();
     error NotController(address sender);
     error ClaimBound();
     error ClaimNotPending();
@@ -53,6 +54,10 @@ interface IBullaClaim {
     event ClaimRescinded(uint256 indexed claimId, address indexed from, string note);
 
     event ClaimImpaired(uint256 indexed claimId, address indexed from, string note);
+
+    event ClaimMarkedAsPaid(uint256 indexed claimId);
+
+    event MarkAsPaidApproved(address indexed user, address indexed operator, uint256 approvalCount);
 
     event CreateClaimApproved(
         address indexed user,
@@ -158,6 +163,10 @@ interface IBullaClaim {
 
     function impairClaimFrom(address from, uint256 claimId) external;
 
+    function markClaimAsPaid(uint256 claimId) external;
+
+    function markClaimAsPaidFrom(address from, uint256 claimId) external;
+
     function burn(uint256 tokenId) external;
 
     function permitCreateClaim(
@@ -182,6 +191,10 @@ interface IBullaClaim {
         external;
 
     function permitCancelClaim(address user, address operator, uint64 approvalCount, bytes memory signature) external;
+
+    function permitImpairClaim(address user, address operator, uint64 approvalCount, bytes memory signature) external;
+
+    function permitMarkAsPaid(address user, address operator, uint64 approvalCount, bytes memory signature) external;
 
     // ADMIN FUNCTIONS //
     function transferOwnership(address newOwner) external;

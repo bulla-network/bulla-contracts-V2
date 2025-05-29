@@ -10,6 +10,7 @@ import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/U
 import {Deployer} from "script/Deployment.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
+import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
 
 /// @notice covers test cases for cancelClaim() and cancelClaimFrom()
 /// @notice SPEC: canceClaim() TODO
@@ -138,14 +139,14 @@ contract TestCancelClaim is BullaClaimTestHelper {
         string memory note = "No thanks";
 
         vm.prank(randomAddress);
-        vm.expectRevert(BullaClaim.NotCreditorOrDebtor.selector);
+        vm.expectRevert(BullaClaimValidationLib.NotCreditorOrDebtor.selector);
         bullaClaim.cancelClaim(claimId, note);
 
         // test with operator
         _permitCancelClaim({_userPK: callerPK, _operator: operator, _approvalCount: type(uint64).max});
 
         vm.prank(operator);
-        vm.expectRevert(BullaClaim.NotCreditorOrDebtor.selector);
+        vm.expectRevert(BullaClaimValidationLib.NotCreditorOrDebtor.selector);
         bullaClaim.cancelClaimFrom(randomAddress, claimId, note);
     }
 
@@ -317,7 +318,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
 
         vm.startPrank(debtor);
         bullaClaim.updateBinding(claimId, ClaimBinding.Bound);
-        vm.expectRevert(BullaClaim.ClaimBound.selector);
+        vm.expectRevert(BullaClaimValidationLib.ClaimBound.selector);
         bullaClaim.cancelClaim(claimId, note);
         vm.stopPrank();
 
@@ -325,7 +326,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
         _permitCancelClaim({_userPK: debtorPK, _operator: operator, _approvalCount: type(uint64).max});
 
         vm.prank(operator);
-        vm.expectRevert(BullaClaim.ClaimBound.selector);
+        vm.expectRevert(BullaClaimValidationLib.ClaimBound.selector);
         bullaClaim.cancelClaimFrom(debtor, claimId, note);
     }
 
@@ -420,7 +421,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
 
         assertTrue(bullaClaim.getClaim(claimId).status == Status.Repaying);
 
-        vm.expectRevert(BullaClaim.ClaimNotPending.selector);
+        vm.expectRevert(BullaClaimValidationLib.ClaimNotPending.selector);
         bullaClaim.cancelClaim(claimId, "No thanks");
         vm.stopPrank();
     }
@@ -435,7 +436,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
         vm.prank(creditor);
         bullaClaim.cancelClaim(claimId, "nah");
 
-        vm.expectRevert(BullaClaim.ClaimNotPending.selector);
+        vm.expectRevert(BullaClaimValidationLib.ClaimNotPending.selector);
         vm.prank(creditor);
         bullaClaim.cancelClaim(claimId, "No thanks");
 
@@ -445,7 +446,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
         bullaClaim.cancelClaim(claimId, "nah");
         vm.stopPrank();
 
-        vm.expectRevert(BullaClaim.ClaimNotPending.selector);
+        vm.expectRevert(BullaClaimValidationLib.ClaimNotPending.selector);
         vm.prank(debtor);
         bullaClaim.cancelClaim(claimId, "No thanks");
 
@@ -455,7 +456,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
         bullaClaim.cancelClaim(claimId, "nah");
         vm.stopPrank();
 
-        vm.expectRevert(BullaClaim.ClaimNotPending.selector);
+        vm.expectRevert(BullaClaimValidationLib.ClaimNotPending.selector);
         vm.prank(creditor);
         bullaClaim.cancelClaim(claimId, "No thanks");
 
@@ -465,7 +466,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
         bullaClaim.cancelClaim(claimId, "nah");
         vm.stopPrank();
 
-        vm.expectRevert(BullaClaim.ClaimNotPending.selector);
+        vm.expectRevert(BullaClaimValidationLib.ClaimNotPending.selector);
         vm.prank(debtor);
         bullaClaim.cancelClaim(claimId, "No thanks");
     }
@@ -484,7 +485,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
 
         assertTrue(bullaClaim.getClaim(claimId).status == Status.Paid);
 
-        vm.expectRevert(BullaClaim.ClaimNotPending.selector);
+        vm.expectRevert(BullaClaimValidationLib.ClaimNotPending.selector);
         bullaClaim.cancelClaim(claimId, "No thanks");
         vm.stopPrank();
     }
@@ -509,7 +510,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
         vm.prank(operator);
         bullaClaim.cancelClaimFrom(debtor, claimId, note);
 
-        (,,, CancelClaimApproval memory approval,) = bullaClaim.approvals(debtor, operator);
+        (,,, CancelClaimApproval memory approval,,) = bullaClaim.approvals(debtor, operator);
         assertEq(approval.approvalCount, approvalCount - 1);
 
         // test for rescind
@@ -527,7 +528,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
         vm.prank(operator);
         bullaClaim.cancelClaimFrom(creditor, claimId, note);
 
-        (,,, approval,) = bullaClaim.approvals(creditor, operator);
+        (,,, approval,,) = bullaClaim.approvals(creditor, operator);
         assertEq(approval.approvalCount, approvalCount - 1);
     }
 
@@ -545,7 +546,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
         _permitCancelClaim({_userPK: debtorPK, _operator: operator, _approvalCount: 0});
 
         vm.prank(operator);
-        vm.expectRevert(BullaClaim.NotApproved.selector);
+        vm.expectRevert(BullaClaimValidationLib.NotApproved.selector);
         bullaClaim.cancelClaimFrom(debtor, claimId, "Nope");
     }
 
@@ -562,7 +563,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
         vm.prank(operator);
         bullaClaim.cancelClaimFrom(debtor, claimId, "Nope");
 
-        (,,, CancelClaimApproval memory approval,) = bullaClaim.approvals(debtor, operator);
+        (,,, CancelClaimApproval memory approval,,) = bullaClaim.approvals(debtor, operator);
         assertEq(approval.approvalCount, type(uint64).max);
     }
 }

@@ -9,30 +9,30 @@ import "contracts/mocks/ERC1271Wallet.sol";
 import {console} from "forge-std/console.sol";
 import {Test} from "forge-std/Test.sol";
 
-/// @title Test the permitImpairClaim function
+/// @title Test the permitMarkAsPaid function
 /// @notice This test covers happy paths, fuzzes and tests against some common signature system pitfalls:
 ///     1. Phantom approvals to the 0 address
 ///     2. Replayed signature
 ///     3. Malicious approval signature from another user
 /// @notice SPEC:
-/// A user can specify an operator address to call `impairClaim` on their behalf under the following conditions:
+/// A user can specify an operator address to call `markClaimAsPaid` on their behalf under the following conditions:
 ///     SIG1. The recovered signer from the EIP712 signature == `user` -> otherwise: reverts
 ///     SIG2. `user` is not the 0 address -> otherwise: reverts
 ///     SIG3. `extensionRegistry` is not address(0)
-/// This function can approve an operator to impair claims given:
+/// This function can approve an operator to mark claims as paid given:
 ///     AI1: 0 < `approvalCount` < type(uint64).max -> otherwise reverts
-/// This function can revoke an operator's approval to impair claims given:
+/// This function can revoke an operator's approval to mark claims as paid given:
 ///     RI1: approvalCount == 0
 ///
 ///     RES1: approvalCount is stored
 ///     RES2: the nonce is incremented
-///     RES3: the ImpairClaimApproved event is emitted
-contract TestPermitImpairClaim is Test {
+///     RES3: the MarkAsPaidApproved event is emitted
+contract TestPermitMarkAsPaid is Test {
     BullaClaim internal bullaClaim;
     EIP712Helper internal sigHelper;
     ERC1271WalletMock internal eip1271Wallet;
 
-    event ImpairClaimApproved(address indexed user, address indexed operator, uint256 approvalCount);
+    event MarkAsPaidApproved(address indexed user, address indexed operator, uint256 approvalCount);
 
     function setUp() public {
         bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
@@ -47,14 +47,14 @@ contract TestPermitImpairClaim is Test {
         address bob = address(0xB0b);
 
         bytes memory signature =
-            sigHelper.signImpairClaimPermit({pk: alicePK, user: alice, operator: bob, approvalCount: approvalCount});
+            sigHelper.signMarkAsPaidPermit({pk: alicePK, user: alice, operator: bob, approvalCount: approvalCount});
 
         vm.expectEmit(true, true, true, true);
-        emit ImpairClaimApproved(alice, bob, approvalCount);
+        emit MarkAsPaidApproved(alice, bob, approvalCount);
 
-        bullaClaim.permitImpairClaim({user: alice, operator: bob, approvalCount: approvalCount, signature: signature});
+        bullaClaim.permitMarkAsPaid({user: alice, operator: bob, approvalCount: approvalCount, signature: signature});
 
-        (,,,, ImpairClaimApproval memory approval,) = bullaClaim.approvals(alice, bob);
+        (,,,,, MarkAsPaidApproval memory approval) = bullaClaim.approvals(alice, bob);
 
         assertTrue(approval.approvalCount == approvalCount, "approvalCount");
         assertTrue(approval.nonce == 1, "nonce");
@@ -64,16 +64,15 @@ contract TestPermitImpairClaim is Test {
         address alice = address(eip1271Wallet);
         address bob = address(0xB0b);
 
-        bytes32 digest =
-            sigHelper.getPermitImpairClaimDigest({user: alice, operator: bob, approvalCount: approvalCount});
+        bytes32 digest = sigHelper.getPermitMarkAsPaidDigest({user: alice, operator: bob, approvalCount: approvalCount});
         eip1271Wallet.sign(digest);
 
         vm.expectEmit(true, true, true, true);
-        emit ImpairClaimApproved(alice, bob, approvalCount);
+        emit MarkAsPaidApproved(alice, bob, approvalCount);
 
-        bullaClaim.permitImpairClaim({user: alice, operator: bob, approvalCount: approvalCount, signature: bytes("")});
+        bullaClaim.permitMarkAsPaid({user: alice, operator: bob, approvalCount: approvalCount, signature: bytes("")});
 
-        (,,,, ImpairClaimApproval memory approval,) = bullaClaim.approvals(alice, bob);
+        (,,,,, MarkAsPaidApproval memory approval) = bullaClaim.approvals(alice, bob);
 
         assertTrue(approval.approvalCount == approvalCount, "approvalCount");
         assertTrue(approval.nonce == 1, "nonce");
@@ -85,22 +84,22 @@ contract TestPermitImpairClaim is Test {
         address alice = vm.addr(alicePK);
         address bob = address(0xB0b);
 
-        bullaClaim.permitImpairClaim({
+        bullaClaim.permitMarkAsPaid({
             user: alice,
             operator: bob,
             approvalCount: 1,
-            signature: sigHelper.signImpairClaimPermit({pk: alicePK, user: alice, operator: bob, approvalCount: 1})
+            signature: sigHelper.signMarkAsPaidPermit({pk: alicePK, user: alice, operator: bob, approvalCount: 1})
         });
 
         bytes memory signature =
-            sigHelper.signImpairClaimPermit({pk: alicePK, user: alice, operator: bob, approvalCount: 0});
+            sigHelper.signMarkAsPaidPermit({pk: alicePK, user: alice, operator: bob, approvalCount: 0});
 
         vm.expectEmit(true, true, true, true);
-        emit ImpairClaimApproved(alice, bob, 0);
+        emit MarkAsPaidApproved(alice, bob, 0);
 
-        bullaClaim.permitImpairClaim({user: alice, operator: bob, approvalCount: 0, signature: signature});
+        bullaClaim.permitMarkAsPaid({user: alice, operator: bob, approvalCount: 0, signature: signature});
 
-        (,,,, ImpairClaimApproval memory approval,) = bullaClaim.approvals(alice, bob);
+        (,,,,, MarkAsPaidApproval memory approval) = bullaClaim.approvals(alice, bob);
 
         assertTrue(approval.approvalCount == 0, "approvalCount");
         assertTrue(approval.nonce == 2, "nonce");
@@ -110,22 +109,22 @@ contract TestPermitImpairClaim is Test {
         address alice = address(eip1271Wallet);
         address bob = address(0xB0b);
 
-        bytes32 digest = sigHelper.getPermitImpairClaimDigest({user: alice, operator: bob, approvalCount: 1});
+        bytes32 digest = sigHelper.getPermitMarkAsPaidDigest({user: alice, operator: bob, approvalCount: 1});
 
         eip1271Wallet.sign(digest);
 
-        bullaClaim.permitImpairClaim({user: alice, operator: bob, approvalCount: 1, signature: bytes("")});
+        bullaClaim.permitMarkAsPaid({user: alice, operator: bob, approvalCount: 1, signature: bytes("")});
 
-        digest = sigHelper.getPermitImpairClaimDigest({user: alice, operator: bob, approvalCount: 0});
+        digest = sigHelper.getPermitMarkAsPaidDigest({user: alice, operator: bob, approvalCount: 0});
 
         eip1271Wallet.sign(digest);
 
         vm.expectEmit(true, true, true, true);
-        emit ImpairClaimApproved(alice, bob, 0);
+        emit MarkAsPaidApproved(alice, bob, 0);
 
-        bullaClaim.permitImpairClaim({user: alice, operator: bob, approvalCount: 0, signature: bytes("")});
+        bullaClaim.permitMarkAsPaid({user: alice, operator: bob, approvalCount: 0, signature: bytes("")});
 
-        (,,,, ImpairClaimApproval memory approval,) = bullaClaim.approvals(alice, bob);
+        (,,,,, MarkAsPaidApproval memory approval) = bullaClaim.approvals(alice, bob);
 
         assertTrue(approval.approvalCount == 0, "approvalCount");
         assertTrue(approval.nonce == 2, "nonce");
@@ -138,11 +137,11 @@ contract TestPermitImpairClaim is Test {
 
         BullaExtensionRegistry(bullaClaim.extensionRegistry()).setExtensionName(bob, "bobby bob");
 
-        bullaClaim.permitImpairClaim({
+        bullaClaim.permitMarkAsPaid({
             user: alice,
             operator: bob,
             approvalCount: 10,
-            signature: sigHelper.signImpairClaimPermit({pk: alicePK, user: alice, operator: bob, approvalCount: 10})
+            signature: sigHelper.signMarkAsPaidPermit({pk: alicePK, user: alice, operator: bob, approvalCount: 10})
         });
     }
 
@@ -153,13 +152,13 @@ contract TestPermitImpairClaim is Test {
         address bob = address(0xB0b);
 
         bytes memory signature =
-            sigHelper.signImpairClaimPermit({pk: alicePK, user: alice, operator: bob, approvalCount: 1});
+            sigHelper.signMarkAsPaidPermit({pk: alicePK, user: alice, operator: bob, approvalCount: 1});
 
         bullaClaim.setExtensionRegistry(address(0));
 
         // This call to the 0 address will fail
         vm.expectRevert();
-        bullaClaim.permitImpairClaim({user: alice, operator: bob, approvalCount: 1, signature: signature});
+        bullaClaim.permitMarkAsPaid({user: alice, operator: bob, approvalCount: 1, signature: signature});
     }
 
     /// @notice SPEC.SIG1
@@ -169,11 +168,11 @@ contract TestPermitImpairClaim is Test {
         address bob = address(0xB0b);
 
         bytes memory signature =
-            sigHelper.signImpairClaimPermit({pk: alicePK, user: alice, operator: bob, approvalCount: 1});
+            sigHelper.signMarkAsPaidPermit({pk: alicePK, user: alice, operator: bob, approvalCount: 1});
         signature[64] = bytes1(uint8(signature[64]) + 1);
 
         vm.expectRevert(BullaClaim.InvalidSignature.selector);
-        bullaClaim.permitImpairClaim({user: alice, operator: bob, approvalCount: 1, signature: signature});
+        bullaClaim.permitMarkAsPaid({user: alice, operator: bob, approvalCount: 1, signature: signature});
     }
 
     /// @notice SPEC.SIG1
@@ -185,15 +184,14 @@ contract TestPermitImpairClaim is Test {
         address bob = address(0xB0b);
 
         // build a digest based on alice's approval
-        bytes32 digest =
-            sigHelper.getPermitImpairClaimDigest({user: alice, operator: bob, approvalCount: approvalCount});
+        bytes32 digest = sigHelper.getPermitMarkAsPaidDigest({user: alice, operator: bob, approvalCount: approvalCount});
 
         // sign the digest with the wrong key
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(badGuyPK, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         vm.expectRevert(BullaClaim.InvalidSignature.selector);
-        bullaClaim.permitImpairClaim({user: alice, operator: bob, approvalCount: approvalCount, signature: signature});
+        bullaClaim.permitMarkAsPaid({user: alice, operator: bob, approvalCount: approvalCount, signature: signature});
     }
 
     /// @notice SPEC.SIG1
@@ -205,21 +203,21 @@ contract TestPermitImpairClaim is Test {
         uint64 approvalCount = 1;
 
         bytes memory signature =
-            sigHelper.signImpairClaimPermit({pk: alicePK, user: alice, operator: bob, approvalCount: approvalCount});
+            sigHelper.signMarkAsPaidPermit({pk: alicePK, user: alice, operator: bob, approvalCount: approvalCount});
 
-        bullaClaim.permitImpairClaim({user: alice, operator: bob, approvalCount: approvalCount, signature: signature});
+        bullaClaim.permitMarkAsPaid({user: alice, operator: bob, approvalCount: approvalCount, signature: signature});
 
         // alice then revokes her approval
-        bullaClaim.permitImpairClaim({
+        bullaClaim.permitMarkAsPaid({
             user: alice,
             operator: bob,
             approvalCount: 0,
-            signature: sigHelper.signImpairClaimPermit({pk: alicePK, user: alice, operator: bob, approvalCount: 0})
+            signature: sigHelper.signMarkAsPaidPermit({pk: alicePK, user: alice, operator: bob, approvalCount: 0})
         });
 
         // the initial signature can not be used to re-permit
         vm.expectRevert(BullaClaim.InvalidSignature.selector);
-        bullaClaim.permitImpairClaim({user: alice, operator: bob, approvalCount: approvalCount, signature: signature});
+        bullaClaim.permitMarkAsPaid({user: alice, operator: bob, approvalCount: approvalCount, signature: signature});
     }
 
     /// @notice SPEC.SIG2
@@ -228,7 +226,7 @@ contract TestPermitImpairClaim is Test {
         address operator = vm.addr(0xBeefCafe);
         uint64 approvalCount = 1;
 
-        bytes memory signature = sigHelper.signImpairClaimPermit({
+        bytes memory signature = sigHelper.signMarkAsPaidPermit({
             pk: uint256(12345),
             user: user,
             operator: operator,
@@ -239,18 +237,13 @@ contract TestPermitImpairClaim is Test {
 
         (uint8 v, bytes32 r, bytes32 s) = splitSig(signature);
         assertEq(
-            ecrecover(sigHelper.getPermitImpairClaimDigest(user, operator, approvalCount), v, r, s),
+            ecrecover(sigHelper.getPermitMarkAsPaidDigest(user, operator, approvalCount), v, r, s),
             user,
             "ecrecover sanity check"
         );
 
         vm.expectRevert(BullaClaim.InvalidSignature.selector);
-        bullaClaim.permitImpairClaim({
-            user: user,
-            operator: operator,
-            approvalCount: approvalCount,
-            signature: signature
-        });
+        bullaClaim.permitMarkAsPaid({user: user, operator: operator, approvalCount: approvalCount, signature: signature});
     }
 
     /// @notice sanity check to ensure that existance of code at the operator address doesn't break anything
@@ -259,11 +252,11 @@ contract TestPermitImpairClaim is Test {
         uint256 alicePK = uint256(0xA11c3);
         address alice = vm.addr(alicePK);
 
-        bullaClaim.permitImpairClaim({
+        bullaClaim.permitMarkAsPaid({
             user: alice,
             operator: address(operator),
             approvalCount: 1,
-            signature: sigHelper.signImpairClaimPermit({
+            signature: sigHelper.signMarkAsPaidPermit({
                 pk: alicePK,
                 user: alice,
                 operator: address(operator),
@@ -272,7 +265,7 @@ contract TestPermitImpairClaim is Test {
         });
     }
 
-    function test_fuzz_permitAndRescindImpairClaimFrom(
+    function test_fuzz_permitAndRescindMarkAsPaidFrom(
         uint256 pk,
         uint256 operatorPK,
         uint64 approvalCount,
@@ -289,19 +282,14 @@ contract TestPermitImpairClaim is Test {
         }
 
         bytes memory signature =
-            sigHelper.signImpairClaimPermit({pk: pk, user: user, operator: operator, approvalCount: approvalCount});
+            sigHelper.signMarkAsPaidPermit({pk: pk, user: user, operator: operator, approvalCount: approvalCount});
 
         vm.expectEmit(true, true, true, true);
-        emit ImpairClaimApproved(user, operator, approvalCount);
+        emit MarkAsPaidApproved(user, operator, approvalCount);
 
-        bullaClaim.permitImpairClaim({
-            user: user,
-            operator: operator,
-            approvalCount: approvalCount,
-            signature: signature
-        });
+        bullaClaim.permitMarkAsPaid({user: user, operator: operator, approvalCount: approvalCount, signature: signature});
 
-        (,,,, ImpairClaimApproval memory approval,) = bullaClaim.approvals(user, operator);
+        (,,,,, MarkAsPaidApproval memory approval) = bullaClaim.approvals(user, operator);
 
         assertEq(approval.approvalCount, approvalCount, "approvalCount");
         assertEq(approval.nonce, 1, "nonce");

@@ -54,7 +54,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
             signature: signature
         });
 
-        (, PayClaimApproval memory approval,,,) = bullaClaim.approvals(alice, bob);
+        (, PayClaimApproval memory approval,,,,) = bullaClaim.approvals(alice, bob);
 
         assertTrue(approval.approvalType == PayClaimApprovalType.IsApprovedForSpecific, "approvalType");
         assertEq(approval.approvalDeadline, approvalDeadline, "deadline");
@@ -100,7 +100,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
             signature: bytes("")
         });
 
-        (, PayClaimApproval memory approval,,,) = bullaClaim.approvals(alice, bob);
+        (, PayClaimApproval memory approval,,,,) = bullaClaim.approvals(alice, bob);
 
         assertTrue(approval.approvalType == PayClaimApprovalType.IsApprovedForSpecific, "approvalType");
         assertEq(approval.approvalDeadline, approvalDeadline, "deadline");

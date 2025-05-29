@@ -9,6 +9,7 @@ import {BullaClaim} from "contracts/BullaClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
+import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
 
 /// @notice SPEC:
 /// A function can call this internal function to verify and "spend" `from`'s approval of `operator` to pay a claim under the following circumstances:
@@ -86,7 +87,7 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
         vm.prank(operator);
         bullaClaim.payClaimFrom(user, claimId, 1 ether);
 
-        (, PayClaimApproval memory approval,,,) = bullaClaim.approvals(user, operator);
+        (, PayClaimApproval memory approval,,,,) = bullaClaim.approvals(user, operator);
         assertEq(approval.claimApprovals.length, 0, "AS.RES1: claim approvals not cleared");
     }
 
@@ -110,7 +111,7 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
         vm.prank(operator);
         bullaClaim.payClaimFrom(user, claimId, 0.5 ether);
 
-        (, PayClaimApproval memory approval,,,) = bullaClaim.approvals(user, operator);
+        (, PayClaimApproval memory approval,,,,) = bullaClaim.approvals(user, operator);
         assertEq(approval.claimApprovals.length, 1, "AS.RES1: claim approval not decremented");
         assertEq(approval.claimApprovals[0].approvedAmount, 0.5 ether, "AS.RES1: claim approval not decremented");
         assertEq(
@@ -139,7 +140,7 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
         vm.prank(operator);
         bullaClaim.payClaimFrom(user, claimIdToPay, 1 ether);
 
-        (, PayClaimApproval memory approval,,,) = bullaClaim.approvals(user, operator);
+        (, PayClaimApproval memory approval,,,,) = bullaClaim.approvals(user, operator);
         assertEq(approval.claimApprovals.length, approvalCount - 1, "AS.RES1: claim approvals not cleared");
 
         bool approvalFound;
@@ -158,7 +159,7 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
 
         // user 2 tries to pull user's funds
         vm.prank(user2);
-        vm.expectRevert(BullaClaim.NotApproved.selector);
+        vm.expectRevert(BullaClaimValidationLib.NotApproved.selector);
         bullaClaim.payClaimFrom(user, claimId, 1 ether);
     }
 
@@ -184,7 +185,7 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
 
         // operator tries to pay claimId 2
         vm.prank(operator);
-        vm.expectRevert(BullaClaim.NotApproved.selector);
+        vm.expectRevert(BullaClaimValidationLib.NotApproved.selector);
         bullaClaim.payClaimFrom(user, 2, 1 ether);
     }
 
@@ -209,7 +210,7 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
 
         // operator tries to pay 1 ether
         vm.prank(operator);
-        vm.expectRevert(BullaClaim.PaymentUnderApproved.selector);
+        vm.expectRevert(BullaClaimValidationLib.PaymentUnderApproved.selector);
         bullaClaim.payClaimFrom(user, 1, 1 ether);
     }
 
@@ -237,7 +238,7 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
 
         // operator tries to pay 1 ether on October 28th
         vm.prank(operator);
-        vm.expectRevert(BullaClaim.PastApprovalDeadline.selector);
+        vm.expectRevert(BullaClaimValidationLib.PastApprovalDeadline.selector);
         bullaClaim.payClaimFrom(user, claimId, 1 ether);
     }
 
@@ -266,7 +267,7 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
 
         // operator tries to pay 1 ether on October 28th
         vm.prank(operator);
-        vm.expectRevert(BullaClaim.PastApprovalDeadline.selector);
+        vm.expectRevert(BullaClaimValidationLib.PastApprovalDeadline.selector);
         bullaClaim.payClaimFrom(user, claimId, 1 ether);
     }
 
@@ -295,7 +296,7 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
         weth.approve(address(bullaClaim), 1 ether);
 
         vm.prank(operator);
-        vm.expectRevert(BullaClaim.PastApprovalDeadline.selector);
+        vm.expectRevert(BullaClaimValidationLib.PastApprovalDeadline.selector);
         bullaClaim.payClaimFrom(user, claimId, 1 ether);
     }
 

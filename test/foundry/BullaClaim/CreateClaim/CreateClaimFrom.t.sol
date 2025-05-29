@@ -11,6 +11,7 @@ import {PenalizedClaim} from "contracts/mocks/PenalizedClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
+import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
 
 /// @notice SPEC:
 /// A function can call this function to verify and "spend" `from`'s approval of `operator` to create a claim given the following:
@@ -79,12 +80,12 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
         // have the creditor permit bob to act as a operator
         _permitCreateClaim({_userPK: userPK, _operator: operator, _approvalCount: 1});
 
-        (CreateClaimApproval memory approval,,,,) = bullaClaim.approvals(user, operator);
+        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvals(user, operator);
         uint256 approvalCount = approval.approvalCount;
 
         vm.prank(operator);
         _newClaimFrom(user, user, debtor);
-        (approval,,,,) = bullaClaim.approvals(user, operator);
+        (approval,,,,,) = bullaClaim.approvals(user, operator);
 
         assertEq(approval.approvalCount, approvalCount - 1);
     }
@@ -121,7 +122,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
     function testCannotCreateFromNonExtension() public {
         address rando = address(0x1247765432);
 
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotApproved.selector));
         vm.prank(rando);
         _newClaimFrom(creditor, creditor, debtor);
     }
@@ -134,7 +135,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
         vm.startPrank(operator);
         _newClaimFrom(user, user, debtor);
         // approval is now 0
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotApproved.selector));
         _newClaimFrom(user, user, debtor);
         vm.stopPrank();
     }
@@ -149,7 +150,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
         vm.prank(operator);
         _newClaimFrom(user, user, debtor);
 
-        (CreateClaimApproval memory approval,,,,) = bullaClaim.approvals(user, operator);
+        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvals(user, operator);
 
         assertEq(approval.approvalCount, 0);
         assertTrue(approval.approvalType == CreateClaimApprovalType.Unapproved);
@@ -162,7 +163,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
         vm.prank(operator);
         _newClaimFrom(user, user, debtor);
 
-        (CreateClaimApproval memory approval,,,,) = bullaClaim.approvals(user, operator);
+        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvals(user, operator);
 
         assertEq(approval.approvalCount, type(uint64).max);
     }
@@ -178,7 +179,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
         });
 
         vm.prank(operator);
-        vm.expectRevert(BullaClaim.NotApproved.selector);
+        vm.expectRevert(BullaClaimValidationLib.NotApproved.selector);
         _newClaimFrom({_from: user, _creditor: user, _debtor: debtor});
     }
 
@@ -193,7 +194,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
         });
 
         vm.prank(operator);
-        vm.expectRevert(BullaClaim.NotApproved.selector);
+        vm.expectRevert(BullaClaimValidationLib.NotApproved.selector);
         _newClaimFrom({_from: user, _creditor: user, _debtor: debtor});
     }
 
@@ -212,7 +213,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
         ).withBinding(ClaimBinding.Bound).build();
 
         vm.prank(operator);
-        vm.expectRevert(BullaClaim.CannotBindClaim.selector);
+        vm.expectRevert(BullaClaimValidationLib.CannotBindClaim.selector);
         bullaClaim.createClaimFrom(user, params);
     }
 
@@ -247,7 +248,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
             (approvalType == CreateClaimApprovalType.CreditorOnly && !isInvoice)
                 || (approvalType == CreateClaimApprovalType.DebtorOnly && isInvoice)
         ) {
-            vm.expectRevert(BullaClaim.NotApproved.selector);
+            vm.expectRevert(BullaClaimValidationLib.NotApproved.selector);
         } else {
             vm.expectEmit(true, true, true, true);
             emit ClaimCreated(

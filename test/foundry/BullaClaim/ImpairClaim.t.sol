@@ -20,6 +20,7 @@ import {PenalizedClaim} from "contracts/mocks/PenalizedClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
+import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
 
 contract TestImpairClaim is BullaClaimTestHelper {
     uint256 creditorPK = uint256(0x01);
@@ -117,7 +118,7 @@ contract TestImpairClaim is BullaClaimTestHelper {
         // Setup approval for operator to cancel claims (reuses same approval)
         _permitImpairClaim(creditorPK, operator, 1);
 
-        (,,,, ImpairClaimApproval memory approval) = bullaClaim.approvals(creditor, operator);
+        (,,,, ImpairClaimApproval memory approval,) = bullaClaim.approvals(creditor, operator);
         uint256 approvalCountBefore = approval.approvalCount;
 
         // Move past due date + grace period
@@ -132,7 +133,7 @@ contract TestImpairClaim is BullaClaimTestHelper {
         Claim memory claim = bullaClaim.getClaim(claimId);
         assertEq(uint256(claim.status), uint256(Status.Impaired), "Claim should be impaired");
 
-        (,,,, approval) = bullaClaim.approvals(creditor, operator);
+        (,,,, approval,) = bullaClaim.approvals(creditor, operator);
         assertEq(approval.approvalCount, approvalCountBefore - 1, "Approval count should decrement");
     }
 
@@ -177,12 +178,12 @@ contract TestImpairClaim is BullaClaimTestHelper {
 
         // Debtor cannot impair
         vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotCreditor.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotCreditor.selector));
         bullaClaim.impairClaim(claimId);
 
         // Random user cannot impair
         vm.prank(randomUser);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotCreditor.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotCreditor.selector));
         bullaClaim.impairClaim(claimId);
     }
 
@@ -208,7 +209,7 @@ contract TestImpairClaim is BullaClaimTestHelper {
         uint256 claimId = _newClaim(creditor, creditor, debtor);
 
         vm.prank(operator);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotApproved.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotApproved.selector));
         bullaClaim.impairClaimFrom(creditor, claimId);
     }
 
@@ -230,7 +231,7 @@ contract TestImpairClaim is BullaClaimTestHelper {
 
         // Cannot impair paid claim
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.ClaimNotPending.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.ClaimNotPending.selector));
         bullaClaim.impairClaim(claimId);
     }
 
@@ -246,7 +247,7 @@ contract TestImpairClaim is BullaClaimTestHelper {
 
         // Cannot impair rejected claim
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.ClaimNotPending.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.ClaimNotPending.selector));
         bullaClaim.impairClaim(claimId);
     }
 
@@ -262,7 +263,7 @@ contract TestImpairClaim is BullaClaimTestHelper {
 
         // Cannot impair rescinded claim
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.ClaimNotPending.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.ClaimNotPending.selector));
         bullaClaim.impairClaim(claimId);
     }
 
@@ -286,7 +287,7 @@ contract TestImpairClaim is BullaClaimTestHelper {
 
         // Cannot impair already impaired claim
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.ClaimNotPending.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.ClaimNotPending.selector));
         bullaClaim.impairClaim(claimId);
     }
 
@@ -449,14 +450,14 @@ contract TestImpairClaim is BullaClaimTestHelper {
         // Setup limited approvals
         _permitImpairClaim(creditorPK, operator, 2);
 
-        (,,,, ImpairClaimApproval memory approvalBefore) = bullaClaim.approvals(creditor, operator);
+        (,,,, ImpairClaimApproval memory approvalBefore,) = bullaClaim.approvals(creditor, operator);
         assertEq(approvalBefore.approvalCount, 2, "Should have 2 approvals");
 
         // Use first approval
         vm.prank(operator);
         bullaClaim.impairClaimFrom(creditor, claimId);
 
-        (,,,, ImpairClaimApproval memory approvalAfter) = bullaClaim.approvals(creditor, operator);
+        (,,,, ImpairClaimApproval memory approvalAfter,) = bullaClaim.approvals(creditor, operator);
         assertEq(approvalAfter.approvalCount, 1, "Should have 1 approval remaining");
     }
 
@@ -474,14 +475,14 @@ contract TestImpairClaim is BullaClaimTestHelper {
         // Setup unlimited approvals
         _permitImpairClaim(creditorPK, operator, type(uint64).max);
 
-        (,,,, ImpairClaimApproval memory approvalBefore) = bullaClaim.approvals(creditor, operator);
+        (,,,, ImpairClaimApproval memory approvalBefore,) = bullaClaim.approvals(creditor, operator);
         assertEq(approvalBefore.approvalCount, type(uint64).max, "Should have unlimited approvals");
 
         // Use approval
         vm.prank(operator);
         bullaClaim.impairClaimFrom(creditor, claimId);
 
-        (,,,, ImpairClaimApproval memory approvalAfter) = bullaClaim.approvals(creditor, operator);
+        (,,,, ImpairClaimApproval memory approvalAfter,) = bullaClaim.approvals(creditor, operator);
         assertEq(approvalAfter.approvalCount, type(uint64).max, "Should still have unlimited approvals");
     }
 
@@ -527,7 +528,7 @@ contract TestImpairClaim is BullaClaimTestHelper {
         bullaClaim.transferFrom(creditor, randomUser, claimId2);
 
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotCreditor.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotCreditor.selector));
         bullaClaim.impairClaim(claimId2);
     }
 
@@ -648,7 +649,7 @@ contract TestImpairClaim is BullaClaimTestHelper {
         vm.warp(block.timestamp + 35 days);
 
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.StillInGracePeriod.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.StillInGracePeriod.selector));
         bullaClaim.impairClaim(claimId);
     }
 
@@ -657,7 +658,7 @@ contract TestImpairClaim is BullaClaimTestHelper {
         uint256 claimId = _newClaim(creditor, creditor, debtor);
 
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NoDueBy.selector));
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NoDueBy.selector));
         bullaClaim.impairClaim(claimId);
     }
 
