@@ -21,6 +21,7 @@ error InvalidTermLength();
 error WithdrawalFailed();
 error TransferFailed();
 error LoanOfferNotFound();
+error LoanRequestNotFound();
 error NativeTokenNotSupported();
 error InvalidProtocolFee();
 error InvalidGracePeriod();
@@ -31,7 +32,7 @@ struct LoanDetails {
     InterestComputationState interestComputationState;
 }
 
-struct LoanOffer {
+struct LoanRequestParams {
     uint256 termLength;
     InterestConfig interestConfig;
     uint128 loanAmount;
@@ -40,6 +41,11 @@ struct LoanOffer {
     string description;
     address token;
     uint256 impairmentGracePeriod;
+}
+
+struct LoanRequest {
+    LoanRequestParams params;
+    bool requestedByCreditor;
 }
 
 struct Loan {
@@ -59,25 +65,30 @@ struct Loan {
 
 /**
  * @title BullaFrendLend
- * @notice A wrapper contract for IBullaClaim that allows creditors to offer loans that debtors can accept
+ * @notice A wrapper contract for IBullaClaim that allows both creditors to offer loans that debtors can accept,
+ *         and debtors to request loans that creditors can accept
  */
 contract BullaFrendLend is BullaClaimControllerBase {
     address public admin;
     uint256 public fee;
     uint256 public loanOfferCount;
+    uint256 public loanRequestCount;
     uint256 public protocolFeeBPS;
 
     address[] public protocolFeeTokens;
     mapping(address => uint256) public protocolFeesByToken;
     mapping(address => bool) private _tokenExists;
 
-    mapping(uint256 => LoanOffer) public loanOffers;
+    mapping(uint256 => LoanRequest) public loanRequests;
     mapping(uint256 => LoanDetails) private _loanDetailsByClaimId;
-    mapping(uint256 => ClaimMetadata) public loanOfferMetadata;
+    mapping(uint256 => ClaimMetadata) public loanRequestMetadata;
 
-    event LoanOffered(uint256 indexed loanId, address indexed offeredBy, LoanOffer loanOffer);
+    event LoanOffered(uint256 indexed loanId, address indexed offeredBy, LoanRequestParams loanOffer);
     event LoanOfferAccepted(uint256 indexed loanId, uint256 indexed claimId);
     event LoanOfferRejected(uint256 indexed loanId, address indexed rejectedBy);
+    event LoanRequested(uint256 indexed requestId, address indexed requestedBy, LoanRequestParams loanRequest);
+    event LoanRequestAccepted(uint256 indexed requestId, uint256 indexed claimId);
+    event LoanRequestRejected(uint256 indexed requestId, address indexed rejectedBy);
     event LoanPayment(uint256 indexed claimId, uint256 interestPayment, uint256 principalPayment, uint256 protocolFee);
     event ProtocolFeeUpdated(uint256 oldFee, uint256 newFee);
 
@@ -154,7 +165,7 @@ contract BullaFrendLend is BullaClaimControllerBase {
      * @param metadata Metadata for the claim (will be used when the loan is accepted)
      * @return The ID of the created loan offer
      */
-    function offerLoanWithMetadata(LoanOffer calldata offer, ClaimMetadata calldata metadata)
+    function offerLoanWithMetadata(LoanRequestParams calldata offer, ClaimMetadata calldata metadata)
         external
         payable
         returns (uint256)
@@ -167,18 +178,21 @@ contract BullaFrendLend is BullaClaimControllerBase {
      * @param offer The loan offer parameters
      * @return The ID of the created loan offer
      */
-    function offerLoan(LoanOffer calldata offer) external payable returns (uint256) {
+    function offerLoan(LoanRequestParams calldata offer) external payable returns (uint256) {
         return _offerLoan(offer, _emptyMetadata);
     }
 
-    function _offerLoan(LoanOffer calldata offer, ClaimMetadata memory metadata) private returns (uint256) {
+    function _offerLoan(LoanRequestParams calldata offer, ClaimMetadata memory metadata) private returns (uint256) {
         _validateLoanOffer(offer);
 
         uint256 offerId = ++loanOfferCount;
-        loanOffers[offerId] = offer;
+        loanRequests[offerId] = LoanRequest({
+            params: offer,
+            requestedByCreditor: true
+        });
 
         if (bytes(metadata.tokenURI).length > 0 || bytes(metadata.attachmentURI).length > 0) {
-            loanOfferMetadata[offerId] = metadata;
+            loanRequestMetadata[offerId] = metadata;
         }
 
         emit LoanOffered(offerId, msg.sender, offer);
@@ -191,13 +205,13 @@ contract BullaFrendLend is BullaClaimControllerBase {
      * @param offerId The ID of the loan offer to reject
      */
     function rejectLoanOffer(uint256 offerId) external {
-        LoanOffer memory offer = loanOffers[offerId];
+        LoanRequest memory request = loanRequests[offerId];
 
-        if (offer.creditor == address(0)) revert LoanOfferNotFound();
-        if (msg.sender != offer.creditor && msg.sender != offer.debtor) revert NotCreditorOrDebtor();
+        if (request.params.creditor == address(0)) revert LoanOfferNotFound();
+        if (msg.sender != request.params.creditor && msg.sender != request.params.debtor) revert NotCreditorOrDebtor();
 
-        delete loanOffers[offerId];
-        delete loanOfferMetadata[offerId];
+        delete loanRequests[offerId];
+        delete loanRequestMetadata[offerId];
 
         emit LoanOfferRejected(offerId, msg.sender);
     }
@@ -208,27 +222,27 @@ contract BullaFrendLend is BullaClaimControllerBase {
      * @return The ID of the created claim
      */
     function acceptLoan(uint256 offerId) external returns (uint256) {
-        LoanOffer memory offer = loanOffers[offerId];
+        LoanRequest memory request = loanRequests[offerId];
 
-        if (offer.creditor == address(0)) revert LoanOfferNotFound();
-        if (msg.sender != offer.debtor) revert NotDebtor();
+        if (request.params.creditor == address(0)) revert LoanOfferNotFound();
+        if (msg.sender != request.params.debtor) revert NotDebtor();
 
-        ClaimMetadata memory metadata = loanOfferMetadata[offerId];
+        ClaimMetadata memory metadata = loanRequestMetadata[offerId];
 
         // Clean up storage
-        delete loanOffers[offerId];
-        delete loanOfferMetadata[offerId];
+        delete loanRequests[offerId];
+        delete loanRequestMetadata[offerId];
 
         CreateClaimParams memory claimParams = CreateClaimParams({
-            creditor: offer.creditor,
-            debtor: offer.debtor,
-            claimAmount: offer.loanAmount,
-            description: offer.description,
-            token: offer.token,
+            creditor: request.params.creditor,
+            debtor: request.params.debtor,
+            claimAmount: request.params.loanAmount,
+            description: request.params.description,
+            token: request.params.token,
             binding: ClaimBinding.Bound, // Loans are bound claims, avoiding the 1 wei transfer used in V1
             payerReceivesClaimOnPayment: true,
-            dueBy: block.timestamp + offer.termLength,
-            impairmentGracePeriod: offer.impairmentGracePeriod
+            dueBy: block.timestamp + request.params.termLength,
+            impairmentGracePeriod: request.params.impairmentGracePeriod
         });
 
         // Create the claim via BullaClaim
@@ -241,19 +255,131 @@ contract BullaFrendLend is BullaClaimControllerBase {
 
         _loanDetailsByClaimId[claimId] = LoanDetails({
             acceptedAt: block.timestamp,
-            interestConfig: offer.interestConfig,
+            interestConfig: request.params.interestConfig,
             interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
         });
 
         // Transfer token from creditor to debtor via the contract
         // First, transfer from creditor to this contract
-        bool transferFromSuccess = IERC20(offer.token).transferFrom(offer.creditor, address(this), offer.loanAmount);
+        bool transferFromSuccess = IERC20(request.params.token).transferFrom(request.params.creditor, address(this), request.params.loanAmount);
         if (!transferFromSuccess) revert TransferFailed();
 
         // Then transfer from this contract to debtor
-        bool transferSuccess = IERC20(offer.token).transfer(offer.debtor, offer.loanAmount);
+        bool transferSuccess = IERC20(request.params.token).transfer(request.params.debtor, request.params.loanAmount);
         if (!transferSuccess) revert TransferFailed();
         emit LoanOfferAccepted(offerId, claimId);
+
+        return claimId;
+    }
+
+    /**
+     * @notice Allows a debtor to request a loan from a potential creditor with metadata
+     * @param request The loan request parameters
+     * @param metadata Metadata for the claim (will be used when the loan is accepted)
+     * @return The ID of the created loan request
+     */
+    function requestLoanWithMetadata(LoanRequestParams calldata request, ClaimMetadata calldata metadata)
+        external
+        payable
+        returns (uint256)
+    {
+        return _requestLoan(request, metadata);
+    }
+
+    /**
+     * @notice Allows a debtor to request a loan from a potential creditor
+     * @param request The loan request parameters
+     * @return The ID of the created loan request
+     */
+    function requestLoan(LoanRequestParams calldata request) external payable returns (uint256) {
+        return _requestLoan(request, _emptyMetadata);
+    }
+
+    function _requestLoan(LoanRequestParams calldata request, ClaimMetadata memory metadata) private returns (uint256) {
+        _validateLoanRequest(request);
+
+        uint256 requestId = ++loanRequestCount;
+        loanRequests[requestId] = LoanRequest({
+            params: request,
+            requestedByCreditor: false
+        });
+
+        if (bytes(metadata.tokenURI).length > 0 || bytes(metadata.attachmentURI).length > 0) {
+            loanRequestMetadata[requestId] = metadata;
+        }
+
+        emit LoanRequested(requestId, msg.sender, request);
+
+        return requestId;
+    }
+
+    /**
+     * @notice Allows a debtor or creditor to reject or rescind a loan request
+     * @param requestId The ID of the loan request to reject
+     */
+    function rejectLoanRequest(uint256 requestId) external {
+        LoanRequest memory request = loanRequests[requestId];
+
+        if (request.params.debtor == address(0)) revert LoanRequestNotFound();
+        if (msg.sender != request.params.creditor && msg.sender != request.params.debtor) revert NotCreditorOrDebtor();
+
+        delete loanRequests[requestId];
+        delete loanRequestMetadata[requestId];
+
+        emit LoanRequestRejected(requestId, msg.sender);
+    }
+
+    /**
+     * @notice Allows a creditor to accept a loan request and provide funding
+     * @param requestId The ID of the loan request to accept
+     * @return The ID of the created claim
+     */
+    function acceptLoanRequest(uint256 requestId) external returns (uint256) {
+        LoanRequest memory request = loanRequests[requestId];
+
+        if (request.params.debtor == address(0)) revert LoanRequestNotFound();
+        if (msg.sender != request.params.creditor) revert NotCreditor();
+
+        ClaimMetadata memory metadata = loanRequestMetadata[requestId];
+
+        // Clean up storage
+        delete loanRequests[requestId];
+        delete loanRequestMetadata[requestId];
+
+        CreateClaimParams memory claimParams = CreateClaimParams({
+            creditor: request.params.creditor,
+            debtor: request.params.debtor,
+            claimAmount: request.params.loanAmount,
+            description: request.params.description,
+            token: request.params.token,
+            binding: ClaimBinding.Bound, // loans are bound claims
+            payerReceivesClaimOnPayment: true,
+            dueBy: block.timestamp + request.params.termLength,
+            impairmentGracePeriod: request.params.impairmentGracePeriod
+        });
+
+        uint256 claimId;
+        if (bytes(metadata.tokenURI).length > 0 || bytes(metadata.attachmentURI).length > 0) {
+            claimId = _bullaClaim.createClaimWithMetadataFrom(request.params.debtor, claimParams, metadata);
+        } else {
+            claimId = _bullaClaim.createClaimFrom(request.params.debtor, claimParams);
+        }
+
+        _loanDetailsByClaimId[claimId] = LoanDetails({
+            acceptedAt: block.timestamp,
+            interestConfig: request.params.interestConfig,
+            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
+        });
+
+        // Transfer token from creditor to debtor via the contract
+        // First, transfer from creditor to this contract
+        bool transferFromSuccess = IERC20(request.params.token).transferFrom(request.params.creditor, address(this), request.params.loanAmount);
+        if (!transferFromSuccess) revert TransferFailed();
+
+        // Then transfer from this contract to debtor
+        bool transferSuccess = IERC20(request.params.token).transfer(request.params.debtor, request.params.loanAmount);
+        if (!transferSuccess) revert TransferFailed();
+        emit LoanRequestAccepted(requestId, claimId);
 
         return claimId;
     }
@@ -379,7 +505,7 @@ contract BullaFrendLend is BullaClaimControllerBase {
         emit ProtocolFeeUpdated(oldFee, _protocolFeeBPS);
     }
 
-    function _validateLoanOffer(LoanOffer calldata offer) private view {
+    function _validateLoanOffer(LoanRequestParams calldata offer) private view {
         if (msg.value != fee) revert IncorrectFee();
         if (msg.sender != offer.creditor) revert NotCreditor();
         if (offer.termLength == 0) revert InvalidTermLength();
@@ -387,5 +513,15 @@ contract BullaFrendLend is BullaClaimControllerBase {
         if (offer.impairmentGracePeriod > type(uint40).max) revert InvalidGracePeriod();
 
         CompoundInterestLib.validateInterestConfig(offer.interestConfig);
+    }
+
+    function _validateLoanRequest(LoanRequestParams calldata request) private view {
+        if (msg.value != fee) revert IncorrectFee();
+        if (msg.sender != request.debtor) revert NotDebtor();
+        if (request.termLength == 0) revert InvalidTermLength();
+        if (request.token == address(0)) revert NativeTokenNotSupported();
+        if (request.impairmentGracePeriod > type(uint40).max) revert InvalidGracePeriod();
+
+        CompoundInterestLib.validateInterestConfig(request.interestConfig);
     }
 }

@@ -10,18 +10,19 @@ import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/U
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {
     BullaFrendLend,
-    LoanOffer,
+    LoanRequestParams,
     Loan,
     IncorrectFee,
     NotCreditor,
     InvalidTermLength,
     NativeTokenNotSupported,
     NotDebtor,
-    NotAdmin
+    NotAdmin,
+    LoanRequestNotFound
 } from "contracts/BullaFrendLend.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {MockERC20} from "contracts/mocks/MockERC20.sol";
-import {LoanOfferBuilder} from "./LoanOfferBuilder.t.sol";
+import {LoanRequestParamsBuilder} from "./LoanRequestParamsBuilder.t.sol";
 import {InterestConfig} from "contracts/libraries/CompoundInterestLib.sol";
 import "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
@@ -90,7 +91,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 2 ether);
 
-        LoanOffer memory offer = new LoanOfferBuilder().withInterestRateBps(500).withCreditor(creditor).withDebtor(
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withInterestRateBps(500).withCreditor(creditor).withDebtor(
             debtor
         ).withToken(address(weth)).withDescription("Test Loan") // 5% interest (different from default 1000)
             .build();
@@ -99,31 +100,26 @@ contract TestBullaFrendLend is Test {
         uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
 
         (
-            uint256 termLength,
-            InterestConfig memory interestConfig,
-            uint128 loanAmount,
-            address offerCreditor,
-            address offerDebtor,
-            string memory description,
-            address token,
-            uint256 impairmentGracePeriod
-        ) = bullaFrendLend.loanOffers(loanId);
+            LoanRequestParams memory params,
+            bool requestedByCreditor
+        ) = bullaFrendLend.loanRequests(loanId);
 
-        assertEq(interestConfig.interestRateBps, 500, "Interest BPS mismatch");
-        assertEq(termLength, 30 days, "Term length mismatch");
-        assertEq(loanAmount, 1 ether, "Loan amount mismatch");
-        assertEq(offerCreditor, creditor, "Creditor mismatch");
-        assertEq(offerDebtor, debtor, "Debtor mismatch");
-        assertEq(description, "Test Loan", "Description mismatch");
-        assertEq(token, address(weth), "Token address mismatch");
-        assertEq(impairmentGracePeriod, 7 days, "Impairment grace period mismatch");
+        assertEq(params.interestConfig.interestRateBps, 500, "Interest BPS mismatch");
+        assertEq(params.termLength, 30 days, "Term length mismatch");
+        assertEq(params.loanAmount, 1 ether, "Loan amount mismatch");
+        assertEq(params.creditor, creditor, "Creditor mismatch");
+        assertEq(params.debtor, debtor, "Debtor mismatch");
+        assertEq(params.description, "Test Loan", "Description mismatch");
+        assertEq(params.token, address(weth), "Token address mismatch");
+        assertEq(params.impairmentGracePeriod, 7 days, "Impairment grace period mismatch");
+        assertTrue(requestedByCreditor, "Should be requested by creditor");
     }
 
     function testOfferLoanWithIncorrectFee() public {
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 1 ether);
 
-        LoanOffer memory offer = new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withDescription(
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withDescription(
             "Test Loan"
         ).withToken(address(weth)).build();
 
@@ -136,7 +132,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 1 ether);
 
-        LoanOffer memory offer = new LoanOfferBuilder().withCreditor(debtor).withDebtor(debtor).withDescription(
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(debtor).withDebtor(debtor).withDescription(
             "Test Loan"
         ).withToken(address(weth)) // Wrong creditor
             .build();
@@ -150,7 +146,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 1 ether);
 
-        LoanOffer memory offer = new LoanOfferBuilder().withTermLength(0).withCreditor(creditor).withDebtor(debtor)
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withTermLength(0).withCreditor(creditor).withDebtor(debtor)
             .withToken(address(weth)) // Invalid term length
             .build();
 
@@ -160,7 +156,7 @@ contract TestBullaFrendLend is Test {
     }
 
     function testOfferLoanWithNativeToken() public {
-        LoanOffer memory offer = new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(0)) // Native token (should be rejected)
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(0)) // Native token (should be rejected)
             .build();
 
         vm.prank(creditor);
@@ -172,15 +168,15 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 1 ether);
 
-        LoanOffer memory offer = new LoanOfferBuilder().withInterestRateBps(0).withCreditor(creditor).withDebtor(debtor)
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withInterestRateBps(0).withCreditor(creditor).withDebtor(debtor)
             .withToken(address(weth)) // Zero interest
             .build();
 
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
 
-        (, InterestConfig memory interestConfig,,,,,,) = bullaFrendLend.loanOffers(loanId);
-        assertEq(interestConfig.interestRateBps, 0, "Interest BPS should be zero");
+        (LoanRequestParams memory params,) = bullaFrendLend.loanRequests(loanId);
+        assertEq(params.interestConfig.interestRateBps, 0, "Interest BPS should be zero");
     }
 
     function testEndToEndLoanFlow() public {
@@ -191,7 +187,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(debtor);
         weth.approve(address(bullaFrendLend), 2 ether);
 
-        LoanOffer memory offer = new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
             address(weth)
         ).withNumberOfPeriodsPerYear(365).build();
 
@@ -288,8 +284,8 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 2 ether);
 
-        LoanOffer memory offer =
-            new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
+        LoanRequestParams memory offer =
+            new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
 
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
@@ -297,8 +293,8 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         bullaFrendLend.rejectLoanOffer(loanId);
 
-        (,,, address offerCreditor,,,,) = bullaFrendLend.loanOffers(loanId);
-        assertEq(offerCreditor, address(0), "Offer should be deleted after rejection");
+        (LoanRequestParams memory params,) = bullaFrendLend.loanRequests(loanId);
+        assertEq(params.creditor, address(0), "Offer should be deleted after rejection");
     }
 
     function testPartialLoanPayments() public {
@@ -310,8 +306,8 @@ contract TestBullaFrendLend is Test {
         weth.approve(address(bullaFrendLend), 2 ether);
         vm.stopPrank();
 
-        LoanOffer memory offer =
-            new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
+        LoanRequestParams memory offer =
+            new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
 
         uint256 initialCreditorWeth = weth.balanceOf(creditor);
         uint256 initialDebtorWeth = weth.balanceOf(debtor);
@@ -433,7 +429,7 @@ contract TestBullaFrendLend is Test {
         weth.approve(address(bullaClaim), 2 ether);
 
         // Set up a loan with 10% interest (1000 BPS)
-        LoanOffer memory offer = new LoanOfferBuilder().withTermLength(10 * 365 days).withCreditor(creditor).withDebtor(
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withTermLength(10 * 365 days).withCreditor(creditor).withDebtor(
             debtor
         ).withToken(address(weth)).withInterestRateBps(720).withNumberOfPeriodsPerYear(1) // 1 year term (different from default 30 days)
             .build();
@@ -503,8 +499,8 @@ contract TestBullaFrendLend is Test {
         vm.prank(debtor);
         weth.approve(address(bullaFrendLend), 5 ether);
 
-        LoanOffer memory offer =
-            new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
+        LoanRequestParams memory offer =
+            new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
 
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
@@ -582,8 +578,8 @@ contract TestBullaFrendLend is Test {
         vm.stopPrank();
 
         // Create a loan offer with metadata
-        LoanOffer memory offer =
-            new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
+        LoanRequestParams memory offer =
+            new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
 
         ClaimMetadata memory metadata =
             ClaimMetadata({tokenURI: "ipfs://QmTestTokenURI", attachmentURI: "ipfs://QmTestAttachmentURI"});
@@ -692,7 +688,7 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        LoanOffer memory wethOffer = new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withDescription(
+        LoanRequestParams memory wethOffer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withDescription(
             "WETH Loan"
         ).withToken(address(weth)).withNumberOfPeriodsPerYear(365).build();
 
@@ -702,7 +698,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(debtor);
         uint256 wethClaimId = bullaFrendLend.acceptLoan(wethLoanId);
 
-        LoanOffer memory usdcOffer = new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withDescription(
+        LoanRequestParams memory usdcOffer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withDescription(
             "USDC Loan"
         ).withToken(address(usdc)).withLoanAmount(1000 * 10 ** 6).withNumberOfPeriodsPerYear(365).build();
 
@@ -712,7 +708,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(debtor);
         uint256 usdcClaimId = bullaFrendLend.acceptLoan(usdcLoanId);
 
-        LoanOffer memory daiOffer = new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withDescription(
+        LoanRequestParams memory daiOffer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withDescription(
             "DAI Loan"
         ).withToken(address(dai)).withLoanAmount(1000 ether).withNumberOfPeriodsPerYear(365).build();
 
@@ -842,7 +838,7 @@ contract TestBullaFrendLend is Test {
         });
 
         // Create first WETH loan
-        LoanOffer memory wethOffer1 = new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withDescription(
+        LoanRequestParams memory wethOffer1 = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withDescription(
             "WETH Loan 1"
         ).withToken(address(weth)).withLoanAmount(1 ether).withNumberOfPeriodsPerYear(365).build();
 
@@ -853,7 +849,7 @@ contract TestBullaFrendLend is Test {
         uint256 wethClaimId1 = bullaFrendLend.acceptLoan(wethLoanId1);
 
         // Create second WETH loan
-        LoanOffer memory wethOffer2 = new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withDescription(
+        LoanRequestParams memory wethOffer2 = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withDescription(
             "WETH Loan 2"
         ).withToken(address(weth)).withLoanAmount(0.5 ether).withNumberOfPeriodsPerYear(365).build();
 
@@ -943,7 +939,7 @@ contract TestBullaFrendLend is Test {
         bullaFrendLend.setProtocolFee(0);
         vm.stopPrank();
 
-        LoanOffer memory offer = new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
             address(weth)
         ).withInterestRateBps(1000).build();
 
@@ -984,7 +980,7 @@ contract TestBullaFrendLend is Test {
         bullaFrendLend.setProtocolFee(5000); // 50%
         vm.stopPrank();
 
-        offer = new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withDescription(
+        offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withDescription(
             "50% Protocol Fee Test Loan"
         ).withToken(address(weth)).withInterestRateBps(1000).build();
 
@@ -1085,7 +1081,7 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        LoanOffer memory offer = new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
             address(weth)
         ).withTermLength(30 days).build();
 
@@ -1175,7 +1171,7 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        LoanOffer memory offer = new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
             address(weth)
         ).withInterestRateBps(1000).build();
 
@@ -1228,8 +1224,8 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        LoanOffer memory offer =
-            new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
+        LoanRequestParams memory offer =
+            new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
 
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
@@ -1312,7 +1308,7 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        LoanOffer memory offer = new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
             address(weth)
         ).withInterestRateBps(1000).withNumberOfPeriodsPerYear(365) // 10% annual interest
             .build();
@@ -1405,7 +1401,7 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        LoanOffer memory offer = new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
             address(weth)
         ).withInterestRateBps(1000).build();
 
@@ -1500,7 +1496,7 @@ contract TestBullaFrendLend is Test {
         });
 
         // Create first loan
-        LoanOffer memory offer1 = new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
+        LoanRequestParams memory offer1 = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
             address(weth)
         ).withDescription("First Loan").build();
 
@@ -1511,7 +1507,7 @@ contract TestBullaFrendLend is Test {
         uint256 claimId1 = bullaFrendLend.acceptLoan(loanId1);
 
         // Create second loan
-        LoanOffer memory offer2 = new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
+        LoanRequestParams memory offer2 = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
             address(weth)
         ).withDescription("Second Loan").build();
 
@@ -1593,7 +1589,7 @@ contract TestBullaFrendLend is Test {
         });
 
         // Create WETH loan
-        LoanOffer memory wethOffer = new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
+        LoanRequestParams memory wethOffer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
             address(weth)
         ).withDescription("WETH Loan").build();
 
@@ -1604,7 +1600,7 @@ contract TestBullaFrendLend is Test {
         uint256 wethClaimId = bullaFrendLend.acceptLoan(wethLoanId);
 
         // Create USDC loan
-        LoanOffer memory usdcOffer = new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
+        LoanRequestParams memory usdcOffer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
             address(usdc)
         ).withLoanAmount(1000 * 10 ** 6).withDescription("USDC Loan").build();
 
@@ -1673,7 +1669,7 @@ contract TestBullaFrendLend is Test {
 
         _permitMarkAsPaid(creditorPK, address(bullaFrendLend), 1);
 
-        LoanOffer memory offer = new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
             address(weth)
         ).withTermLength(30 days).build();
 
@@ -1745,7 +1741,7 @@ contract TestBullaFrendLend is Test {
 
         _permitMarkAsPaid(creditorPK, address(bullaFrendLend), 1);
 
-        LoanOffer memory offer = new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
             address(weth)
         ).withInterestRateBps(1000).build();
 
@@ -1799,8 +1795,8 @@ contract TestBullaFrendLend is Test {
         _permitMarkAsPaid(debtorPK, address(bullaFrendLend), 1);
         _permitMarkAsPaid(adminPK, address(bullaFrendLend), 1);
 
-        LoanOffer memory offer =
-            new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
+        LoanRequestParams memory offer =
+            new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
 
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
@@ -1869,7 +1865,7 @@ contract TestBullaFrendLend is Test {
 
         _permitMarkAsPaid(creditorPK, address(bullaFrendLend), 1);
 
-        LoanOffer memory offer = new LoanOfferBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
             address(weth)
         ).withTermLength(30 days).build();
 
@@ -1894,5 +1890,359 @@ contract TestBullaFrendLend is Test {
         // Verify loan is marked as paid
         Claim memory claimAfterMarkedPaid = bullaClaim.getClaim(claimId);
         assertEq(uint256(claimAfterMarkedPaid.status), uint256(Status.Paid), "Loan should be marked as paid");
+    }
+
+    /*///////////////////////////////////////////////////////////////
+                        LOAN REQUEST TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function testRequestLoan() public {
+        LoanRequestParams memory request = new LoanRequestParamsBuilder().withInterestRateBps(750).withCreditor(creditor).withDebtor(
+            debtor
+        ).withToken(address(weth)).withDescription("Test Loan Request")
+            .build();
+
+        vm.prank(debtor);
+        uint256 requestId = bullaFrendLend.requestLoan{value: FEE}(request);
+
+        (
+            LoanRequestParams memory params,
+            bool requestedByCreditor
+        ) = bullaFrendLend.loanRequests(requestId);
+
+        assertEq(params.interestConfig.interestRateBps, 750, "Interest BPS mismatch");
+        assertEq(params.termLength, 30 days, "Term length mismatch");
+        assertEq(params.loanAmount, 1 ether, "Loan amount mismatch");
+        assertEq(params.creditor, creditor, "Creditor mismatch");
+        assertEq(params.debtor, debtor, "Debtor mismatch");
+        assertEq(params.description, "Test Loan Request", "Description mismatch");
+        assertEq(params.token, address(weth), "Token address mismatch");
+        assertEq(params.impairmentGracePeriod, 7 days, "Impairment grace period mismatch");
+        assertFalse(requestedByCreditor, "Should be requested by debtor");
+    }
+
+    function testRequestLoanWithIncorrectFee() public {
+        LoanRequestParams memory request = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withDescription(
+            "Test Loan Request"
+        ).withToken(address(weth)).build();
+
+        vm.prank(debtor);
+        vm.expectRevert(abi.encodeWithSelector(IncorrectFee.selector));
+        bullaFrendLend.requestLoan{value: FEE + 0.1 ether}(request);
+    }
+
+    function testRequestLoanWithWrongDebtor() public {
+        LoanRequestParams memory request = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(creditor).withDescription(
+            "Test Loan Request"
+        ).withToken(address(weth)) // Wrong debtor
+            .build();
+
+        vm.prank(debtor);
+        vm.expectRevert(abi.encodeWithSelector(NotDebtor.selector));
+        bullaFrendLend.requestLoan{value: FEE}(request);
+    }
+
+    function testRequestLoanWithZeroTermLength() public {
+        LoanRequestParams memory request = new LoanRequestParamsBuilder().withTermLength(0).withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)) // Invalid term length
+            .build();
+
+        vm.prank(debtor);
+        vm.expectRevert(abi.encodeWithSelector(InvalidTermLength.selector));
+        bullaFrendLend.requestLoan{value: FEE}(request);
+    }
+
+    function testRequestLoanWithNativeToken() public {
+        LoanRequestParams memory request = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(0)) // Native token (should be rejected)
+            .build();
+
+        vm.prank(debtor);
+        vm.expectRevert(abi.encodeWithSelector(NativeTokenNotSupported.selector));
+        bullaFrendLend.requestLoan{value: FEE}(request);
+    }
+
+    function testRequestLoanWithZeroInterest() public {
+        LoanRequestParams memory request = new LoanRequestParamsBuilder().withInterestRateBps(0).withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)) // Zero interest
+            .build();
+
+        vm.prank(debtor);
+        uint256 requestId = bullaFrendLend.requestLoan{value: FEE}(request);
+
+        (LoanRequestParams memory params,) = bullaFrendLend.loanRequests(requestId);
+        assertEq(params.interestConfig.interestRateBps, 0, "Interest BPS should be zero");
+    }
+
+    function testRequestLoanWithMetadata() public {
+        LoanRequestParams memory request =
+            new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
+
+        ClaimMetadata memory metadata =
+            ClaimMetadata({tokenURI: "ipfs://QmTestRequestTokenURI", attachmentURI: "ipfs://QmTestRequestAttachmentURI"});
+
+        vm.prank(debtor);
+        uint256 requestId = bullaFrendLend.requestLoanWithMetadata{value: FEE}(request, metadata);
+
+        // Check that metadata was stored for the request
+        (string memory tokenURI, string memory attachmentURI) = bullaFrendLend.loanRequestMetadata(requestId);
+        assertEq(tokenURI, "ipfs://QmTestRequestTokenURI", "Token URI not correctly stored for request");
+        assertEq(attachmentURI, "ipfs://QmTestRequestAttachmentURI", "Attachment URI not correctly stored for request");
+    }
+
+    function testRejectLoanRequest() public {
+        LoanRequestParams memory request =
+            new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
+
+        vm.prank(debtor);
+        uint256 requestId = bullaFrendLend.requestLoan{value: FEE}(request);
+
+        vm.prank(debtor);
+        bullaFrendLend.rejectLoanRequest(requestId);
+
+        (LoanRequestParams memory params,) = bullaFrendLend.loanRequests(requestId);
+        assertEq(params.debtor, address(0), "Request should be deleted after rejection");
+    }
+
+    function testRejectLoanRequestByCreditor() public {
+        LoanRequestParams memory request =
+            new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
+
+        vm.prank(debtor);
+        uint256 requestId = bullaFrendLend.requestLoan{value: FEE}(request);
+
+        vm.prank(creditor);
+        bullaFrendLend.rejectLoanRequest(requestId);
+
+        (LoanRequestParams memory params,) = bullaFrendLend.loanRequests(requestId);
+        assertEq(params.debtor, address(0), "Request should be deleted after rejection by creditor");
+    }
+
+    function testAcceptLoanRequest() public {
+        // Approve WETH for transfer from creditor to BullaFrendLend
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 2 ether);
+
+        LoanRequestParams memory request = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
+            address(weth)
+        ).withDescription("Test Loan Request").build();
+
+        uint256 initialCreditorWeth = weth.balanceOf(creditor);
+        uint256 initialDebtorWeth = weth.balanceOf(debtor);
+
+        vm.prank(debtor);
+        uint256 requestId = bullaFrendLend.requestLoan{value: FEE}(request);
+
+        // Grant permission for creditor to create bound claim on behalf of debtor
+        bullaClaim.permitCreateClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
+        });
+
+        vm.prank(creditor);
+        uint256 claimId = bullaFrendLend.acceptLoanRequest(requestId);
+
+        assertEq(
+            weth.balanceOf(creditor),
+            initialCreditorWeth - 1 ether,
+            "Creditor WETH balance after loan acceptance incorrect"
+        );
+        assertEq(
+            weth.balanceOf(debtor), initialDebtorWeth + 1 ether, "Debtor WETH balance after loan acceptance incorrect"
+        );
+        assertEq(weth.balanceOf(address(bullaFrendLend)), 0, "BullaFrendLend WETH balance should be 0 after transfer");
+
+        Loan memory loan = bullaFrendLend.getLoan(claimId);
+        assertTrue(loan.status == Status.Pending);
+        assertEq(loan.claimAmount, 1 ether);
+        assertEq(loan.paidAmount, 0);
+    }
+
+    function testAcceptLoanRequestWithMetadata() public {
+        // Approve WETH for transfer from creditor to BullaFrendLend
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 2 ether);
+
+        LoanRequestParams memory request = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
+            address(weth)
+        ).withDescription("Test Loan Request with Metadata").build();
+
+        ClaimMetadata memory metadata = ClaimMetadata({
+            tokenURI: "https://ipfs.io/ipfs/testToken",
+            attachmentURI: "https://ipfs.io/ipfs/testAttachment"
+        });
+
+        vm.prank(debtor);
+        uint256 requestId = bullaFrendLend.requestLoanWithMetadata{value: FEE}(request, metadata);
+
+        // Grant permission for creditor to create bound claim on behalf of debtor
+        bullaClaim.permitCreateClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
+        });
+
+        vm.prank(creditor);
+        uint256 claimId = bullaFrendLend.acceptLoanRequest(requestId); 
+
+        // Verify metadata was set
+        (string memory tokenURI, string memory attachmentURI) = bullaClaim.claimMetadata(claimId);
+        assertEq(tokenURI, "https://ipfs.io/ipfs/testToken");
+        assertEq(attachmentURI, "https://ipfs.io/ipfs/testAttachment");
+
+        Loan memory loan = bullaFrendLend.getLoan(claimId);
+        assertTrue(loan.status == Status.Pending);
+    }
+
+    function testCannotAcceptLoanRequestNotCreditor() public {
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 2 ether);
+
+        LoanRequestParams memory request =
+            new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
+
+        vm.prank(debtor);
+        uint256 requestId = bullaFrendLend.requestLoan{value: FEE}(request);
+
+        // Wrong user trying to accept
+        vm.prank(debtor);
+        vm.expectRevert(abi.encodeWithSelector(NotCreditor.selector));
+        bullaFrendLend.acceptLoanRequest(requestId);
+
+        // Random user trying to accept
+        vm.prank(admin);
+        vm.expectRevert(abi.encodeWithSelector(NotCreditor.selector));
+        bullaFrendLend.acceptLoanRequest(requestId);
+    }
+
+    function testCannotAcceptNonExistentLoanRequest() public {
+        uint256 nonExistentRequestId = 999;
+
+        vm.prank(creditor);
+        vm.expectRevert(abi.encodeWithSelector(LoanRequestNotFound.selector));
+        bullaFrendLend.acceptLoanRequest(nonExistentRequestId);
+    }
+
+    function testCannotRejectNonExistentLoanRequest() public {
+        uint256 nonExistentRequestId = 999;
+
+        vm.prank(creditor);
+        vm.expectRevert(abi.encodeWithSelector(LoanRequestNotFound.selector));
+        bullaFrendLend.rejectLoanRequest(nonExistentRequestId);
+    }
+
+    function testEndToEndLoanRequestFlow() public {
+        // Setup approvals for both WETH transfers and loan payments
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 2 ether);
+
+        vm.prank(debtor);
+        weth.approve(address(bullaFrendLend), 2 ether);
+
+        LoanRequestParams memory request = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(
+            address(weth)
+        ).withDescription("End-to-end loan request test").build();
+
+        uint256 initialCreditorWeth = weth.balanceOf(creditor);
+        uint256 initialDebtorWeth = weth.balanceOf(debtor);
+
+        // Step 1: Debtor requests a loan
+        vm.prank(debtor);
+        uint256 requestId = bullaFrendLend.requestLoan{value: FEE}(request);
+
+        // Step 2: Grant permission for creditor to create bound claim on behalf of debtor
+        bullaClaim.permitCreateClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
+        });
+
+        // Step 3: Creditor accepts the loan request
+        vm.prank(creditor);
+        uint256 claimId = bullaFrendLend.acceptLoanRequest(requestId);
+
+        // Verify funds were transferred correctly
+        assertEq(
+            weth.balanceOf(creditor),
+            initialCreditorWeth - 1 ether,
+            "Creditor should have 1 ether less after funding loan"
+        );
+        assertEq(
+            weth.balanceOf(debtor), initialDebtorWeth + 1 ether, "Debtor should have received 1 ether loan amount"
+        );
+
+        // Step 4: Setup payment permissions for the debtor
+        bullaClaim.permitPayClaim({
+            user: debtor,
+            operator: address(bullaFrendLend),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                operator: address(bullaFrendLend),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        // Step 5: Advance time to generate interest
+        vm.warp(block.timestamp + 15 days);
+
+        // Step 6: Debtor pays back the loan with interest
+        (uint256 remainingPrincipal, uint256 currentInterest) = bullaFrendLend.getTotalAmountDue(claimId);
+        uint256 paymentAmount = remainingPrincipal + currentInterest;
+
+        uint256 creditorBalanceBeforePayment = weth.balanceOf(creditor);
+        uint256 debtorBalanceBeforePayment = weth.balanceOf(debtor);
+
+        vm.prank(debtor);
+        bullaFrendLend.payLoan(claimId, paymentAmount);
+
+        // Verify final balances
+        uint256 creditorBalanceAfterPayment = weth.balanceOf(creditor);
+        uint256 debtorBalanceAfterPayment = weth.balanceOf(debtor);
+
+        assertEq(
+            debtorBalanceBeforePayment - debtorBalanceAfterPayment,
+            paymentAmount,
+            "Debtor should have paid the exact amount due"
+        );
+
+        // Verify loan is marked as paid
+        Loan memory finalLoan = bullaFrendLend.getLoan(claimId);
+        assertTrue(finalLoan.status == Status.Paid, "Loan should be marked as paid");
     }
 }
