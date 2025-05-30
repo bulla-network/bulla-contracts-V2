@@ -71,15 +71,15 @@ contract TestBullaFrendLend is Test {
         dai.mint(debtor, 10_000 ether);
     }
 
-    function _permitImpairClaim(uint256 pk, address operator, uint64 approvalCount) internal {
+    function _permitImpairClaim(uint256 pk, address controller, uint64 approvalCount) internal {
         bullaClaim.permitImpairClaim({
             user: vm.addr(pk),
-            operator: operator,
+            controller: controller,
             approvalCount: approvalCount,
             signature: sigHelper.signImpairClaimPermit({
                 pk: pk,
                 user: vm.addr(pk),
-                operator: operator,
+                controller: controller,
                 approvalCount: approvalCount
             })
         });
@@ -203,14 +203,14 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitCreateClaim({
             user: debtor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 1,
             isBindingAllowed: true,
             signature: sigHelper.signCreateClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
                 isBindingAllowed: true
@@ -232,14 +232,14 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitPayClaim({
             user: debtor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
             approvalDeadline: 0,
             paymentApprovals: new ClaimPaymentApprovalParam[](0),
             signature: sigHelper.signPayClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalType: PayClaimApprovalType.IsApprovedForAll,
                 approvalDeadline: 0,
                 paymentApprovals: new ClaimPaymentApprovalParam[](0)
@@ -321,14 +321,14 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitCreateClaim({
             user: debtor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 1,
             isBindingAllowed: true,
             signature: sigHelper.signCreateClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
                 isBindingAllowed: true
@@ -349,14 +349,14 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitPayClaim({
             user: debtor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
             approvalDeadline: 0,
             paymentApprovals: new ClaimPaymentApprovalParam[](0),
             signature: sigHelper.signPayClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalType: PayClaimApprovalType.IsApprovedForAll,
                 approvalDeadline: 0,
                 paymentApprovals: new ClaimPaymentApprovalParam[](0)
@@ -443,14 +443,14 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitCreateClaim({
             user: debtor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 1,
             isBindingAllowed: true,
             signature: sigHelper.signCreateClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
                 isBindingAllowed: true
@@ -463,14 +463,14 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitPayClaim({
             user: debtor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
             approvalDeadline: 0,
             paymentApprovals: new ClaimPaymentApprovalParam[](0),
             signature: sigHelper.signPayClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalType: PayClaimApprovalType.IsApprovedForAll,
                 approvalDeadline: 0,
                 paymentApprovals: new ClaimPaymentApprovalParam[](0)
@@ -511,14 +511,14 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitCreateClaim({
             user: debtor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 1,
             isBindingAllowed: true,
             signature: sigHelper.signCreateClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
                 isBindingAllowed: true
@@ -530,14 +530,14 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitPayClaim({
             user: debtor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
             approvalDeadline: 0,
             paymentApprovals: new ClaimPaymentApprovalParam[](0),
             signature: sigHelper.signPayClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalType: PayClaimApprovalType.IsApprovedForAll,
                 approvalDeadline: 0,
                 paymentApprovals: new ClaimPaymentApprovalParam[](0)
@@ -593,14 +593,14 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitCreateClaim({
             user: debtor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 1,
             isBindingAllowed: true,
             signature: sigHelper.signCreateClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
                 isBindingAllowed: true
@@ -662,14 +662,14 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitCreateClaim({
             user: debtor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 3,
             isBindingAllowed: true,
             signature: sigHelper.signCreateClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 3,
                 isBindingAllowed: true
@@ -678,14 +678,14 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitPayClaim({
             user: debtor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
             approvalDeadline: 0,
             paymentApprovals: new ClaimPaymentApprovalParam[](0),
             signature: sigHelper.signPayClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalType: PayClaimApprovalType.IsApprovedForAll,
                 approvalDeadline: 0,
                 paymentApprovals: new ClaimPaymentApprovalParam[](0)
@@ -811,14 +811,14 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitCreateClaim({
             user: debtor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 2,
             isBindingAllowed: true,
             signature: sigHelper.signCreateClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 2,
                 isBindingAllowed: true
@@ -827,14 +827,14 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitPayClaim({
             user: debtor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
             approvalDeadline: 0,
             paymentApprovals: new ClaimPaymentApprovalParam[](0),
             signature: sigHelper.signPayClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalType: PayClaimApprovalType.IsApprovedForAll,
                 approvalDeadline: 0,
                 paymentApprovals: new ClaimPaymentApprovalParam[](0)
@@ -908,14 +908,14 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitCreateClaim({
             user: debtor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 3,
             isBindingAllowed: true,
             signature: sigHelper.signCreateClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 3,
                 isBindingAllowed: true
@@ -924,14 +924,14 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitPayClaim({
             user: debtor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
             approvalDeadline: 0,
             paymentApprovals: new ClaimPaymentApprovalParam[](0),
             signature: sigHelper.signPayClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalType: PayClaimApprovalType.IsApprovedForAll,
                 approvalDeadline: 0,
                 paymentApprovals: new ClaimPaymentApprovalParam[](0)
@@ -1047,14 +1047,14 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitCreateClaim({
             user: debtor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 1,
             isBindingAllowed: true,
             signature: sigHelper.signCreateClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
                 isBindingAllowed: true
@@ -1063,24 +1063,24 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitCancelClaim({
             user: creditor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalCount: 1,
             signature: sigHelper.signCancelClaimPermit({
                 pk: creditorPK,
                 user: creditor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalCount: 1
             })
         });
 
         bullaClaim.permitImpairClaim({
             user: creditor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalCount: 1,
             signature: sigHelper.signImpairClaimPermit({
                 pk: creditorPK,
                 user: creditor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalCount: 1
             })
         });
@@ -1121,14 +1121,14 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitCreateClaim({
             user: debtor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 1,
             isBindingAllowed: true,
             signature: sigHelper.signCreateClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
                 isBindingAllowed: true
@@ -1137,14 +1137,14 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitPayClaim({
             user: debtor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
             approvalDeadline: 0,
             paymentApprovals: new ClaimPaymentApprovalParam[](0),
             signature: sigHelper.signPayClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalType: PayClaimApprovalType.IsApprovedForAll,
                 approvalDeadline: 0,
                 paymentApprovals: new ClaimPaymentApprovalParam[](0)
@@ -1153,24 +1153,24 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitCancelClaim({
             user: creditor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalCount: 1,
             signature: sigHelper.signCancelClaimPermit({
                 pk: creditorPK,
                 user: creditor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalCount: 1
             })
         });
 
         bullaClaim.permitImpairClaim({
             user: creditor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalCount: 1,
             signature: sigHelper.signImpairClaimPermit({
                 pk: creditorPK,
                 user: creditor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalCount: 1
             })
         });
@@ -1214,14 +1214,14 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitCreateClaim({
             user: debtor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 1,
             isBindingAllowed: true,
             signature: sigHelper.signCreateClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
                 isBindingAllowed: true
@@ -1274,14 +1274,14 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitCreateClaim({
             user: debtor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 1,
             isBindingAllowed: true,
             signature: sigHelper.signCreateClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
                 isBindingAllowed: true
@@ -1290,24 +1290,24 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitCancelClaim({
             user: creditor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalCount: 1,
             signature: sigHelper.signCancelClaimPermit({
                 pk: creditorPK,
                 user: creditor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalCount: 1
             })
         });
 
         bullaClaim.permitImpairClaim({
             user: creditor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalCount: 1,
             signature: sigHelper.signImpairClaimPermit({
                 pk: creditorPK,
                 user: creditor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalCount: 1
             })
         });
@@ -1351,14 +1351,14 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitCreateClaim({
             user: debtor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 1,
             isBindingAllowed: true,
             signature: sigHelper.signCreateClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
                 isBindingAllowed: true
@@ -1367,14 +1367,14 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitPayClaim({
             user: debtor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
             approvalDeadline: 0,
             paymentApprovals: new ClaimPaymentApprovalParam[](0),
             signature: sigHelper.signPayClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalType: PayClaimApprovalType.IsApprovedForAll,
                 approvalDeadline: 0,
                 paymentApprovals: new ClaimPaymentApprovalParam[](0)
@@ -1383,24 +1383,24 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitCancelClaim({
             user: creditor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalCount: 1,
             signature: sigHelper.signCancelClaimPermit({
                 pk: creditorPK,
                 user: creditor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalCount: 1
             })
         });
 
         bullaClaim.permitImpairClaim({
             user: creditor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalCount: 1,
             signature: sigHelper.signImpairClaimPermit({
                 pk: creditorPK,
                 user: creditor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalCount: 1
             })
         });
@@ -1461,14 +1461,14 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitCreateClaim({
             user: debtor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 2, // Multiple claims
             isBindingAllowed: true,
             signature: sigHelper.signCreateClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 2,
                 isBindingAllowed: true
@@ -1477,24 +1477,24 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitCancelClaim({
             user: creditor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalCount: 2,
             signature: sigHelper.signCancelClaimPermit({
                 pk: creditorPK,
                 user: creditor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalCount: 2
             })
         });
 
         bullaClaim.permitImpairClaim({
             user: creditor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalCount: 2,
             signature: sigHelper.signImpairClaimPermit({
                 pk: creditorPK,
                 user: creditor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalCount: 2
             })
         });
@@ -1554,14 +1554,14 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitCreateClaim({
             user: debtor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 2,
             isBindingAllowed: true,
             signature: sigHelper.signCreateClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 2,
                 isBindingAllowed: true
@@ -1570,24 +1570,24 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitCancelClaim({
             user: creditor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalCount: 2,
             signature: sigHelper.signCancelClaimPermit({
                 pk: creditorPK,
                 user: creditor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalCount: 2
             })
         });
 
         bullaClaim.permitImpairClaim({
             user: creditor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalCount: 2,
             signature: sigHelper.signImpairClaimPermit({
                 pk: creditorPK,
                 user: creditor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalCount: 2
             })
         });
@@ -1637,15 +1637,15 @@ contract TestBullaFrendLend is Test {
                     MARK LOAN AS PAID TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function _permitMarkAsPaid(uint256 pk, address operator, uint64 approvalCount) internal {
+    function _permitMarkAsPaid(uint256 pk, address controller, uint64 approvalCount) internal {
         bullaClaim.permitMarkAsPaid({
             user: vm.addr(pk),
-            operator: operator,
+            controller: controller,
             approvalCount: approvalCount,
             signature: sigHelper.signMarkAsPaidPermit({
                 pk: pk,
                 user: vm.addr(pk),
-                operator: operator,
+                controller: controller,
                 approvalCount: approvalCount
             })
         });
@@ -1657,14 +1657,14 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitCreateClaim({
             user: debtor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 1,
             isBindingAllowed: true,
             signature: sigHelper.signCreateClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
                 isBindingAllowed: true
@@ -1713,14 +1713,14 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitCreateClaim({
             user: debtor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 1,
             isBindingAllowed: true,
             signature: sigHelper.signCreateClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
                 isBindingAllowed: true
@@ -1729,14 +1729,14 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitPayClaim({
             user: debtor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
             approvalDeadline: 0,
             paymentApprovals: new ClaimPaymentApprovalParam[](0),
             signature: sigHelper.signPayClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalType: PayClaimApprovalType.IsApprovedForAll,
                 approvalDeadline: 0,
                 paymentApprovals: new ClaimPaymentApprovalParam[](0)
@@ -1781,14 +1781,14 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitCreateClaim({
             user: debtor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 1,
             isBindingAllowed: true,
             signature: sigHelper.signCreateClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
                 isBindingAllowed: true
@@ -1841,14 +1841,14 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitCreateClaim({
             user: debtor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 1,
             isBindingAllowed: true,
             signature: sigHelper.signCreateClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
                 isBindingAllowed: true
@@ -1857,12 +1857,12 @@ contract TestBullaFrendLend is Test {
 
         bullaClaim.permitImpairClaim({
             user: creditor,
-            operator: address(bullaFrendLend),
+            controller: address(bullaFrendLend),
             approvalCount: 1,
             signature: sigHelper.signImpairClaimPermit({
                 pk: creditorPK,
                 user: creditor,
-                operator: address(bullaFrendLend),
+                controller: address(bullaFrendLend),
                 approvalCount: 1
             })
         });

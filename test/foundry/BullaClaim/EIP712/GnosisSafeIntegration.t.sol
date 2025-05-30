@@ -56,7 +56,7 @@ contract TestGnosisSafeSignatures is Test {
         _setup(owners);
 
         address safeAddress = address(safe);
-        address operator = address(0xB0b);
+        address controller = address(0xB0b);
 
         CreateClaimApprovalType approvalType = CreateClaimApprovalType.Approved;
         uint64 approvalCount = 1;
@@ -64,7 +64,7 @@ contract TestGnosisSafeSignatures is Test {
 
         bytes32 digest = sigHelper.getPermitCreateClaimDigest({
             user: safeAddress,
-            operator: operator,
+            controller: controller,
             approvalType: approvalType,
             approvalCount: approvalCount,
             isBindingAllowed: isBindingAllowed
@@ -106,14 +106,14 @@ contract TestGnosisSafeSignatures is Test {
 
         bullaClaim.permitCreateClaim({
             user: safeAddress,
-            operator: operator,
+            controller: controller,
             approvalType: approvalType,
             approvalCount: approvalCount,
             isBindingAllowed: isBindingAllowed,
             signature: bytes("")
         });
 
-        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvals(safeAddress, operator);
+        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvals(safeAddress, controller);
 
         assertEq(approval.approvalCount, approvalCount);
     }
@@ -125,7 +125,7 @@ contract TestGnosisSafeSignatures is Test {
         _setup(owners);
 
         address safeAddress = address(safe);
-        address operator = address(0xB0b);
+        address controller = address(0xB0b);
 
         CreateClaimApprovalType approvalType = CreateClaimApprovalType.Approved;
         uint64 approvalCount = 1;
@@ -133,7 +133,7 @@ contract TestGnosisSafeSignatures is Test {
 
         bytes32 digest = sigHelper.getPermitCreateClaimDigest({
             user: safeAddress,
-            operator: operator,
+            controller: controller,
             approvalType: approvalType,
             approvalCount: approvalCount,
             isBindingAllowed: isBindingAllowed
@@ -152,14 +152,14 @@ contract TestGnosisSafeSignatures is Test {
 
         bullaClaim.permitCreateClaim({
             user: safeAddress,
-            operator: operator,
+            controller: controller,
             approvalType: approvalType,
             approvalCount: approvalCount,
             isBindingAllowed: isBindingAllowed,
             signature: signature
         });
 
-        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvals(safeAddress, operator);
+        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvals(safeAddress, controller);
         assertEq(approval.approvalCount, approvalCount);
     }
 }

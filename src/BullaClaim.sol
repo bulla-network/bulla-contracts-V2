@@ -3,7 +3,7 @@ pragma solidity 0.8.15;
 
 import "contracts/types/Types.sol";
 import {IERC1271} from "contracts/interfaces/IERC1271.sol";
-import {BullaExtensionRegistry} from "contracts/BullaExtensionRegistry.sol";
+import {BullaControllerRegistry} from "contracts/BullaControllerRegistry.sol";
 import {EIP712} from "openzeppelin-contracts/contracts/utils/cryptography/EIP712.sol";
 import {ECDSA} from "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
 import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
@@ -30,14 +30,14 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     mapping(uint256 => ClaimStorage) private claims;
     /// a mapping of claimId to token metadata if exists - both attachmentURIs and tokenURIs
     mapping(uint256 => ClaimMetadata) public claimMetadata;
-    /// a mapping of users to operators to approvals for specific actions
+    /// a mapping of users to controllers to approvals for specific actions
     mapping(address => mapping(address => Approvals)) public approvals;
     /// Restricts which functions can be called. Options: Unlocked, NoNewClaims, Locked:
     LockState public lockState;
     /// the total amount of claims minted
     uint256 public currentClaimId;
-    /// a registry of extension names vetted by Bulla Network
-    BullaExtensionRegistry public extensionRegistry;
+    /// a registry of controller names vetted by Bulla Network
+    BullaControllerRegistry public controllerRegistry;
     /// a contract to generate an on-chain SVG with a claim's status
     ClaimMetadataGenerator public claimMetadataGenerator;
 
@@ -91,7 +91,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
 
     event CreateClaimApproved(
         address indexed user,
-        address indexed operator,
+        address indexed controller,
         CreateClaimApprovalType indexed approvalType,
         uint256 approvalCount,
         bool isBindingAllowed
@@ -99,25 +99,25 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
 
     event PayClaimApproved(
         address indexed user,
-        address indexed operator,
+        address indexed controller,
         PayClaimApprovalType indexed approvalType,
         uint256 approvalDeadline,
         ClaimPaymentApprovalParam[] paymentApprovals
     );
 
-    event UpdateBindingApproved(address indexed user, address indexed operator, uint256 approvalCount);
+    event UpdateBindingApproved(address indexed user, address indexed controller, uint256 approvalCount);
 
-    event CancelClaimApproved(address indexed user, address indexed operator, uint256 approvalCount);
+    event CancelClaimApproved(address indexed user, address indexed controller, uint256 approvalCount);
 
-    event ImpairClaimApproved(address indexed user, address indexed operator, uint256 approvalCount);
+    event ImpairClaimApproved(address indexed user, address indexed controller, uint256 approvalCount);
 
-    event MarkAsPaidApproved(address indexed user, address indexed operator, uint256 approvalCount);
+    event MarkAsPaidApproved(address indexed user, address indexed controller, uint256 approvalCount);
 
-    constructor(address _extensionRegistry, LockState _lockState)
+    constructor(address _controllerRegistry, LockState _lockState)
         ERC721("BullaClaim", "CLAIM")
         EIP712("BullaClaim", "1")
     {
-        extensionRegistry = BullaExtensionRegistry(_extensionRegistry);
+        controllerRegistry = BullaControllerRegistry(_controllerRegistry);
         lockState = _lockState;
     }
 
@@ -136,7 +136,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         return _createClaim(msg.sender, params);
     }
 
-    /// @notice allows an operator to create a claim on behalf of a user
+    /// @notice allows a controller to create a claim on behalf of a user
     /// @notice SPEC:
     ///     1. verify and spend msg.sender's approval to create claims
     ///     2. create a claim on `from`'s behalf
@@ -156,7 +156,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         return _createClaimWithMetadata(msg.sender, params, metadata);
     }
 
-    /// @notice allows an operator to create a claim with optional attachmentURI and / or a custom tokenURI on behalf of a user
+    /// @notice allows a controller to create a claim with optional attachmentURI and / or a custom tokenURI on behalf of a user
     /// @notice SPEC:
     ///     1. verify and spend msg.sender's approval to create claims
     ///     2. create a claim with metadata on `from`'s behalf
@@ -184,14 +184,14 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         return claimId;
     }
 
-    /// @notice "spends" an operator's create claim approval
+    /// @notice "spends" a controller's create claim approval
     /// @notice SPEC:
-    /// A function can call this function to verify and "spend" `from`'s approval of `operator` to create a claim given the following:
-    ///     S1. `operator` has > 0 approvalCount from the `from` address -> otherwise: reverts
+    /// A function can call this function to verify and "spend" `from`'s approval of `controller` to create a claim given the following:
+    ///     S1. `controller` has > 0 approvalCount from the `from` address -> otherwise: reverts
     ///     S2. The creditor and debtor arguments are permissed by the `from` address, meaning:
     ///         - If the approvalType is `CreditorOnly` the `from` address must be the creditor -> otherwise: reverts
     ///         - If the approvalType is `DebtorOnly` the `from` address must be the debtor -> otherwise: reverts
-    ///        Note: If the approvalType is `Approved`, the `operator` may specify the `from` address as the creditor, or the debtor
+    ///        Note: If the approvalType is `Approved`, the `controller` may specify the `from` address as the creditor, or the debtor
     ///     S3. If the claimBinding argument is `Bound`, then the isBindingAllowed permission must be set to true -> otherwise: reverts
     ///        Note: _createClaim will always revert if the claimBinding argument is `Bound` and the `from` address is not the debtor
     ///
@@ -199,12 +199,12 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     /// RES2: If the approval count will be 0, then also set the approval to unapproved
     function _spendCreateClaimApproval(
         address from,
-        address operator,
+        address controller,
         address creditor,
         address debtor,
         ClaimBinding binding
     ) internal {
-        CreateClaimApproval memory approval = approvals[from][operator].createClaim;
+        CreateClaimApproval memory approval = approvals[from][controller].createClaim;
 
         // Use validation library for approval validation
         BullaClaimValidationLib.validateCreateClaimApproval(approval, from, creditor, debtor, binding);
@@ -212,9 +212,9 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         if (approval.approvalCount != type(uint64).max) {
             // spec.RES1, spec.RES2
             if (approval.approvalCount == 1) {
-                approvals[from][operator].createClaim.approvalType = CreateClaimApprovalType.Unapproved;
+                approvals[from][controller].createClaim.approvalType = CreateClaimApprovalType.Unapproved;
             }
-            approvals[from][operator].createClaim.approvalCount -= 1;
+            approvals[from][controller].createClaim.approvalCount -= 1;
         }
 
         return;
@@ -284,7 +284,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         _payClaim(msg.sender, claimId, amount);
     }
 
-    /// @notice allows an operator to pay a claim on behalf of a user
+    /// @notice allows a controller to pay a claim on behalf of a user
     /// @notice SPEC:
     ///     1. verify and spend msg.sender's approval to pay claims for `from`
     ///     2. call payClaim on `from`'s behalf
@@ -310,28 +310,28 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         _updateClaimPaymentState(from, claimId, amount);
     }
 
-    /// @notice _spendPayClaimApproval() "spends" an operator's pay claim approval
+    /// @notice _spendPayClaimApproval() "spends" a controller's pay claim approval
     /// @notice SPEC:
-    /// A function can call this internal function to verify and "spend" `from`'s approval of `operator` to pay a claim under the following circumstances:
+    /// A function can call this internal function to verify and "spend" `from`'s approval of `controller` to pay a claim under the following circumstances:
     ///     SA1. The `approvalType` is not `Unapproved` -> otherwise: reverts
     ///     SA2. The contract LockStatus is not `Locked` -> otherwise: reverts
     ///
-    ///     When the `approvalType` is `IsApprovedForSpecific`, then `operator` must be approved to pay that claim meaning:
+    ///     When the `approvalType` is `IsApprovedForSpecific`, then `controller` must be approved to pay that claim meaning:
     ///         AS1: `from` has approved payment for the `claimId` argument -> otherwise: reverts
     ///         AS2: `from` has approved payment for at least the `amount` argument -> otherwise: reverts
     ///         AS3: `from`'s approval has not expired, meaning:
-    ///             AS3.1: If the operator has an "operator" expirary, then the operator expirary must be greater than the current block timestamp -> otherwise: reverts
-    ///             AS3.2: If the operator does not have an operator expirary and instead has a claim-specific expirary,
+    ///             AS3.1: If the controller has a "controller" expirary, then the controller expirary must be greater than the current block timestamp -> otherwise: reverts
+    ///             AS3.2: If the controller does not have a controller expirary and instead has a claim-specific expirary,
     ///                 then the claim-specific expirary must be greater than the current block timestamp -> otherwise: reverts
     ///
     ///         AS.RES1: If the `amount` argument == the pre-approved amount on the permission, spend the permission -> otherwise: decrement the approved amount by `amount`
     ///
-    ///     If the `approvalType` is `IsApprovedForAll`, then `operator` must be approved to pay, meaning:
-    ///         AA1: `from`'s approval of `operator` has not expired -> otherwise: reverts
+    ///     If the `approvalType` is `IsApprovedForAll`, then `controller` must be approved to pay, meaning:
+    ///         AA1: `from`'s approval of `controller` has not expired -> otherwise: reverts
     ///
     ///         AA.RES1: This function allows execution to continue - (no storage needs to be updated)
-    function _spendPayClaimApproval(address from, address operator, uint256 claimId, uint256 amount) internal {
-        PayClaimApproval storage approval = approvals[from][operator].payClaim;
+    function _spendPayClaimApproval(address from, address controller, uint256 claimId, uint256 amount) internal {
+        PayClaimApproval storage approval = approvals[from][controller].payClaim;
 
         // Use validation library for approval validation
         (uint256 approvalIndex,) = BullaClaimValidationLib.validatePayClaimApproval(approval, claimId, amount);
@@ -417,24 +417,24 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         _updateBinding(msg.sender, claimId, binding);
     }
 
-    /// @notice allows an operator to update the binding of a claim for a creditor or debtor
+    /// @notice allows a controller to update the binding of a claim for a creditor or debtor
     /// @notice SPEC:
-    ///     1. verify and spend msg.sender's approval to update binding
-    ///     2. update the claim's binding on `from`'s behalf
+    ///     1. verify and spend msg.sender's approval to update bindings
+    ///     2. update the binding on `from`'s behalf
     function updateBindingFrom(address from, uint256 claimId, ClaimBinding binding) external {
         _spendUpdateBindingApproval(from, msg.sender);
 
         _updateBinding(from, claimId, binding);
     }
 
-    /// @notice "spends" an operator's updateBinding approval
+    /// @notice "spends" a controller's updateBinding approval
     /// @notice SPEC:
-    /// A function can call this function to verify and "spend" `from`'s approval of `operator` to update a claim's binding given:
-    ///     S1. `operator` has > 0 approvalCount from `from` address -> otherwise: reverts
+    /// A function can call this function to verify and "spend" `from`'s approval of `controller` to update a claim's binding given:
+    ///     S1. `controller` has > 0 approvalCount from `from` address -> otherwise: reverts
     ///
     /// RES1: If the above is true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return
-    function _spendUpdateBindingApproval(address user, address operator) internal {
-        UpdateBindingApproval storage approval = approvals[user][operator].updateBinding;
+    function _spendUpdateBindingApproval(address user, address controller) internal {
+        UpdateBindingApproval storage approval = approvals[user][controller].updateBinding;
 
         // Use validation library for approval validation
         BullaClaimValidationLib.validateSimpleApproval(approval.approvalCount);
@@ -477,9 +477,9 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         _cancelClaim(msg.sender, claimId, note);
     }
 
-    /// @notice allows an operator to cancel a claim on behalf of a creditor or debtor
+    /// @notice allows a controller to cancel a claim on behalf of a creditor or debtor
     /// @notice SPEC:
-    ///     1. verify and spend msg.sender's approval to cancel claim
+    ///     1. verify and spend msg.sender's approval to cancel claims
     ///     2. cancel the claim on `from`'s behalf
     function cancelClaimFrom(address from, uint256 claimId, string calldata note) external {
         _spendCancelClaimApproval(from, msg.sender);
@@ -487,14 +487,14 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         _cancelClaim(from, claimId, note);
     }
 
-    /// @notice "spends" an operator's cancelClaim approval
+    /// @notice "spends" a controller's cancelClaim approval
     /// @notice SPEC:
-    /// A function can call this function to verify and "spend" `from`'s approval of `operator` to cancel a claim given:
-    ///     S1. `operator` has > 0 approvalCount from `from` address -> otherwise: reverts
+    /// A function can call this function to verify and "spend" `from`'s approval of `controller` to cancel a claim given:
+    ///     S1. `controller` has > 0 approvalCount from `from` address -> otherwise: reverts
     ///
     /// RES1: If the above is true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return
-    function _spendCancelClaimApproval(address user, address operator) internal {
-        CancelClaimApproval storage approval = approvals[user][operator].cancelClaim;
+    function _spendCancelClaimApproval(address user, address controller) internal {
+        CancelClaimApproval storage approval = approvals[user][controller].cancelClaim;
 
         // Use validation library for approval validation
         BullaClaimValidationLib.validateSimpleApproval(approval.approvalCount);
@@ -541,9 +541,9 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         _impairClaim(msg.sender, claimId);
     }
 
-    /// @notice allows an operator to impair a claim on behalf of a creditor
+    /// @notice allows a controller to impair a claim on behalf of a creditor
     /// @notice SPEC:
-    ///     1. verify and spend msg.sender's approval to impair claim
+    ///     1. verify and spend msg.sender's approval to impair claims
     ///     2. impair the claim on `from`'s behalf
     function impairClaimFrom(address from, uint256 claimId) external {
         _spendImpairClaimApproval(from, msg.sender);
@@ -551,14 +551,14 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         _impairClaim(from, claimId);
     }
 
-    /// @notice "spends" an operator's impairClaim approval
+    /// @notice "spends" a controller's impairClaim approval
     /// @notice SPEC:
-    /// A function can call this function to verify and "spend" `from`'s approval of `operator` to impair a claim given:
-    ///     S1. `operator` has > 0 approvalCount from `from` address -> otherwise: reverts
+    /// A function can call this function to verify and "spend" `from`'s approval of `controller` to impair a claim given:
+    ///     S1. `controller` has > 0 approvalCount from `from` address -> otherwise: reverts
     ///
     /// RES1: If the above is true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return
-    function _spendImpairClaimApproval(address user, address operator) internal {
-        ImpairClaimApproval storage approval = approvals[user][operator].impairClaim;
+    function _spendImpairClaimApproval(address user, address controller) internal {
+        ImpairClaimApproval storage approval = approvals[user][controller].impairClaim;
 
         // Use validation library for approval validation
         BullaClaimValidationLib.validateSimpleApproval(approval.approvalCount);
@@ -596,14 +596,14 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
      * /// MARK CLAIM AS PAID ///
      */
 
-    /// @notice "spends" an operator's markAsPaid approval
+    /// @notice "spends" a controller's markAsPaid approval
     /// @notice SPEC:
-    /// A function can call this function to verify and "spend" `from`'s approval of `operator` to mark a claim as paid given:
-    ///     S1. `operator` has > 0 approvalCount from `from` address -> otherwise: reverts
+    /// A function can call this function to verify and "spend" `from`'s approval of `controller` to mark a claim as paid given:
+    ///     S1. `controller` has > 0 approvalCount from `from` address -> otherwise: reverts
     ///
     /// RES1: If the above is true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return
-    function _spendMarkAsPaidApproval(address user, address operator) internal {
-        MarkAsPaidApproval storage approval = approvals[user][operator].markAsPaid;
+    function _spendMarkAsPaidApproval(address user, address controller) internal {
+        MarkAsPaidApproval storage approval = approvals[user][controller].markAsPaid;
 
         // Use validation library for approval validation
         BullaClaimValidationLib.validateSimpleApproval(approval.approvalCount);
@@ -620,7 +620,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         _markClaimAsPaid(msg.sender, claimId);
     }
 
-    /// @notice allows an operator to mark a claim as paid on behalf of a creditor
+    /// @notice allows a controller to mark a claim as paid on behalf of a creditor
     /// @notice SPEC:
     ///     1. verify and spend msg.sender's approval to mark claims as paid
     ///     2. mark the claim as paid on `from`'s behalf
@@ -657,22 +657,22 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
                              PERMIT FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice permits an operator to create claims on user's behalf
+    /// @notice permits a controller to create claims on user's behalf
     /// @dev see BullaClaimPermitLib.permitCreateClaim for spec
     function permitCreateClaim(
         address user,
-        address operator,
+        address controller,
         CreateClaimApprovalType approvalType,
         uint64 approvalCount,
         bool isBindingAllowed,
         bytes calldata signature
     ) public {
         BullaClaimPermitLib.permitCreateClaim(
-            approvals[user][operator],
-            extensionRegistry,
+            approvals[user][controller],
+            controllerRegistry,
             _domainSeparatorV4(),
             user,
-            operator,
+            controller,
             approvalType,
             approvalCount,
             isBindingAllowed,
@@ -680,22 +680,22 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         );
     }
 
-    /// @notice permits an operator to pay a claim on user's behalf
+    /// @notice permits a controller to pay a claim on user's behalf
     /// @dev see BullaClaimPermitLib.permitPayClaim for spec
     function permitPayClaim(
         address user,
-        address operator,
+        address controller,
         PayClaimApprovalType approvalType,
         uint256 approvalDeadline,
         ClaimPaymentApprovalParam[] calldata paymentApprovals,
         bytes calldata signature
     ) public {
         BullaClaimPermitLib.permitPayClaim(
-            approvals[user][operator],
-            extensionRegistry,
+            approvals[user][controller],
+            controllerRegistry,
             _domainSeparatorV4(),
             user,
-            operator,
+            controller,
             approvalType,
             approvalDeadline,
             paymentApprovals,
@@ -703,36 +703,66 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         );
     }
 
-    /// @notice permits an operator to update claim bindings on user's behalf
+    /// @notice permits a controller to update claim bindings on user's behalf
     /// @dev see BullaClaimPermitLib.permitUpdateBinding for spec
-    function permitUpdateBinding(address user, address operator, uint64 approvalCount, bytes calldata signature)
+    function permitUpdateBinding(address user, address controller, uint64 approvalCount, bytes calldata signature)
         public
     {
         BullaClaimPermitLib.permitUpdateBinding(
-            approvals[user][operator], extensionRegistry, _domainSeparatorV4(), user, operator, approvalCount, signature
+            approvals[user][controller],
+            controllerRegistry,
+            _domainSeparatorV4(),
+            user,
+            controller,
+            approvalCount,
+            signature
         );
     }
 
-    /// @notice permits an operator to cancel claims on user's behalf
+    /// @notice permits a controller to cancel claims on user's behalf
     /// @dev see BullaClaimPermitLib.sol for spec
-    function permitCancelClaim(address user, address operator, uint64 approvalCount, bytes calldata signature) public {
+    function permitCancelClaim(address user, address controller, uint64 approvalCount, bytes calldata signature)
+        public
+    {
         BullaClaimPermitLib.permitCancelClaim(
-            approvals[user][operator], extensionRegistry, _domainSeparatorV4(), user, operator, approvalCount, signature
+            approvals[user][controller],
+            controllerRegistry,
+            _domainSeparatorV4(),
+            user,
+            controller,
+            approvalCount,
+            signature
         );
     }
 
-    /// @notice permits an operator to impair claims on user's behalf
+    /// @notice permits a controller to impair claims on user's behalf
     /// @dev see BullaClaimPermitLib.sol for spec
-    function permitImpairClaim(address user, address operator, uint64 approvalCount, bytes calldata signature) public {
+    function permitImpairClaim(address user, address controller, uint64 approvalCount, bytes calldata signature)
+        public
+    {
         BullaClaimPermitLib.permitImpairClaim(
-            approvals[user][operator], extensionRegistry, _domainSeparatorV4(), user, operator, approvalCount, signature
+            approvals[user][controller],
+            controllerRegistry,
+            _domainSeparatorV4(),
+            user,
+            controller,
+            approvalCount,
+            signature
         );
     }
 
-    /// @notice permits an operator to mark claims as paid on user's behalf
-    function permitMarkAsPaid(address user, address operator, uint64 approvalCount, bytes calldata signature) public {
+    /// @notice permits a controller to mark claims as paid on user's behalf
+    function permitMarkAsPaid(address user, address controller, uint64 approvalCount, bytes calldata signature)
+        public
+    {
         BullaClaimPermitLib.permitMarkAsPaid(
-            approvals[user][operator], extensionRegistry, _domainSeparatorV4(), user, operator, approvalCount, signature
+            approvals[user][controller],
+            controllerRegistry,
+            _domainSeparatorV4(),
+            user,
+            controller,
+            approvalCount,
+            signature
         );
     }
 
@@ -779,8 +809,8 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
                             OWNER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function setExtensionRegistry(address _extensionRegistry) external onlyOwner {
-        extensionRegistry = BullaExtensionRegistry(_extensionRegistry);
+    function setControllerRegistry(address _controllerRegistry) external onlyOwner {
+        controllerRegistry = BullaControllerRegistry(_controllerRegistry);
     }
 
     function setClaimMetadataGenerator(address _metadataGenerator) external onlyOwner {

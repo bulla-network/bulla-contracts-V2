@@ -2,7 +2,7 @@
 pragma solidity 0.8.15;
 
 import "contracts/types/Types.sol";
-import "contracts/BullaExtensionRegistry.sol";
+import "contracts/BullaControllerRegistry.sol";
 import {IERC721} from "openzeppelin-contracts/contracts/interfaces/IERC721.sol";
 import {IERC20Permit} from "openzeppelin-contracts/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
 
@@ -57,11 +57,11 @@ interface IBullaClaim {
 
     event ClaimMarkedAsPaid(uint256 indexed claimId);
 
-    event MarkAsPaidApproved(address indexed user, address indexed operator, uint256 approvalCount);
+    event MarkAsPaidApproved(address indexed user, address indexed controller, uint256 approvalCount);
 
     event CreateClaimApproved(
         address indexed user,
-        address indexed operator,
+        address indexed controller,
         CreateClaimApprovalType indexed approvalType,
         uint256 approvalCount,
         bool isBindingAllowed
@@ -69,15 +69,15 @@ interface IBullaClaim {
 
     event PayClaimApproved(
         address indexed user,
-        address indexed operator,
+        address indexed controller,
         PayClaimApprovalType indexed approvalType,
         uint256 approvalDeadline,
         ClaimPaymentApprovalParam[] paymentApprovals
     );
 
-    event UpdateBindingApproved(address indexed user, address indexed operator, uint256 approvalCount);
+    event UpdateBindingApproved(address indexed user, address indexed controller, uint256 approvalCount);
 
-    event CancelClaimApproved(address indexed user, address indexed operator, uint256 approvalCount);
+    event CancelClaimApproved(address indexed user, address indexed controller, uint256 approvalCount);
 
     //// ERC721 ////
 
@@ -93,7 +93,7 @@ interface IBullaClaim {
 
     function getApproved(uint256) external view returns (address);
 
-    function setApprovalForAll(address operator, bool approved) external;
+    function setApprovalForAll(address controller, bool approved) external;
 
     function isApprovedForAll(address, address) external view returns (bool);
 
@@ -111,7 +111,7 @@ interface IBullaClaim {
 
     function DOMAIN_SEPARATOR() external view returns (bytes32);
 
-    function extensionRegistry() external view returns (address);
+    function controllerRegistry() external view returns (address);
 
     function owner() external view returns (address);
 
@@ -171,7 +171,7 @@ interface IBullaClaim {
 
     function permitCreateClaim(
         address user,
-        address operator,
+        address controller,
         uint8 approvalType,
         uint64 approvalCount,
         bool isBindingAllowed,
@@ -180,28 +180,31 @@ interface IBullaClaim {
 
     function permitPayClaim(
         address user,
-        address operator,
+        address controller,
         uint8 approvalType,
         uint256 approvalDeadline,
         ClaimPaymentApprovalParam[] memory paymentApprovals,
         bytes memory signature
     ) external;
 
-    function permitUpdateBinding(address user, address operator, uint64 approvalCount, bytes memory signature)
+    function permitUpdateBinding(address user, address controller, uint64 approvalCount, bytes memory signature)
         external;
 
-    function permitCancelClaim(address user, address operator, uint64 approvalCount, bytes memory signature) external;
+    function permitCancelClaim(address user, address controller, uint64 approvalCount, bytes memory signature)
+        external;
 
-    function permitImpairClaim(address user, address operator, uint64 approvalCount, bytes memory signature) external;
+    function permitImpairClaim(address user, address controller, uint64 approvalCount, bytes memory signature)
+        external;
 
-    function permitMarkAsPaid(address user, address operator, uint64 approvalCount, bytes memory signature) external;
+    function permitMarkAsPaid(address user, address controller, uint64 approvalCount, bytes memory signature)
+        external;
 
     // ADMIN FUNCTIONS //
     function transferOwnership(address newOwner) external;
 
     function renounceOwnership() external;
 
-    function setExtensionRegistry(address _extensionRegistry) external;
+    function setControllerRegistry(address _controllerRegistry) external;
 
     function setLockState(uint8 _lockState) external;
 

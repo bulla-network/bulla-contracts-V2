@@ -73,20 +73,22 @@ contract BullaClaimTestHelper is Test {
 
     function _permitCreateClaim(
         uint256 _userPK,
-        address _operator,
+        address _controller,
         uint64 _approvalCount,
         CreateClaimApprovalType _approvalType,
         bool _isBindingAllowed
     ) internal {
         bytes memory sig = sigHelper.signCreateClaimPermit(
-            _userPK, vm.addr(_userPK), _operator, _approvalType, _approvalCount, _isBindingAllowed
+            _userPK, vm.addr(_userPK), _controller, _approvalType, _approvalCount, _isBindingAllowed
         );
-        bullaClaim.permitCreateClaim(vm.addr(_userPK), _operator, _approvalType, _approvalCount, _isBindingAllowed, sig);
+        bullaClaim.permitCreateClaim(
+            vm.addr(_userPK), _controller, _approvalType, _approvalCount, _isBindingAllowed, sig
+        );
     }
 
     function _permitPayClaim(
         uint256 _userPK,
-        address _operator,
+        address _controller,
         PayClaimApprovalType _approvalType,
         uint256 _approvalDeadline,
         ClaimPaymentApprovalParam[] memory _paymentApprovals
@@ -95,14 +97,14 @@ contract BullaClaimTestHelper is Test {
 
         bullaClaim.permitPayClaim({
             user: user,
-            operator: _operator,
+            controller: _controller,
             approvalType: _approvalType,
             approvalDeadline: _approvalDeadline,
             paymentApprovals: _paymentApprovals,
             signature: sigHelper.signPayClaimPermit({
                 pk: _userPK,
                 user: user,
-                operator: _operator,
+                controller: _controller,
                 approvalType: _approvalType,
                 approvalDeadline: _approvalDeadline,
                 paymentApprovals: _paymentApprovals
@@ -123,27 +125,27 @@ contract BullaClaimTestHelper is Test {
         return paymentApprovals;
     }
 
-    function _permitCreateClaim(uint256 _userPK, address _operator, uint64 _approvalCount) internal {
-        _permitCreateClaim(_userPK, _operator, _approvalCount, CreateClaimApprovalType.Approved, true);
+    function _permitCreateClaim(uint256 _userPK, address _controller, uint64 _approvalCount) internal {
+        _permitCreateClaim(_userPK, _controller, _approvalCount, CreateClaimApprovalType.Approved, true);
     }
 
-    function _permitUpdateBinding(uint256 _userPK, address _operator, uint64 _approvalCount) internal {
-        bytes memory sig = sigHelper.signUpdateBindingPermit(_userPK, vm.addr(_userPK), _operator, _approvalCount);
-        bullaClaim.permitUpdateBinding(vm.addr(_userPK), _operator, _approvalCount, sig);
+    function _permitUpdateBinding(uint256 _userPK, address _controller, uint64 _approvalCount) internal {
+        bytes memory sig = sigHelper.signUpdateBindingPermit(_userPK, vm.addr(_userPK), _controller, _approvalCount);
+        bullaClaim.permitUpdateBinding(vm.addr(_userPK), _controller, _approvalCount, sig);
     }
 
-    function _permitCancelClaim(uint256 _userPK, address _operator, uint64 _approvalCount) internal {
-        bytes memory sig = sigHelper.signCancelClaimPermit(_userPK, vm.addr(_userPK), _operator, _approvalCount);
-        bullaClaim.permitCancelClaim(vm.addr(_userPK), _operator, _approvalCount, sig);
+    function _permitCancelClaim(uint256 _userPK, address _controller, uint64 _approvalCount) internal {
+        bytes memory sig = sigHelper.signCancelClaimPermit(_userPK, vm.addr(_userPK), _controller, _approvalCount);
+        bullaClaim.permitCancelClaim(vm.addr(_userPK), _controller, _approvalCount, sig);
     }
 
-    function _permitImpairClaim(uint256 _userPK, address _operator, uint64 _approvalCount) internal {
-        bytes memory sig = sigHelper.signImpairClaimPermit(_userPK, vm.addr(_userPK), _operator, _approvalCount);
-        bullaClaim.permitImpairClaim(vm.addr(_userPK), _operator, _approvalCount, sig);
+    function _permitImpairClaim(uint256 _userPK, address _controller, uint64 _approvalCount) internal {
+        bytes memory sig = sigHelper.signImpairClaimPermit(_userPK, vm.addr(_userPK), _controller, _approvalCount);
+        bullaClaim.permitImpairClaim(vm.addr(_userPK), _controller, _approvalCount, sig);
     }
 
-    function _permitMarkAsPaid(uint256 _userPK, address _operator, uint64 _approvalCount) internal {
-        bytes memory sig = sigHelper.signMarkAsPaidPermit(_userPK, vm.addr(_userPK), _operator, _approvalCount);
-        bullaClaim.permitMarkAsPaid(vm.addr(_userPK), _operator, _approvalCount, sig);
+    function _permitMarkAsPaid(uint256 _userPK, address _controller, uint64 _approvalCount) internal {
+        bytes memory sig = sigHelper.signMarkAsPaidPermit(_userPK, vm.addr(_userPK), _controller, _approvalCount);
+        bullaClaim.permitMarkAsPaid(vm.addr(_userPK), _controller, _approvalCount, sig);
     }
 }
