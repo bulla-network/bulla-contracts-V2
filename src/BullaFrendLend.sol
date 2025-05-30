@@ -360,9 +360,9 @@ contract BullaFrendLend is BullaClaimControllerBase {
 
         uint256 claimId;
         if (bytes(metadata.tokenURI).length > 0 || bytes(metadata.attachmentURI).length > 0) {
-            claimId = _bullaClaim.createClaimWithMetadataFrom(msg.sender, claimParams, metadata);
+            claimId = _bullaClaim.createClaimWithMetadataFrom(request.params.debtor, claimParams, metadata);
         } else {
-            claimId = _bullaClaim.createClaimFrom(msg.sender, claimParams);
+            claimId = _bullaClaim.createClaimFrom(request.params.debtor, claimParams);
         }
 
         _loanDetailsByClaimId[claimId] = LoanDetails({
