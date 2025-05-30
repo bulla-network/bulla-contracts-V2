@@ -20,7 +20,7 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
 
     uint256 userPK = uint256(0xA11c3);
     address user = vm.addr(userPK);
-    address operator = address(0xb0b);
+    address controller = address(0xb0b);
 
     event MetadataAdded(uint256 indexed claimId, string tokenURI, string attachmentURI);
 
@@ -32,7 +32,7 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
     function testCannotCreateClaimWhenContractIsLocked() public {
         bullaClaim.setLockState(LockState.Locked);
 
-        _permitCreateClaim({_userPK: userPK, _operator: address(this), _approvalCount: type(uint64).max});
+        _permitCreateClaim({_userPK: userPK, _controller: address(this), _approvalCount: type(uint64).max});
 
         vm.expectRevert(BullaClaim.Locked.selector);
         _newClaim(creditor, creditor, debtor);
@@ -68,7 +68,7 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
     }
 
     function testCreateClaimWithMetadataFrom() public {
-        _permitCreateClaim({_userPK: userPK, _operator: address(this), _approvalCount: type(uint64).max});
+        _permitCreateClaim({_userPK: userPK, _controller: address(this), _approvalCount: type(uint64).max});
 
         vm.expectEmit(true, true, true, true);
         emit MetadataAdded(1, tokenURI, attachmentURI);
@@ -82,7 +82,7 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
     }
 
     function testCreateClaimWithMetadataFromSpendsApproval() public {
-        _permitCreateClaim({_userPK: userPK, _operator: address(this), _approvalCount: 1});
+        _permitCreateClaim({_userPK: userPK, _controller: address(this), _approvalCount: 1});
 
         _newClaimWithMetadataFrom(user, user, debtor);
 
@@ -98,7 +98,7 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
     function testCreateClaimWithMetadataFromFollowsSpec_binding() public {
         _permitCreateClaim({
             _userPK: userPK,
-            _operator: address(this),
+            _controller: address(this),
             _approvalCount: type(uint64).max,
             _approvalType: CreateClaimApprovalType.Approved,
             _isBindingAllowed: false
@@ -116,7 +116,7 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
     function testCreateClaimWithMetadataFromFollowsSpec_creditorOnly() public {
         _permitCreateClaim({
             _userPK: userPK,
-            _operator: address(this),
+            _controller: address(this),
             _approvalCount: type(uint64).max,
             _approvalType: CreateClaimApprovalType.CreditorOnly,
             _isBindingAllowed: true
@@ -133,7 +133,7 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
     function testCreateClaimWithMetadataFromFollowsSpec_debtorOnly() public {
         _permitCreateClaim({
             _userPK: userPK,
-            _operator: address(this),
+            _controller: address(this),
             _approvalCount: type(uint64).max,
             _approvalType: CreateClaimApprovalType.DebtorOnly,
             _isBindingAllowed: true
@@ -159,7 +159,7 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
 
         _permitCreateClaim({
             _userPK: userPK,
-            _operator: address(this),
+            _controller: address(this),
             _approvalCount: type(uint64).max,
             _approvalType: CreateClaimApprovalType.Approved,
             _isBindingAllowed: false

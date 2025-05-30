@@ -15,8 +15,8 @@ import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationL
 /// @notice covers test cases for cancelClaim() and cancelClaimFrom()
 /// @notice SPEC: canceClaim() TODO
 /// @notice SPEC: _spendCancelClaimApproval()
-///     A function can call this internal function to verify and "spend" `from`'s approval of `operator` to cancel a claim given:
-///         S1. `operator` has > 0 approvalCount from `from` address -> otherwise: reverts
+///     A function can call this internal function to verify and "spend" `from`'s approval of `controller` to cancel a claim given:
+///         S1. `controller` has > 0 approvalCount from `from` address -> otherwise: reverts
 ///
 ///     RES1: If the above is true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return
 contract TestCancelClaim is BullaClaimTestHelper {
@@ -28,7 +28,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
     address creditor = vm.addr(creditorPK);
     address debtor = vm.addr(debtorPK);
 
-    address operator = address(0x03);
+    address controller = address(0x03);
 
     function setUp() public {
         weth = new WETH();
@@ -73,20 +73,20 @@ contract TestCancelClaim is BullaClaimTestHelper {
         claim = bullaClaim.getClaim(claimId);
         assertTrue(claim.status == Status.Rejected);
 
-        // test with operator
+        // test with controller
         vm.startPrank(creditor);
         // make a new claim
         (claimId, claim) = _newClaim(ClaimBinding.Unbound);
         vm.stopPrank();
         assertTrue(claimId == 2);
 
-        // permit an operator
-        _permitCancelClaim({_userPK: debtorPK, _operator: operator, _approvalCount: type(uint64).max});
+        // permit an controller
+        _permitCancelClaim({_userPK: debtorPK, _controller: controller, _approvalCount: type(uint64).max});
 
         vm.expectEmit(true, true, true, true);
         emit ClaimRejected(claimId, debtor, note);
 
-        vm.prank(operator);
+        vm.prank(controller);
         bullaClaim.cancelClaimFrom(debtor, claimId, note);
 
         claim = bullaClaim.getClaim(claimId);
@@ -109,20 +109,20 @@ contract TestCancelClaim is BullaClaimTestHelper {
         claim = bullaClaim.getClaim(claimId);
         assertTrue(claim.status == Status.Rescinded);
 
-        // test with operator
+        // test with controller
         vm.startPrank(creditor);
         // make a new claim
         (claimId, claim) = _newClaim(ClaimBinding.Unbound);
         vm.stopPrank();
         assertTrue(claimId == 2);
 
-        // permit an operator
-        _permitCancelClaim({_userPK: creditorPK, _operator: operator, _approvalCount: type(uint64).max});
+        // permit an controller
+        _permitCancelClaim({_userPK: creditorPK, _controller: controller, _approvalCount: type(uint64).max});
 
         vm.expectEmit(true, true, true, true);
         emit ClaimRescinded(claimId, creditor, note);
 
-        vm.prank(operator);
+        vm.prank(controller);
         bullaClaim.cancelClaimFrom(creditor, claimId, note);
 
         claim = bullaClaim.getClaim(claimId);
@@ -142,10 +142,10 @@ contract TestCancelClaim is BullaClaimTestHelper {
         vm.expectRevert(BullaClaimValidationLib.NotCreditorOrDebtor.selector);
         bullaClaim.cancelClaim(claimId, note);
 
-        // test with operator
-        _permitCancelClaim({_userPK: callerPK, _operator: operator, _approvalCount: type(uint64).max});
+        // test with controller
+        _permitCancelClaim({_userPK: callerPK, _controller: controller, _approvalCount: type(uint64).max});
 
-        vm.prank(operator);
+        vm.prank(controller);
         vm.expectRevert(BullaClaimValidationLib.NotCreditorOrDebtor.selector);
         bullaClaim.cancelClaimFrom(randomAddress, claimId, note);
     }
@@ -165,16 +165,16 @@ contract TestCancelClaim is BullaClaimTestHelper {
         vm.prank(creditor);
         bullaClaim.cancelClaim(claimId, "No thanks");
 
-        // test with operator
-        _permitCancelClaim({_userPK: debtorPK, _operator: operator, _approvalCount: type(uint64).max});
-        _permitCancelClaim({_userPK: creditorPK, _operator: operator, _approvalCount: type(uint64).max});
+        // test with controller
+        _permitCancelClaim({_userPK: debtorPK, _controller: controller, _approvalCount: type(uint64).max});
+        _permitCancelClaim({_userPK: creditorPK, _controller: controller, _approvalCount: type(uint64).max});
 
         vm.expectRevert(BullaClaim.Locked.selector);
-        vm.prank(operator);
+        vm.prank(controller);
         bullaClaim.cancelClaimFrom(debtor, claimId, "nah");
 
         vm.expectRevert(BullaClaim.Locked.selector);
-        vm.prank(operator);
+        vm.prank(controller);
         bullaClaim.cancelClaimFrom(creditor, claimId, "nah");
     }
 
@@ -206,23 +206,23 @@ contract TestCancelClaim is BullaClaimTestHelper {
         assertTrue(bullaClaim.getClaim(claimId).status == Status.Rescinded);
     }
 
-    function testOperatorCanCancelIfPartiallyLocked() public {
-        _permitCancelClaim({_userPK: debtorPK, _operator: operator, _approvalCount: type(uint64).max});
-        _permitCancelClaim({_userPK: creditorPK, _operator: operator, _approvalCount: type(uint64).max});
+    function testControllerCanCancelIfPartiallyLocked() public {
+        _permitCancelClaim({_userPK: debtorPK, _controller: controller, _approvalCount: type(uint64).max});
+        _permitCancelClaim({_userPK: creditorPK, _controller: controller, _approvalCount: type(uint64).max});
 
-        // creditor creates and operator rejects for debtor
+        // creditor creates and controller rejects for debtor
         vm.startPrank(creditor);
         (uint256 claimId, Claim memory claim) = _newClaim(ClaimBinding.Unbound);
         vm.stopPrank();
 
         _setLockState(LockState.NoNewClaims);
 
-        vm.prank(operator);
+        vm.prank(controller);
         bullaClaim.cancelClaimFrom(debtor, claimId, "No thanks");
 
         assertTrue(bullaClaim.getClaim(claimId).status == Status.Rejected);
 
-        // creditor creates and operator rejects for creditor
+        // creditor creates and controller rejects for creditor
         _setLockState(LockState.Unlocked);
 
         vm.startPrank(creditor);
@@ -231,7 +231,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
 
         _setLockState(LockState.NoNewClaims);
 
-        vm.prank(operator);
+        vm.prank(controller);
         bullaClaim.cancelClaimFrom(creditor, claimId, "nah");
 
         assertTrue(bullaClaim.getClaim(claimId).status == Status.Rescinded);
@@ -252,20 +252,20 @@ contract TestCancelClaim is BullaClaimTestHelper {
         claim = bullaClaim.getClaim(claimId);
         assertTrue(claim.status == Status.Rejected);
 
-        // test with operator
+        // test with controller
         vm.startPrank(creditor);
         // make a new claim
         (claimId, claim) = _newClaim(ClaimBinding.BindingPending);
         vm.stopPrank();
         assertTrue(claimId == 2);
 
-        // permit an operator
-        _permitCancelClaim({_userPK: debtorPK, _operator: operator, _approvalCount: type(uint64).max});
+        // permit an controller
+        _permitCancelClaim({_userPK: debtorPK, _controller: controller, _approvalCount: type(uint64).max});
 
         vm.expectEmit(true, true, true, true);
         emit ClaimRejected(claimId, debtor, note);
 
-        vm.prank(operator);
+        vm.prank(controller);
         bullaClaim.cancelClaimFrom(debtor, claimId, note);
 
         claim = bullaClaim.getClaim(claimId);
@@ -284,20 +284,20 @@ contract TestCancelClaim is BullaClaimTestHelper {
         claim = bullaClaim.getClaim(claimId);
         assertTrue(claim.status == Status.Rescinded);
 
-        // test with operator
+        // test with controller
         vm.startPrank(creditor);
         // make a new claim
         (claimId, claim) = _newClaim(ClaimBinding.BindingPending);
         vm.stopPrank();
         assertTrue(claimId == 4);
 
-        // permit an operator
-        _permitCancelClaim({_userPK: creditorPK, _operator: operator, _approvalCount: type(uint64).max});
+        // permit an controller
+        _permitCancelClaim({_userPK: creditorPK, _controller: controller, _approvalCount: type(uint64).max});
 
         vm.expectEmit(true, true, true, true);
         emit ClaimRescinded(claimId, creditor, note);
 
-        vm.prank(operator);
+        vm.prank(controller);
         bullaClaim.cancelClaimFrom(creditor, claimId, note);
 
         claim = bullaClaim.getClaim(claimId);
@@ -322,10 +322,10 @@ contract TestCancelClaim is BullaClaimTestHelper {
         bullaClaim.cancelClaim(claimId, note);
         vm.stopPrank();
 
-        // test with operator
-        _permitCancelClaim({_userPK: debtorPK, _operator: operator, _approvalCount: type(uint64).max});
+        // test with controller
+        _permitCancelClaim({_userPK: debtorPK, _controller: controller, _approvalCount: type(uint64).max});
 
-        vm.prank(operator);
+        vm.prank(controller);
         vm.expectRevert(BullaClaimValidationLib.ClaimBound.selector);
         bullaClaim.cancelClaimFrom(debtor, claimId, note);
     }
@@ -350,14 +350,14 @@ contract TestCancelClaim is BullaClaimTestHelper {
         // allow the controller to create a claim for the creditor
         bullaClaim.permitCreateClaim({
             user: creditor,
-            operator: operator,
+            controller: controller,
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 1,
             isBindingAllowed: true,
             signature: sigHelper.signCreateClaimPermit({
                 pk: creditorPK,
                 user: creditor,
-                operator: operator,
+                controller: controller,
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
                 isBindingAllowed: true
@@ -368,7 +368,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
         CreateClaimParams memory params =
             new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
 
-        vm.prank(operator);
+        vm.prank(controller);
         uint256 claimId = bullaClaim.createClaimFrom(creditor, params);
 
         vm.prank(debtor);
@@ -380,14 +380,14 @@ contract TestCancelClaim is BullaClaimTestHelper {
         // allow the controller to create a claim for the creditor
         bullaClaim.permitCreateClaim({
             user: creditor,
-            operator: operator,
+            controller: controller,
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 1,
             isBindingAllowed: true,
             signature: sigHelper.signCreateClaimPermit({
                 pk: creditorPK,
                 user: creditor,
-                operator: operator,
+                controller: controller,
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
                 isBindingAllowed: true
@@ -398,12 +398,12 @@ contract TestCancelClaim is BullaClaimTestHelper {
         CreateClaimParams memory params =
             new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
 
-        vm.prank(operator);
+        vm.prank(controller);
         uint256 claimId = bullaClaim.createClaimFrom(creditor, params);
 
-        _permitCancelClaim({_userPK: creditorPK, _operator: operator, _approvalCount: type(uint64).max});
+        _permitCancelClaim({_userPK: creditorPK, _controller: controller, _approvalCount: type(uint64).max});
 
-        vm.prank(operator);
+        vm.prank(controller);
         bullaClaim.cancelClaimFrom(creditor, claimId, "No thanks");
     }
 
@@ -501,16 +501,16 @@ contract TestCancelClaim is BullaClaimTestHelper {
         (uint256 claimId,) = _newClaim(ClaimBinding.Unbound);
         vm.stopPrank();
 
-        // permit an operator
-        _permitCancelClaim({_userPK: debtorPK, _operator: operator, _approvalCount: approvalCount});
+        // permit an controller
+        _permitCancelClaim({_userPK: debtorPK, _controller: controller, _approvalCount: approvalCount});
 
         vm.expectEmit(true, true, true, true);
         emit ClaimRejected(claimId, debtor, note);
 
-        vm.prank(operator);
+        vm.prank(controller);
         bullaClaim.cancelClaimFrom(debtor, claimId, note);
 
-        (,,, CancelClaimApproval memory approval,,) = bullaClaim.approvals(debtor, operator);
+        (,,, CancelClaimApproval memory approval,,) = bullaClaim.approvals(debtor, controller);
         assertEq(approval.approvalCount, approvalCount - 1);
 
         // test for rescind
@@ -519,16 +519,16 @@ contract TestCancelClaim is BullaClaimTestHelper {
         (claimId,) = _newClaim(ClaimBinding.Unbound);
         vm.stopPrank();
 
-        // permit an operator
-        _permitCancelClaim({_userPK: creditorPK, _operator: operator, _approvalCount: approvalCount});
+        // permit an controller
+        _permitCancelClaim({_userPK: creditorPK, _controller: controller, _approvalCount: approvalCount});
 
         vm.expectEmit(true, true, true, true);
         emit ClaimRescinded(claimId, creditor, note);
 
-        vm.prank(operator);
+        vm.prank(controller);
         bullaClaim.cancelClaimFrom(creditor, claimId, note);
 
-        (,,, approval,,) = bullaClaim.approvals(creditor, operator);
+        (,,, approval,,) = bullaClaim.approvals(creditor, controller);
         assertEq(approval.approvalCount, approvalCount - 1);
     }
 
@@ -539,13 +539,13 @@ contract TestCancelClaim is BullaClaimTestHelper {
         (uint256 claimId,) = _newClaim(ClaimBinding.Unbound);
         vm.stopPrank();
 
-        // permit an operator
-        _permitCancelClaim({_userPK: debtorPK, _operator: operator, _approvalCount: 5});
+        // permit an controller
+        _permitCancelClaim({_userPK: debtorPK, _controller: controller, _approvalCount: 5});
 
         // revokes approval
-        _permitCancelClaim({_userPK: debtorPK, _operator: operator, _approvalCount: 0});
+        _permitCancelClaim({_userPK: debtorPK, _controller: controller, _approvalCount: 0});
 
-        vm.prank(operator);
+        vm.prank(controller);
         vm.expectRevert(BullaClaimValidationLib.NotApproved.selector);
         bullaClaim.cancelClaimFrom(debtor, claimId, "Nope");
     }
@@ -557,13 +557,13 @@ contract TestCancelClaim is BullaClaimTestHelper {
         (uint256 claimId,) = _newClaim(ClaimBinding.Unbound);
         vm.stopPrank();
 
-        // permit an operator
-        _permitCancelClaim({_userPK: debtorPK, _operator: operator, _approvalCount: type(uint64).max});
+        // permit an controller
+        _permitCancelClaim({_userPK: debtorPK, _controller: controller, _approvalCount: type(uint64).max});
 
-        vm.prank(operator);
+        vm.prank(controller);
         bullaClaim.cancelClaimFrom(debtor, claimId, "Nope");
 
-        (,,, CancelClaimApproval memory approval,,) = bullaClaim.approvals(debtor, operator);
+        (,,, CancelClaimApproval memory approval,,) = bullaClaim.approvals(debtor, controller);
         assertEq(approval.approvalCount, type(uint64).max);
     }
 }

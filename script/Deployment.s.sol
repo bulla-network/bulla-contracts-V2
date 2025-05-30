@@ -3,11 +3,11 @@ pragma solidity ^0.8.14;
 
 import "forge-std/Script.sol";
 import "contracts/BullaClaim.sol";
-import "contracts/BullaExtensionRegistry.sol";
+import "contracts/BullaControllerRegistry.sol";
 
 contract Deployer is Script {
     BullaClaim bullaClaim;
-    BullaExtensionRegistry extensionRegistry;
+    BullaControllerRegistry controllerRegistry;
 
     function run() public {
         // load fee receiver + lock state from the bash environment
@@ -28,7 +28,7 @@ contract Deployer is Script {
     }
 
     function _deploy(LockState _initialLockState) internal {
-        extensionRegistry = new BullaExtensionRegistry();
-        bullaClaim = new BullaClaim(address(extensionRegistry), _initialLockState);
+        controllerRegistry = new BullaControllerRegistry();
+        bullaClaim = new BullaClaim(address(controllerRegistry), _initialLockState);
     }
 }

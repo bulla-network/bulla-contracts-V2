@@ -31,19 +31,19 @@ contract TestTokenURI is Test {
 
     ////// OWNER FUNCTIONS //////
 
-    function testSetExtensionRegistryOnlyOwner(address _extensionRegistry) public {
-        bullaClaim.setExtensionRegistry(_extensionRegistry);
+    function testSetControllerRegistryOnlyOwner(address _controllerRegistry) public {
+        bullaClaim.setControllerRegistry(_controllerRegistry);
 
-        assertEq(address(bullaClaim.extensionRegistry()), _extensionRegistry);
+        assertEq(address(bullaClaim.controllerRegistry()), _controllerRegistry);
 
         vm.prank(charlie);
         vm.expectRevert("Ownable: caller is not the owner");
-        bullaClaim.setExtensionRegistry(_extensionRegistry);
+        bullaClaim.setControllerRegistry(_controllerRegistry);
     }
 
-    function testSetExtensionRegistryWhileLocked() public {
+    function testSetControllerRegistryWhileLocked() public {
         bullaClaim.setLockState(LockState.Locked);
-        bullaClaim.setExtensionRegistry(address(0x12345));
+        bullaClaim.setControllerRegistry(address(0x12345));
     }
 
     function testSetClaimMetadataGeneratorOnlyOwner(address _metadataGenerator) public {

@@ -59,14 +59,14 @@ contract TestBullaInvoiceInterest is Test {
         // Setup create claim permission for creditor
         bullaClaim.permitCreateClaim({
             user: creditor,
-            operator: address(bullaInvoice),
+            controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 10, // Allow multiple invoices
             isBindingAllowed: false,
             signature: sigHelper.signCreateClaimPermit({
                 pk: creditorPK,
                 user: creditor,
-                operator: address(bullaInvoice),
+                controller: address(bullaInvoice),
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 10,
                 isBindingAllowed: false
@@ -76,14 +76,14 @@ contract TestBullaInvoiceInterest is Test {
         // Setup payment permission for debtor
         bullaClaim.permitPayClaim({
             user: debtor,
-            operator: address(bullaInvoice),
+            controller: address(bullaInvoice),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
             approvalDeadline: 0,
             paymentApprovals: new ClaimPaymentApprovalParam[](0),
             signature: sigHelper.signPayClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(bullaInvoice),
+                controller: address(bullaInvoice),
                 approvalType: PayClaimApprovalType.IsApprovedForAll,
                 approvalDeadline: 0,
                 paymentApprovals: new ClaimPaymentApprovalParam[](0)

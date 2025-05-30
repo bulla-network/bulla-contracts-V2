@@ -5,13 +5,13 @@ import "test/foundry/BullaClaim/EIP712/PermitPayClaim/Common.t.sol";
 import "contracts/interfaces/IBullaClaim.sol";
 
 /// @notice SPEC
-/// permitPayClaim() can approve an operator to pay _all_ claims given the following conditions listed below as AA - (Approve All 1-5):
+/// permitPayClaim() can approve a controller to pay _all_ claims given the following conditions listed below as AA - (Approve All 1-5):
 ///     AA1: The recovered signer from the EIP712 signature == `user` -> otherwise: reverts
 ///     AA2: `user` is not the 0 address -> otherwise: reverts
 ///     AA3: `approvalType` == PayClaimApprovalType.IsApprovedForAll
 ///     AA4: `approvalDeadline` is either 0 (indicating unexpiring approval) or block.timestamp < `approvalDeadline` < type(uint40).max -> otherwise reverts
 ///     AA5: `paymentApprovals.length == 0` -> otherwise: reverts
-///   RESULT: The following call arguments are stored on on `user`'s approval of `operator`
+///   RESULT: The following call arguments are stored on on `user`'s approval of `controller`
 ///     AA.RES1: The approvalType = PayClaimApprovalType.IsApprovedForAll
 ///     AA.RES2: The nonce is incremented by 1
 ///     AA.RES3: If the previous approvalType == PayClaimApprovalType.IsApprovedForSpecific, delete the claimApprovals array -> otherwise: continue
@@ -28,7 +28,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         bytes memory signature = sigHelper.signPayClaimPermit({
             pk: alicePK,
             user: alice,
-            operator: bob,
+            controller: bob,
             approvalType: approvalType,
             approvalDeadline: approvalDeadline,
             paymentApprovals: paymentApprovals
@@ -39,7 +39,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
 
         bullaClaim.permitPayClaim({
             user: alice,
-            operator: bob,
+            controller: bob,
             approvalType: approvalType,
             approvalDeadline: approvalDeadline,
             paymentApprovals: paymentApprovals,
@@ -63,7 +63,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
 
         bytes32 digest = sigHelper.getPermitPayClaimDigest({
             user: alice,
-            operator: bob,
+            controller: bob,
             approvalType: approvalType,
             approvalDeadline: approvalDeadline,
             paymentApprovals: paymentApprovals
@@ -75,7 +75,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
 
         bullaClaim.permitPayClaim({
             user: alice,
-            operator: bob,
+            controller: bob,
             approvalType: approvalType,
             approvalDeadline: approvalDeadline,
             paymentApprovals: paymentApprovals,
@@ -100,7 +100,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         bytes memory signature = sigHelper.signPayClaimPermit({
             pk: charliePK, // charlie signs an approval for alice
             user: user,
-            operator: bob,
+            controller: bob,
             approvalType: approvalType,
             approvalDeadline: 0,
             paymentApprovals: paymentApprovals
@@ -109,7 +109,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         vm.expectRevert(BullaClaim.InvalidSignature.selector);
         bullaClaim.permitPayClaim({
             user: user,
-            operator: bob,
+            controller: bob,
             approvalType: approvalType,
             approvalDeadline: 0,
             paymentApprovals: paymentApprovals,
@@ -124,7 +124,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         bytes memory signature = sigHelper.signPayClaimPermit({
             pk: alicePK, // charlie signs an approval for alice
             user: alice,
-            operator: bob,
+            controller: bob,
             approvalType: approvalType,
             approvalDeadline: 0,
             paymentApprovals: paymentApprovals
@@ -132,7 +132,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
 
         bullaClaim.permitPayClaim({
             user: alice,
-            operator: bob,
+            controller: bob,
             approvalType: approvalType,
             approvalDeadline: 0,
             paymentApprovals: paymentApprovals,
@@ -142,7 +142,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         vm.expectRevert(BullaClaim.InvalidSignature.selector);
         bullaClaim.permitPayClaim({
             user: alice,
-            operator: bob,
+            controller: bob,
             approvalType: approvalType,
             approvalDeadline: 0,
             paymentApprovals: paymentApprovals,
@@ -156,7 +156,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](0);
 
         bytes32 digest = keccak256(
-            bytes(BullaClaimPermitLib.getPermitPayClaimMessage(bullaClaim.extensionRegistry(), bob, approvalType, 0))
+            bytes(BullaClaimPermitLib.getPermitPayClaimMessage(bullaClaim.controllerRegistry(), bob, approvalType, 0))
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePK, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
@@ -170,7 +170,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         vm.expectRevert(BullaClaim.InvalidSignature.selector);
         bullaClaim.permitPayClaim({
             user: user,
-            operator: bob,
+            controller: bob,
             approvalType: approvalType,
             approvalDeadline: 0,
             paymentApprovals: paymentApprovals,
@@ -186,7 +186,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         bytes memory signature = sigHelper.signPayClaimPermit({
             pk: alicePK,
             user: alice,
-            operator: bob,
+            controller: bob,
             approvalType: approvalType,
             approvalDeadline: approvalDeadline,
             paymentApprovals: new ClaimPaymentApprovalParam[](0)
@@ -195,7 +195,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         vm.expectRevert(IBullaClaim.ApprovalExpired.selector);
         bullaClaim.permitPayClaim({
             user: alice,
-            operator: bob,
+            controller: bob,
             approvalType: approvalType,
             approvalDeadline: approvalDeadline,
             paymentApprovals: new ClaimPaymentApprovalParam[](0),
@@ -208,7 +208,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         signature = sigHelper.signPayClaimPermit({
             pk: alicePK,
             user: alice,
-            operator: bob,
+            controller: bob,
             approvalType: approvalType,
             approvalDeadline: tooBigDeadline,
             paymentApprovals: new ClaimPaymentApprovalParam[](0)
@@ -217,7 +217,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         vm.expectRevert(IBullaClaim.ApprovalExpired.selector);
         bullaClaim.permitPayClaim({
             user: alice,
-            operator: bob,
+            controller: bob,
             approvalType: approvalType,
             approvalDeadline: tooBigDeadline,
             paymentApprovals: new ClaimPaymentApprovalParam[](0),
@@ -233,7 +233,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         bytes memory signature = sigHelper.signPayClaimPermit({
             pk: alicePK,
             user: alice,
-            operator: bob,
+            controller: bob,
             approvalType: approvalType,
             approvalDeadline: tooBigDeadline,
             paymentApprovals: new ClaimPaymentApprovalParam[](0)
@@ -242,7 +242,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         vm.expectRevert(IBullaClaim.ApprovalExpired.selector);
         bullaClaim.permitPayClaim({
             user: alice,
-            operator: bob,
+            controller: bob,
             approvalType: approvalType,
             approvalDeadline: tooBigDeadline,
             paymentApprovals: new ClaimPaymentApprovalParam[](0),
@@ -259,7 +259,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         bytes memory signature = sigHelper.signPayClaimPermit({
             pk: alicePK,
             user: alice,
-            operator: bob,
+            controller: bob,
             approvalType: approvalType,
             approvalDeadline: approvalDeadline,
             paymentApprovals: paymentApprovals
@@ -268,7 +268,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         vm.expectRevert(BullaClaim.InvalidApproval.selector);
         bullaClaim.permitPayClaim({
             user: alice,
-            operator: bob,
+            controller: bob,
             approvalType: approvalType,
             approvalDeadline: approvalDeadline,
             paymentApprovals: paymentApprovals,
@@ -292,7 +292,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         bytes memory signature = sigHelper.signPayClaimPermit({
             pk: alicePK,
             user: alice,
-            operator: bob,
+            controller: bob,
             approvalType: approvalType,
             approvalDeadline: 0,
             paymentApprovals: paymentApprovals
@@ -300,7 +300,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
 
         bullaClaim.permitPayClaim({
             user: alice,
-            operator: bob,
+            controller: bob,
             approvalType: approvalType,
             approvalDeadline: 0,
             paymentApprovals: paymentApprovals,
@@ -318,7 +318,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         signature = sigHelper.signPayClaimPermit({
             pk: alicePK,
             user: alice,
-            operator: bob,
+            controller: bob,
             approvalType: newApprovalType,
             approvalDeadline: 0,
             paymentApprovals: paymentApprovals
@@ -326,7 +326,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
 
         bullaClaim.permitPayClaim({
             user: alice,
-            operator: bob,
+            controller: bob,
             approvalType: newApprovalType,
             approvalDeadline: 0,
             paymentApprovals: paymentApprovals,

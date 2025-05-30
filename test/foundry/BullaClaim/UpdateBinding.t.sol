@@ -15,8 +15,8 @@ import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationL
 /// @notice covers test cases for updateBinding() and updateBindingFrom()
 /// @notice SPEC: updateBinding() TODO
 /// @notice SPEC: _spendUpdateBindingApproval()
-///     A function can call this function to verify and "spend" `from`'s approval of `operator` to update a claim's binding given:
-///         S1. `operator` has > 0 approvalCount from `from` address -> otherwise: reverts
+///     A function can call this function to verify and "spend" `from`'s approval of `controller` to update a claim's binding given:
+///         S1. `controller` has > 0 approvalCount from `from` address -> otherwise: reverts
 ///
 ///     RES1: If the above is true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return
 contract TestUpdateBinding is BullaClaimTestHelper {
@@ -26,7 +26,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
     address creditor = vm.addr(creditorPK);
     address debtor = vm.addr(debtorPK);
 
-    address operator = address(0x03);
+    address controller = address(0x03);
 
     function setUp() public {
         weth = new WETH();
@@ -65,7 +65,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         claim = bullaClaim.getClaim(claimId);
         assertTrue(claim.binding == ClaimBinding.Bound);
 
-        // test with operator
+        // test with controller
         vm.startPrank(creditor);
 
         // make a new claim
@@ -74,10 +74,10 @@ contract TestUpdateBinding is BullaClaimTestHelper {
 
         assertTrue(claimId == 2 && claim.binding == ClaimBinding.Unbound);
 
-        // permit an operator
-        _permitUpdateBinding({_userPK: debtorPK, _operator: operator, _approvalCount: type(uint64).max});
+        // permit an controller
+        _permitUpdateBinding({_userPK: debtorPK, _controller: controller, _approvalCount: type(uint64).max});
 
-        vm.prank(operator);
+        vm.prank(controller);
         vm.expectEmit(true, true, true, true);
         emit BindingUpdated(claimId, debtor, ClaimBinding.Bound);
 
@@ -104,7 +104,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         claim = bullaClaim.getClaim(claimId);
         assertTrue(claim.binding == ClaimBinding.BindingPending);
 
-        // test with operator
+        // test with controller
         vm.startPrank(creditor);
 
         // make a new claim
@@ -113,10 +113,10 @@ contract TestUpdateBinding is BullaClaimTestHelper {
 
         assertTrue(claimId == 2 && claim.binding == ClaimBinding.BindingPending);
 
-        // permit an operator
-        _permitUpdateBinding({_userPK: debtorPK, _operator: operator, _approvalCount: type(uint64).max});
+        // permit an controller
+        _permitUpdateBinding({_userPK: debtorPK, _controller: controller, _approvalCount: type(uint64).max});
 
-        vm.prank(operator);
+        vm.prank(controller);
         vm.expectEmit(true, true, true, true);
         emit BindingUpdated(claimId, debtor, ClaimBinding.BindingPending);
 
@@ -150,19 +150,19 @@ contract TestUpdateBinding is BullaClaimTestHelper {
 
         assertTrue(bullaClaim.getClaim(claimId).binding == ClaimBinding.Bound);
 
-        // test with operator
+        // test with controller
         vm.startPrank(creditor);
         (claimId,) = _newClaim(ClaimBinding.Unbound);
         vm.stopPrank();
 
-        // permit an operator
-        _permitUpdateBinding({_userPK: debtorPK, _operator: operator, _approvalCount: type(uint64).max});
+        // permit an controller
+        _permitUpdateBinding({_userPK: debtorPK, _controller: controller, _approvalCount: type(uint64).max});
 
         vm.prank(debtor);
         bullaClaim.updateBinding(claimId, ClaimBinding.Bound);
 
-        // an operator cannot unbind a debtor
-        vm.startPrank(operator);
+        // an controller cannot unbind a debtor
+        vm.startPrank(controller);
         vm.expectRevert(BullaClaimValidationLib.ClaimBound.selector);
         bullaClaim.updateBindingFrom(debtor, claimId, ClaimBinding.Unbound);
 
@@ -185,18 +185,18 @@ contract TestUpdateBinding is BullaClaimTestHelper {
 
         assertTrue(bullaClaim.getClaim(claimId).binding == ClaimBinding.BindingPending);
 
-        // test with an operator
+        // test with an controller
         vm.startPrank(creditor);
         (claimId,) = _newClaim(ClaimBinding.Unbound);
         vm.stopPrank();
 
-        // permit an operator
-        _permitUpdateBinding({_userPK: creditorPK, _operator: operator, _approvalCount: type(uint64).max});
+        // permit an controller
+        _permitUpdateBinding({_userPK: creditorPK, _controller: controller, _approvalCount: type(uint64).max});
 
         vm.expectEmit(true, true, true, true);
         emit BindingUpdated(claimId, creditor, ClaimBinding.BindingPending);
 
-        vm.startPrank(operator);
+        vm.startPrank(controller);
         bullaClaim.updateBindingFrom(creditor, claimId, ClaimBinding.BindingPending);
 
         assertTrue(bullaClaim.getClaim(claimId).binding == ClaimBinding.BindingPending);
@@ -276,13 +276,13 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         assertTrue(bullaClaim.getClaim(claimId).binding == ClaimBinding.BindingPending);
     }
 
-    function testOperatorCanUpdateToUnboundForCreditor() public {
+    function testControllerCanUpdateToUnboundForCreditor() public {
         // test case: creditor can "free" a debtor from a claim
         vm.startPrank(creditor);
         (uint256 claimId,) = _newClaim(ClaimBinding.BindingPending);
         vm.stopPrank();
 
-        _permitUpdateBinding({_userPK: creditorPK, _operator: operator, _approvalCount: type(uint64).max});
+        _permitUpdateBinding({_userPK: creditorPK, _controller: controller, _approvalCount: type(uint64).max});
 
         // debtor accepts
         vm.prank(debtor);
@@ -292,7 +292,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         emit BindingUpdated(claimId, creditor, ClaimBinding.Unbound);
 
         // creditor frees debtor
-        vm.prank(operator);
+        vm.prank(controller);
         bullaClaim.updateBindingFrom(creditor, claimId, ClaimBinding.Unbound);
 
         assertTrue(bullaClaim.getClaim(claimId).binding == ClaimBinding.Unbound);
@@ -307,7 +307,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         emit BindingUpdated(claimId, creditor, ClaimBinding.BindingPending);
 
         // the creditor can move the binding back to pending
-        vm.prank(operator);
+        vm.prank(controller);
         bullaClaim.updateBindingFrom(creditor, claimId, ClaimBinding.BindingPending);
 
         assertTrue(bullaClaim.getClaim(claimId).binding == ClaimBinding.BindingPending);
@@ -336,8 +336,8 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         vm.prank(creditor);
         bullaClaim.updateBinding(claimId, ClaimBinding.Bound);
 
-        // also test for operators
-        _permitUpdateBinding({_userPK: creditorPK, _operator: operator, _approvalCount: type(uint64).max});
+        // also test for controllers
+        _permitUpdateBinding({_userPK: creditorPK, _controller: controller, _approvalCount: type(uint64).max});
 
         vm.startPrank(creditor);
         (claimId,) = _newClaim(ClaimBinding.Unbound);
@@ -346,7 +346,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         vm.expectRevert(BullaClaimValidationLib.CannotBindClaim.selector);
 
         // creditor tries to bind
-        vm.prank(operator);
+        vm.prank(controller);
         bullaClaim.updateBindingFrom(creditor, claimId, ClaimBinding.Bound);
 
         // try the above, but for a binding pending claim
@@ -356,7 +356,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
 
         vm.expectRevert(BullaClaimValidationLib.CannotBindClaim.selector);
 
-        vm.prank(operator);
+        vm.prank(controller);
         bullaClaim.updateBindingFrom(creditor, claimId, ClaimBinding.Bound);
     }
 
@@ -399,7 +399,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         bullaClaim.updateBinding(claimId, ClaimBinding.Bound);
 
         // the controller must be approved
-        _permitUpdateBinding({_userPK: debtorPK, _operator: controllerAddress, _approvalCount: type(uint64).max});
+        _permitUpdateBinding({_userPK: debtorPK, _controller: controllerAddress, _approvalCount: type(uint64).max});
         vm.prank(controllerAddress);
         bullaClaim.updateBindingFrom(debtor, claimId, ClaimBinding.Bound);
     }
@@ -409,12 +409,12 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         vm.startPrank(creditor);
         (uint256 claimId,) = _newClaim(ClaimBinding.Unbound);
         vm.stopPrank();
-        _permitUpdateBinding({_userPK: creditorPK, _operator: operator, _approvalCount: 12});
+        _permitUpdateBinding({_userPK: creditorPK, _controller: controller, _approvalCount: 12});
 
-        vm.prank(operator);
+        vm.prank(controller);
         bullaClaim.updateBindingFrom(creditor, claimId, ClaimBinding.BindingPending);
 
-        (,, UpdateBindingApproval memory approval,,,) = bullaClaim.approvals(creditor, operator);
+        (,, UpdateBindingApproval memory approval,,,) = bullaClaim.approvals(creditor, controller);
 
         assertEq(approval.approvalCount, 11, "Should have 11 approvals");
 
@@ -423,12 +423,12 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         (claimId,) = _newClaim(ClaimBinding.Unbound);
         vm.stopPrank();
 
-        _permitUpdateBinding({_userPK: creditorPK, _operator: operator, _approvalCount: type(uint64).max});
+        _permitUpdateBinding({_userPK: creditorPK, _controller: controller, _approvalCount: type(uint64).max});
 
-        vm.prank(operator);
+        vm.prank(controller);
         bullaClaim.updateBindingFrom(creditor, claimId, ClaimBinding.BindingPending);
 
-        (,, approval,,,) = bullaClaim.approvals(creditor, operator);
+        (,, approval,,,) = bullaClaim.approvals(creditor, controller);
 
         assertEq(approval.approvalCount, type(uint64).max);
         Claim memory claim = bullaClaim.getClaim(claimId);
@@ -441,16 +441,16 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         (uint256 claimId,) = _newClaim(ClaimBinding.Unbound);
         vm.stopPrank();
 
-        _permitUpdateBinding({_userPK: creditorPK, _operator: operator, _approvalCount: 1});
+        _permitUpdateBinding({_userPK: creditorPK, _controller: controller, _approvalCount: 1});
 
-        vm.prank(operator);
+        vm.prank(controller);
         bullaClaim.updateBindingFrom(creditor, claimId, ClaimBinding.BindingPending);
 
-        (,, UpdateBindingApproval memory approval,,,) = bullaClaim.approvals(creditor, operator);
+        (,, UpdateBindingApproval memory approval,,,) = bullaClaim.approvals(creditor, controller);
 
         assertEq(approval.approvalCount, 0, "Should have 0 approvals");
 
-        vm.prank(operator);
+        vm.prank(controller);
         vm.expectRevert(BullaClaimValidationLib.NotApproved.selector);
         bullaClaim.updateBindingFrom(creditor, claimId, ClaimBinding.BindingPending);
     }

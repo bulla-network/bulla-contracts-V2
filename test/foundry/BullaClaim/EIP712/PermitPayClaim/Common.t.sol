@@ -25,7 +25,7 @@ contract PermitPayClaimTest is Test {
 
     event PayClaimApproved(
         address indexed user,
-        address indexed operator,
+        address indexed controller,
         PayClaimApprovalType indexed approvalType,
         uint256 approvalDeadline,
         ClaimPaymentApprovalParam[] paymentApprovals

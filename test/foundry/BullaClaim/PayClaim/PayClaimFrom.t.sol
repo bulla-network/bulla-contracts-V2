@@ -12,22 +12,22 @@ import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParam
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
 
 /// @notice SPEC:
-/// A function can call this internal function to verify and "spend" `from`'s approval of `operator` to pay a claim under the following circumstances:
+/// A function can call this internal function to verify and "spend" `from`'s approval of `controller` to pay a claim under the following circumstances:
 ///     SA1. The `approvalType` is not `Unapproved` -> otherwise: reverts
 ///     SA2. The contract LockStatus is not `Locked` -> otherwise: reverts
 ///
-///     When the `approvalType` is `IsApprovedForSpecific`, then `operator` must be approved to pay that claim meaning:
+///     When the `approvalType` is `IsApprovedForSpecific`, then `controller` must be approved to pay that claim meaning:
 ///         AS1: `from` has approved payment for the `claimId` agrument -> otherwise: reverts
 ///         AS2: `from` has approved payment for at least the `amount` agrument -> otherwise: reverts
 ///         AS3: `from`'s approval has not expired, meaning:
-///             AS3.1: If the operator has an "operator" expirary, then the operator expirary must be greater than the current block timestamp -> otherwise: reverts
-///             AS3.2: If the operator does not have an operator expirary and instead has a claim-specific expirary,
+///             AS3.1: If the controller has an "controller" expirary, then the controller expirary must be greater than the current block timestamp -> otherwise: reverts
+///             AS3.2: If the controller does not have an controller expirary and instead has a claim-specific expirary,
 ///                 then the claim-specific expirary must be greater than the current block timestamp -> otherwise: reverts
 ///
 ///         AS.RES1: If the `amount` agrument == the pre-approved amount on the permission, spend the permission -> otherwise: decrement the approved amount by `amount`
 ///
-///     If the `approvalType` is `IsApprovedForAll`, then `operator` must be approved to pay, meaning:
-///         AA1: `from`'s approval of `operator` has not expired -> otherwise: reverts
+///     If the `approvalType` is `IsApprovedForAll`, then `controller` must be approved to pay, meaning:
+///         AA1: `from`'s approval of `controller` has not expired -> otherwise: reverts
 ///
 ///         AA.RES1: This function allows execution to continue - (no storage needs to be updated)
 contract TestPayClaimFrom is BullaClaimTestHelper {
@@ -36,7 +36,7 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
 
     uint256 userPK = uint256(0xA11c3);
     address user = vm.addr(userPK);
-    address operator = address(0xb0b);
+    address controller = address(0xb0b);
     address user2 = address(0x02);
 
     function setUp() public {
@@ -45,20 +45,20 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
         vm.label(address(this), "TEST_CONTRACT");
 
         vm.label(user, "user");
-        vm.label(operator, "OPERATOR");
+        vm.label(controller, "controller");
         vm.label(user2, "USER2");
 
         bullaClaim = (new Deployer()).deploy_test(address(this), LockState.Unlocked);
         sigHelper = new EIP712Helper(address(bullaClaim));
 
         weth.transferFrom(address(this), user, 1000 ether);
-        weth.transferFrom(address(this), operator, 1000 ether);
+        weth.transferFrom(address(this), controller, 1000 ether);
         weth.transferFrom(address(this), user2, 1000 ether);
     }
 
-    function _permitPayClaim(uint256 _userPK, address _operator, uint256 _approvalDeadline) private {
+    function _permitPayClaim(uint256 _userPK, address _controller, uint256 _approvalDeadline) private {
         ClaimPaymentApprovalParam[] memory approvals = new ClaimPaymentApprovalParam[](0);
-        _permitPayClaim(_userPK, _operator, PayClaimApprovalType.IsApprovedForAll, _approvalDeadline, approvals);
+        _permitPayClaim(_userPK, _controller, PayClaimApprovalType.IsApprovedForAll, _approvalDeadline, approvals);
     }
 
     //
@@ -75,7 +75,7 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
 
         _permitPayClaim({
             _userPK: userPK,
-            _operator: operator,
+            _controller: controller,
             _approvalDeadline: 0,
             _approvalType: PayClaimApprovalType.IsApprovedForSpecific,
             _paymentApprovals: approvals
@@ -84,10 +84,10 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
         vm.prank(user);
         weth.approve(address(bullaClaim), 1 ether);
 
-        vm.prank(operator);
+        vm.prank(controller);
         bullaClaim.payClaimFrom(user, claimId, 1 ether);
 
-        (, PayClaimApproval memory approval,,,,) = bullaClaim.approvals(user, operator);
+        (, PayClaimApproval memory approval,,,,) = bullaClaim.approvals(user, controller);
         assertEq(approval.claimApprovals.length, 0, "AS.RES1: claim approvals not cleared");
     }
 
@@ -99,7 +99,7 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
 
         _permitPayClaim({
             _userPK: userPK,
-            _operator: operator,
+            _controller: controller,
             _approvalDeadline: 0,
             _approvalType: PayClaimApprovalType.IsApprovedForSpecific,
             _paymentApprovals: approvals
@@ -108,10 +108,10 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
         vm.prank(user);
         weth.approve(address(bullaClaim), 0.5 ether);
 
-        vm.prank(operator);
+        vm.prank(controller);
         bullaClaim.payClaimFrom(user, claimId, 0.5 ether);
 
-        (, PayClaimApproval memory approval,,,,) = bullaClaim.approvals(user, operator);
+        (, PayClaimApproval memory approval,,,,) = bullaClaim.approvals(user, controller);
         assertEq(approval.claimApprovals.length, 1, "AS.RES1: claim approval not decremented");
         assertEq(approval.claimApprovals[0].approvedAmount, 0.5 ether, "AS.RES1: claim approval not decremented");
         assertEq(
@@ -128,7 +128,7 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
 
         _permitPayClaim({
             _userPK: userPK,
-            _operator: operator,
+            _controller: controller,
             _approvalDeadline: 0,
             _approvalType: PayClaimApprovalType.IsApprovedForSpecific,
             _paymentApprovals: approvals
@@ -137,10 +137,10 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
         vm.prank(user);
         weth.approve(address(bullaClaim), 1 ether);
 
-        vm.prank(operator);
+        vm.prank(controller);
         bullaClaim.payClaimFrom(user, claimIdToPay, 1 ether);
 
-        (, PayClaimApproval memory approval,,,,) = bullaClaim.approvals(user, operator);
+        (, PayClaimApproval memory approval,,,,) = bullaClaim.approvals(user, controller);
         assertEq(approval.claimApprovals.length, approvalCount - 1, "AS.RES1: claim approvals not cleared");
 
         bool approvalFound;
@@ -171,10 +171,10 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
         ClaimPaymentApprovalParam[] memory approvals = new ClaimPaymentApprovalParam[](1);
         approvals[0] = ClaimPaymentApprovalParam({claimId: 1, approvedAmount: 1 ether, approvalDeadline: 0});
 
-        // operator has been approved to pay claimId 1, but not claimId 2
+        // controller has been approved to pay claimId 1, but not claimId 2
         _permitPayClaim({
             _userPK: userPK,
-            _operator: operator,
+            _controller: controller,
             _approvalDeadline: 0,
             _approvalType: PayClaimApprovalType.IsApprovedForSpecific,
             _paymentApprovals: approvals
@@ -183,8 +183,8 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
         vm.prank(user);
         weth.approve(address(bullaClaim), 1 ether);
 
-        // operator tries to pay claimId 2
-        vm.prank(operator);
+        // controller tries to pay claimId 2
+        vm.prank(controller);
         vm.expectRevert(BullaClaimValidationLib.NotApproved.selector);
         bullaClaim.payClaimFrom(user, 2, 1 ether);
     }
@@ -196,10 +196,10 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
         ClaimPaymentApprovalParam[] memory approvals = new ClaimPaymentApprovalParam[](1);
         approvals[0] = ClaimPaymentApprovalParam({claimId: 1, approvedAmount: 0.5 ether, approvalDeadline: 0});
 
-        // operator has been approved to pay .5 ether
+        // controller has been approved to pay .5 ether
         _permitPayClaim({
             _userPK: userPK,
-            _operator: operator,
+            _controller: controller,
             _approvalDeadline: 0,
             _approvalType: PayClaimApprovalType.IsApprovedForSpecific,
             _paymentApprovals: approvals
@@ -208,24 +208,24 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
         vm.prank(user);
         weth.approve(address(bullaClaim), 1 ether);
 
-        // operator tries to pay 1 ether
-        vm.prank(operator);
+        // controller tries to pay 1 ether
+        vm.prank(controller);
         vm.expectRevert(BullaClaimValidationLib.PaymentUnderApproved.selector);
         bullaClaim.payClaimFrom(user, 1, 1 ether);
     }
 
     /// @notice SPEC.AS3.1
-    function testCannotPayWhenApprovedForSpecificAndOperatorApprovalHasExpired() public {
+    function testCannotPayWhenApprovedForSpecificAndControllerApprovalHasExpired() public {
         uint256 claimId = _newClaim({_creator: user2, _creditor: user2, _debtor: user});
 
         ClaimPaymentApprovalParam[] memory approvals = new ClaimPaymentApprovalParam[](1);
         // this is an unexpiring approval
         approvals[0] = ClaimPaymentApprovalParam({claimId: claimId, approvedAmount: 1 ether, approvalDeadline: 0});
 
-        // operator can only pay claims for user until the 23rd
+        // controller can only pay claims for user until the 23rd
         _permitPayClaim({
             _userPK: userPK,
-            _operator: operator,
+            _controller: controller,
             _approvalDeadline: OCTOBER_23RD_2022,
             _approvalType: PayClaimApprovalType.IsApprovedForSpecific,
             _paymentApprovals: approvals
@@ -236,8 +236,8 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
         vm.prank(user);
         weth.approve(address(bullaClaim), 1 ether);
 
-        // operator tries to pay 1 ether on October 28th
-        vm.prank(operator);
+        // controller tries to pay 1 ether on October 28th
+        vm.prank(controller);
         vm.expectRevert(BullaClaimValidationLib.PastApprovalDeadline.selector);
         bullaClaim.payClaimFrom(user, claimId, 1 ether);
     }
@@ -251,10 +251,10 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
         approvals[0] =
             ClaimPaymentApprovalParam({claimId: claimId, approvedAmount: 1 ether, approvalDeadline: OCTOBER_23RD_2022});
 
-        // operator has unexpiring approval to pay claims for user
+        // controller has unexpiring approval to pay claims for user
         _permitPayClaim({
             _userPK: userPK,
-            _operator: operator,
+            _controller: controller,
             _approvalDeadline: 0,
             _approvalType: PayClaimApprovalType.IsApprovedForSpecific,
             _paymentApprovals: approvals
@@ -265,8 +265,8 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
         vm.prank(user);
         weth.approve(address(bullaClaim), 1 ether);
 
-        // operator tries to pay 1 ether on October 28th
-        vm.prank(operator);
+        // controller tries to pay 1 ether on October 28th
+        vm.prank(controller);
         vm.expectRevert(BullaClaimValidationLib.PastApprovalDeadline.selector);
         bullaClaim.payClaimFrom(user, claimId, 1 ether);
     }
@@ -275,19 +275,19 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
 
     /// @notice happy path : SPEC.AA.RES1
     function testIsApprovedForAll() public {
-        _permitPayClaim({_userPK: userPK, _operator: operator, _approvalDeadline: 0});
+        _permitPayClaim({_userPK: userPK, _controller: controller, _approvalDeadline: 0});
         uint256 claimId = _newClaim({_creator: user2, _creditor: user2, _debtor: user});
 
         vm.prank(user);
         weth.approve(address(bullaClaim), 1 ether);
 
-        vm.prank(operator);
+        vm.prank(controller);
         bullaClaim.payClaimFrom(user, claimId, 1 ether);
     }
 
     /// @notice SPEC.AA1
-    function testCannotPayWhenApprovedForAllAndOperatorApprovalExpired() public {
-        _permitPayClaim({_userPK: userPK, _operator: operator, _approvalDeadline: OCTOBER_23RD_2022});
+    function testCannotPayWhenApprovedForAllAndControllerApprovalExpired() public {
+        _permitPayClaim({_userPK: userPK, _controller: controller, _approvalDeadline: OCTOBER_23RD_2022});
         uint256 claimId = _newClaim({_creator: user2, _creditor: user2, _debtor: user});
 
         vm.warp(OCTOBER_28TH_2022);
@@ -295,7 +295,7 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
         vm.prank(user);
         weth.approve(address(bullaClaim), 1 ether);
 
-        vm.prank(operator);
+        vm.prank(controller);
         vm.expectRevert(BullaClaimValidationLib.PastApprovalDeadline.selector);
         bullaClaim.payClaimFrom(user, claimId, 1 ether);
     }
@@ -304,35 +304,35 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
     /// @notice SPEC.SA2
     function testCanPayClaimFromWhenPartiallyLocked() public {
         uint256 claimId = _newClaim({_creator: user2, _creditor: user2, _debtor: user});
-        _permitPayClaim({_userPK: userPK, _operator: operator, _approvalDeadline: 0});
+        _permitPayClaim({_userPK: userPK, _controller: controller, _approvalDeadline: 0});
 
         bullaClaim.setLockState(LockState.NoNewClaims);
 
         vm.prank(user);
         weth.approve(address(bullaClaim), 1 ether);
 
-        vm.prank(operator);
+        vm.prank(controller);
         bullaClaim.payClaimFrom(user, claimId, 1 ether);
     }
 
     /// @notice SPEC.SA2
     function testCannotPayClaimFromWhenLocked() public {
         uint256 claimId = _newClaim({_creator: user2, _creditor: user2, _debtor: user});
-        _permitPayClaim({_userPK: userPK, _operator: operator, _approvalDeadline: 0});
+        _permitPayClaim({_userPK: userPK, _controller: controller, _approvalDeadline: 0});
 
         bullaClaim.setLockState(LockState.Locked);
 
         vm.prank(user);
         weth.approve(address(bullaClaim), 1 ether);
 
-        vm.prank(operator);
+        vm.prank(controller);
         vm.expectRevert(BullaClaim.Locked.selector);
         bullaClaim.payClaimFrom(user, claimId, 1 ether);
     }
 
-    /// a strange side effect of using the native token is that operator must send the ether value in the call
+    /// a strange side effect of using the native token is that controller must send the ether value in the call
     function testPayClaimFromWithNativeToken() public {
-        vm.deal(operator, 1 ether);
+        vm.deal(controller, 1 ether);
 
         CreateClaimParams memory params = new CreateClaimParamsBuilder().withCreditor(user2).withDebtor(user)
             .withPayerReceivesClaimOnPayment(true).build();
@@ -340,9 +340,9 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
         vm.prank(user2);
         uint256 claimId = bullaClaim.createClaim(params);
 
-        _permitPayClaim({_userPK: userPK, _operator: operator, _approvalDeadline: 0});
+        _permitPayClaim({_userPK: userPK, _controller: controller, _approvalDeadline: 0});
 
-        vm.prank(operator);
+        vm.prank(controller);
         bullaClaim.payClaimFrom{value: 1 ether}(user, claimId, 1 ether);
     }
 }
