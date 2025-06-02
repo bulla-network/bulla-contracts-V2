@@ -15,7 +15,7 @@
     "test": "forge test --gas-report",
     "dev": "forge test -vvv -w --run-all --gas-report",
     "gas": "forge snapshot && forge build --sizes",
-    "coverage": "forge coverage --report lcov; ex -c 'g/SF:src/mocks/.-1,/end_of_record/d' -c 'wq' lcov.info",
+    "coverage": "forge coverage --report lcov && node -e \"const fs=require('fs'); const data=fs.readFileSync('lcov.info','utf8'); fs.writeFileSync('lcov.info', data.split('\\n').filter(line => !line.includes('SF:src/mocks/')).join('\\n'));\"",
     "prepare": "husky install"
   },
   "devDependencies": {

@@ -4,25 +4,19 @@ pragma solidity 0.8.15;
 import "solmate/auth/Owned.sol";
 
 contract BullaControllerRegistry is Owned {
-    mapping(address => string) public controllers;
+    mapping(address => string) private _controllers;
 
-    error NotFound();
+    string public constant DEFAULT_CONTROLLER_NAME = "WARNING: CONTRACT UNKNOWN";
 
     constructor() Owned(msg.sender) {}
 
-    function getController(address _address) external view returns (string memory) {
-        string memory controller = controllers[_address];
-        if (bytes(controller).length == 0) revert NotFound();
-        return controller;
-    }
-
     function getControllerName(address _controllerAddress) external view returns (string memory) {
-        string memory controller = controllers[_controllerAddress];
-        if (bytes(controller).length == 0) controller = "WARNING: CONTRACT UNKNOWN";
+        string memory controller = _controllers[_controllerAddress];
+        if (bytes(controller).length == 0) controller = DEFAULT_CONTROLLER_NAME;
         return controller;
     }
 
     function setControllerName(address controller, string calldata name) external onlyOwner {
-        controllers[controller] = name;
+        _controllers[controller] = name;
     }
 }
