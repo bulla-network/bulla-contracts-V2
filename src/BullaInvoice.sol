@@ -27,6 +27,8 @@ error PurchaseOrderAlreadyDelivered();
 error InvoiceNotPending();
 error NotPurchaseOrder();
 error PayingZero();
+error InvalidDepositAmount();
+error NotAuthorizedForBinding();
 
 struct Invoice {
     uint256 claimAmount;
@@ -53,6 +55,7 @@ struct CreateInvoiceParams {
     bool payerReceivesClaimOnPayment;
     InterestConfig lateFeeConfig;
     uint256 impairmentGracePeriod;
+    uint256 depositAmount;
 }
 
 /**
@@ -306,6 +309,59 @@ contract BullaInvoice is BullaClaimControllerBase {
         return _bullaClaim.markClaimAsPaidFrom(msg.sender, claimId);
     }
 
+    /**
+     * @notice Accepts a deposit order by paying the remaining deposit amount and binding the invoice
+     * @param claimId The ID of the invoice to accept
+     * @param depositAmount The deposit amount specified when the invoice was created
+     */
+    function acceptDepositOrder(uint256 claimId, uint256 depositAmount) external payable {
+        Claim memory claim = _bullaClaim.getClaim(claimId);
+        _checkController(claim.controller);
+
+        // Only the debtor can call this function for binding operations
+        if (msg.sender != claim.debtor) {
+            revert NotAuthorizedForBinding();
+        }
+
+        // Calculate remaining deposit amount and validate
+        uint256 remainingDepositAmount = 0;
+        if (depositAmount > claim.paidAmount) {
+            remainingDepositAmount = depositAmount - claim.paidAmount;
+        }
+
+        // Validate that the remaining deposit amount doesn't exceed what's left to pay
+        uint256 amountLeftToPay = claim.claimAmount - claim.paidAmount;
+        if (remainingDepositAmount > amountLeftToPay) {
+            revert InvalidDepositAmount();
+        }
+
+        // Pay the remaining deposit amount if any
+        if (remainingDepositAmount > 0) {
+            // Validate msg.value based on token type
+            if (claim.token == address(0)) {
+                // For ETH claims, msg.value should equal the remaining deposit amount
+                if (msg.value != remainingDepositAmount) {
+                    revert InvalidDepositAmount();
+                }
+            } else {
+                // For ERC20 claims, msg.value should be 0
+                if (msg.value != 0) {
+                    revert InvalidDepositAmount();
+                }
+            }
+            
+            _bullaClaim.payClaimFrom{value: msg.value}(msg.sender, claimId, remainingDepositAmount);
+        } else {
+            // If no payment needed, msg.value should be 0
+            if (msg.value != 0) {
+                revert InvalidDepositAmount();
+            }
+        }
+
+        // Update the binding to Bound
+        _bullaClaim.updateBindingFrom(msg.sender, claimId, ClaimBinding.Bound);
+    }
+
     /// PRIVATE FUNCTIONS ///
 
     /**
@@ -322,6 +378,10 @@ contract BullaInvoice is BullaClaimControllerBase {
                 && (params.deliveryDate < block.timestamp || params.deliveryDate > type(uint40).max)
         ) {
             revert InvalidDeliveryDate();
+        }
+
+        if (params.depositAmount > params.claimAmount) {
+            revert InvalidDepositAmount();
         }
 
         CompoundInterestLib.validateInterestConfig(params.lateFeeConfig);
