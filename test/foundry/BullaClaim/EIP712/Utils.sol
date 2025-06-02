@@ -42,22 +42,22 @@ contract EIP712Helper {
 
     function _hashPermitCreateClaim(
         address user,
-        address operator,
+        address controller,
         CreateClaimApprovalType approvalType,
         uint64 approvalCount,
         bool isBindingAllowed
     ) internal view returns (bytes32) {
-        (CreateClaimApproval memory approvals,,,,,) = bullaClaim.approvals(user, operator);
+        (CreateClaimApproval memory approvals,,,,,) = bullaClaim.approvals(user, controller);
 
         return keccak256(
             abi.encode(
                 CREATE_CLAIM_TYPEHASH,
                 user,
-                operator,
+                controller,
                 keccak256(
                     bytes(
                         BullaClaimPermitLib.getPermitCreateClaimMessage(
-                            bullaClaim.extensionRegistry(), operator, approvalType, approvalCount, isBindingAllowed
+                            bullaClaim.controllerRegistry(), controller, approvalType, approvalCount, isBindingAllowed
                         )
                     )
                 ),
@@ -72,7 +72,7 @@ contract EIP712Helper {
     // computes the hash of the fully encoded EIP-712 message for the domain, which can be used to recover the signer
     function getPermitCreateClaimDigest(
         address user,
-        address operator,
+        address controller,
         CreateClaimApprovalType approvalType,
         uint64 approvalCount,
         bool isBindingAllowed
@@ -81,7 +81,7 @@ contract EIP712Helper {
             abi.encodePacked(
                 "\x19\x01",
                 DOMAIN_SEPARATOR,
-                _hashPermitCreateClaim(user, operator, approvalType, approvalCount, isBindingAllowed)
+                _hashPermitCreateClaim(user, controller, approvalType, approvalCount, isBindingAllowed)
             )
         );
     }
@@ -89,20 +89,20 @@ contract EIP712Helper {
     // computes the hash of the fully encoded EIP-712 message for the domain, which can be used to recover the signer
     function getPermitPayClaimDigest(
         address user,
-        address operator,
+        address controller,
         PayClaimApprovalType approvalType,
         uint256 approvalDeadline,
         ClaimPaymentApprovalParam[] calldata paymentApprovals
     ) public view returns (bytes32) {
-        (, PayClaimApproval memory approval,,,,) = bullaClaim.approvals(user, operator);
+        (, PayClaimApproval memory approval,,,,) = bullaClaim.approvals(user, controller);
         return keccak256(
             abi.encodePacked(
                 "\x19\x01",
                 DOMAIN_SEPARATOR,
                 BullaClaimPermitLib.getPermitPayClaimDigest(
-                    bullaClaim.extensionRegistry(),
+                    bullaClaim.controllerRegistry(),
                     user,
-                    operator,
+                    controller,
                     approvalType,
                     approvalDeadline,
                     paymentApprovals,
@@ -112,69 +112,69 @@ contract EIP712Helper {
         );
     }
 
-    function getPermitUpdateBindingDigest(address user, address operator, uint64 approvalCount)
+    function getPermitUpdateBindingDigest(address user, address controller, uint64 approvalCount)
         public
         view
         returns (bytes32)
     {
-        (,, UpdateBindingApproval memory approval,,,) = bullaClaim.approvals(user, operator);
+        (,, UpdateBindingApproval memory approval,,,) = bullaClaim.approvals(user, controller);
         return keccak256(
             abi.encodePacked(
                 "\x19\x01",
                 DOMAIN_SEPARATOR,
                 BullaClaimPermitLib.getPermitUpdateBindingDigest(
-                    bullaClaim.extensionRegistry(), user, operator, approvalCount, approval.nonce
+                    bullaClaim.controllerRegistry(), user, controller, approvalCount, approval.nonce
                 )
             )
         );
     }
 
-    function getPermitCancelClaimDigest(address user, address operator, uint64 approvalCount)
+    function getPermitCancelClaimDigest(address user, address controller, uint64 approvalCount)
         public
         view
         returns (bytes32)
     {
-        (,,, CancelClaimApproval memory approval,,) = bullaClaim.approvals(user, operator);
+        (,,, CancelClaimApproval memory approval,,) = bullaClaim.approvals(user, controller);
         return keccak256(
             abi.encodePacked(
                 "\x19\x01",
                 DOMAIN_SEPARATOR,
                 BullaClaimPermitLib.getPermitCancelClaimDigest(
-                    bullaClaim.extensionRegistry(), user, operator, approvalCount, approval.nonce
+                    bullaClaim.controllerRegistry(), user, controller, approvalCount, approval.nonce
                 )
             )
         );
     }
 
-    function getPermitImpairClaimDigest(address user, address operator, uint64 approvalCount)
+    function getPermitImpairClaimDigest(address user, address controller, uint64 approvalCount)
         public
         view
         returns (bytes32)
     {
-        (,,,, ImpairClaimApproval memory approval,) = bullaClaim.approvals(user, operator);
+        (,,,, ImpairClaimApproval memory approval,) = bullaClaim.approvals(user, controller);
         return keccak256(
             abi.encodePacked(
                 "\x19\x01",
                 DOMAIN_SEPARATOR,
                 BullaClaimPermitLib.getPermitImpairClaimDigest(
-                    bullaClaim.extensionRegistry(), user, operator, approvalCount, approval.nonce
+                    bullaClaim.controllerRegistry(), user, controller, approvalCount, approval.nonce
                 )
             )
         );
     }
 
-    function getPermitMarkAsPaidDigest(address user, address operator, uint64 approvalCount)
+    function getPermitMarkAsPaidDigest(address user, address controller, uint64 approvalCount)
         public
         view
         returns (bytes32)
     {
-        (,,,,, MarkAsPaidApproval memory approval) = bullaClaim.approvals(user, operator);
+        (,,,,, MarkAsPaidApproval memory approval) = bullaClaim.approvals(user, controller);
         return keccak256(
             abi.encodePacked(
                 "\x19\x01",
                 DOMAIN_SEPARATOR,
                 BullaClaimPermitLib.getPermitMarkAsPaidDigest(
-                    bullaClaim.extensionRegistry(), user, operator, approvalCount, approval.nonce
+                    bullaClaim.controllerRegistry(), user, controller, approvalCount, approval.nonce
                 )
             )
         );
@@ -183,12 +183,12 @@ contract EIP712Helper {
     function signCreateClaimPermit(
         uint256 pk,
         address user,
-        address operator,
+        address controller,
         CreateClaimApprovalType approvalType,
         uint64 approvalCount,
         bool isBindingAllowed
     ) public returns (bytes memory) {
-        bytes32 digest = getPermitCreateClaimDigest(user, operator, approvalType, approvalCount, isBindingAllowed);
+        bytes32 digest = getPermitCreateClaimDigest(user, controller, approvalType, approvalCount, isBindingAllowed);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
         return abi.encodePacked(r, s, v);
@@ -197,52 +197,52 @@ contract EIP712Helper {
     function signPayClaimPermit(
         uint256 pk,
         address user,
-        address operator,
+        address controller,
         PayClaimApprovalType approvalType,
         uint256 approvalDeadline,
         ClaimPaymentApprovalParam[] calldata paymentApprovals
     ) public returns (bytes memory) {
-        bytes32 digest = getPermitPayClaimDigest(user, operator, approvalType, approvalDeadline, paymentApprovals);
+        bytes32 digest = getPermitPayClaimDigest(user, controller, approvalType, approvalDeadline, paymentApprovals);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
         return abi.encodePacked(r, s, v);
     }
 
-    function signUpdateBindingPermit(uint256 pk, address user, address operator, uint64 approvalCount)
+    function signUpdateBindingPermit(uint256 pk, address user, address controller, uint64 approvalCount)
         public
         returns (bytes memory)
     {
-        bytes32 digest = getPermitUpdateBindingDigest(user, operator, approvalCount);
+        bytes32 digest = getPermitUpdateBindingDigest(user, controller, approvalCount);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
         return abi.encodePacked(r, s, v);
     }
 
-    function signCancelClaimPermit(uint256 pk, address user, address operator, uint64 approvalCount)
+    function signCancelClaimPermit(uint256 pk, address user, address controller, uint64 approvalCount)
         public
         returns (bytes memory)
     {
-        bytes32 digest = getPermitCancelClaimDigest(user, operator, approvalCount);
+        bytes32 digest = getPermitCancelClaimDigest(user, controller, approvalCount);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
         return abi.encodePacked(r, s, v);
     }
 
-    function signImpairClaimPermit(uint256 pk, address user, address operator, uint64 approvalCount)
+    function signImpairClaimPermit(uint256 pk, address user, address controller, uint64 approvalCount)
         public
         returns (bytes memory)
     {
-        bytes32 digest = getPermitImpairClaimDigest(user, operator, approvalCount);
+        bytes32 digest = getPermitImpairClaimDigest(user, controller, approvalCount);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
         return abi.encodePacked(r, s, v);
     }
 
-    function signMarkAsPaidPermit(uint256 pk, address user, address operator, uint64 approvalCount)
+    function signMarkAsPaidPermit(uint256 pk, address user, address controller, uint64 approvalCount)
         public
         returns (bytes memory)
     {
-        bytes32 digest = getPermitMarkAsPaidDigest(user, operator, approvalCount);
+        bytes32 digest = getPermitMarkAsPaidDigest(user, controller, approvalCount);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
         return abi.encodePacked(r, s, v);
     }

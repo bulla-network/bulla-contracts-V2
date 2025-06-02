@@ -37,14 +37,14 @@ contract TestPenalizedClaim is Test {
     function testFeeWorks() public {
         bullaClaim.permitCreateClaim({
             user: creditor,
-            operator: address(penalizedClaim),
+            controller: address(penalizedClaim),
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 1,
             isBindingAllowed: false,
             signature: sigHelper.signCreateClaimPermit({
                 pk: creditorPK,
                 user: creditor,
-                operator: address(penalizedClaim),
+                controller: address(penalizedClaim),
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
                 isBindingAllowed: false
@@ -61,12 +61,12 @@ contract TestPenalizedClaim is Test {
 
         bullaClaim.permitUpdateBinding({
             user: debtor,
-            operator: address(penalizedClaim),
+            controller: address(penalizedClaim),
             approvalCount: 1,
             signature: sigHelper.signUpdateBindingPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(penalizedClaim),
+                controller: address(penalizedClaim),
                 approvalCount: 1
             })
         });
@@ -78,14 +78,14 @@ contract TestPenalizedClaim is Test {
 
         bullaClaim.permitPayClaim({
             user: debtor,
-            operator: address(penalizedClaim),
+            controller: address(penalizedClaim),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
             approvalDeadline: 0,
             paymentApprovals: new ClaimPaymentApprovalParam[](0),
             signature: sigHelper.signPayClaimPermit({
                 pk: debtorPK,
                 user: debtor,
-                operator: address(penalizedClaim),
+                controller: address(penalizedClaim),
                 approvalType: PayClaimApprovalType.IsApprovedForAll,
                 approvalDeadline: 0,
                 paymentApprovals: new ClaimPaymentApprovalParam[](0)
@@ -101,14 +101,14 @@ contract TestPenalizedClaim is Test {
     function testCannotBypassController() public {
         bullaClaim.permitCreateClaim({
             user: creditor,
-            operator: address(penalizedClaim),
+            controller: address(penalizedClaim),
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 1,
             isBindingAllowed: false,
             signature: sigHelper.signCreateClaimPermit({
                 pk: creditorPK,
                 user: creditor,
-                operator: address(penalizedClaim),
+                controller: address(penalizedClaim),
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
                 isBindingAllowed: false
