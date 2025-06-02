@@ -42,7 +42,7 @@ struct LoanRequestParams {
     uint256 impairmentGracePeriod;
 }
 
-struct LoanRequest {
+struct LoanOffer {
     LoanRequestParams params;
     bool requestedByCreditor;
 }
@@ -77,7 +77,7 @@ contract BullaFrendLend is BullaClaimControllerBase {
     mapping(address => uint256) public protocolFeesByToken;
     mapping(address => bool) private _tokenExists;
 
-    mapping(uint256 => LoanRequest) public loanRequests;
+    mapping(uint256 => LoanOffer) public loanOffers;
     mapping(uint256 => LoanDetails) private _loanDetailsByClaimId;
     mapping(uint256 => ClaimMetadata) public loanRequestMetadata;
 
@@ -185,7 +185,7 @@ contract BullaFrendLend is BullaClaimControllerBase {
         _validateLoanOffer(offer, requestedByCreditor);
 
         uint256 offerId = ++loanOfferCount;
-        loanRequests[offerId] = LoanRequest({
+        loanOffers[offerId] = LoanOffer({
             params: offer,
             requestedByCreditor: requestedByCreditor
         });
@@ -204,12 +204,12 @@ contract BullaFrendLend is BullaClaimControllerBase {
      * @param offerId The ID of the loan offer to reject
      */
     function rejectLoanOffer(uint256 offerId) external {
-        LoanRequest memory request = loanRequests[offerId];
+        LoanOffer memory request = loanOffers[offerId];
 
         if (request.params.creditor == address(0)) revert LoanOfferNotFound();
         if (msg.sender != request.params.creditor && msg.sender != request.params.debtor) revert NotCreditorOrDebtor();
 
-        delete loanRequests[offerId];
+        delete loanOffers[offerId];
         delete loanRequestMetadata[offerId];
 
         emit LoanOfferRejected(offerId, msg.sender);
@@ -223,7 +223,7 @@ contract BullaFrendLend is BullaClaimControllerBase {
      * @return The ID of the created claim
      */
     function acceptLoan(uint256 offerId) external returns (uint256) {
-        LoanRequest memory request = loanRequests[offerId];
+        LoanOffer memory request = loanOffers[offerId];
 
         if (request.params.creditor == address(0)) revert LoanOfferNotFound();
         
@@ -239,7 +239,7 @@ contract BullaFrendLend is BullaClaimControllerBase {
         ClaimMetadata memory metadata = loanRequestMetadata[offerId];
 
         // Clean up storage
-        delete loanRequests[offerId];
+        delete loanOffers[offerId];
         delete loanRequestMetadata[offerId];
 
         CreateClaimParams memory claimParams = CreateClaimParams({

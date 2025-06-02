@@ -106,7 +106,7 @@ contract TestBullaFrendLend is Test {
         (
             LoanRequestParams memory params,
             bool requestedByCreditor
-        ) = bullaFrendLend.loanRequests(loanId);
+        ) = bullaFrendLend.loanOffers(loanId);
 
         assertEq(params.interestConfig.interestRateBps, 500, "Interest BPS mismatch");
         assertEq(params.termLength, 30 days, "Term length mismatch");
@@ -131,7 +131,7 @@ contract TestBullaFrendLend is Test {
         (
             LoanRequestParams memory params,
             bool requestedByCreditor
-        ) = bullaFrendLend.loanRequests(requestId);
+        ) = bullaFrendLend.loanOffers(requestId);
 
         assertEq(params.interestConfig.interestRateBps, 750, "Interest BPS mismatch");
         assertEq(params.termLength, 30 days, "Term length mismatch");
@@ -215,7 +215,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
 
-        (LoanRequestParams memory params,) = bullaFrendLend.loanRequests(loanId);
+        (LoanRequestParams memory params,) = bullaFrendLend.loanOffers(loanId);
         assertEq(params.interestConfig.interestRateBps, 0, "Interest BPS should be zero");
     }
 
@@ -484,7 +484,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         bullaFrendLend.rejectLoanOffer(loanId);
 
-        (LoanRequestParams memory params,) = bullaFrendLend.loanRequests(loanId);
+        (LoanRequestParams memory params,) = bullaFrendLend.loanOffers(loanId);
         assertEq(params.creditor, address(0), "Offer should be deleted after rejection");
     }
 
@@ -498,7 +498,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(debtor);
         bullaFrendLend.rejectLoanOffer(requestId);
 
-        (LoanRequestParams memory params,) = bullaFrendLend.loanRequests(requestId);
+        (LoanRequestParams memory params,) = bullaFrendLend.loanOffers(requestId);
         assertEq(params.debtor, address(0), "Request should be deleted after rejection");
     }
 
