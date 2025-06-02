@@ -26,12 +26,12 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
     uint256 creditorPK = uint256(0x01);
     uint256 debtorPK = uint256(0x02);
     uint256 randomPK = uint256(0x03);
-    uint256 operatorPK = uint256(0x04);
+    uint256 controllerPK = uint256(0x04);
 
     address creditor = vm.addr(creditorPK);
     address debtor = vm.addr(debtorPK);
     address randomUser = vm.addr(randomPK);
-    address operator = vm.addr(operatorPK);
+    address controller = vm.addr(controllerPK);
 
     event ClaimMarkedAsPaid(uint256 indexed claimId);
 
@@ -42,13 +42,13 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
 
         vm.deal(creditor, 10 ether);
         vm.deal(debtor, 10 ether);
-        vm.deal(operator, 10 ether);
+        vm.deal(controller, 10 ether);
 
         vm.prank(creditor);
         weth.deposit{value: 10 ether}();
         vm.prank(debtor);
         weth.deposit{value: 10 ether}();
-        vm.prank(operator);
+        vm.prank(controller);
         weth.deposit{value: 10 ether}();
     }
 
@@ -97,22 +97,22 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
         // Create claim
         uint256 claimId = _newClaim(creditor, creditor, debtor);
 
-        // Setup approval for operator
-        _permitMarkAsPaid(creditorPK, operator, 1);
+        // Setup approval for controller
+        _permitMarkAsPaid(creditorPK, controller, 1);
 
-        (,,,,, MarkAsPaidApproval memory approval) = bullaClaim.approvals(creditor, operator);
+        (,,,,, MarkAsPaidApproval memory approval) = bullaClaim.approvals(creditor, controller);
         uint256 approvalCountBefore = approval.approvalCount;
 
         vm.expectEmit(true, true, false, true);
         emit ClaimMarkedAsPaid(claimId);
 
-        vm.prank(operator);
+        vm.prank(controller);
         bullaClaim.markClaimAsPaidFrom(creditor, claimId);
 
         Claim memory claim = bullaClaim.getClaim(claimId);
         assertEq(uint256(claim.status), uint256(Status.Paid), "Claim should be marked as paid");
 
-        (,,,,, approval) = bullaClaim.approvals(creditor, operator);
+        (,,,,, approval) = bullaClaim.approvals(creditor, controller);
         assertEq(approval.approvalCount, approvalCountBefore - 1, "Approval count should decrement");
     }
 
@@ -230,7 +230,7 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
     function testCannotMarkAsPaidFrom_NotApproved() public {
         uint256 claimId = _newClaim(creditor, creditor, debtor);
 
-        vm.prank(operator);
+        vm.prank(controller);
         vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotApproved.selector));
         bullaClaim.markClaimAsPaidFrom(creditor, claimId);
     }
@@ -360,12 +360,12 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
         uint256 claimId = _newClaim(creditor, creditor, debtor);
 
         // Setup approval
-        _permitMarkAsPaid(creditorPK, operator, 1);
+        _permitMarkAsPaid(creditorPK, controller, 1);
 
         vm.expectEmit(true, true, false, true);
         emit ClaimMarkedAsPaid(claimId);
 
-        vm.prank(operator);
+        vm.prank(controller);
         bullaClaim.markClaimAsPaidFrom(creditor, claimId);
     }
 
@@ -377,16 +377,16 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
         uint256 claimId = _newClaim(creditor, creditor, debtor);
 
         // Setup limited approvals
-        _permitMarkAsPaid(creditorPK, operator, 2);
+        _permitMarkAsPaid(creditorPK, controller, 2);
 
-        (,,,,, MarkAsPaidApproval memory approvalBefore) = bullaClaim.approvals(creditor, operator);
+        (,,,,, MarkAsPaidApproval memory approvalBefore) = bullaClaim.approvals(creditor, controller);
         assertEq(approvalBefore.approvalCount, 2, "Should have 2 approvals");
 
         // Use first approval
-        vm.prank(operator);
+        vm.prank(controller);
         bullaClaim.markClaimAsPaidFrom(creditor, claimId);
 
-        (,,,,, MarkAsPaidApproval memory approvalAfter) = bullaClaim.approvals(creditor, operator);
+        (,,,,, MarkAsPaidApproval memory approvalAfter) = bullaClaim.approvals(creditor, controller);
         assertEq(approvalAfter.approvalCount, 1, "Should have 1 approval remaining");
     }
 
@@ -394,16 +394,16 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
         uint256 claimId = _newClaim(creditor, creditor, debtor);
 
         // Setup unlimited approvals
-        _permitMarkAsPaid(creditorPK, operator, type(uint64).max);
+        _permitMarkAsPaid(creditorPK, controller, type(uint64).max);
 
-        (,,,,, MarkAsPaidApproval memory approvalBefore) = bullaClaim.approvals(creditor, operator);
+        (,,,,, MarkAsPaidApproval memory approvalBefore) = bullaClaim.approvals(creditor, controller);
         assertEq(approvalBefore.approvalCount, type(uint64).max, "Should have unlimited approvals");
 
         // Use approval
-        vm.prank(operator);
+        vm.prank(controller);
         bullaClaim.markClaimAsPaidFrom(creditor, claimId);
 
-        (,,,,, MarkAsPaidApproval memory approvalAfter) = bullaClaim.approvals(creditor, operator);
+        (,,,,, MarkAsPaidApproval memory approvalAfter) = bullaClaim.approvals(creditor, controller);
         assertEq(approvalAfter.approvalCount, type(uint64).max, "Should still have unlimited approvals");
     }
 
