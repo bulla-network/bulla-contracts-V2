@@ -18,6 +18,7 @@ struct InvoiceDetails {
     PurchaseOrderState purchaseOrder;
     InterestConfig lateFeeConfig;
     InterestComputationState interestComputationState;
+    uint256 depositAmount; // deposit amount for purchase orders
 }
 
 error CreditorCannotBeDebtor();
@@ -29,6 +30,7 @@ error NotPurchaseOrder();
 error PayingZero();
 error InvalidDepositAmount();
 error NotAuthorizedForBinding();
+error InvalidMsgValue();
 
 struct Invoice {
     uint256 claimAmount;
@@ -113,6 +115,33 @@ contract BullaInvoice is BullaClaimControllerBase {
     }
 
     /**
+     * @notice Get the remaining deposit amount for a purchase order
+     * @param claimId The ID of the invoice/purchase order
+     * @return The remaining deposit amount that needs to be paid
+     */
+    function getRemainingPurchaseOrderDepositAmount(uint256 claimId) external view returns (uint256) {
+        Claim memory claim = _bullaClaim.getClaim(claimId);
+        _checkController(claim.controller);
+
+        InvoiceDetails memory invoiceDetails = _invoiceDetailsByClaimId[claimId];
+
+        // Check if this is a purchase order
+        if (invoiceDetails.purchaseOrder.deliveryDate == 0) {
+            return 0; // Not a purchase order
+        }
+
+        // Get the stored deposit amount from invoice details
+        uint256 storedDepositAmount = invoiceDetails.depositAmount;
+
+        // Calculate remaining deposit amount
+        if (storedDepositAmount > claim.paidAmount) {
+            return storedDepositAmount - claim.paidAmount;
+        }
+
+        return 0; // No remaining deposit amount
+    }
+
+    /**
      * @notice Creates an invoice
      * @param params The parameters for creating an invoice
      * @return The ID of the created invoice
@@ -137,7 +166,8 @@ contract BullaInvoice is BullaClaimControllerBase {
         _invoiceDetailsByClaimId[claimId] = InvoiceDetails({
             purchaseOrder: PurchaseOrderState({deliveryDate: params.deliveryDate, isDelivered: false}),
             lateFeeConfig: params.lateFeeConfig,
-            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
+            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0}),
+            depositAmount: params.depositAmount
         });
 
         emit InvoiceCreated(claimId, params.dueBy);
@@ -174,7 +204,8 @@ contract BullaInvoice is BullaClaimControllerBase {
         _invoiceDetailsByClaimId[claimId] = InvoiceDetails({
             purchaseOrder: PurchaseOrderState({deliveryDate: params.deliveryDate, isDelivered: false}),
             lateFeeConfig: params.lateFeeConfig,
-            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
+            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0}),
+            depositAmount: params.depositAmount
         });
 
         emit InvoiceCreated(claimId, params.dueBy);
@@ -310,11 +341,11 @@ contract BullaInvoice is BullaClaimControllerBase {
     }
 
     /**
-     * @notice Accepts a deposit order by paying the remaining deposit amount and binding the invoice
+     * @notice Accepts a purchase order by paying the remaining deposit amount and binding the invoice
      * @param claimId The ID of the invoice to accept
-     * @param depositAmount The deposit amount specified when the invoice was created
+     * @param depositAmount The deposit amount to pay
      */
-    function acceptDepositOrder(uint256 claimId, uint256 depositAmount) external payable {
+    function acceptPurchaseOrder(uint256 claimId, uint256 depositAmount) external payable {
         Claim memory claim = _bullaClaim.getClaim(claimId);
         _checkController(claim.controller);
 
@@ -323,38 +354,40 @@ contract BullaInvoice is BullaClaimControllerBase {
             revert NotAuthorizedForBinding();
         }
 
-        // Calculate remaining deposit amount and validate
-        uint256 remainingDepositAmount = 0;
-        if (depositAmount > claim.paidAmount) {
-            remainingDepositAmount = depositAmount - claim.paidAmount;
-        }
+        // Get the remaining deposit amount using the view function
+        uint256 remainingDepositAmount = this.getRemainingPurchaseOrderDepositAmount(claimId);
 
-        // Validate that the remaining deposit amount doesn't exceed what's left to pay
-        uint256 amountLeftToPay = claim.claimAmount - claim.paidAmount;
-        if (remainingDepositAmount > amountLeftToPay) {
+        // Validate that the payment amount doesn't exceed the remaining deposit amount
+        if (depositAmount > remainingDepositAmount) {
             revert InvalidDepositAmount();
         }
 
-        // Pay the remaining deposit amount if any
-        if (remainingDepositAmount > 0) {
+        // Validate that the payment amount doesn't exceed what's left to pay on the claim
+        uint256 amountLeftToPay = claim.claimAmount - claim.paidAmount;
+        if (depositAmount > amountLeftToPay) {
+            revert InvalidDepositAmount();
+        }
+
+        // Pay the deposit amount if any
+        if (depositAmount > 0) {
             // Validate msg.value based on token type
             if (claim.token == address(0)) {
-                // For ETH claims, msg.value should equal the remaining deposit amount
-                if (msg.value != remainingDepositAmount) {
-                    revert InvalidDepositAmount();
+                // For ETH claims, msg.value should equal the deposit amount
+                if (msg.value != depositAmount) {
+                    revert InvalidMsgValue();
                 }
             } else {
                 // For ERC20 claims, msg.value should be 0
                 if (msg.value != 0) {
-                    revert InvalidDepositAmount();
+                    revert InvalidMsgValue();
                 }
             }
             
-            _bullaClaim.payClaimFrom{value: msg.value}(msg.sender, claimId, remainingDepositAmount);
+            _bullaClaim.payClaimFrom{value: msg.value}(msg.sender, claimId, depositAmount);
         } else {
             // If no payment needed, msg.value should be 0
             if (msg.value != 0) {
-                revert InvalidDepositAmount();
+                revert InvalidMsgValue();
             }
         }
 
