@@ -349,6 +349,13 @@ contract BullaInvoice is BullaClaimControllerBase {
         Claim memory claim = _bullaClaim.getClaim(claimId);
         _checkController(claim.controller);
 
+        InvoiceDetails memory invoiceDetails = _invoiceDetailsByClaimId[claimId];
+
+        // Check if this is actually a purchase order (has delivery date)
+        if (invoiceDetails.purchaseOrder.deliveryDate == 0) {
+            revert NotPurchaseOrder();
+        }
+
         // Only the debtor can call this function for binding operations
         if (msg.sender != claim.debtor) {
             revert NotAuthorizedForBinding();
