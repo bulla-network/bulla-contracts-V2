@@ -7,6 +7,7 @@ import "contracts/types/Types.sol";
 import "contracts/libraries/CompoundInterestLib.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
+import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
 struct PurchaseOrderState {
     uint256 deliveryDate; // 0 if not a purchase order
@@ -27,6 +28,10 @@ error PurchaseOrderAlreadyDelivered();
 error InvoiceNotPending();
 error NotPurchaseOrder();
 error PayingZero();
+error InvalidProtocolFee();
+error IncorrectMsgValue();
+error NotAdmin();
+error WithdrawalFailed();
 
 struct Invoice {
     uint256 claimAmount;
@@ -63,16 +68,31 @@ contract BullaInvoice is BullaClaimControllerBase {
     using SafeTransferLib for address;
     using SafeTransferLib for ERC20;
 
+    address public admin;
+    uint256 public protocolFeeBPS;
+
+    address[] public protocolFeeTokens;
+    mapping(address => uint256) public protocolFeesByToken;
+    mapping(address => bool) private _tokenExists;
+
     mapping(uint256 => InvoiceDetails) private _invoiceDetailsByClaimId;
 
-    event InvoiceCreated(uint256 claimId, uint256 dueBy);
-    event InvoicePaid(uint256 claimId, uint256 interestPaid);
-
+    event InvoiceCreated(uint256 indexed claimId, InvoiceDetails invoiceDetails);
+    event InvoicePaid(uint256 indexed claimId, uint256 grossInterestPaid, uint256 principalPaid, uint256 protocolFee);
+    event ProtocolFeeUpdated(uint256 oldFee, uint256 newFee);
+    event PurchaseOrderDelivered(uint256 indexed claimId);
     /**
      * @notice Constructor
      * @param bullaClaim Address of the IBullaClaim contract to delegate calls to
+     * @param _admin Address of the contract administrator
+     * @param _protocolFeeBPS Protocol fee in basis points taken from interest payments
      */
-    constructor(address bullaClaim) BullaClaimControllerBase(bullaClaim) {}
+
+    constructor(address bullaClaim, address _admin, uint256 _protocolFeeBPS) BullaClaimControllerBase(bullaClaim) {
+        admin = _admin;
+        if (_protocolFeeBPS > MAX_BPS) revert InvalidProtocolFee();
+        protocolFeeBPS = _protocolFeeBPS;
+    }
 
     /**
      * @notice Get an invoice
@@ -131,13 +151,15 @@ contract BullaInvoice is BullaClaimControllerBase {
 
         uint256 claimId = _bullaClaim.createClaimFrom(msg.sender, createClaimParams);
 
-        _invoiceDetailsByClaimId[claimId] = InvoiceDetails({
+        InvoiceDetails memory invoiceDetails = InvoiceDetails({
             purchaseOrder: PurchaseOrderState({deliveryDate: params.deliveryDate, isDelivered: false}),
             lateFeeConfig: params.lateFeeConfig,
             interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
         });
 
-        emit InvoiceCreated(claimId, params.dueBy);
+        _invoiceDetailsByClaimId[claimId] = invoiceDetails;
+
+        emit InvoiceCreated(claimId, invoiceDetails);
 
         return claimId;
     }
@@ -168,13 +190,15 @@ contract BullaInvoice is BullaClaimControllerBase {
 
         uint256 claimId = _bullaClaim.createClaimWithMetadataFrom(msg.sender, createClaimParams, metadata);
 
-        _invoiceDetailsByClaimId[claimId] = InvoiceDetails({
+        InvoiceDetails memory invoiceDetails = InvoiceDetails({
             purchaseOrder: PurchaseOrderState({deliveryDate: params.deliveryDate, isDelivered: false}),
             lateFeeConfig: params.lateFeeConfig,
             interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
         });
 
-        emit InvoiceCreated(claimId, params.dueBy);
+        _invoiceDetailsByClaimId[claimId] = invoiceDetails;
+
+        emit InvoiceCreated(claimId, invoiceDetails);
 
         return claimId;
     }
@@ -202,6 +226,17 @@ contract BullaInvoice is BullaClaimControllerBase {
         }
 
         _invoiceDetailsByClaimId[claimId].purchaseOrder.isDelivered = true;
+
+        emit PurchaseOrderDelivered(claimId);
+    }
+
+    /**
+     * @notice Calculate the protocol fee amount based on interest payment
+     * @param grossInterestAmount The interest amount to calculate fee from
+     * @return The protocol fee amount
+     */
+    function _calculateProtocolFee(uint256 grossInterestAmount) private view returns (uint256) {
+        return Math.mulDiv(grossInterestAmount, protocolFeeBPS, MAX_BPS);
     }
 
     /**
@@ -222,10 +257,10 @@ contract BullaInvoice is BullaClaimControllerBase {
             invoiceDetails.interestComputationState
         );
 
-        uint256 totalInterestBeingPaid = Math.min(paymentAmount, interestComputationState.accruedInterest);
+        uint256 grossInterestBeingPaid = Math.min(paymentAmount, interestComputationState.accruedInterest);
         uint256 principalBeingPaid =
-            Math.min(paymentAmount - totalInterestBeingPaid, claim.claimAmount - claim.paidAmount);
-        paymentAmount = principalBeingPaid + totalInterestBeingPaid;
+            Math.min(paymentAmount - grossInterestBeingPaid, claim.claimAmount - claim.paidAmount);
+        paymentAmount = principalBeingPaid + grossInterestBeingPaid;
 
         if (paymentAmount == 0) {
             revert PayingZero();
@@ -234,6 +269,12 @@ contract BullaInvoice is BullaClaimControllerBase {
         // need to check this because calling bulla claim since it might transfer the claim to the creditor if `payerReceivesClaimOnPayment` is true
         address creditor = _bullaClaim.ownerOf(claimId);
 
+        // Calculate protocol fee from interest only
+        uint256 protocolFee = _calculateProtocolFee(grossInterestBeingPaid);
+        uint256 creditorInterest = grossInterestBeingPaid - protocolFee;
+        uint256 creditorTotal = creditorInterest + principalBeingPaid;
+
+        // Update claim state in BullaClaim BEFORE transfers (for re-entrancy protection)
         if (principalBeingPaid > 0) {
             _bullaClaim.payClaimFromControllerWithoutTransfer(msg.sender, claimId, principalBeingPaid);
         }
@@ -241,22 +282,43 @@ contract BullaInvoice is BullaClaimControllerBase {
         // Update interest computation state
         if (invoiceDetails.lateFeeConfig.interestRateBps > 0) {
             _invoiceDetailsByClaimId[claimId].interestComputationState = InterestComputationState({
-                accruedInterest: interestComputationState.accruedInterest - totalInterestBeingPaid,
+                accruedInterest: interestComputationState.accruedInterest - grossInterestBeingPaid,
                 latestPeriodNumber: interestComputationState.latestPeriodNumber
             });
         }
 
         if (paymentAmount > 0) {
-            // TODO: if protocol fee, will need two transfers, like frendlend
-            claim.token == address(0)
-                ? creditor.safeTransferETH(paymentAmount)
-                : ERC20(claim.token).safeTransferFrom(msg.sender, creditor, paymentAmount);
+            if (claim.token == address(0)) {
+                if (msg.value != paymentAmount) {
+                    revert IncorrectMsgValue();
+                }
 
-            // TODO: protocol fee much like in Frendlend
+                // Handle ETH payments
+                // Protocol fee for ETH stays in contract for admin withdrawal
+                if (creditorTotal > 0) {
+                    creditor.safeTransferETH(creditorTotal);
+                }
+            } else {
+                // Track protocol fee for this token if any interest was paid
+                // No need to track gas fee as it is the balance of the contract
+                if (protocolFee > 0) {
+                    if (!_tokenExists[claim.token]) {
+                        protocolFeeTokens.push(claim.token);
+                        _tokenExists[claim.token] = true;
+                    }
+                    protocolFeesByToken[claim.token] += protocolFee;
+                }
+                // Handle ERC20 payments
+                // Transfer the total amount from sender to this contract first
+                ERC20(claim.token).safeTransferFrom(msg.sender, address(this), paymentAmount);
 
-            if (totalInterestBeingPaid > 0) {
-                emit InvoicePaid(claimId, totalInterestBeingPaid);
+                if (creditorTotal > 0) {
+                    // Transfer interest (minus protocol fee) and principal to creditor
+                    ERC20(claim.token).safeTransfer(creditor, creditorTotal);
+                }
             }
+
+            emit InvoicePaid(claimId, grossInterestBeingPaid, principalBeingPaid, protocolFee);
         }
     }
 
@@ -304,6 +366,44 @@ contract BullaInvoice is BullaClaimControllerBase {
         _checkController(claim.controller);
 
         return _bullaClaim.markClaimAsPaidFrom(msg.sender, claimId);
+    }
+
+    /**
+     * @notice Allows admin to withdraw accumulated protocol fees
+     */
+    function withdrawAllFees() external {
+        if (msg.sender != admin) revert NotAdmin();
+
+        // Withdraw protocol fees in ETH
+        if (address(this).balance > 0) {
+            (bool _success,) = admin.call{value: address(this).balance}("");
+            if (!_success) revert WithdrawalFailed();
+        }
+
+        // Withdraw protocol fees in all tracked tokens
+        for (uint256 i = 0; i < protocolFeeTokens.length; i++) {
+            address token = protocolFeeTokens[i];
+            uint256 feeAmount = protocolFeesByToken[token];
+
+            if (feeAmount > 0) {
+                protocolFeesByToken[token] = 0; // Reset fee amount before transfer
+                ERC20(token).safeTransfer(admin, feeAmount);
+            }
+        }
+    }
+
+    /**
+     * @notice Allows admin to set the protocol fee percentage
+     * @param _protocolFeeBPS New protocol fee in basis points
+     */
+    function setProtocolFee(uint256 _protocolFeeBPS) external {
+        if (msg.sender != admin) revert NotAdmin();
+        if (_protocolFeeBPS > MAX_BPS) revert InvalidProtocolFee();
+
+        uint256 oldFee = protocolFeeBPS;
+        protocolFeeBPS = _protocolFeeBPS;
+
+        emit ProtocolFeeUpdated(oldFee, _protocolFeeBPS);
     }
 
     /// PRIVATE FUNCTIONS ///

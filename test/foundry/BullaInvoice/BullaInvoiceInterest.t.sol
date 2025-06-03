@@ -38,8 +38,10 @@ contract TestBullaInvoiceInterest is Test {
 
     uint256 creditorPK = uint256(0x01);
     uint256 debtorPK = uint256(0x02);
+    uint256 adminPK = uint256(0x03);
     address creditor = vm.addr(creditorPK);
     address debtor = vm.addr(debtorPK);
+    address admin = vm.addr(adminPK);
 
     // Common test amounts
     uint256 constant INVOICE_AMOUNT = 1 ether;
@@ -51,7 +53,7 @@ contract TestBullaInvoiceInterest is Test {
 
         bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
         sigHelper = new EIP712Helper(address(bullaClaim));
-        bullaInvoice = new BullaInvoice(address(bullaClaim));
+        bullaInvoice = new BullaInvoice(address(bullaClaim), admin, 0);
 
         vm.prank(debtor);
         token.approve(address(bullaInvoice), type(uint256).max);
