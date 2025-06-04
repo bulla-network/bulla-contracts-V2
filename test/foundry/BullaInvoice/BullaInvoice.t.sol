@@ -44,7 +44,7 @@ contract TestBullaInvoice is Test {
 
         bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
         sigHelper = new EIP712Helper(address(bullaClaim));
-        bullaInvoice = new BullaInvoice(address(bullaClaim));
+        bullaInvoice = new BullaInvoice(address(bullaClaim), admin, 0);
 
         vm.deal(debtor, 10 ether);
     }

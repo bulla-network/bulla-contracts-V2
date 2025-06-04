@@ -4,7 +4,8 @@ pragma solidity 0.8.15;
 import "contracts/interfaces/IBullaClaim.sol";
 import "contracts/BullaClaimControllerBase.sol";
 import "contracts/types/Types.sol";
-import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
+import {ERC20} from "solmate/tokens/ERC20.sol";
 import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import {
     InterestConfig, InterestComputationState, CompoundInterestLib
@@ -68,6 +69,9 @@ struct Loan {
  *         and debtors to request loans that creditors can accept
  */
 contract BullaFrendLend is BullaClaimControllerBase {
+    using SafeTransferLib for ERC20;
+    using SafeTransferLib for address;
+
     address public admin;
     uint256 public fee;
     uint256 public loanOfferCount;
@@ -84,7 +88,8 @@ contract BullaFrendLend is BullaClaimControllerBase {
     event LoanOffered(uint256 indexed loanId, address indexed offeredBy, LoanRequestParams loanOffer);
     event LoanOfferAccepted(uint256 indexed loanId, uint256 indexed claimId);
     event LoanOfferRejected(uint256 indexed loanId, address indexed rejectedBy);
-    event LoanPayment(uint256 indexed claimId, uint256 interestPayment, uint256 principalPayment, uint256 protocolFee);
+    /// @notice grossInterestPaid = interest received by creditor + protocolFee
+    event LoanPayment(uint256 indexed claimId, uint256 grossInterestPaid, uint256 principalPaid, uint256 protocolFee);
     event ProtocolFeeUpdated(uint256 oldFee, uint256 newFee);
 
     ClaimMetadata private _emptyMetadata;
@@ -181,14 +186,11 @@ contract BullaFrendLend is BullaClaimControllerBase {
 
     function _offerLoan(LoanRequestParams calldata offer, ClaimMetadata memory metadata) private returns (uint256) {
         bool requestedByCreditor = msg.sender == offer.creditor;
-        
+
         _validateLoanOffer(offer, requestedByCreditor);
 
         uint256 offerId = ++loanOfferCount;
-        loanOffers[offerId] = LoanOffer({
-            params: offer,
-            requestedByCreditor: requestedByCreditor
-        });
+        loanOffers[offerId] = LoanOffer({params: offer, requestedByCreditor: requestedByCreditor});
 
         if (bytes(metadata.tokenURI).length > 0 || bytes(metadata.attachmentURI).length > 0) {
             loanOfferMetadata[offerId] = metadata;
@@ -226,7 +228,7 @@ contract BullaFrendLend is BullaClaimControllerBase {
         LoanOffer memory offer = loanOffers[offerId];
 
         if (offer.params.creditor == address(0)) revert LoanOfferNotFound();
-        
+
         // Check if the correct person is accepting the loan
         if (offer.requestedByCreditor) {
             // Creditor made offer, debtor should accept
@@ -270,13 +272,11 @@ contract BullaFrendLend is BullaClaimControllerBase {
 
         // Transfer token from creditor to debtor via the contract
         // First, transfer from creditor to this contract
-        bool transferFromSuccess = IERC20(offer.params.token).transferFrom(offer.params.creditor, address(this), offer.params.loanAmount);
-        if (!transferFromSuccess) revert TransferFailed();
+        ERC20(offer.params.token).safeTransferFrom(offer.params.creditor, address(this), offer.params.loanAmount);
 
         // Then transfer from this contract to debtor
-        bool transferSuccess = IERC20(offer.params.token).transfer(offer.params.debtor, offer.params.loanAmount);
-        if (!transferSuccess) revert TransferFailed();
-        
+        ERC20(offer.params.token).safeTransfer(offer.params.debtor, offer.params.loanAmount);
+
         emit LoanOfferAccepted(offerId, claimId);
 
         return claimId;
@@ -287,7 +287,7 @@ contract BullaFrendLend is BullaClaimControllerBase {
      * @param grossInterestAmount The interest amount to calculate fee from
      * @return The protocol fee amount
      */
-    function calculateProtocolFee(uint256 grossInterestAmount) private view returns (uint256) {
+    function _calculateProtocolFee(uint256 grossInterestAmount) private view returns (uint256) {
         return Math.mulDiv(grossInterestAmount, protocolFeeBPS, MAX_BPS);
     }
 
@@ -303,14 +303,14 @@ contract BullaFrendLend is BullaClaimControllerBase {
 
         (uint256 remainingPrincipal, uint256 interest) = getTotalAmountDue(claimId);
 
-        uint256 interestPayment = Math.min(paymentAmount, interest);
-        uint256 principalPayment = Math.min(paymentAmount - interestPayment, remainingPrincipal);
+        uint256 grossInterestBeingPaid = Math.min(paymentAmount, interest);
+        uint256 principalPayment = Math.min(paymentAmount - grossInterestBeingPaid, remainingPrincipal);
 
         // Calculate total actual payment (interest + principal)
-        paymentAmount = interestPayment + principalPayment;
+        paymentAmount = grossInterestBeingPaid + principalPayment;
 
-        uint256 protocolFee = calculateProtocolFee(interestPayment);
-        uint256 creditorInterest = interestPayment - protocolFee;
+        uint256 protocolFee = _calculateProtocolFee(grossInterestBeingPaid);
+        uint256 creditorInterest = grossInterestBeingPaid - protocolFee;
         uint256 creditorTotal = creditorInterest + principalPayment;
 
         // Update claim state in BullaClaim BEFORE transfers (for re-entrancy protection)
@@ -320,9 +320,6 @@ contract BullaFrendLend is BullaClaimControllerBase {
 
         // Transfer the total amount from sender to this contract, to avoid double approval
         if (paymentAmount > 0) {
-            bool transferSuccess = IERC20(claim.token).transferFrom(msg.sender, address(this), paymentAmount);
-            if (!transferSuccess) revert TransferFailed();
-
             // Track protocol fee for this token if any interest was paid
             if (protocolFee > 0) {
                 if (!_tokenExists[claim.token]) {
@@ -332,14 +329,15 @@ contract BullaFrendLend is BullaClaimControllerBase {
                 protocolFeesByToken[claim.token] += protocolFee;
             }
 
+            ERC20(claim.token).safeTransferFrom(msg.sender, address(this), paymentAmount);
+
             if (creditorTotal > 0) {
                 // Transfer interest and principal to creditor
-                bool transferToCreditorSuccess = IERC20(claim.token).transfer(creditor, creditorTotal);
-                if (!transferToCreditorSuccess) revert TransferFailed();
+                ERC20(claim.token).safeTransfer(creditor, creditorTotal);
             }
         }
 
-        emit LoanPayment(claimId, interestPayment, principalPayment, protocolFee);
+        emit LoanPayment(claimId, grossInterestBeingPaid, principalPayment, protocolFee);
     }
 
     /**
@@ -372,8 +370,7 @@ contract BullaFrendLend is BullaClaimControllerBase {
 
         // Withdraw fees related to loan offers in native token
         if (address(this).balance > 0) {
-            (bool _success,) = admin.call{value: address(this).balance}("");
-            if (!_success) revert WithdrawalFailed();
+            admin.safeTransferETH(address(this).balance);
         }
 
         // Withdraw protocol fees in all tracked tokens
@@ -383,8 +380,7 @@ contract BullaFrendLend is BullaClaimControllerBase {
 
             if (feeAmount > 0) {
                 protocolFeesByToken[token] = 0; // Reset fee amount before transfer
-                bool success = IERC20(token).transfer(admin, feeAmount);
-                if (!success) revert WithdrawalFailed();
+                ERC20(token).safeTransfer(admin, feeAmount);
             }
         }
     }
