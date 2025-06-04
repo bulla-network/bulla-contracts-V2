@@ -1,0 +1,846 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+pragma solidity ^0.8.14;
+
+import "forge-std/console.sol";
+import "forge-std/Test.sol";
+import "forge-std/Vm.sol";
+import "contracts/types/Types.sol";
+import {WETH} from "contracts/mocks/weth.sol";
+import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
+import {BullaClaim} from "contracts/BullaClaim.sol";
+import {
+    BullaInvoice,
+    CreateInvoiceParams,
+    Invoice,
+    CreditorCannotBeDebtor,
+    InvalidDeliveryDate,
+    NotOriginalCreditor,
+    PurchaseOrderAlreadyDelivered,
+    InvoiceNotPending,
+    PurchaseOrderState,
+    InvoiceDetails,
+    NotPurchaseOrder,
+    PayingZero,
+    InvalidProtocolFee,
+    NotAdmin,
+    WithdrawalFailed,
+    IncorrectMsgValue
+} from "contracts/BullaInvoice.sol";
+import {Deployer} from "script/Deployment.s.sol";
+import {CreateInvoiceParamsBuilder} from "test/foundry/BullaInvoice/CreateInvoiceParamsBuilder.sol";
+import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
+import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
+import {InterestConfig} from "contracts/libraries/CompoundInterestLib.sol";
+import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/ERC20Mock.sol";
+
+contract TestBullaInvoiceProtocolFee is Test {
+    WETH public weth;
+    BullaClaim public bullaClaim;
+    EIP712Helper public sigHelper;
+    BullaInvoice public bullaInvoice;
+    ERC20Mock public token1;
+    ERC20Mock public token2;
+
+    uint256 constant MAX_BPS = 10_000;
+    uint256 creditorPK = uint256(0x01);
+    uint256 debtorPK = uint256(0x02);
+    uint256 adminPK = uint256(0x03);
+    uint256 nonAdminPK = uint256(0x04);
+    address creditor = vm.addr(creditorPK);
+    address debtor = vm.addr(debtorPK);
+    address admin = vm.addr(adminPK);
+    address nonAdmin = vm.addr(nonAdminPK);
+
+    // Events for testing
+    event InvoiceCreated(uint256 indexed claimId, InvoiceDetails invoiceDetails);
+    event InvoicePaid(uint256 indexed claimId, uint256 grossInterestPaid, uint256 principalPaid, uint256 protocolFee);
+    event ProtocolFeeUpdated(uint256 oldFee, uint256 newFee);
+
+    function setUp() public {
+        weth = new WETH();
+        token1 = new ERC20Mock("Token1", "TK1", debtor, 1000 ether);
+        token2 = new ERC20Mock("Token2", "TK2", debtor, 1000 ether);
+
+        bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
+        sigHelper = new EIP712Helper(address(bullaClaim));
+
+        // Start with 50% protocol fee for mathematical simplicity
+        bullaInvoice = new BullaInvoice(address(bullaClaim), admin, 5000);
+
+        // Setup balances
+        vm.deal(debtor, 100 ether);
+        vm.deal(creditor, 100 ether);
+        vm.deal(admin, 100 ether);
+    }
+
+    // ==================== 1. CONSTRUCTOR & INITIALIZATION TESTS ====================
+
+    function testConstructorWithZeroProtocolFee() public {
+        BullaInvoice testInvoice = new BullaInvoice(address(bullaClaim), admin, 0);
+        assertEq(testInvoice.protocolFeeBPS(), 0, "Protocol fee should be 0");
+        assertEq(testInvoice.admin(), admin, "Admin should be set correctly");
+    }
+
+    function testConstructorWithMaxProtocolFee() public {
+        BullaInvoice testInvoice = new BullaInvoice(address(bullaClaim), admin, MAX_BPS);
+        assertEq(testInvoice.protocolFeeBPS(), MAX_BPS, "Protocol fee should be MAX_BPS");
+        assertEq(testInvoice.admin(), admin, "Admin should be set correctly");
+    }
+
+    function testConstructorRevertsWithInvalidProtocolFee() public {
+        vm.expectRevert(InvalidProtocolFee.selector);
+        new BullaInvoice(address(bullaClaim), admin, MAX_BPS + 1);
+    }
+
+    // ==================== 2. PROTOCOL FEE CALCULATION TESTS ====================
+
+    function testFeeCalculationWithZeroProtocolFee() public {
+        BullaInvoice zeroFeeInvoice = new BullaInvoice(address(bullaClaim), admin, 0);
+
+        uint256 invoiceId = _createAndSetupInvoice(zeroFeeInvoice, address(0), 1 ether, _getInterestConfig(1000, 12));
+
+        // Fast forward to accrue interest
+        vm.warp(block.timestamp + 90 days);
+
+        // Make payment covering interest
+        vm.prank(debtor);
+        zeroFeeInvoice.payInvoice{value: 0.1 ether}(invoiceId, 0.1 ether);
+
+        // Check that no protocol fee was charged
+        assertEq(address(zeroFeeInvoice).balance, 0, "No ETH should remain in contract");
+    }
+
+    function testFeeCalculationWith100PercentProtocolFee() public {
+        BullaInvoice maxFeeInvoice = new BullaInvoice(address(bullaClaim), admin, MAX_BPS);
+
+        uint256 invoiceId = _createAndSetupInvoice(maxFeeInvoice, address(0), 1 ether, _getInterestConfig(1000, 12));
+
+        // Fast forward to accrue interest
+        vm.warp(block.timestamp + 90 days);
+
+        Invoice memory invoice = maxFeeInvoice.getInvoice(invoiceId);
+        uint256 accruedInterest = invoice.interestComputationState.accruedInterest;
+
+        uint256 creditorBalanceBefore = creditor.balance;
+
+        // Make payment covering only interest
+        vm.prank(debtor);
+        maxFeeInvoice.payInvoice{value: accruedInterest}(invoiceId, accruedInterest);
+
+        // Check that all interest went to protocol fee (creditor gets nothing)
+        assertEq(creditor.balance, creditorBalanceBefore, "Creditor should receive no funds");
+        assertEq(address(maxFeeInvoice).balance, accruedInterest, "All interest should be protocol fee");
+    }
+
+    // Helper functions
+    function _createAndSetupInvoice(
+        BullaInvoice invoice,
+        address token,
+        uint256 amount,
+        InterestConfig memory interestConfig
+    ) internal returns (uint256) {
+        // Setup permissions
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            controller: address(invoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(invoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        bullaClaim.permitPayClaim({
+            user: debtor,
+            controller: address(invoice),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(invoice),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        // Create invoice with interest
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withToken(token)
+            .withClaimAmount(amount).withLateFeeConfig(interestConfig).build();
+
+        vm.prank(creditor);
+        return invoice.createInvoice(params);
+    }
+
+    function _getInterestConfig(uint16 rateBps, uint16 periodsPerYear) internal pure returns (InterestConfig memory) {
+        return InterestConfig({interestRateBps: rateBps, numberOfPeriodsPerYear: periodsPerYear});
+    }
+
+    // ==================== 3. PAYMENT FUNCTION TESTS - CORE LOGIC ====================
+    function testPaymentCoveringOnlyPrincipal() public {
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(0, 0)); // No interest
+
+        uint256 creditorBalanceBefore = creditor.balance;
+        uint256 principalPayment = 0.5 ether;
+
+        vm.expectEmit(true, false, false, true);
+        emit InvoicePaid(invoiceId, 0, principalPayment, 0);
+
+        // Pay principal only (no interest, so no protocol fee)
+        vm.prank(debtor);
+        bullaInvoice.payInvoice{value: principalPayment}(invoiceId, principalPayment);
+
+        // Verify no protocol fee charged on principal
+        assertEq(
+            creditor.balance - creditorBalanceBefore, principalPayment, "Creditor should receive full principal payment"
+        );
+        assertEq(address(bullaInvoice).balance, 0, "No protocol fee should be charged");
+
+        Invoice memory updatedInvoice = bullaInvoice.getInvoice(invoiceId);
+        assertEq(updatedInvoice.paidAmount, principalPayment, "Principal should be updated");
+    }
+
+    function testPaymentCoveringFullInterestAndPartialPrincipal() public {
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(1200, 12));
+
+        // Fast forward to accrue interest
+        vm.warp(block.timestamp + 90 days);
+
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        uint256 accruedInterest = invoice.interestComputationState.accruedInterest;
+
+        uint256 principalPortion = 0.4 ether;
+        uint256 paymentAmount = accruedInterest + principalPortion;
+
+        // With 50% protocol fee: protocol fee = accruedInterest / 2
+        uint256 expectedProtocolFee = accruedInterest / 2;
+        uint256 creditorBalanceBefore = creditor.balance;
+
+        vm.expectEmit(true, false, false, true);
+        emit InvoicePaid(invoiceId, accruedInterest, principalPortion, expectedProtocolFee);
+
+        vm.prank(debtor);
+        bullaInvoice.payInvoice{value: paymentAmount}(invoiceId, paymentAmount);
+
+        assertEq(
+            creditor.balance - creditorBalanceBefore - 0.4 ether,
+            address(bullaInvoice).balance,
+            "Creditor should receive correct amount"
+        );
+    }
+
+    function testPaymentCoveringFullInterestAndFullPrincipal() public {
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(1200, 12));
+
+        // Fast forward to accrue interest
+        vm.warp(block.timestamp + 90 days);
+
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        uint256 accruedInterest = invoice.interestComputationState.accruedInterest;
+
+        uint256 paymentAmount = accruedInterest + 1 ether; // Full interest + full principal
+
+        // With 50% protocol fee: protocol fee = accruedInterest / 2
+        uint256 expectedProtocolFee = accruedInterest / 2;
+        uint256 creditorBalanceBefore = creditor.balance;
+
+        vm.expectEmit(true, false, false, true);
+        emit InvoicePaid(invoiceId, accruedInterest, 1 ether, expectedProtocolFee);
+
+        vm.prank(debtor);
+        bullaInvoice.payInvoice{value: paymentAmount}(invoiceId, paymentAmount);
+
+        // Verify invoice is fully paid
+        Invoice memory updatedInvoice = bullaInvoice.getInvoice(invoiceId);
+        assertTrue(updatedInvoice.status == Status.Paid, "Invoice should be fully paid");
+        assertEq(
+            creditor.balance - creditorBalanceBefore - 1 ether,
+            address(bullaInvoice).balance,
+            "Creditor should receive correct amount"
+        );
+        assertGt(address(bullaInvoice).balance, 0, "Protocol fee is not 0");
+    }
+
+    function testProtocolFeeOnlyOnInterestPortion() public {
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 2 ether, _getInterestConfig(1200, 12));
+
+        // Fast forward to accrue significant interest
+        vm.warp(block.timestamp + 62 days); // 2 months
+
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        uint256 accruedInterest = invoice.interestComputationState.accruedInterest;
+
+        // Make multiple payments to verify consistent behavior
+        uint256 payment1 = accruedInterest / 3 + 0.5 ether; // Part interest + part principal
+        uint256 payment2 = accruedInterest / 3 + 0.5 ether; // Part interest + part principal
+        uint256 payment3 = accruedInterest - (2 * (accruedInterest / 3)) + 1 ether; // Remaining interest + remaining principal
+
+        uint256 creditorBalanceBefore = creditor.balance;
+
+        // Payment 1
+        vm.prank(debtor);
+        bullaInvoice.payInvoice{value: payment1}(invoiceId, payment1);
+
+        // Payment 2
+        vm.prank(debtor);
+        bullaInvoice.payInvoice{value: payment2}(invoiceId, payment2);
+
+        // Payment 3
+        vm.prank(debtor);
+        bullaInvoice.payInvoice{value: payment3}(invoiceId, payment3);
+
+        // Verify total protocol fee accumulated correctly
+        assertEq(
+            address(bullaInvoice).balance,
+            creditor.balance - creditorBalanceBefore - 2 ether,
+            "Total protocol fee should be half of total interest"
+        );
+        assertGt(address(bullaInvoice).balance, 0, "Protocol fee is not 0");
+    }
+
+    // ==================== CREDITOR TOTAL ZERO EDGE CASE ====================
+
+    function testCreditorTotalZeroWith100PercentProtocolFee() public {
+        BullaInvoice maxFeeInvoice = new BullaInvoice(address(bullaClaim), admin, MAX_BPS); // 100% protocol fee
+
+        uint256 invoiceId = _createAndSetupInvoice(maxFeeInvoice, address(0), 1 ether, _getInterestConfig(1200, 12));
+
+        // Fast forward to accrue interest
+        vm.warp(block.timestamp + 90 days);
+
+        Invoice memory invoice = maxFeeInvoice.getInvoice(invoiceId);
+        uint256 accruedInterest = invoice.interestComputationState.accruedInterest;
+
+        uint256 creditorBalanceBefore = creditor.balance;
+
+        vm.expectEmit(true, false, false, true);
+        emit InvoicePaid(invoiceId, accruedInterest, 0, accruedInterest); // All interest goes to protocol fee
+
+        // Pay only interest with 100% protocol fee
+        vm.prank(debtor);
+        maxFeeInvoice.payInvoice{value: accruedInterest}(invoiceId, accruedInterest);
+
+        // Verify creditorTotal = 0 scenario
+        assertEq(creditor.balance, creditorBalanceBefore, "Creditor should receive nothing");
+        assertEq(address(maxFeeInvoice).balance, accruedInterest, "All interest should go to protocol fee");
+
+        // Verify no transfer was attempted to creditor
+        assertTrue(creditor.balance == creditorBalanceBefore, "No transfer should occur when creditorTotal = 0");
+    }
+
+    // ==================== 4. ERC20 PAYMENT TESTS ====================
+
+    function testFirstERC20PaymentAddsTokenToArray() public {
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(token1), 1 ether, _getInterestConfig(1200, 12));
+
+        // Fast forward to accrue interest
+        vm.warp(block.timestamp + 90 days);
+
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        uint256 accruedInterest = invoice.interestComputationState.accruedInterest;
+
+        vm.expectRevert();
+        bullaInvoice.protocolFeeTokens(0);
+
+        // Make payment with interest
+        vm.prank(debtor);
+        token1.approve(address(bullaInvoice), accruedInterest);
+
+        vm.prank(debtor);
+        bullaInvoice.payInvoice(invoiceId, accruedInterest);
+
+        // Verify token added to array
+        assertEq(bullaInvoice.protocolFeeTokens(0), address(token1), "Token should be added to protocolFeeTokens array");
+        assertGt(bullaInvoice.protocolFeesByToken(address(token1)), 0, "Protocol fee should be tracked");
+    }
+
+    function testSubsequentPaymentsSameTokenIncrementFees() public {
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(token1), 2 ether, _getInterestConfig(1200, 24));
+
+        // Fast forward to accrue interest
+        vm.warp(block.timestamp + 60 days);
+
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        uint256 accruedInterest = invoice.interestComputationState.accruedInterest;
+
+        // Make first payment (partial interest)
+        uint256 payment1 = accruedInterest / 2;
+        vm.prank(debtor);
+        token1.approve(address(bullaInvoice), payment1);
+        vm.prank(debtor);
+        bullaInvoice.payInvoice(invoiceId, payment1);
+
+        uint256 collectedFee1 = bullaInvoice.protocolFeesByToken(address(token1));
+
+        // Make second payment (remaining interest)
+        vm.prank(debtor);
+        token1.approve(address(bullaInvoice), payment1);
+        vm.prank(debtor);
+        bullaInvoice.payInvoice(invoiceId, payment1);
+
+        // Total protocol fee = (payment1 + payment2) / 2 = accruedInterest / 2
+        assertEq(
+            bullaInvoice.protocolFeesByToken(address(token1)),
+            2 * collectedFee1,
+            "Total protocol fee should be double since it is the same amount twice"
+        );
+        assertGt(bullaInvoice.protocolFeesByToken(address(token1)), 0, "Protocol fee is not 0");
+
+        // Verify only one entry in array
+        assertEq(bullaInvoice.protocolFeeTokens(0), address(token1), "Token should still be at index 0");
+        vm.expectRevert();
+        bullaInvoice.protocolFeeTokens(1); // Should revert - no second token
+    }
+
+    // ==================== 5. ETH PAYMENT TESTS ====================
+
+    function testETHPaymentWithCorrectMsgValue() public {
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(1200, 12));
+
+        // Fast forward to accrue interest
+        vm.warp(block.timestamp + 90 days);
+
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        uint256 accruedInterest = invoice.interestComputationState.accruedInterest;
+        uint256 paymentAmount = accruedInterest + 0.5 ether;
+
+        uint256 creditorBalanceBefore = creditor.balance;
+        uint256 contractBalanceBefore = address(bullaInvoice).balance;
+
+        // Make ETH payment with correct msg.value does not throw
+        vm.prank(debtor);
+        bullaInvoice.payInvoice{value: paymentAmount}(invoiceId, paymentAmount);
+    }
+
+    function testETHPaymentWithIncorrectMsgValueReverts() public {
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(1200, 12));
+
+        // Fast forward to accrue interest
+        vm.warp(block.timestamp + 90 days);
+
+        uint256 paymentAmount = 0.5 ether;
+        uint256 incorrectMsgValue = 0.3 ether; // Different from paymentAmount
+
+        // Should revert when msg.value != paymentAmount
+        vm.prank(debtor);
+        vm.expectRevert(IncorrectMsgValue.selector);
+        bullaInvoice.payInvoice{value: incorrectMsgValue}(invoiceId, paymentAmount);
+    }
+
+    function testETHBalanceVerification() public {
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 2 ether, _getInterestConfig(1200, 12));
+
+        // Fast forward to accrue interest
+        vm.warp(block.timestamp + 90 days);
+
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        uint256 accruedInterest = invoice.interestComputationState.accruedInterest;
+        uint256 paymentAmount = accruedInterest + 1 ether; // Interest + partial principal
+
+        uint256 debtorBalanceBefore = debtor.balance;
+        uint256 creditorBalanceBefore = creditor.balance;
+        uint256 contractBalanceBefore = address(bullaInvoice).balance;
+
+        vm.prank(debtor);
+        bullaInvoice.payInvoice{value: paymentAmount}(invoiceId, paymentAmount);
+
+        // Verify all balance changes
+        assertEq(debtorBalanceBefore - debtor.balance, paymentAmount, "Debtor should pay full amount");
+        assertEq(
+            paymentAmount - (creditor.balance - creditorBalanceBefore),
+            address(bullaInvoice).balance - contractBalanceBefore,
+            "Protocol fee is half of net interest"
+        );
+        assertGt(address(bullaInvoice).balance - contractBalanceBefore, 0, "Protocol fee should be greater than 0");
+    }
+
+    // ==================== 6. PROTOCOL FEE MANAGEMENT TESTS ====================
+
+    function testAdminCanWithdrawETHFees() public {
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(1200, 12));
+
+        // Fast forward and make payment to accumulate ETH fees
+        vm.warp(block.timestamp + 90 days);
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        uint256 accruedInterest = invoice.interestComputationState.accruedInterest;
+
+        vm.prank(debtor);
+        bullaInvoice.payInvoice{value: accruedInterest}(invoiceId, accruedInterest);
+
+        uint256 adminBalanceBefore = admin.balance;
+
+        // Admin withdraws fees
+        vm.prank(admin);
+        bullaInvoice.withdrawAllFees();
+
+        // Verify admin received ETH fees
+        assertGt(admin.balance - adminBalanceBefore, 0, "Admin should receive ETH protocol fees");
+        assertEq(address(bullaInvoice).balance, 0, "Contract ETH balance should be zero after withdrawal");
+    }
+
+    function testAdminCanWithdrawERC20FeesMultipleTokens() public {
+        // Create invoices with different tokens
+        uint256 invoice1 = _createAndSetupInvoice(bullaInvoice, address(token1), 1 ether, _getInterestConfig(1200, 12));
+        uint256 invoice2 = _createAndSetupInvoice(bullaInvoice, address(token2), 1 ether, _getInterestConfig(1200, 12));
+
+        // Fast forward and make payments
+        vm.warp(block.timestamp + 90 days);
+
+        Invoice memory inv1 = bullaInvoice.getInvoice(invoice1);
+        Invoice memory inv2 = bullaInvoice.getInvoice(invoice2);
+
+        uint256 payment1 = inv1.interestComputationState.accruedInterest;
+        uint256 payment2 = inv2.interestComputationState.accruedInterest;
+
+        vm.prank(debtor);
+        token1.approve(address(bullaInvoice), payment1);
+        vm.prank(debtor);
+        bullaInvoice.payInvoice(invoice1, payment1);
+
+        vm.prank(debtor);
+        token2.approve(address(bullaInvoice), payment2);
+        vm.prank(debtor);
+        bullaInvoice.payInvoice(invoice2, payment2);
+
+        uint256 adminToken1Before = token1.balanceOf(admin);
+        uint256 adminToken2Before = token2.balanceOf(admin);
+
+        // Admin withdraws all fees
+        vm.prank(admin);
+        bullaInvoice.withdrawAllFees();
+
+        // Verify admin received both token fees
+        assertGt(token1.balanceOf(admin) - adminToken1Before, 0, "Admin should receive token1 fees");
+        assertGt(token2.balanceOf(admin) - adminToken2Before, 0, "Admin should receive token2 fees");
+
+        // Verify fees reset to 0
+        assertEq(bullaInvoice.protocolFeesByToken(address(token1)), 0, "Token1 fees should be reset");
+        assertEq(bullaInvoice.protocolFeesByToken(address(token2)), 0, "Token2 fees should be reset");
+    }
+
+    function testFeeAmountsResetAfterWithdrawal() public {
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(token1), 1 ether, _getInterestConfig(1200, 12));
+
+        // Make payment to accumulate fees
+        vm.warp(block.timestamp + 90 days);
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        uint256 accruedInterest = invoice.interestComputationState.accruedInterest;
+
+        vm.prank(debtor);
+        token1.approve(address(bullaInvoice), accruedInterest);
+        vm.prank(debtor);
+        bullaInvoice.payInvoice(invoiceId, accruedInterest);
+
+        uint256 feeBeforeWithdrawal = bullaInvoice.protocolFeesByToken(address(token1));
+        assertTrue(feeBeforeWithdrawal > 0, "Fee should be accumulated");
+
+        // Withdraw fees
+        vm.prank(admin);
+        bullaInvoice.withdrawAllFees();
+
+        // Verify fee reset
+        assertEq(bullaInvoice.protocolFeesByToken(address(token1)), 0, "Fee should be reset to 0");
+    }
+
+    function testNonAdminCannotWithdrawFees() public {
+        vm.prank(nonAdmin);
+        vm.expectRevert(NotAdmin.selector);
+        bullaInvoice.withdrawAllFees();
+    }
+
+    function testWithdrawalWithNoAccumulatedFees() public {
+        uint256 adminBalanceBefore = admin.balance;
+
+        // Admin tries to withdraw with no accumulated fees
+        vm.prank(admin);
+        bullaInvoice.withdrawAllFees(); // Should not revert
+
+        // Verify no change in admin balance
+        assertEq(admin.balance, adminBalanceBefore, "Admin balance should be unchanged");
+    }
+
+    function testAdminCanUpdateProtocolFee() public {
+        uint256 newFee = 1000; // 10%
+
+        vm.expectEmit(false, false, false, true);
+        emit ProtocolFeeUpdated(5000, newFee); // Old fee was 50%
+
+        vm.prank(admin);
+        bullaInvoice.setProtocolFee(newFee);
+
+        assertEq(bullaInvoice.protocolFeeBPS(), newFee, "Protocol fee should be updated");
+    }
+
+    function testProtocolFeeUpdateEmitsEvent() public {
+        uint256 oldFee = bullaInvoice.protocolFeeBPS();
+        uint256 newFee = 750;
+
+        vm.expectEmit(false, false, false, true);
+        emit ProtocolFeeUpdated(oldFee, newFee);
+
+        vm.prank(admin);
+        bullaInvoice.setProtocolFee(newFee);
+    }
+
+    function testNonAdminCannotUpdateProtocolFee() public {
+        vm.prank(nonAdmin);
+        vm.expectRevert(NotAdmin.selector);
+        bullaInvoice.setProtocolFee(10000);
+    }
+
+    function testSetProtocolFeeRevertsWithInvalidFee() public {
+        vm.prank(admin);
+        vm.expectRevert(InvalidProtocolFee.selector);
+        bullaInvoice.setProtocolFee(MAX_BPS + 1);
+    }
+
+    function testSetProtocolFeeToZero() public {
+        vm.prank(admin);
+        bullaInvoice.setProtocolFee(0);
+
+        assertEq(bullaInvoice.protocolFeeBPS(), 0, "Protocol fee should be set to 0");
+    }
+
+    function testSetProtocolFeeToMaxBPS() public {
+        vm.prank(admin);
+        bullaInvoice.setProtocolFee(MAX_BPS);
+
+        assertEq(bullaInvoice.protocolFeeBPS(), MAX_BPS, "Protocol fee should be set to MAX_BPS");
+    }
+
+    // ==================== 7. EVENT EMISSION TESTS ====================
+
+    function testInvoicePaidEventWithCorrectParameters() public {
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(1200, 12));
+
+        vm.warp(block.timestamp + 90 days);
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        uint256 accruedInterest = invoice.interestComputationState.accruedInterest;
+        uint256 principalPayment = 0.5 ether;
+        uint256 paymentAmount = accruedInterest + principalPayment;
+
+        // With 50% protocol fee: protocol fee = accruedInterest / 2
+        uint256 expectedProtocolFee = accruedInterest / 2;
+
+        vm.expectEmit(true, false, false, true);
+        emit InvoicePaid(invoiceId, accruedInterest, principalPayment, expectedProtocolFee);
+
+        vm.prank(debtor);
+        bullaInvoice.payInvoice{value: paymentAmount}(invoiceId, paymentAmount);
+    }
+
+    function testEventEmissionWithVariousPaymentScenarios() public {
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(token1), 2 ether, _getInterestConfig(1200, 12));
+
+        vm.warp(block.timestamp + 90 days);
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        uint256 accruedInterest = invoice.interestComputationState.accruedInterest;
+
+        // Scenario 1: Interest only
+        uint256 payment1 = accruedInterest;
+        // With 50% protocol fee: protocol fee = payment1 / 2
+        uint256 expectedProtocolFee1 = payment1 / 2;
+
+        vm.prank(debtor);
+        token1.approve(address(bullaInvoice), payment1);
+
+        vm.expectEmit(true, false, false, true);
+        emit InvoicePaid(invoiceId, payment1, 0, expectedProtocolFee1);
+        vm.prank(debtor);
+        bullaInvoice.payInvoice(invoiceId, payment1);
+
+        // Scenario 2: Principal only (no remaining interest)
+        uint256 payment2 = 1 ether;
+
+        vm.prank(debtor);
+        token1.approve(address(bullaInvoice), payment2);
+
+        vm.expectEmit(true, false, false, true);
+        emit InvoicePaid(invoiceId, 0, payment2, 0);
+
+        vm.prank(debtor);
+        bullaInvoice.payInvoice(invoiceId, payment2);
+    }
+
+    function testEventEmissionWhenProtocolFeeIsZero() public {
+        BullaInvoice zeroFeeInvoice = new BullaInvoice(address(bullaClaim), admin, 0);
+        uint256 invoiceId = _createAndSetupInvoice(zeroFeeInvoice, address(0), 1 ether, _getInterestConfig(1200, 12));
+
+        vm.warp(block.timestamp + 90 days);
+        Invoice memory invoice = zeroFeeInvoice.getInvoice(invoiceId);
+        uint256 accruedInterest = invoice.interestComputationState.accruedInterest;
+
+        vm.expectEmit(true, false, false, true);
+        emit InvoicePaid(invoiceId, accruedInterest, 0, 0); // Protocol fee should be 0
+
+        vm.prank(debtor);
+        zeroFeeInvoice.payInvoice{value: accruedInterest}(invoiceId, accruedInterest);
+    }
+
+    // ==================== 8. INTEGRATION TESTS ====================
+
+    function testEndToEndInvoiceLifecycleWithProtocolFees() public {
+        // Create invoice with interest
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(token1), 2 ether, _getInterestConfig(1200, 12));
+
+        // Fast forward to accrue interest
+        vm.warp(block.timestamp + 62 days); // 2 months
+
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        uint256 totalInterest = invoice.interestComputationState.accruedInterest;
+
+        // Make partial payments
+        uint256 payment1 = totalInterest / 3 + 0.5 ether;
+        uint256 payment2 = totalInterest / 3 + 0.5 ether;
+        uint256 payment3 = (totalInterest - (totalInterest / 3) - (totalInterest / 3)) + 1 ether; // Remaining
+
+        // With 50% protocol fee: total protocol fee = totalInterest / 2
+        uint256 expectedTotalProtocolFee = totalInterest / 2;
+
+        // Payment 1
+        vm.prank(debtor);
+        token1.approve(address(bullaInvoice), payment1);
+        vm.prank(debtor);
+        bullaInvoice.payInvoice(invoiceId, payment1);
+
+        // Payment 2
+        vm.prank(debtor);
+        token1.approve(address(bullaInvoice), payment2);
+        vm.prank(debtor);
+        bullaInvoice.payInvoice(invoiceId, payment2);
+
+        // Payment 3 (final)
+        vm.prank(debtor);
+        token1.approve(address(bullaInvoice), payment3);
+        vm.prank(debtor);
+        bullaInvoice.payInvoice(invoiceId, payment3);
+
+        // Verify final state
+        Invoice memory finalInvoice = bullaInvoice.getInvoice(invoiceId);
+        assertTrue(finalInvoice.status == Status.Paid, "Invoice should be fully paid");
+        assertEq(finalInvoice.paidAmount, 2 ether, "Principal should be fully paid");
+
+        // Verify protocol fees accumulated
+        assertApproxEqAbs(
+            bullaInvoice.protocolFeesByToken(address(token1)), expectedTotalProtocolFee, 3, "Protocol fees should match"
+        );
+
+        // Admin withdraws fees
+        uint256 adminBalanceBefore = token1.balanceOf(admin);
+        vm.prank(admin);
+        bullaInvoice.withdrawAllFees();
+
+        assertApproxEqAbs(
+            token1.balanceOf(admin) - adminBalanceBefore,
+            expectedTotalProtocolFee,
+            3,
+            "Admin should receive total protocol fees"
+        );
+    }
+
+    function testMultipleInvoicesDifferentTokensAndFeeAccumulation() public {
+        // Create multiple invoices with different tokens
+        uint256 ethInvoice = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(1200, 12));
+        uint256 token1Invoice =
+            _createAndSetupInvoice(bullaInvoice, address(token1), 1 ether, _getInterestConfig(1200, 12));
+        uint256 token2Invoice =
+            _createAndSetupInvoice(bullaInvoice, address(token2), 1 ether, _getInterestConfig(1200, 12));
+
+        vm.warp(block.timestamp + 90 days);
+
+        // Make payments on all invoices
+        Invoice memory ethInv = bullaInvoice.getInvoice(ethInvoice);
+        Invoice memory token1Inv = bullaInvoice.getInvoice(token1Invoice);
+        Invoice memory token2Inv = bullaInvoice.getInvoice(token2Invoice);
+
+        uint256 ethInterest = ethInv.interestComputationState.accruedInterest;
+        uint256 token1Interest = token1Inv.interestComputationState.accruedInterest;
+        uint256 token2Interest = token2Inv.interestComputationState.accruedInterest;
+
+        // ETH payment
+        vm.prank(debtor);
+        bullaInvoice.payInvoice{value: ethInterest}(ethInvoice, ethInterest);
+
+        // Token1 payment
+        vm.prank(debtor);
+        token1.approve(address(bullaInvoice), token1Interest);
+        vm.prank(debtor);
+        bullaInvoice.payInvoice(token1Invoice, token1Interest);
+
+        // Token2 payment
+        vm.prank(debtor);
+        token2.approve(address(bullaInvoice), token2Interest);
+        vm.prank(debtor);
+        bullaInvoice.payInvoice(token2Invoice, token2Interest);
+
+        // Verify separate fee tracking - with 50% protocol fee
+        uint256 expectedEthFee = ethInterest / 2;
+        uint256 expectedToken1Fee = token1Interest / 2;
+        uint256 expectedToken2Fee = token2Interest / 2;
+
+        assertEq(address(bullaInvoice).balance, expectedEthFee, "ETH fees in contract balance");
+        assertEq(bullaInvoice.protocolFeesByToken(address(token1)), expectedToken1Fee, "Token1 fees tracked");
+        assertEq(bullaInvoice.protocolFeesByToken(address(token2)), expectedToken2Fee, "Token2 fees tracked");
+
+        // Verify token array contains both tokens
+        assertEq(bullaInvoice.protocolFeeTokens(0), address(token1), "First token in array");
+        assertEq(bullaInvoice.protocolFeeTokens(1), address(token2), "Second token in array");
+    }
+
+    // ==================== 9. EDGE CASES & ERROR HANDLING ====================
+
+    function testPaymentOfOneWeiWithProtocolFees() public {
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 1000 wei, _getInterestConfig(1200, 12));
+
+        vm.warp(block.timestamp + 1 days);
+
+        uint256 creditorBalanceBefore = creditor.balance;
+
+        // Make tiny payment
+        vm.prank(debtor);
+        bullaInvoice.payInvoice{value: 1 wei}(invoiceId, 1 wei);
+
+        // Verify precision handling (protocol fee might round to 0)
+        assertTrue(creditor.balance >= creditorBalanceBefore, "Creditor should receive something or nothing");
+        assertTrue(address(bullaInvoice).balance <= 1 wei, "Protocol fee should be handled correctly");
+    }
+
+    function testVeryLargePaymentAmounts() public {
+        uint256 largeAmount = 1000000 ether;
+        uint256 invoiceId =
+            _createAndSetupInvoice(bullaInvoice, address(token1), largeAmount, _getInterestConfig(1200, 12));
+
+        // Mint large amount for debtor
+        token1.mint(debtor, largeAmount * 2);
+
+        vm.warp(block.timestamp + 90 days);
+
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        uint256 accruedInterest = invoice.interestComputationState.accruedInterest;
+
+        vm.prank(debtor);
+        token1.approve(address(bullaInvoice), accruedInterest);
+        vm.prank(debtor);
+        bullaInvoice.payInvoice(invoiceId, accruedInterest);
+
+        // Verify protocol fee calculation with large numbers - with 50% fee: expectedFee = accruedInterest / 2
+        uint256 expectedFee = accruedInterest / 2;
+        assertEq(bullaInvoice.protocolFeesByToken(address(token1)), expectedFee, "Large amount protocol fee");
+    }
+
+    function testZeroPaymentAmountReverts() public {
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(0, 0));
+
+        vm.prank(debtor);
+        vm.expectRevert(PayingZero.selector);
+        bullaInvoice.payInvoice{value: 0}(invoiceId, 0);
+    }
+}
