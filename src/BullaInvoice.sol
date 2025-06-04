@@ -125,17 +125,15 @@ contract BullaInvoice is BullaClaimControllerBase {
 
         InvoiceDetails memory invoiceDetails = _invoiceDetailsByClaimId[claimId];
 
-        // Check if this is a purchase order
-        if (invoiceDetails.purchaseOrder.deliveryDate == 0) {
-            return 0; // Not a purchase order
-        }
-
-        // Get the stored deposit amount from invoice details
-        uint256 storedDepositAmount = invoiceDetails.depositAmount;
-
-        // Calculate remaining deposit amount
-        if (storedDepositAmount > claim.paidAmount) {
-            return storedDepositAmount - claim.paidAmount;
+        // Check if this is a purchase order that hasn't been delivered yet
+        if (invoiceDetails.purchaseOrder.deliveryDate != 0 && !invoiceDetails.purchaseOrder.isDelivered) {
+            // Get the stored deposit amount from invoice details
+            uint256 storedDepositAmount = invoiceDetails.depositAmount;
+            
+            // Calculate remaining deposit amount
+            if (storedDepositAmount > claim.paidAmount) {
+                return storedDepositAmount - claim.paidAmount;
+            }
         }
 
         return 0; // No remaining deposit amount
@@ -364,11 +362,6 @@ contract BullaInvoice is BullaClaimControllerBase {
         // Get the remaining deposit amount using the view function
         uint256 remainingDepositAmount = this.getRemainingPurchaseOrderDepositAmount(claimId);
 
-        // Validate that the payment amount doesn't exceed the remaining deposit amount
-        if (depositAmount > remainingDepositAmount) {
-            revert InvalidDepositAmount();
-        }
-
         // Validate that the payment amount doesn't exceed what's left to pay on the claim
         uint256 amountLeftToPay = claim.claimAmount - claim.paidAmount;
         if (depositAmount > amountLeftToPay) {
@@ -398,8 +391,11 @@ contract BullaInvoice is BullaClaimControllerBase {
             }
         }
 
-        // Update the binding to Bound
-        _bullaClaim.updateBindingFrom(msg.sender, claimId, ClaimBinding.Bound);
+        // Update the binding to Bound only if there is no remaining deposit amount
+        uint256 newRemainingDepositAmount = this.getRemainingPurchaseOrderDepositAmount(claimId);
+        if (newRemainingDepositAmount == 0) {
+            _bullaClaim.updateBindingFrom(msg.sender, claimId, ClaimBinding.Bound);
+        }
     }
 
     /// PRIVATE FUNCTIONS ///

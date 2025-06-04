@@ -2401,14 +2401,29 @@ contract TestBullaInvoice is Test {
         vm.prank(debtor);
         bullaInvoice.acceptPurchaseOrder{value: partialDepositAmount}(invoiceId, partialDepositAmount);
 
-        // Verify purchase order acceptance
+        // Verify purchase order acceptance - should NOT be bound with partial deposit
         Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
-        assertEq(uint8(invoice.binding), uint8(ClaimBinding.Bound), "Invoice should be Bound");
+        assertEq(uint8(invoice.binding), uint8(ClaimBinding.BindingPending), "Invoice should remain BindingPending with partial deposit");
         assertEq(invoice.paidAmount, partialDepositAmount, "Paid amount should equal partial deposit");
         
         // Verify remaining deposit
         uint256 remainingDeposit = bullaInvoice.getRemainingPurchaseOrderDepositAmount(invoiceId);
         assertEq(remainingDeposit, totalDepositAmount - partialDepositAmount, "Remaining deposit should be calculated correctly");
+        assertTrue(remainingDeposit > 0, "Should still have remaining deposit amount");
+        
+        // Now pay the remaining deposit to complete the binding
+        uint256 finalDepositAmount = remainingDeposit;
+        vm.prank(debtor);
+        bullaInvoice.acceptPurchaseOrder{value: finalDepositAmount}(invoiceId, finalDepositAmount);
+        
+        // Verify purchase order is now bound after full deposit
+        invoice = bullaInvoice.getInvoice(invoiceId);
+        assertEq(uint8(invoice.binding), uint8(ClaimBinding.Bound), "Invoice should be Bound after full deposit is paid");
+        assertEq(invoice.paidAmount, totalDepositAmount, "Total paid amount should equal full deposit");
+        
+        // Verify no remaining deposit
+        remainingDeposit = bullaInvoice.getRemainingPurchaseOrderDepositAmount(invoiceId);
+        assertEq(remainingDeposit, 0, "No remaining deposit should be left");
     }
 
     function testAcceptPurchaseOrder_ZeroDeposit() public {
@@ -2526,6 +2541,34 @@ contract TestBullaInvoice is Test {
             })
         });
 
+        bullaClaim.permitPayClaim({
+            user: debtor,
+            controller: address(bullaInvoice),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaInvoice),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        bullaClaim.permitUpdateBinding({
+            user: debtor,
+            controller: address(bullaInvoice),
+            approvalCount: 1,
+            signature: sigHelper.signUpdateBindingPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaInvoice),
+                approvalCount: 1
+            })
+        });
+
         // Create purchase order
         uint256 deliveryDate = block.timestamp + 7 days;
         uint256 depositAmount = 0.3 ether;
@@ -2542,8 +2585,12 @@ contract TestBullaInvoice is Test {
         // Try to accept with amount exceeding the deposit requirement
         uint256 excessiveAmount = depositAmount + 0.1 ether;
         vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSelector(InvalidDepositAmount.selector));
         bullaInvoice.acceptPurchaseOrder{value: excessiveAmount}(invoiceId, excessiveAmount);
+
+        // Verify the purchase order is accepted and paid amount is the excessive amount
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        assertEq(uint8(invoice.binding), uint8(ClaimBinding.Bound), "Invoice should be Bound");
+        assertEq(invoice.paidAmount, excessiveAmount, "Paid amount should be the excessive amount");
     }
 
     function testAcceptPurchaseOrder_ExceedsClaimAmount() public {
