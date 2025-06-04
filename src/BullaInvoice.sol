@@ -115,11 +115,11 @@ contract BullaInvoice is BullaClaimControllerBase {
     }
 
     /**
-     * @notice Get the remaining deposit amount for a purchase order
+     * @notice Get the total amount needed to complete a purchase order deposit (including accrued interest)
      * @param claimId The ID of the invoice/purchase order
-     * @return The remaining deposit amount that needs to be paid
+     * @return The total amount needed to pay to complete the deposit
      */
-    function getRemainingPurchaseOrderDepositAmount(uint256 claimId) external view returns (uint256) {
+    function getTotalAmountNeededForPurchaseOrderDeposit(uint256 claimId) external returns (uint256) {
         Claim memory claim = _bullaClaim.getClaim(claimId);
         _checkController(claim.controller);
 
@@ -127,16 +127,29 @@ contract BullaInvoice is BullaClaimControllerBase {
 
         // Check if this is a purchase order that hasn't been delivered yet
         if (invoiceDetails.purchaseOrder.deliveryDate != 0 && !invoiceDetails.purchaseOrder.isDelivered) {
-            // Get the stored deposit amount from invoice details
-            uint256 storedDepositAmount = invoiceDetails.depositAmount;
-            
-            // Calculate remaining deposit amount
-            if (storedDepositAmount > claim.paidAmount) {
-                return storedDepositAmount - claim.paidAmount;
+            if (invoiceDetails.depositAmount > claim.paidAmount) {
+                uint256 remainingPrincipalDeposit = invoiceDetails.depositAmount - claim.paidAmount;
+
+                // Calculate accrued interest and update the stored state for active claims
+                InterestComputationState memory interestComputationState = CompoundInterestLib.computeInterest(
+                    claim.claimAmount - claim.paidAmount,
+                    claim.dueBy,
+                    invoiceDetails.lateFeeConfig,
+                    invoiceDetails.interestComputationState
+                );
+
+                // Update the stored interest computation state to prevent double-counting, if there is accrued interest
+                if (invoiceDetails.lateFeeConfig.interestRateBps > 0) {
+                    _invoiceDetailsByClaimId[claimId].interestComputationState = interestComputationState;
+                }
+
+                // Total amount needed = all accrued interest + remaining principal deposit
+                // payInvoice will pay interest first, then principal
+                return interestComputationState.accruedInterest + remainingPrincipalDeposit;
             }
         }
 
-        return 0; // No remaining deposit amount
+        return 0; // No remaining deposit amount needed
     }
 
     /**
@@ -241,7 +254,7 @@ contract BullaInvoice is BullaClaimControllerBase {
      * @param claimId The ID of the invoice to pay
      * @param paymentAmount The amount to pay
      */
-    function payInvoice(uint256 claimId, uint256 paymentAmount) external payable {
+    function payInvoice(uint256 claimId, uint256 paymentAmount) public payable {
         Claim memory claim = _bullaClaim.getClaim(claimId);
         _checkController(claim.controller);
 
@@ -359,9 +372,6 @@ contract BullaInvoice is BullaClaimControllerBase {
             revert NotAuthorizedForBinding();
         }
 
-        // Get the remaining deposit amount using the view function
-        uint256 remainingDepositAmount = this.getRemainingPurchaseOrderDepositAmount(claimId);
-
         // Validate that the payment amount doesn't exceed what's left to pay on the claim
         uint256 amountLeftToPay = claim.claimAmount - claim.paidAmount;
         if (depositAmount > amountLeftToPay) {
@@ -383,7 +393,8 @@ contract BullaInvoice is BullaClaimControllerBase {
                 }
             }
             
-            _bullaClaim.payClaimFrom{value: msg.value}(msg.sender, claimId, depositAmount);
+            // Use payInvoice to handle interest calculations and payment
+            payInvoice(claimId, depositAmount);
         } else {
             // If no payment needed, msg.value should be 0
             if (msg.value != 0) {
@@ -391,9 +402,9 @@ contract BullaInvoice is BullaClaimControllerBase {
             }
         }
 
-        // Update the binding to Bound only if there is no remaining deposit amount
-        uint256 newRemainingDepositAmount = this.getRemainingPurchaseOrderDepositAmount(claimId);
-        if (newRemainingDepositAmount == 0) {
+        // Update the binding to Bound only if there is no remaining deposit amount (including interest)
+        uint256 totalAmountNeeded = this.getTotalAmountNeededForPurchaseOrderDeposit(claimId);
+        if (totalAmountNeeded == 0) {
             _bullaClaim.updateBindingFrom(msg.sender, claimId, ClaimBinding.Bound);
         }
     }

@@ -8,6 +8,7 @@ import "contracts/types/Types.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
+import {InterestConfig} from "contracts/libraries/CompoundInterestLib.sol";
 import {
     BullaInvoice,
     CreateInvoiceParams,
@@ -2226,7 +2227,7 @@ contract TestBullaInvoice is Test {
         Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
         assertEq(uint8(invoice.binding), uint8(ClaimBinding.BindingPending), "Invoice should be BindingPending");
         assertEq(invoice.paidAmount, 0, "No payment should have been made yet");
-        uint256 remainingDeposit = bullaInvoice.getRemainingPurchaseOrderDepositAmount(invoiceId);
+        uint256 remainingDeposit = bullaInvoice.getTotalAmountNeededForPurchaseOrderDeposit(invoiceId);
         assertEq(remainingDeposit, depositAmount, "Remaining deposit should equal full deposit amount");
 
         // Record balances before acceptance
@@ -2243,7 +2244,7 @@ contract TestBullaInvoice is Test {
         assertEq(invoice.paidAmount, depositAmount, "Paid amount should equal deposit");
         
         // Verify remaining deposit is now 0
-        remainingDeposit = bullaInvoice.getRemainingPurchaseOrderDepositAmount(invoiceId);
+        remainingDeposit = bullaInvoice.getTotalAmountNeededForPurchaseOrderDeposit(invoiceId);
         assertEq(remainingDeposit, 0, "No remaining deposit should be left");
 
         // Verify token transfers
@@ -2259,6 +2260,10 @@ contract TestBullaInvoice is Test {
         // Approve WETH spending for BullaClaim
         vm.prank(debtor);
         weth.approve(address(bullaClaim), 2 ether);
+
+        // Approve WETH spending for BullaInvoice
+        vm.prank(debtor);
+        weth.approve(address(bullaInvoice), 2 ether);
 
         // Setup permissions
         bullaClaim.permitCreateClaim({
@@ -2407,7 +2412,7 @@ contract TestBullaInvoice is Test {
         assertEq(invoice.paidAmount, partialDepositAmount, "Paid amount should equal partial deposit");
         
         // Verify remaining deposit
-        uint256 remainingDeposit = bullaInvoice.getRemainingPurchaseOrderDepositAmount(invoiceId);
+        uint256 remainingDeposit = bullaInvoice.getTotalAmountNeededForPurchaseOrderDeposit(invoiceId);
         assertEq(remainingDeposit, totalDepositAmount - partialDepositAmount, "Remaining deposit should be calculated correctly");
         assertTrue(remainingDeposit > 0, "Should still have remaining deposit amount");
         
@@ -2422,7 +2427,7 @@ contract TestBullaInvoice is Test {
         assertEq(invoice.paidAmount, totalDepositAmount, "Total paid amount should equal full deposit");
         
         // Verify no remaining deposit
-        remainingDeposit = bullaInvoice.getRemainingPurchaseOrderDepositAmount(invoiceId);
+        remainingDeposit = bullaInvoice.getTotalAmountNeededForPurchaseOrderDeposit(invoiceId);
         assertEq(remainingDeposit, 0, "No remaining deposit should be left");
     }
 
@@ -2784,7 +2789,7 @@ contract TestBullaInvoice is Test {
         uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Verify it's not a purchase order
-        uint256 remainingDeposit = bullaInvoice.getRemainingPurchaseOrderDepositAmount(invoiceId);
+        uint256 remainingDeposit = bullaInvoice.getTotalAmountNeededForPurchaseOrderDeposit(invoiceId);
         assertEq(remainingDeposit, 0, "Should not be a purchase order");
 
         // Try to accept as purchase order - should fail with NotPurchaseOrder error
@@ -2862,7 +2867,7 @@ contract TestBullaInvoice is Test {
         assertEq(invoice.paidAmount, partialPayment, "Partial payment should be recorded");
 
         // Check remaining deposit
-        uint256 remainingDeposit = bullaInvoice.getRemainingPurchaseOrderDepositAmount(invoiceId);
+        uint256 remainingDeposit = bullaInvoice.getTotalAmountNeededForPurchaseOrderDeposit(invoiceId);
         assertEq(remainingDeposit, depositAmount - partialPayment, "Remaining deposit should be reduced");
 
         // Accept purchase order with remaining deposit amount
@@ -2875,7 +2880,7 @@ contract TestBullaInvoice is Test {
         assertEq(invoice.paidAmount, depositAmount, "Total paid should equal deposit amount");
         
         // Verify no remaining deposit
-        remainingDeposit = bullaInvoice.getRemainingPurchaseOrderDepositAmount(invoiceId);
+        remainingDeposit = bullaInvoice.getTotalAmountNeededForPurchaseOrderDeposit(invoiceId);
         assertEq(remainingDeposit, 0, "No remaining deposit should be left");
     }
 
@@ -2968,5 +2973,115 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         vm.expectRevert(abi.encodeWithSelector(InvalidDepositAmount.selector));
         bullaInvoice.createInvoiceWithMetadata(params, metadata);
+    }
+
+    function testAcceptPurchaseOrder_InsufficientPayment_WithAccruedInterest() public {
+        // Setup permissions
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            controller: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        bullaClaim.permitPayClaim({
+            user: debtor,
+            controller: address(bullaInvoice),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaInvoice),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        bullaClaim.permitUpdateBinding({
+            user: debtor,
+            controller: address(bullaInvoice),
+            approvalCount: 1,
+            signature: sigHelper.signUpdateBindingPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaInvoice),
+                approvalCount: 1
+            })
+        });
+
+        // Create purchase order with deposit amount and late fee configuration
+        uint256 deliveryDate = block.timestamp + 7 days;
+        uint256 depositAmount = 0.5 ether;
+        uint256 dueBy = block.timestamp + 30 days; // Due in 30 days
+        
+        InterestConfig memory lateFeeConfig = InterestConfig({
+            interestRateBps: 1000, // 10% annual interest rate
+            numberOfPeriodsPerYear: 365 // Daily compounding
+        });
+
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withClaimAmount(1 ether)
+            .withDueBy(dueBy)
+            .withDeliveryDate(deliveryDate)
+            .withDepositAmount(depositAmount)
+            .withLateFeeConfig(lateFeeConfig)
+            .build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Fast forward time to after the due date to accrue interest
+        vm.warp(dueBy + 365 days); // 1 year past due date
+        
+        // Get the current invoice to check accrued interest
+        Invoice memory invoiceBefore = bullaInvoice.getInvoice(invoiceId);
+        assertTrue(invoiceBefore.interestComputationState.accruedInterest > 0, "Interest should have accrued");
+
+        // Check the amounts excluding accrued interest
+        uint256 remainingPrincipalDepositExcludingInterest = depositAmount - invoiceBefore.paidAmount;
+
+        // Record balances before payment
+        uint256 debtorBalanceBefore = debtor.balance;
+        uint256 creditorBalanceBefore = creditor.balance;
+
+        // Attempt to accept purchase order by paying only the principal deposit amount (insufficient)
+        vm.prank(debtor);
+        bullaInvoice.acceptPurchaseOrder{value: remainingPrincipalDepositExcludingInterest}(invoiceId, remainingPrincipalDepositExcludingInterest);
+
+        // Verify that the binding was NOT updated to Bound because payment was insufficient
+        Invoice memory invoiceAfter = bullaInvoice.getInvoice(invoiceId);
+        assertEq(uint8(invoiceAfter.binding), uint8(ClaimBinding.BindingPending), "Invoice should remain BindingPending because payment was insufficient");
+        
+        // Verify partial payment was made (some interest + partial principal)
+        assertTrue(invoiceAfter.paidAmount > 0, "Some payment should have been made");
+        
+        // Verify there's still an amount needed to complete the deposit
+        uint256 remainingAmountNeeded = bullaInvoice.getTotalAmountNeededForPurchaseOrderDeposit(invoiceId);
+        assertTrue(remainingAmountNeeded > 0, "There should still be an amount needed to complete the deposit");
+        
+        // Now pay the remaining amount needed to complete the deposit
+        vm.prank(debtor);
+        bullaInvoice.acceptPurchaseOrder{value: remainingAmountNeeded}(invoiceId, remainingAmountNeeded);
+        
+        // Verify that the binding is updated to Bound
+        Invoice memory invoiceFinal = bullaInvoice.getInvoice(invoiceId);
+        assertEq(uint8(invoiceFinal.binding), uint8(ClaimBinding.Bound), "Invoice should now be Bound after paying the full amount needed");
+        
+        // Verify no remaining amount is needed
+        uint256 finalAmountNeeded = bullaInvoice.getTotalAmountNeededForPurchaseOrderDeposit(invoiceId);
+        assertEq(finalAmountNeeded, 0, "No remaining amount should be needed");
     }
 }
