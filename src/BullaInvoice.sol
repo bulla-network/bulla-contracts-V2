@@ -469,7 +469,9 @@ contract BullaInvoice is BullaClaimControllerBase {
         if (totalAmountNeeded == 0) {
             _bullaClaim.updateBindingFrom(msg.sender, claimId, ClaimBinding.Bound);
         }
+    }
 
+    /**
      * @notice Allows admin to withdraw accumulated protocol fees
      */
     function withdrawAllFees() external {
