@@ -86,6 +86,7 @@ contract BullaInvoice is BullaClaimControllerBase {
     event InvoicePaid(uint256 indexed claimId, uint256 grossInterestPaid, uint256 principalPaid, uint256 protocolFee);
     event ProtocolFeeUpdated(uint256 oldFee, uint256 newFee);
     event PurchaseOrderDelivered(uint256 indexed claimId);
+    event FeeWithdrawn(address indexed admin, address indexed token, uint256 amount);
     /**
      * @notice Constructor
      * @param bullaClaim Address of the IBullaClaim contract to delegate calls to
@@ -160,11 +161,8 @@ contract BullaInvoice is BullaClaimControllerBase {
                     _invoiceDetailsByClaimId[claimId].interestComputationState = interestComputationState;
                 }
 
-                return _getTotalAmountNeededForPurchaseOrderDepositUnsafe(
-                    claim,
-                    invoiceDetails,
-                    interestComputationState
-                );
+                return
+                    _getTotalAmountNeededForPurchaseOrderDepositUnsafe(claim, invoiceDetails, interestComputationState);
             }
         }
 
@@ -297,15 +295,6 @@ contract BullaInvoice is BullaClaimControllerBase {
         _invoiceDetailsByClaimId[claimId].purchaseOrder.isDelivered = true;
 
         emit PurchaseOrderDelivered(claimId);
-    }
-
-    /**
-     * @notice Calculate the protocol fee amount based on interest payment
-     * @param grossInterestAmount The interest amount to calculate fee from
-     * @return The protocol fee amount
-     */
-    function _calculateProtocolFee(uint256 grossInterestAmount) private view returns (uint256) {
-        return Math.mulDiv(grossInterestAmount, protocolFeeBPS, MAX_BPS);
     }
 
     /**
@@ -490,20 +479,18 @@ contract BullaInvoice is BullaClaimControllerBase {
                     revert InvalidMsgValue();
                 }
             }
-            
+
             // Use payInvoice to handle payment (interest already calculated and stored above)
             payInvoice(claimId, depositAmount);
-            
+
             // After payment, get updated claim data and use unsafe version
             Claim memory updatedClaim = _bullaClaim.getClaim(claimId);
             InvoiceDetails memory updatedInvoiceDetails = _invoiceDetailsByClaimId[claimId];
-            
+
             uint256 totalAmountNeeded = _getTotalAmountNeededForPurchaseOrderDepositUnsafe(
-                updatedClaim,
-                updatedInvoiceDetails,
-                updatedInvoiceDetails.interestComputationState
+                updatedClaim, updatedInvoiceDetails, updatedInvoiceDetails.interestComputationState
             );
-            
+
             if (totalAmountNeeded == 0) {
                 _bullaClaim.updateBindingFrom(msg.sender, claimId, ClaimBinding.Bound);
             }
@@ -512,14 +499,11 @@ contract BullaInvoice is BullaClaimControllerBase {
             if (msg.value != 0) {
                 revert InvalidMsgValue();
             }
-            
+
             // Use the already calculated interest computation state
-            uint256 totalAmountNeeded = _getTotalAmountNeededForPurchaseOrderDepositUnsafe(
-                claim,
-                invoiceDetails,
-                interestComputationState
-            );
-            
+            uint256 totalAmountNeeded =
+                _getTotalAmountNeededForPurchaseOrderDepositUnsafe(claim, invoiceDetails, interestComputationState);
+
             if (totalAmountNeeded == 0) {
                 _bullaClaim.updateBindingFrom(msg.sender, claimId, ClaimBinding.Bound);
             }
@@ -532,10 +516,11 @@ contract BullaInvoice is BullaClaimControllerBase {
     function withdrawAllFees() external {
         if (msg.sender != admin) revert NotAdmin();
 
+        uint256 ethBalance = address(this).balance;
         // Withdraw protocol fees in ETH
-        if (address(this).balance > 0) {
-            (bool _success,) = admin.call{value: address(this).balance}("");
-            if (!_success) revert WithdrawalFailed();
+        if (ethBalance > 0) {
+            admin.safeTransferETH(ethBalance);
+            emit FeeWithdrawn(admin, address(0), ethBalance);
         }
 
         // Withdraw protocol fees in all tracked tokens
@@ -546,6 +531,7 @@ contract BullaInvoice is BullaClaimControllerBase {
             if (feeAmount > 0) {
                 protocolFeesByToken[token] = 0; // Reset fee amount before transfer
                 ERC20(token).safeTransfer(admin, feeAmount);
+                emit FeeWithdrawn(admin, token, feeAmount);
             }
         }
     }
@@ -587,5 +573,14 @@ contract BullaInvoice is BullaClaimControllerBase {
         }
 
         CompoundInterestLib.validateInterestConfig(params.lateFeeConfig);
+    }
+
+    /**
+     * @notice Calculate the protocol fee amount based on interest payment
+     * @param grossInterestAmount The interest amount to calculate fee from
+     * @return The protocol fee amount
+     */
+    function _calculateProtocolFee(uint256 grossInterestAmount) private view returns (uint256) {
+        return Math.mulDiv(grossInterestAmount, protocolFeeBPS, MAX_BPS);
     }
 }
