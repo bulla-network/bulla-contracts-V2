@@ -8,6 +8,7 @@ import "contracts/libraries/CompoundInterestLib.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
+import {BoringBatchable} from "contracts/libraries/BoringBatchable.sol";
 
 struct PurchaseOrderState {
     uint256 deliveryDate; // 0 if not a purchase order
@@ -69,7 +70,7 @@ struct CreateInvoiceParams {
  * @title BullaInvoice
  * @notice A wrapper contract for IBullaClaim that delegates all calls to the provided contract instance
  */
-contract BullaInvoice is BullaClaimControllerBase {
+contract BullaInvoice is BullaClaimControllerBase, BoringBatchable {
     using SafeTransferLib for address;
     using SafeTransferLib for ERC20;
 

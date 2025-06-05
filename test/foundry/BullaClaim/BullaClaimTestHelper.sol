@@ -148,4 +148,15 @@ contract BullaClaimTestHelper is Test {
         bytes memory sig = sigHelper.signMarkAsPaidPermit(_userPK, vm.addr(_userPK), _controller, _approvalCount);
         bullaClaim.permitMarkAsPaid(vm.addr(_userPK), _controller, _approvalCount, sig);
     }
+
+    function _permitERC20Token(
+        uint256 _ownerPK,
+        address _token,
+        address _spender,
+        uint256 _amount,
+        uint256 _deadline
+    ) internal returns (uint8 v, bytes32 r, bytes32 s) {
+        address owner = vm.addr(_ownerPK);
+        return sigHelper.signERC20PermitComponents(_ownerPK, _token, owner, _spender, _amount, _deadline);
+    }
 }
