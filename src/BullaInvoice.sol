@@ -148,8 +148,6 @@ contract BullaInvoice is BullaClaimControllerBase {
         // Check if this is a purchase order that hasn't been delivered yet
         if (invoiceDetails.purchaseOrder.deliveryDate != 0 && !invoiceDetails.purchaseOrder.isDelivered) {
             if (invoiceDetails.depositAmount > claim.paidAmount) {
-                uint256 remainingPrincipalDeposit = invoiceDetails.depositAmount - claim.paidAmount;
-
                 // Calculate accrued interest and update the stored state for active claims
                 InterestComputationState memory interestComputationState = CompoundInterestLib.computeInterest(
                     claim.claimAmount - claim.paidAmount,
@@ -158,10 +156,36 @@ contract BullaInvoice is BullaClaimControllerBase {
                     invoiceDetails.interestComputationState
                 );
 
-                // Update the stored interest computation state to prevent double-counting, if there is accrued interest
                 if (invoiceDetails.lateFeeConfig.interestRateBps > 0) {
                     _invoiceDetailsByClaimId[claimId].interestComputationState = interestComputationState;
                 }
+
+                return _getTotalAmountNeededForPurchaseOrderDepositUnsafe(
+                    claim,
+                    invoiceDetails,
+                    interestComputationState
+                );
+            }
+        }
+
+        return 0; // No remaining deposit amount needed
+    }
+
+    /**
+     * @notice Private function to get total amount needed without recalculating interest
+     * @param claim The claim data
+     * @param invoiceDetails The invoice details
+     * @param interestComputationState The current interest computation state
+     * @return The total amount needed to pay to complete the deposit
+     */
+    function _getTotalAmountNeededForPurchaseOrderDepositUnsafe(
+        Claim memory claim,
+        InvoiceDetails memory invoiceDetails,
+        InterestComputationState memory interestComputationState
+    ) private pure returns (uint256) {
+        if (invoiceDetails.purchaseOrder.deliveryDate != 0 && !invoiceDetails.purchaseOrder.isDelivered) {
+            if (invoiceDetails.depositAmount > claim.paidAmount) {
+                uint256 remainingPrincipalDeposit = invoiceDetails.depositAmount - claim.paidAmount;
 
                 // Total amount needed = all accrued interest + remaining principal deposit
                 // payInvoice will pay interest first, then principal
@@ -440,6 +464,18 @@ contract BullaInvoice is BullaClaimControllerBase {
             revert InvalidDepositAmount();
         }
 
+        // Calculate and store interest computation state
+        InterestComputationState memory interestComputationState = CompoundInterestLib.computeInterest(
+            claim.claimAmount - claim.paidAmount,
+            claim.dueBy,
+            invoiceDetails.lateFeeConfig,
+            invoiceDetails.interestComputationState
+        );
+
+        if (invoiceDetails.lateFeeConfig.interestRateBps > 0) {
+            _invoiceDetailsByClaimId[claimId].interestComputationState = interestComputationState;
+        }
+
         // Pay the deposit amount if any
         if (depositAmount > 0) {
             // Validate msg.value based on token type
@@ -455,19 +491,38 @@ contract BullaInvoice is BullaClaimControllerBase {
                 }
             }
             
-            // Use payInvoice to handle interest calculations and payment
+            // Use payInvoice to handle payment (interest already calculated and stored above)
             payInvoice(claimId, depositAmount);
+            
+            // After payment, get updated claim data and use unsafe version
+            Claim memory updatedClaim = _bullaClaim.getClaim(claimId);
+            InvoiceDetails memory updatedInvoiceDetails = _invoiceDetailsByClaimId[claimId];
+            
+            uint256 totalAmountNeeded = _getTotalAmountNeededForPurchaseOrderDepositUnsafe(
+                updatedClaim,
+                updatedInvoiceDetails,
+                updatedInvoiceDetails.interestComputationState
+            );
+            
+            if (totalAmountNeeded == 0) {
+                _bullaClaim.updateBindingFrom(msg.sender, claimId, ClaimBinding.Bound);
+            }
         } else {
             // If no payment needed, msg.value should be 0
             if (msg.value != 0) {
                 revert InvalidMsgValue();
             }
-        }
-
-        // Update the binding to Bound only if there is no remaining deposit amount (including interest)
-        uint256 totalAmountNeeded = this.getTotalAmountNeededForPurchaseOrderDeposit(claimId);
-        if (totalAmountNeeded == 0) {
-            _bullaClaim.updateBindingFrom(msg.sender, claimId, ClaimBinding.Bound);
+            
+            // Use the already calculated interest computation state
+            uint256 totalAmountNeeded = _getTotalAmountNeededForPurchaseOrderDepositUnsafe(
+                claim,
+                invoiceDetails,
+                interestComputationState
+            );
+            
+            if (totalAmountNeeded == 0) {
+                _bullaClaim.updateBindingFrom(msg.sender, claimId, ClaimBinding.Bound);
+            }
         }
     }
 
