@@ -19,6 +19,7 @@ struct InvoiceDetails {
     PurchaseOrderState purchaseOrder;
     InterestConfig lateFeeConfig;
     InterestComputationState interestComputationState;
+    uint256 depositAmount; // deposit amount for purchase orders
 }
 
 error CreditorCannotBeDebtor();
@@ -28,6 +29,9 @@ error PurchaseOrderAlreadyDelivered();
 error InvoiceNotPending();
 error NotPurchaseOrder();
 error PayingZero();
+error InvalidDepositAmount();
+error NotAuthorizedForBinding();
+error InvalidMsgValue();
 error InvalidProtocolFee();
 error IncorrectMsgValue();
 error NotAdmin();
@@ -58,6 +62,7 @@ struct CreateInvoiceParams {
     bool payerReceivesClaimOnPayment;
     InterestConfig lateFeeConfig;
     uint256 impairmentGracePeriod;
+    uint256 depositAmount;
 }
 
 /**
@@ -130,6 +135,68 @@ contract BullaInvoice is BullaClaimControllerBase {
     }
 
     /**
+     * @notice Get the total amount needed to complete a purchase order deposit (including accrued interest)
+     * @param claimId The ID of the invoice/purchase order
+     * @return The total amount needed to pay to complete the deposit
+     */
+    function getTotalAmountNeededForPurchaseOrderDeposit(uint256 claimId) external returns (uint256) {
+        Claim memory claim = _bullaClaim.getClaim(claimId);
+        _checkController(claim.controller);
+
+        InvoiceDetails memory invoiceDetails = _invoiceDetailsByClaimId[claimId];
+
+        // Check if this is a purchase order that hasn't been delivered yet
+        if (invoiceDetails.purchaseOrder.deliveryDate != 0 && !invoiceDetails.purchaseOrder.isDelivered) {
+            if (invoiceDetails.depositAmount > claim.paidAmount) {
+                // Calculate accrued interest and update the stored state for active claims
+                InterestComputationState memory interestComputationState = CompoundInterestLib.computeInterest(
+                    claim.claimAmount - claim.paidAmount,
+                    claim.dueBy,
+                    invoiceDetails.lateFeeConfig,
+                    invoiceDetails.interestComputationState
+                );
+
+                if (invoiceDetails.lateFeeConfig.interestRateBps > 0) {
+                    _invoiceDetailsByClaimId[claimId].interestComputationState = interestComputationState;
+                }
+
+                return _getTotalAmountNeededForPurchaseOrderDepositUnsafe(
+                    claim,
+                    invoiceDetails,
+                    interestComputationState
+                );
+            }
+        }
+
+        return 0; // No remaining deposit amount needed
+    }
+
+    /**
+     * @notice Private function to get total amount needed without recalculating interest
+     * @param claim The claim data
+     * @param invoiceDetails The invoice details
+     * @param interestComputationState The current interest computation state
+     * @return The total amount needed to pay to complete the deposit
+     */
+    function _getTotalAmountNeededForPurchaseOrderDepositUnsafe(
+        Claim memory claim,
+        InvoiceDetails memory invoiceDetails,
+        InterestComputationState memory interestComputationState
+    ) private pure returns (uint256) {
+        if (invoiceDetails.purchaseOrder.deliveryDate != 0 && !invoiceDetails.purchaseOrder.isDelivered) {
+            if (invoiceDetails.depositAmount > claim.paidAmount) {
+                uint256 remainingPrincipalDeposit = invoiceDetails.depositAmount - claim.paidAmount;
+
+                // Total amount needed = all accrued interest + remaining principal deposit
+                // payInvoice will pay interest first, then principal
+                return interestComputationState.accruedInterest + remainingPrincipalDeposit;
+            }
+        }
+
+        return 0; // No remaining deposit amount needed
+    }
+
+    /**
      * @notice Creates an invoice
      * @param params The parameters for creating an invoice
      * @return The ID of the created invoice
@@ -154,7 +221,8 @@ contract BullaInvoice is BullaClaimControllerBase {
         InvoiceDetails memory invoiceDetails = InvoiceDetails({
             purchaseOrder: PurchaseOrderState({deliveryDate: params.deliveryDate, isDelivered: false}),
             lateFeeConfig: params.lateFeeConfig,
-            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
+            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0}),
+            depositAmount: params.depositAmount
         });
 
         _invoiceDetailsByClaimId[claimId] = invoiceDetails;
@@ -193,7 +261,8 @@ contract BullaInvoice is BullaClaimControllerBase {
         InvoiceDetails memory invoiceDetails = InvoiceDetails({
             purchaseOrder: PurchaseOrderState({deliveryDate: params.deliveryDate, isDelivered: false}),
             lateFeeConfig: params.lateFeeConfig,
-            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
+            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0}),
+            depositAmount: params.depositAmount
         });
 
         _invoiceDetailsByClaimId[claimId] = invoiceDetails;
@@ -244,7 +313,7 @@ contract BullaInvoice is BullaClaimControllerBase {
      * @param claimId The ID of the invoice to pay
      * @param paymentAmount The amount to pay
      */
-    function payInvoice(uint256 claimId, uint256 paymentAmount) external payable {
+    function payInvoice(uint256 claimId, uint256 paymentAmount) public payable {
         Claim memory claim = _bullaClaim.getClaim(claimId);
         _checkController(claim.controller);
 
@@ -369,6 +438,95 @@ contract BullaInvoice is BullaClaimControllerBase {
     }
 
     /**
+     * @notice Accepts a purchase order by paying the remaining deposit amount and binding the invoice
+     * @param claimId The ID of the invoice to accept
+     * @param depositAmount The deposit amount to pay
+     */
+    function acceptPurchaseOrder(uint256 claimId, uint256 depositAmount) external payable {
+        Claim memory claim = _bullaClaim.getClaim(claimId);
+        _checkController(claim.controller);
+
+        InvoiceDetails memory invoiceDetails = _invoiceDetailsByClaimId[claimId];
+
+        // Check if this is actually a purchase order (has delivery date)
+        if (invoiceDetails.purchaseOrder.deliveryDate == 0) {
+            revert NotPurchaseOrder();
+        }
+
+        // Only the debtor can call this function for binding operations
+        if (msg.sender != claim.debtor) {
+            revert NotAuthorizedForBinding();
+        }
+
+        // Validate that the payment amount doesn't exceed what's left to pay on the claim
+        uint256 amountLeftToPay = claim.claimAmount - claim.paidAmount;
+        if (depositAmount > amountLeftToPay) {
+            revert InvalidDepositAmount();
+        }
+
+        // Calculate and store interest computation state
+        InterestComputationState memory interestComputationState = CompoundInterestLib.computeInterest(
+            claim.claimAmount - claim.paidAmount,
+            claim.dueBy,
+            invoiceDetails.lateFeeConfig,
+            invoiceDetails.interestComputationState
+        );
+
+        if (invoiceDetails.lateFeeConfig.interestRateBps > 0) {
+            _invoiceDetailsByClaimId[claimId].interestComputationState = interestComputationState;
+        }
+
+        // Pay the deposit amount if any
+        if (depositAmount > 0) {
+            // Validate msg.value based on token type
+            if (claim.token == address(0)) {
+                // For ETH claims, msg.value should equal the deposit amount
+                if (msg.value != depositAmount) {
+                    revert InvalidMsgValue();
+                }
+            } else {
+                // For ERC20 claims, msg.value should be 0
+                if (msg.value != 0) {
+                    revert InvalidMsgValue();
+                }
+            }
+            
+            // Use payInvoice to handle payment (interest already calculated and stored above)
+            payInvoice(claimId, depositAmount);
+            
+            // After payment, get updated claim data and use unsafe version
+            Claim memory updatedClaim = _bullaClaim.getClaim(claimId);
+            InvoiceDetails memory updatedInvoiceDetails = _invoiceDetailsByClaimId[claimId];
+            
+            uint256 totalAmountNeeded = _getTotalAmountNeededForPurchaseOrderDepositUnsafe(
+                updatedClaim,
+                updatedInvoiceDetails,
+                updatedInvoiceDetails.interestComputationState
+            );
+            
+            if (totalAmountNeeded == 0) {
+                _bullaClaim.updateBindingFrom(msg.sender, claimId, ClaimBinding.Bound);
+            }
+        } else {
+            // If no payment needed, msg.value should be 0
+            if (msg.value != 0) {
+                revert InvalidMsgValue();
+            }
+            
+            // Use the already calculated interest computation state
+            uint256 totalAmountNeeded = _getTotalAmountNeededForPurchaseOrderDepositUnsafe(
+                claim,
+                invoiceDetails,
+                interestComputationState
+            );
+            
+            if (totalAmountNeeded == 0) {
+                _bullaClaim.updateBindingFrom(msg.sender, claimId, ClaimBinding.Bound);
+            }
+        }
+    }
+
+    /**
      * @notice Allows admin to withdraw accumulated protocol fees
      */
     function withdrawAllFees() external {
@@ -422,6 +580,10 @@ contract BullaInvoice is BullaClaimControllerBase {
                 && (params.deliveryDate < block.timestamp || params.deliveryDate > type(uint40).max)
         ) {
             revert InvalidDeliveryDate();
+        }
+
+        if (params.depositAmount > params.claimAmount) {
+            revert InvalidDepositAmount();
         }
 
         CompoundInterestLib.validateInterestConfig(params.lateFeeConfig);

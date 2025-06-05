@@ -8,6 +8,7 @@ import "contracts/types/Types.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
+import {InterestConfig} from "contracts/libraries/CompoundInterestLib.sol";
 import {
     BullaInvoice,
     CreateInvoiceParams,
@@ -19,7 +20,10 @@ import {
     InvoiceNotPending,
     PurchaseOrderState,
     InvoiceDetails,
-    NotPurchaseOrder
+    NotPurchaseOrder,
+    InvalidDepositAmount,
+    InvalidMsgValue,
+    NotAuthorizedForBinding
 } from "contracts/BullaInvoice.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {CreateInvoiceParamsBuilder} from "test/foundry/BullaInvoice/CreateInvoiceParamsBuilder.sol";
@@ -2154,5 +2158,930 @@ contract TestBullaInvoice is Test {
         // Verify invoice is marked as paid
         Invoice memory invoiceAfter = bullaInvoice.getInvoice(invoiceId);
         assertEq(uint256(invoiceAfter.status), uint256(Status.Paid), "Invoice should be marked as paid");
+    }
+
+    /*///////////////////////////////////////////////////////////////
+                     ACCEPT PURCHASE ORDER TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function testAcceptPurchaseOrder_Success_ETH() public {
+        // Setup permissions
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            controller: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        bullaClaim.permitPayClaim({
+            user: debtor,
+            controller: address(bullaInvoice),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaInvoice),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        bullaClaim.permitUpdateBinding({
+            user: debtor,
+            controller: address(bullaInvoice),
+            approvalCount: 1,
+            signature: sigHelper.signUpdateBindingPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaInvoice),
+                approvalCount: 1
+            })
+        });
+
+        // Create purchase order with deposit amount
+        uint256 deliveryDate = block.timestamp + 7 days;
+        uint256 depositAmount = 0.3 ether;
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withClaimAmount(1 ether)
+            .withDeliveryDate(deliveryDate)
+            .withDepositAmount(depositAmount)
+            .build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Verify initial state
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        assertEq(uint8(invoice.binding), uint8(ClaimBinding.BindingPending), "Invoice should be BindingPending");
+        assertEq(invoice.paidAmount, 0, "No payment should have been made yet");
+        uint256 remainingDeposit = bullaInvoice.getTotalAmountNeededForPurchaseOrderDeposit(invoiceId);
+        assertEq(remainingDeposit, depositAmount, "Remaining deposit should equal full deposit amount");
+
+        // Record balances before acceptance
+        uint256 debtorBalanceBefore = debtor.balance;
+        uint256 creditorBalanceBefore = creditor.balance;
+
+        // Accept purchase order by paying full deposit
+        vm.prank(debtor);
+        bullaInvoice.acceptPurchaseOrder{value: depositAmount}(invoiceId, depositAmount);
+
+        // Verify purchase order acceptance
+        invoice = bullaInvoice.getInvoice(invoiceId);
+        assertEq(uint8(invoice.binding), uint8(ClaimBinding.Bound), "Invoice should be Bound");
+        assertEq(invoice.paidAmount, depositAmount, "Paid amount should equal deposit");
+        
+        // Verify remaining deposit is now 0
+        remainingDeposit = bullaInvoice.getTotalAmountNeededForPurchaseOrderDeposit(invoiceId);
+        assertEq(remainingDeposit, 0, "No remaining deposit should be left");
+
+        // Verify token transfers
+        assertEq(debtor.balance, debtorBalanceBefore - depositAmount, "Debtor should pay deposit amount");
+        assertEq(creditor.balance, creditorBalanceBefore + depositAmount, "Creditor should receive deposit amount");
+    }
+
+    function testAcceptPurchaseOrder_Success_ERC20() public {
+        // Setup for token payment (using WETH)
+        vm.prank(debtor);
+        weth.deposit{value: 2 ether}();
+
+        // Approve WETH spending for BullaClaim
+        vm.prank(debtor);
+        weth.approve(address(bullaClaim), 2 ether);
+
+        // Approve WETH spending for BullaInvoice
+        vm.prank(debtor);
+        weth.approve(address(bullaInvoice), 2 ether);
+
+        // Setup permissions
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            controller: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        bullaClaim.permitPayClaim({
+            user: debtor,
+            controller: address(bullaInvoice),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaInvoice),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        bullaClaim.permitUpdateBinding({
+            user: debtor,
+            controller: address(bullaInvoice),
+            approvalCount: 1,
+            signature: sigHelper.signUpdateBindingPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaInvoice),
+                approvalCount: 1
+            })
+        });
+
+        // Create purchase order with deposit amount using WETH
+        uint256 deliveryDate = block.timestamp + 7 days;
+        uint256 depositAmount = 0.4 ether;
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withClaimAmount(1 ether)
+            .withToken(address(weth))
+            .withDeliveryDate(deliveryDate)
+            .withDepositAmount(depositAmount)
+            .build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Record balances before acceptance
+        uint256 debtorBalanceBefore = weth.balanceOf(debtor);
+        uint256 creditorBalanceBefore = weth.balanceOf(creditor);
+
+        // Accept purchase order by paying full deposit (no ETH should be sent)
+        vm.prank(debtor);
+        bullaInvoice.acceptPurchaseOrder{value: 0}(invoiceId, depositAmount);
+
+        // Verify purchase order acceptance
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        assertEq(uint8(invoice.binding), uint8(ClaimBinding.Bound), "Invoice should be Bound");
+        assertEq(invoice.paidAmount, depositAmount, "Paid amount should equal deposit");
+
+        // Verify token transfers
+        assertEq(weth.balanceOf(debtor), debtorBalanceBefore - depositAmount, "Debtor should pay deposit amount");
+        assertEq(weth.balanceOf(creditor), creditorBalanceBefore + depositAmount, "Creditor should receive deposit amount");
+    }
+
+    function testAcceptPurchaseOrder_PartialDeposit() public {
+        // Setup permissions
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            controller: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        bullaClaim.permitPayClaim({
+            user: debtor,
+            controller: address(bullaInvoice),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaInvoice),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        bullaClaim.permitUpdateBinding({
+            user: debtor,
+            controller: address(bullaInvoice),
+            approvalCount: 1,
+            signature: sigHelper.signUpdateBindingPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaInvoice),
+                approvalCount: 1
+            })
+        });
+
+        // Create purchase order with deposit amount
+        uint256 deliveryDate = block.timestamp + 7 days;
+        uint256 totalDepositAmount = 0.5 ether;
+        uint256 partialDepositAmount = 0.3 ether;
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withClaimAmount(1 ether)
+            .withDeliveryDate(deliveryDate)
+            .withDepositAmount(totalDepositAmount)
+            .build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Accept purchase order by paying partial deposit
+        vm.prank(debtor);
+        bullaInvoice.acceptPurchaseOrder{value: partialDepositAmount}(invoiceId, partialDepositAmount);
+
+        // Verify purchase order acceptance - should NOT be bound with partial deposit
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        assertEq(uint8(invoice.binding), uint8(ClaimBinding.BindingPending), "Invoice should remain BindingPending with partial deposit");
+        assertEq(invoice.paidAmount, partialDepositAmount, "Paid amount should equal partial deposit");
+        
+        // Verify remaining deposit
+        uint256 remainingDeposit = bullaInvoice.getTotalAmountNeededForPurchaseOrderDeposit(invoiceId);
+        assertEq(remainingDeposit, totalDepositAmount - partialDepositAmount, "Remaining deposit should be calculated correctly");
+        assertTrue(remainingDeposit > 0, "Should still have remaining deposit amount");
+        
+        // Now pay the remaining deposit to complete the binding
+        uint256 finalDepositAmount = remainingDeposit;
+        vm.prank(debtor);
+        bullaInvoice.acceptPurchaseOrder{value: finalDepositAmount}(invoiceId, finalDepositAmount);
+        
+        // Verify purchase order is now bound after full deposit
+        invoice = bullaInvoice.getInvoice(invoiceId);
+        assertEq(uint8(invoice.binding), uint8(ClaimBinding.Bound), "Invoice should be Bound after full deposit is paid");
+        assertEq(invoice.paidAmount, totalDepositAmount, "Total paid amount should equal full deposit");
+        
+        // Verify no remaining deposit
+        remainingDeposit = bullaInvoice.getTotalAmountNeededForPurchaseOrderDeposit(invoiceId);
+        assertEq(remainingDeposit, 0, "No remaining deposit should be left");
+    }
+
+    function testAcceptPurchaseOrder_ZeroDeposit() public {
+        // Setup permissions
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            controller: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        bullaClaim.permitUpdateBinding({
+            user: debtor,
+            controller: address(bullaInvoice),
+            approvalCount: 1,
+            signature: sigHelper.signUpdateBindingPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaInvoice),
+                approvalCount: 1
+            })
+        });
+
+        // Create purchase order with zero deposit amount
+        uint256 deliveryDate = block.timestamp + 7 days;
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withClaimAmount(1 ether)
+            .withDeliveryDate(deliveryDate)
+            .withDepositAmount(0)
+            .build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Accept purchase order with no payment
+        vm.prank(debtor);
+        bullaInvoice.acceptPurchaseOrder{value: 0}(invoiceId, 0);
+
+        // Verify purchase order acceptance
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        assertEq(uint8(invoice.binding), uint8(ClaimBinding.Bound), "Invoice should be Bound");
+        assertEq(invoice.paidAmount, 0, "No payment should have been made");
+    }
+
+    function testAcceptPurchaseOrder_NotAuthorized() public {
+        // Setup permissions
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            controller: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        // Create purchase order
+        uint256 deliveryDate = block.timestamp + 7 days;
+        uint256 depositAmount = 0.3 ether;
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withClaimAmount(1 ether)
+            .withDeliveryDate(deliveryDate)
+            .withDepositAmount(depositAmount)
+            .build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Try to accept from non-debtor account
+        address randomUser = address(0x1234);
+        vm.deal(randomUser, 1 ether);
+        vm.prank(randomUser);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorizedForBinding.selector));
+        bullaInvoice.acceptPurchaseOrder{value: depositAmount}(invoiceId, depositAmount);
+
+        // Try to accept from creditor account
+        vm.deal(creditor, 1 ether);
+        vm.prank(creditor);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorizedForBinding.selector));
+        bullaInvoice.acceptPurchaseOrder{value: depositAmount}(invoiceId, depositAmount);
+    }
+
+    function testAcceptPurchaseOrder_ExceedsRemainingDeposit() public {
+        // Setup permissions
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            controller: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        bullaClaim.permitPayClaim({
+            user: debtor,
+            controller: address(bullaInvoice),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaInvoice),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        bullaClaim.permitUpdateBinding({
+            user: debtor,
+            controller: address(bullaInvoice),
+            approvalCount: 1,
+            signature: sigHelper.signUpdateBindingPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaInvoice),
+                approvalCount: 1
+            })
+        });
+
+        // Create purchase order
+        uint256 deliveryDate = block.timestamp + 7 days;
+        uint256 depositAmount = 0.3 ether;
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withClaimAmount(1 ether)
+            .withDeliveryDate(deliveryDate)
+            .withDepositAmount(depositAmount)
+            .build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Try to accept with amount exceeding the deposit requirement
+        uint256 excessiveAmount = depositAmount + 0.1 ether;
+        vm.prank(debtor);
+        bullaInvoice.acceptPurchaseOrder{value: excessiveAmount}(invoiceId, excessiveAmount);
+
+        // Verify the purchase order is accepted and paid amount is the excessive amount
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        assertEq(uint8(invoice.binding), uint8(ClaimBinding.Bound), "Invoice should be Bound");
+        assertEq(invoice.paidAmount, excessiveAmount, "Paid amount should be the excessive amount");
+    }
+
+    function testAcceptPurchaseOrder_ExceedsClaimAmount() public {
+        // Setup permissions
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            controller: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        // Create purchase order where deposit equals full claim amount
+        uint256 deliveryDate = block.timestamp + 7 days;
+        uint256 claimAmount = 1 ether;
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withClaimAmount(claimAmount)
+            .withDeliveryDate(deliveryDate)
+            .withDepositAmount(claimAmount) // Full amount as deposit
+            .build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Try to accept with amount exceeding the claim amount
+        uint256 excessiveAmount = claimAmount + 0.1 ether;
+        vm.prank(debtor);
+        vm.expectRevert(abi.encodeWithSelector(InvalidDepositAmount.selector));
+        bullaInvoice.acceptPurchaseOrder{value: excessiveAmount}(invoiceId, excessiveAmount);
+    }
+
+    function testAcceptPurchaseOrder_InvalidMsgValue_ETH() public {
+        // Setup permissions
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            controller: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        // Create ETH purchase order
+        uint256 deliveryDate = block.timestamp + 7 days;
+        uint256 depositAmount = 0.3 ether;
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withClaimAmount(1 ether)
+            .withToken(address(0)) // ETH
+            .withDeliveryDate(deliveryDate)
+            .withDepositAmount(depositAmount)
+            .build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Try to accept with mismatched msg.value (sending less than deposit amount)
+        vm.prank(debtor);
+        vm.expectRevert(abi.encodeWithSelector(InvalidMsgValue.selector));
+        bullaInvoice.acceptPurchaseOrder{value: 0.2 ether}(invoiceId, depositAmount);
+
+        // Try to accept with mismatched msg.value (sending more than deposit amount)
+        vm.prank(debtor);
+        vm.expectRevert(abi.encodeWithSelector(InvalidMsgValue.selector));
+        bullaInvoice.acceptPurchaseOrder{value: 0.4 ether}(invoiceId, depositAmount);
+    }
+
+    function testAcceptPurchaseOrder_InvalidMsgValue_ERC20() public {
+        // Setup for token payment (using WETH)
+        vm.prank(debtor);
+        weth.deposit{value: 2 ether}();
+        vm.prank(debtor);
+        weth.approve(address(bullaClaim), 2 ether);
+
+        // Setup permissions
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            controller: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        // Create ERC20 purchase order
+        uint256 deliveryDate = block.timestamp + 7 days;
+        uint256 depositAmount = 0.3 ether;
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withClaimAmount(1 ether)
+            .withToken(address(weth)) // ERC20
+            .withDeliveryDate(deliveryDate)
+            .withDepositAmount(depositAmount)
+            .build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Try to accept with non-zero msg.value for ERC20 token
+        vm.prank(debtor);
+        vm.expectRevert(abi.encodeWithSelector(InvalidMsgValue.selector));
+        bullaInvoice.acceptPurchaseOrder{value: 0.1 ether}(invoiceId, depositAmount);
+    }
+
+    function testAcceptPurchaseOrder_ZeroDepositInvalidMsgValue() public {
+        // Setup permissions
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            controller: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        // Create purchase order with zero deposit
+        uint256 deliveryDate = block.timestamp + 7 days;
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withClaimAmount(1 ether)
+            .withDeliveryDate(deliveryDate)
+            .withDepositAmount(0)
+            .build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Try to accept with non-zero msg.value when no payment needed
+        vm.prank(debtor);
+        vm.expectRevert(abi.encodeWithSelector(InvalidMsgValue.selector));
+        bullaInvoice.acceptPurchaseOrder{value: 0.1 ether}(invoiceId, 0);
+    }
+
+    function testAcceptPurchaseOrder_NotPurchaseOrder() public {
+        // Setup permissions
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            controller: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        // Create regular invoice (not a purchase order)
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withClaimAmount(1 ether)
+            .withDeliveryDate(0) // No delivery date = not a purchase order
+            .withDepositAmount(0)
+            .build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Verify it's not a purchase order
+        uint256 remainingDeposit = bullaInvoice.getTotalAmountNeededForPurchaseOrderDeposit(invoiceId);
+        assertEq(remainingDeposit, 0, "Should not be a purchase order");
+
+        // Try to accept as purchase order - should fail with NotPurchaseOrder error
+        vm.prank(debtor);
+        vm.expectRevert(abi.encodeWithSelector(NotPurchaseOrder.selector));
+        bullaInvoice.acceptPurchaseOrder{value: 0}(invoiceId, 0);
+    }
+
+    function testAcceptPurchaseOrder_AfterPartialPayment() public {
+        // Setup permissions
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            controller: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        bullaClaim.permitPayClaim({
+            user: debtor,
+            controller: address(bullaInvoice),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaInvoice),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        bullaClaim.permitUpdateBinding({
+            user: debtor,
+            controller: address(bullaInvoice),
+            approvalCount: 1,
+            signature: sigHelper.signUpdateBindingPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaInvoice),
+                approvalCount: 1
+            })
+        });
+
+        // Create purchase order with deposit amount
+        uint256 deliveryDate = block.timestamp + 7 days;
+        uint256 depositAmount = 0.5 ether;
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withClaimAmount(1 ether)
+            .withDeliveryDate(deliveryDate)
+            .withDepositAmount(depositAmount)
+            .build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Make partial payment first
+        uint256 partialPayment = 0.2 ether;
+        vm.prank(debtor);
+        bullaInvoice.payInvoice{value: partialPayment}(invoiceId, partialPayment);
+
+        // Verify partial payment
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        assertEq(invoice.paidAmount, partialPayment, "Partial payment should be recorded");
+
+        // Check remaining deposit
+        uint256 remainingDeposit = bullaInvoice.getTotalAmountNeededForPurchaseOrderDeposit(invoiceId);
+        assertEq(remainingDeposit, depositAmount - partialPayment, "Remaining deposit should be reduced");
+
+        // Accept purchase order with remaining deposit amount
+        vm.prank(debtor);
+        bullaInvoice.acceptPurchaseOrder{value: remainingDeposit}(invoiceId, remainingDeposit);
+
+        // Verify final state
+        invoice = bullaInvoice.getInvoice(invoiceId);
+        assertEq(uint8(invoice.binding), uint8(ClaimBinding.Bound), "Invoice should be Bound");
+        assertEq(invoice.paidAmount, depositAmount, "Total paid should equal deposit amount");
+        
+        // Verify no remaining deposit
+        remainingDeposit = bullaInvoice.getTotalAmountNeededForPurchaseOrderDeposit(invoiceId);
+        assertEq(remainingDeposit, 0, "No remaining deposit should be left");
+    }
+
+    function testAcceptPurchaseOrder_WrongController() public {
+        // Create a claim directly via BullaClaim (not through BullaInvoice)
+        CreateClaimParams memory params = new CreateClaimParamsBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withClaimAmount(1 ether)
+            .build();
+
+        vm.prank(creditor);
+        uint256 claimId = bullaClaim.createClaim(params);
+
+        // Try to accept via BullaInvoice - should fail since it's not the controller
+        vm.prank(debtor);
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, address(debtor)));
+        bullaInvoice.acceptPurchaseOrder{value: 0}(claimId, 0);
+    }
+
+    /*///////////////////////////////////////////////////////////////
+                     DEPOSIT AMOUNT VALIDATION TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function testCreateInvoice_DepositAmountExceedsClaimAmount() public {
+        // Setup permissions
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            controller: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        // Try to create invoice with deposit larger than claim amount
+        uint256 claimAmount = 1 ether;
+        uint256 depositAmount = 1.5 ether; // Larger than claim amount
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withClaimAmount(claimAmount)
+            .withDepositAmount(depositAmount)
+            .build();
+
+        vm.prank(creditor);
+        vm.expectRevert(abi.encodeWithSelector(InvalidDepositAmount.selector));
+        bullaInvoice.createInvoice(params);
+    }
+
+    function testCreateInvoiceWithMetadata_DepositAmountExceedsClaimAmount() public {
+        // Setup permissions
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            controller: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        // Create metadata
+        ClaimMetadata memory metadata = ClaimMetadata({
+            tokenURI: "Invalid Invoice",
+            attachmentURI: "Deposit exceeds claim amount"
+        });
+
+        // Try to create invoice with metadata and deposit larger than claim amount
+        uint256 claimAmount = 1 ether;
+        uint256 depositAmount = 2 ether; // Larger than claim amount
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withClaimAmount(claimAmount)
+            .withDepositAmount(depositAmount)
+            .build();
+
+        vm.prank(creditor);
+        vm.expectRevert(abi.encodeWithSelector(InvalidDepositAmount.selector));
+        bullaInvoice.createInvoiceWithMetadata(params, metadata);
+    }
+
+    function testAcceptPurchaseOrder_InsufficientPayment_WithAccruedInterest() public {
+        // Setup permissions
+        bullaClaim.permitCreateClaim({
+            user: creditor,
+            controller: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        bullaClaim.permitPayClaim({
+            user: debtor,
+            controller: address(bullaInvoice),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaInvoice),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        bullaClaim.permitUpdateBinding({
+            user: debtor,
+            controller: address(bullaInvoice),
+            approvalCount: 1,
+            signature: sigHelper.signUpdateBindingPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaInvoice),
+                approvalCount: 1
+            })
+        });
+
+        // Create purchase order with deposit amount and late fee configuration
+        uint256 deliveryDate = block.timestamp + 7 days;
+        uint256 depositAmount = 0.5 ether;
+        uint256 dueBy = block.timestamp + 30 days; // Due in 30 days
+        
+        InterestConfig memory lateFeeConfig = InterestConfig({
+            interestRateBps: 1000, // 10% annual interest rate
+            numberOfPeriodsPerYear: 365 // Daily compounding
+        });
+
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder()
+            .withDebtor(debtor)
+            .withClaimAmount(1 ether)
+            .withDueBy(dueBy)
+            .withDeliveryDate(deliveryDate)
+            .withDepositAmount(depositAmount)
+            .withLateFeeConfig(lateFeeConfig)
+            .build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Fast forward time to after the due date to accrue interest
+        vm.warp(dueBy + 365 days); // 1 year past due date
+        
+        // Get the current invoice to check accrued interest
+        Invoice memory invoiceBefore = bullaInvoice.getInvoice(invoiceId);
+        assertTrue(invoiceBefore.interestComputationState.accruedInterest > 0, "Interest should have accrued");
+
+        // Check the amounts excluding accrued interest
+        uint256 remainingPrincipalDepositExcludingInterest = depositAmount - invoiceBefore.paidAmount;
+
+        // Record balances before payment
+        uint256 debtorBalanceBefore = debtor.balance;
+        uint256 creditorBalanceBefore = creditor.balance;
+
+        // Attempt to accept purchase order by paying only the principal deposit amount (insufficient)
+        vm.prank(debtor);
+        bullaInvoice.acceptPurchaseOrder{value: remainingPrincipalDepositExcludingInterest}(invoiceId, remainingPrincipalDepositExcludingInterest);
+
+        // Verify that the binding was NOT updated to Bound because payment was insufficient
+        Invoice memory invoiceAfter = bullaInvoice.getInvoice(invoiceId);
+        assertEq(uint8(invoiceAfter.binding), uint8(ClaimBinding.BindingPending), "Invoice should remain BindingPending because payment was insufficient");
+        
+        // Verify partial payment was made (some interest + partial principal)
+        assertTrue(invoiceAfter.paidAmount > 0, "Some payment should have been made");
+        
+        // Verify there's still an amount needed to complete the deposit
+        uint256 remainingAmountNeeded = bullaInvoice.getTotalAmountNeededForPurchaseOrderDeposit(invoiceId);
+        assertTrue(remainingAmountNeeded > 0, "There should still be an amount needed to complete the deposit");
+        
+        // Now pay the remaining amount needed to complete the deposit
+        vm.prank(debtor);
+        bullaInvoice.acceptPurchaseOrder{value: remainingAmountNeeded}(invoiceId, remainingAmountNeeded);
+        
+        // Verify that the binding is updated to Bound
+        Invoice memory invoiceFinal = bullaInvoice.getInvoice(invoiceId);
+        assertEq(uint8(invoiceFinal.binding), uint8(ClaimBinding.Bound), "Invoice should now be Bound after paying the full amount needed");
+        
+        // Verify no remaining amount is needed
+        uint256 finalAmountNeeded = bullaInvoice.getTotalAmountNeededForPurchaseOrderDeposit(invoiceId);
+        assertEq(finalAmountNeeded, 0, "No remaining amount should be needed");
     }
 }

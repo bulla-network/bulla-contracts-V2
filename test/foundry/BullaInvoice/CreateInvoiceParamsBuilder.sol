@@ -15,6 +15,7 @@ contract CreateInvoiceParamsBuilder {
     bool private _payerReceivesClaimOnPayment;
     InterestConfig private _lateFeeConfig;
     uint256 private _impairmentGracePeriod;
+    uint256 private _depositAmount;
 
     constructor() {
         // Default values
@@ -28,6 +29,7 @@ contract CreateInvoiceParamsBuilder {
         _payerReceivesClaimOnPayment = true;
         _lateFeeConfig = InterestConfig({interestRateBps: 0, numberOfPeriodsPerYear: 0});
         _impairmentGracePeriod = 7 days; // 7 days grace period by default
+        _depositAmount = 0; // No deposit by default
     }
 
     function withDebtor(address debtor) public returns (CreateInvoiceParamsBuilder) {
@@ -80,6 +82,11 @@ contract CreateInvoiceParamsBuilder {
         return this;
     }
 
+    function withDepositAmount(uint256 depositAmount) public returns (CreateInvoiceParamsBuilder) {
+        _depositAmount = depositAmount;
+        return this;
+    }
+
     function build() public view returns (CreateInvoiceParams memory) {
         return CreateInvoiceParams({
             debtor: _debtor,
@@ -91,7 +98,8 @@ contract CreateInvoiceParamsBuilder {
             binding: _binding,
             payerReceivesClaimOnPayment: _payerReceivesClaimOnPayment,
             lateFeeConfig: _lateFeeConfig,
-            impairmentGracePeriod: _impairmentGracePeriod
+            impairmentGracePeriod: _impairmentGracePeriod,
+            depositAmount: _depositAmount
         });
     }
 }
