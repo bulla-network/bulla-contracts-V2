@@ -34,6 +34,7 @@ error NotAuthorizedForBinding();
 error InvalidMsgValue();
 error InvalidProtocolFee();
 error IncorrectMsgValue();
+error IncorrectFee();
 error NotAdmin();
 error WithdrawalFailed();
 
@@ -75,6 +76,8 @@ contract BullaInvoice is BullaClaimControllerBase {
 
     address public admin;
     uint256 public protocolFeeBPS;
+    uint256 public invoiceOriginationFee;
+    uint256 public purchaseOrderOriginationFee;
 
     address[] public protocolFeeTokens;
     mapping(address => uint256) public protocolFeesByToken;
@@ -82,7 +85,7 @@ contract BullaInvoice is BullaClaimControllerBase {
 
     mapping(uint256 => InvoiceDetails) private _invoiceDetailsByClaimId;
 
-    event InvoiceCreated(uint256 indexed claimId, InvoiceDetails invoiceDetails);
+    event InvoiceCreated(uint256 indexed claimId, InvoiceDetails invoiceDetails, uint256 originationFee);
     event InvoicePaid(uint256 indexed claimId, uint256 grossInterestPaid, uint256 principalPaid, uint256 protocolFee);
     event ProtocolFeeUpdated(uint256 oldFee, uint256 newFee);
     event PurchaseOrderDelivered(uint256 indexed claimId);
@@ -92,12 +95,22 @@ contract BullaInvoice is BullaClaimControllerBase {
      * @param bullaClaim Address of the IBullaClaim contract to delegate calls to
      * @param _admin Address of the contract administrator
      * @param _protocolFeeBPS Protocol fee in basis points taken from interest payments
+     * @param _invoiceOriginationFee Fee required to create an invoice
+     * @param _purchaseOrderOriginationFee Fee required to create a purchase order
      */
 
-    constructor(address bullaClaim, address _admin, uint256 _protocolFeeBPS) BullaClaimControllerBase(bullaClaim) {
+    constructor(
+        address bullaClaim,
+        address _admin,
+        uint256 _protocolFeeBPS,
+        uint256 _invoiceOriginationFee,
+        uint256 _purchaseOrderOriginationFee
+    ) BullaClaimControllerBase(bullaClaim) {
         admin = _admin;
         if (_protocolFeeBPS > MAX_BPS) revert InvalidProtocolFee();
         protocolFeeBPS = _protocolFeeBPS;
+        invoiceOriginationFee = _invoiceOriginationFee;
+        purchaseOrderOriginationFee = _purchaseOrderOriginationFee;
     }
 
     /**
@@ -199,7 +212,7 @@ contract BullaInvoice is BullaClaimControllerBase {
      * @param params The parameters for creating an invoice
      * @return The ID of the created invoice
      */
-    function createInvoice(CreateInvoiceParams memory params) external returns (uint256) {
+    function createInvoice(CreateInvoiceParams memory params) external payable returns (uint256) {
         _validateCreateInvoiceParams(params);
 
         CreateClaimParams memory createClaimParams = CreateClaimParams({
@@ -225,7 +238,7 @@ contract BullaInvoice is BullaClaimControllerBase {
 
         _invoiceDetailsByClaimId[claimId] = invoiceDetails;
 
-        emit InvoiceCreated(claimId, invoiceDetails);
+        emit InvoiceCreated(claimId, invoiceDetails, msg.value);
 
         return claimId;
     }
@@ -238,6 +251,7 @@ contract BullaInvoice is BullaClaimControllerBase {
      */
     function createInvoiceWithMetadata(CreateInvoiceParams memory params, ClaimMetadata memory metadata)
         external
+        payable
         returns (uint256)
     {
         _validateCreateInvoiceParams(params);
@@ -265,7 +279,7 @@ contract BullaInvoice is BullaClaimControllerBase {
 
         _invoiceDetailsByClaimId[claimId] = invoiceDetails;
 
-        emit InvoiceCreated(claimId, invoiceDetails);
+        emit InvoiceCreated(claimId, invoiceDetails, msg.value);
 
         return claimId;
     }
@@ -570,6 +584,12 @@ contract BullaInvoice is BullaClaimControllerBase {
 
         if (params.depositAmount > params.claimAmount) {
             revert InvalidDepositAmount();
+        }
+
+        // Check origination fee based on invoice type
+        uint256 requiredFee = params.deliveryDate != 0 ? purchaseOrderOriginationFee : invoiceOriginationFee;
+        if (msg.value != requiredFee) {
+            revert IncorrectFee();
         }
 
         CompoundInterestLib.validateInterestConfig(params.lateFeeConfig);
