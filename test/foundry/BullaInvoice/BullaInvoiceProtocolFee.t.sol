@@ -55,6 +55,7 @@ contract TestBullaInvoiceProtocolFee is Test {
     event InvoiceCreated(uint256 indexed claimId, InvoiceDetails invoiceDetails);
     event InvoicePaid(uint256 indexed claimId, uint256 grossInterestPaid, uint256 principalPaid, uint256 protocolFee);
     event ProtocolFeeUpdated(uint256 oldFee, uint256 newFee);
+    event FeeWithdrawn(address indexed admin, address indexed token, uint256 amount);
 
     function setUp() public {
         weth = new WETH();
@@ -842,5 +843,171 @@ contract TestBullaInvoiceProtocolFee is Test {
         vm.prank(debtor);
         vm.expectRevert(PayingZero.selector);
         bullaInvoice.payInvoice{value: 0}(invoiceId, 0);
+    }
+
+    // ==================== 10. FEE WITHDRAWN EVENT TESTS ====================
+
+    function testFeeWithdrawnEventEmittedForETH() public {
+        // Create invoice and make payment to accumulate ETH fees
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(1200, 12));
+
+        vm.warp(block.timestamp + 90 days);
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        uint256 accruedInterest = invoice.interestComputationState.accruedInterest;
+
+        vm.prank(debtor);
+        bullaInvoice.payInvoice{value: accruedInterest}(invoiceId, accruedInterest);
+
+        uint256 ethBalance = address(bullaInvoice).balance;
+        assertTrue(ethBalance > 0, "Contract should have ETH balance");
+
+        // Expect FeeWithdrawn event for ETH (address(0))
+        vm.expectEmit(true, true, false, true);
+        emit FeeWithdrawn(admin, address(0), ethBalance);
+
+        vm.prank(admin);
+        bullaInvoice.withdrawAllFees();
+    }
+
+    function testFeeWithdrawnEventEmittedForERC20Token() public {
+        // Create invoice and make payment to accumulate token fees
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(token1), 1 ether, _getInterestConfig(1200, 12));
+
+        vm.warp(block.timestamp + 90 days);
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        uint256 accruedInterest = invoice.interestComputationState.accruedInterest;
+
+        vm.prank(debtor);
+        token1.approve(address(bullaInvoice), accruedInterest);
+        vm.prank(debtor);
+        bullaInvoice.payInvoice(invoiceId, accruedInterest);
+
+        uint256 tokenFees = bullaInvoice.protocolFeesByToken(address(token1));
+        assertTrue(tokenFees > 0, "Contract should have token fees");
+
+        // Expect FeeWithdrawn event for token1
+        vm.expectEmit(true, true, false, true);
+        emit FeeWithdrawn(admin, address(token1), tokenFees);
+
+        vm.prank(admin);
+        bullaInvoice.withdrawAllFees();
+    }
+
+    function testFeeWithdrawnEventEmittedForMultipleTokens() public {
+        // Create invoices for ETH and multiple tokens
+        uint256 ethInvoice = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(1200, 12));
+        uint256 token1Invoice =
+            _createAndSetupInvoice(bullaInvoice, address(token1), 1 ether, _getInterestConfig(1200, 12));
+        uint256 token2Invoice =
+            _createAndSetupInvoice(bullaInvoice, address(token2), 1 ether, _getInterestConfig(1200, 12));
+
+        vm.warp(block.timestamp + 90 days);
+
+        // Make payments on all invoices
+        Invoice memory ethInv = bullaInvoice.getInvoice(ethInvoice);
+        Invoice memory token1Inv = bullaInvoice.getInvoice(token1Invoice);
+        Invoice memory token2Inv = bullaInvoice.getInvoice(token2Invoice);
+
+        uint256 ethInterest = ethInv.interestComputationState.accruedInterest;
+        uint256 token1Interest = token1Inv.interestComputationState.accruedInterest;
+        uint256 token2Interest = token2Inv.interestComputationState.accruedInterest;
+
+        // ETH payment
+        vm.prank(debtor);
+        bullaInvoice.payInvoice{value: ethInterest}(ethInvoice, ethInterest);
+
+        // Token1 payment
+        vm.prank(debtor);
+        token1.approve(address(bullaInvoice), token1Interest);
+        vm.prank(debtor);
+        bullaInvoice.payInvoice(token1Invoice, token1Interest);
+
+        // Token2 payment
+        vm.prank(debtor);
+        token2.approve(address(bullaInvoice), token2Interest);
+        vm.prank(debtor);
+        bullaInvoice.payInvoice(token2Invoice, token2Interest);
+
+        // Get fee amounts before withdrawal
+        uint256 ethBalance = address(bullaInvoice).balance;
+        uint256 token1Fees = bullaInvoice.protocolFeesByToken(address(token1));
+        uint256 token2Fees = bullaInvoice.protocolFeesByToken(address(token2));
+
+        // Expect all three FeeWithdrawn events
+        vm.expectEmit(true, true, false, true);
+        emit FeeWithdrawn(admin, address(0), ethBalance);
+
+        vm.expectEmit(true, true, false, true);
+        emit FeeWithdrawn(admin, address(token1), token1Fees);
+
+        vm.expectEmit(true, true, false, true);
+        emit FeeWithdrawn(admin, address(token2), token2Fees);
+
+        vm.prank(admin);
+        bullaInvoice.withdrawAllFees();
+    }
+
+    function testNoFeeWithdrawnEventWhenNoFeesToWithdraw() public {
+        // No payments made, so no fees accumulated
+        uint256 adminBalanceBefore = admin.balance;
+
+        // Should not emit any FeeWithdrawn events
+        vm.recordLogs();
+
+        vm.prank(admin);
+        bullaInvoice.withdrawAllFees();
+
+        // Check that no FeeWithdrawn events were emitted
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        for (uint256 i = 0; i < logs.length; i++) {
+            // FeeWithdrawn event has signature: keccak256("FeeWithdrawn(address,address,uint256)")
+            assertFalse(
+                logs[i].topics[0] == keccak256("FeeWithdrawn(address,address,uint256)"),
+                "No FeeWithdrawn events should be emitted"
+            );
+        }
+
+        assertEq(admin.balance, adminBalanceBefore, "Admin balance should be unchanged");
+    }
+
+    function testFeeWithdrawnEventNotEmittedForZeroTokenFees() public {
+        // Create invoice and make payment to accumulate token fees
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(token1), 1 ether, _getInterestConfig(1200, 12));
+
+        vm.warp(block.timestamp + 90 days);
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        uint256 accruedInterest = invoice.interestComputationState.accruedInterest;
+
+        vm.prank(debtor);
+        token1.approve(address(bullaInvoice), accruedInterest);
+        vm.prank(debtor);
+        bullaInvoice.payInvoice(invoiceId, accruedInterest);
+
+        // First withdrawal - should emit event
+        uint256 tokenFees = bullaInvoice.protocolFeesByToken(address(token1));
+
+        vm.expectEmit(true, true, false, true);
+        emit FeeWithdrawn(admin, address(token1), tokenFees);
+
+        vm.prank(admin);
+        bullaInvoice.withdrawAllFees();
+
+        // Second withdrawal - should NOT emit event for token1 since fees are now 0
+        vm.recordLogs();
+
+        vm.prank(admin);
+        bullaInvoice.withdrawAllFees();
+
+        // Check that no FeeWithdrawn events were emitted for token1
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].topics[0] == keccak256("FeeWithdrawn(address,address,uint256)")) {
+                // If any FeeWithdrawn event was emitted, it should not be for token1
+                address tokenAddress = address(uint160(uint256(logs[i].topics[2])));
+                assertFalse(
+                    tokenAddress == address(token1), "No FeeWithdrawn event should be emitted for token1 with zero fees"
+                );
+            }
+        }
     }
 }

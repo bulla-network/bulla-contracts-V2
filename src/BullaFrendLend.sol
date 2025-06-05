@@ -91,6 +91,7 @@ contract BullaFrendLend is BullaClaimControllerBase {
     /// @notice grossInterestPaid = interest received by creditor + protocolFee
     event LoanPayment(uint256 indexed claimId, uint256 grossInterestPaid, uint256 principalPaid, uint256 protocolFee);
     event ProtocolFeeUpdated(uint256 oldFee, uint256 newFee);
+    event FeeWithdrawn(address indexed admin, address indexed token, uint256 amount);
 
     ClaimMetadata private _emptyMetadata;
 
@@ -109,6 +110,10 @@ contract BullaFrendLend is BullaClaimControllerBase {
         protocolFeeBPS = _protocolFeeBPS;
         _emptyMetadata = ClaimMetadata({tokenURI: "", attachmentURI: ""});
     }
+
+    ////////////////////////////////
+    // View functions
+    ////////////////////////////////
 
     /**
      * @notice Get the total amount due for a loan including principal and interest
@@ -159,6 +164,10 @@ contract BullaFrendLend is BullaClaimControllerBase {
         });
     }
 
+    ////////////////////////////////
+    // Offer functions
+    ////////////////////////////////
+
     /**
      * @notice Allows a user to create and offer a loan with metadata
      * @param offer The loan offer parameters
@@ -200,6 +209,10 @@ contract BullaFrendLend is BullaClaimControllerBase {
 
         return offerId;
     }
+
+    ////////////////////////////////
+    // Other core functions
+    ////////////////////////////////
 
     /**
      * @notice Allows a debtor or creditor to reject or rescind a loan offer
@@ -283,15 +296,6 @@ contract BullaFrendLend is BullaClaimControllerBase {
     }
 
     /**
-     * @notice Calculate the protocol fee amount based on interest payment
-     * @param grossInterestAmount The interest amount to calculate fee from
-     * @return The protocol fee amount
-     */
-    function _calculateProtocolFee(uint256 grossInterestAmount) private view returns (uint256) {
-        return Math.mulDiv(grossInterestAmount, protocolFeeBPS, MAX_BPS);
-    }
-
-    /**
      * @notice Pays a loan
      * @param claimId The ID of the loan to pay
      * @param paymentAmount The amount to pay
@@ -362,15 +366,21 @@ contract BullaFrendLend is BullaClaimControllerBase {
         return _bullaClaim.markClaimAsPaidFrom(msg.sender, claimId);
     }
 
+    ////////////////////////////////
+    // Admin functions
+    ////////////////////////////////
+
     /**
      * @notice Allows admin to withdraw accumulated protocol fees and loanOffer fees
      */
     function withdrawAllFees() external {
         if (msg.sender != admin) revert NotAdmin();
 
+        uint256 ethBalance = address(this).balance;
         // Withdraw fees related to loan offers in native token
-        if (address(this).balance > 0) {
-            admin.safeTransferETH(address(this).balance);
+        if (ethBalance > 0) {
+            admin.safeTransferETH(ethBalance);
+            emit FeeWithdrawn(admin, address(0), ethBalance);
         }
 
         // Withdraw protocol fees in all tracked tokens
@@ -381,6 +391,7 @@ contract BullaFrendLend is BullaClaimControllerBase {
             if (feeAmount > 0) {
                 protocolFeesByToken[token] = 0; // Reset fee amount before transfer
                 ERC20(token).safeTransfer(admin, feeAmount);
+                emit FeeWithdrawn(admin, token, feeAmount);
             }
         }
     }
@@ -399,6 +410,10 @@ contract BullaFrendLend is BullaClaimControllerBase {
         emit ProtocolFeeUpdated(oldFee, _protocolFeeBPS);
     }
 
+    ////////////////////////////////
+    // Private functions
+    ////////////////////////////////
+
     function _validateLoanOffer(LoanRequestParams calldata offer, bool requestedByCreditor) private view {
         if (msg.value != fee) revert IncorrectFee();
         if (!requestedByCreditor && msg.sender != offer.debtor) {
@@ -409,5 +424,14 @@ contract BullaFrendLend is BullaClaimControllerBase {
         if (offer.impairmentGracePeriod > type(uint40).max) revert InvalidGracePeriod();
 
         CompoundInterestLib.validateInterestConfig(offer.interestConfig);
+    }
+
+    /**
+     * @notice Calculate the protocol fee amount based on interest payment
+     * @param grossInterestAmount The interest amount to calculate fee from
+     * @return The protocol fee amount
+     */
+    function _calculateProtocolFee(uint256 grossInterestAmount) private view returns (uint256) {
+        return Math.mulDiv(grossInterestAmount, protocolFeeBPS, MAX_BPS);
     }
 }
