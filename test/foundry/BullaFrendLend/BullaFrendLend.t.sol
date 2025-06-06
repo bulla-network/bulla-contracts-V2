@@ -30,6 +30,7 @@ import {
 } from "contracts/libraries/CompoundInterestLib.sol";
 import "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
+import "contracts/interfaces/IBullaFrendLend.sol";
 
 contract TestBullaFrendLend is Test {
     WETH public weth;
@@ -108,7 +109,9 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
 
-        (LoanRequestParams memory params, bool requestedByCreditor) = bullaFrendLend.loanOffers(loanId);
+        LoanOffer memory loanOffer = bullaFrendLend.getLoanOffer(loanId);
+        LoanRequestParams memory params = loanOffer.params;
+        bool requestedByCreditor = loanOffer.requestedByCreditor;
 
         assertEq(params.interestConfig.interestRateBps, 500, "Interest BPS mismatch");
         assertEq(params.termLength, 30 days, "Term length mismatch");
@@ -129,7 +132,8 @@ contract TestBullaFrendLend is Test {
         vm.prank(debtor);
         uint256 requestId = bullaFrendLend.offerLoan{value: FEE}(request);
 
-        (LoanRequestParams memory params, bool requestedByCreditor) = bullaFrendLend.loanOffers(requestId);
+        LoanRequestParams memory params = bullaFrendLend.getLoanOffer(requestId).params;
+        bool requestedByCreditor = bullaFrendLend.getLoanOffer(requestId).requestedByCreditor;
 
         assertEq(params.interestConfig.interestRateBps, 750, "Interest BPS mismatch");
         assertEq(params.termLength, 30 days, "Term length mismatch");
@@ -211,7 +215,8 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
 
-        (LoanRequestParams memory params,) = bullaFrendLend.loanOffers(loanId);
+        LoanOffer memory loanOffer = bullaFrendLend.getLoanOffer(loanId);
+        LoanRequestParams memory params = loanOffer.params;
         assertEq(params.interestConfig.interestRateBps, 0, "Interest BPS should be zero");
     }
 
@@ -508,7 +513,8 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         bullaFrendLend.rejectLoanOffer(loanId);
 
-        (LoanRequestParams memory params,) = bullaFrendLend.loanOffers(loanId);
+        LoanOffer memory loanOffer = bullaFrendLend.getLoanOffer(loanId);
+        LoanRequestParams memory params = loanOffer.params;
         assertEq(params.creditor, address(0), "Offer should be deleted after rejection");
     }
 
@@ -522,7 +528,8 @@ contract TestBullaFrendLend is Test {
         vm.prank(debtor);
         bullaFrendLend.rejectLoanOffer(requestId);
 
-        (LoanRequestParams memory params,) = bullaFrendLend.loanOffers(requestId);
+        LoanOffer memory loanOffer = bullaFrendLend.getLoanOffer(requestId);
+        LoanRequestParams memory params = loanOffer.params;
         assertEq(params.debtor, address(0), "Request should be deleted after rejection");
     }
 

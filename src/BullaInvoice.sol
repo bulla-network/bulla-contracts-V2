@@ -2,18 +2,14 @@
 pragma solidity 0.8.15;
 
 import "contracts/interfaces/IBullaClaim.sol";
+import "contracts/interfaces/IBullaInvoice.sol";
 import "contracts/BullaClaimControllerBase.sol";
 import "contracts/types/Types.sol";
 import "contracts/libraries/CompoundInterestLib.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
-
-struct PurchaseOrderState {
-    uint256 deliveryDate; // 0 if not a purchase order
-    bool isDelivered; // false = is still a purchase order, true = is invoice
-    uint256 depositAmount; // deposit amount for purchase orders
-}
+import {ERC165} from "openzeppelin-contracts/contracts/utils/introspection/ERC165.sol";
 
 // Data specific to invoices and not claims
 struct InvoiceDetails {
@@ -38,39 +34,11 @@ error IncorrectFee();
 error NotAdmin();
 error WithdrawalFailed();
 
-struct Invoice {
-    uint256 claimAmount;
-    uint256 paidAmount;
-    Status status;
-    ClaimBinding binding;
-    bool payerReceivesClaimOnPayment;
-    address debtor;
-    address token;
-    uint256 dueBy;
-    PurchaseOrderState purchaseOrder;
-    InterestConfig lateFeeConfig;
-    InterestComputationState interestComputationState;
-}
-
-struct CreateInvoiceParams {
-    address debtor;
-    uint256 claimAmount;
-    uint256 dueBy;
-    uint256 deliveryDate;
-    string description;
-    address token;
-    ClaimBinding binding;
-    bool payerReceivesClaimOnPayment;
-    InterestConfig lateFeeConfig;
-    uint256 impairmentGracePeriod;
-    uint256 depositAmount;
-}
-
 /**
  * @title BullaInvoice
  * @notice A wrapper contract for IBullaClaim that delegates all calls to the provided contract instance
  */
-contract BullaInvoice is BullaClaimControllerBase {
+contract BullaInvoice is BullaClaimControllerBase, ERC165, IBullaInvoice {
     using SafeTransferLib for address;
     using SafeTransferLib for ERC20;
 
@@ -608,5 +576,14 @@ contract BullaInvoice is BullaClaimControllerBase {
      */
     function _calculateProtocolFee(uint256 grossInterestAmount) private view returns (uint256) {
         return Math.mulDiv(grossInterestAmount, protocolFeeBPS, MAX_BPS);
+    }
+
+    /**
+     * @notice Returns true if this contract implements the interface defined by interfaceId
+     * @param interfaceId The interface identifier, as specified in ERC-165
+     * @return True if the contract implements interfaceId
+     */
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return interfaceId == type(IBullaInvoice).interfaceId || super.supportsInterface(interfaceId);
     }
 }
