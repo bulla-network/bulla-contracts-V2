@@ -41,6 +41,9 @@ contract TestBullaFrendLend is Test {
 
     // Events for testing
     event FeeWithdrawn(address indexed admin, address indexed token, uint256 amount);
+    event LoanOffered(
+        uint256 indexed loanId, address indexed offeredBy, LoanRequestParams loanOffer, uint256 originationFee
+    );
 
     uint256 creditorPK = uint256(0x01);
     uint256 debtorPK = uint256(0x02);
@@ -210,6 +213,37 @@ contract TestBullaFrendLend is Test {
 
         (LoanRequestParams memory params,) = bullaFrendLend.loanOffers(loanId);
         assertEq(params.interestConfig.interestRateBps, 0, "Interest BPS should be zero");
+    }
+
+    function testLoanOfferedEventEmittedWithOriginationFee() public {
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 1 ether);
+
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withDescription("Test Loan with Event").build();
+
+        // Expect the LoanOffered event to be emitted with the correct parameters
+        vm.expectEmit(true, true, false, true);
+        emit LoanOffered(1, creditor, offer, FEE);
+
+        vm.prank(creditor);
+        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+
+        assertEq(loanId, 1, "Loan ID should be 1");
+    }
+
+    function testLoanOfferedEventEmittedByDebtorWithOriginationFee() public {
+        LoanRequestParams memory request = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withDescription("Test Request with Event").build();
+
+        // Expect the LoanOffered event to be emitted with the correct parameters (by debtor)
+        vm.expectEmit(true, true, false, true);
+        emit LoanOffered(1, debtor, request, FEE);
+
+        vm.prank(debtor);
+        uint256 requestId = bullaFrendLend.offerLoan{value: FEE}(request);
+
+        assertEq(requestId, 1, "Request ID should be 1");
     }
 
     function testCannotAcceptCreditorOfferIfNotDebtor() public {

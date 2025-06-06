@@ -85,7 +85,9 @@ contract BullaFrendLend is BullaClaimControllerBase {
     mapping(uint256 => LoanDetails) private _loanDetailsByClaimId;
     mapping(uint256 => ClaimMetadata) public loanOfferMetadata;
 
-    event LoanOffered(uint256 indexed loanId, address indexed offeredBy, LoanRequestParams loanOffer);
+    event LoanOffered(
+        uint256 indexed loanId, address indexed offeredBy, LoanRequestParams loanOffer, uint256 originationFee
+    );
     event LoanOfferAccepted(uint256 indexed loanId, uint256 indexed claimId);
     event LoanOfferRejected(uint256 indexed loanId, address indexed rejectedBy);
     /// @notice grossInterestPaid = interest received by creditor + protocolFee
@@ -205,7 +207,7 @@ contract BullaFrendLend is BullaClaimControllerBase {
             loanOfferMetadata[offerId] = metadata;
         }
 
-        emit LoanOffered(offerId, msg.sender, offer);
+        emit LoanOffered(offerId, msg.sender, offer, msg.value);
 
         return offerId;
     }
