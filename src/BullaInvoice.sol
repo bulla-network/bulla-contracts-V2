@@ -2,24 +2,20 @@
 pragma solidity 0.8.15;
 
 import "contracts/interfaces/IBullaClaim.sol";
+import "contracts/interfaces/IBullaInvoice.sol";
 import "contracts/BullaClaimControllerBase.sol";
 import "contracts/types/Types.sol";
 import "contracts/libraries/CompoundInterestLib.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
-
-struct PurchaseOrderState {
-    uint256 deliveryDate; // 0 if not a purchase order
-    bool isDelivered; // false = is still a purchase order, true = is invoice
-}
+import {ERC165} from "openzeppelin-contracts/contracts/utils/introspection/ERC165.sol";
 
 // Data specific to invoices and not claims
 struct InvoiceDetails {
     PurchaseOrderState purchaseOrder;
     InterestConfig lateFeeConfig;
     InterestComputationState interestComputationState;
-    uint256 depositAmount; // deposit amount for purchase orders
 }
 
 error CreditorCannotBeDebtor();
@@ -34,47 +30,22 @@ error NotAuthorizedForBinding();
 error InvalidMsgValue();
 error InvalidProtocolFee();
 error IncorrectMsgValue();
+error IncorrectFee();
 error NotAdmin();
 error WithdrawalFailed();
-
-struct Invoice {
-    uint256 claimAmount;
-    uint256 paidAmount;
-    Status status;
-    ClaimBinding binding;
-    bool payerReceivesClaimOnPayment;
-    address debtor;
-    address token;
-    uint256 dueBy;
-    PurchaseOrderState purchaseOrder;
-    InterestConfig lateFeeConfig;
-    InterestComputationState interestComputationState;
-}
-
-struct CreateInvoiceParams {
-    address debtor;
-    uint256 claimAmount;
-    uint256 dueBy;
-    uint256 deliveryDate;
-    string description;
-    address token;
-    ClaimBinding binding;
-    bool payerReceivesClaimOnPayment;
-    InterestConfig lateFeeConfig;
-    uint256 impairmentGracePeriod;
-    uint256 depositAmount;
-}
 
 /**
  * @title BullaInvoice
  * @notice A wrapper contract for IBullaClaim that delegates all calls to the provided contract instance
  */
-contract BullaInvoice is BullaClaimControllerBase {
+contract BullaInvoice is BullaClaimControllerBase, ERC165, IBullaInvoice {
     using SafeTransferLib for address;
     using SafeTransferLib for ERC20;
 
     address public admin;
     uint256 public protocolFeeBPS;
+    uint256 public invoiceOriginationFee;
+    uint256 public purchaseOrderOriginationFee;
 
     address[] public protocolFeeTokens;
     mapping(address => uint256) public protocolFeesByToken;
@@ -82,7 +53,7 @@ contract BullaInvoice is BullaClaimControllerBase {
 
     mapping(uint256 => InvoiceDetails) private _invoiceDetailsByClaimId;
 
-    event InvoiceCreated(uint256 indexed claimId, InvoiceDetails invoiceDetails);
+    event InvoiceCreated(uint256 indexed claimId, InvoiceDetails invoiceDetails, uint256 originationFee);
     event InvoicePaid(uint256 indexed claimId, uint256 grossInterestPaid, uint256 principalPaid, uint256 protocolFee);
     event ProtocolFeeUpdated(uint256 oldFee, uint256 newFee);
     event PurchaseOrderDelivered(uint256 indexed claimId);
@@ -92,12 +63,22 @@ contract BullaInvoice is BullaClaimControllerBase {
      * @param bullaClaim Address of the IBullaClaim contract to delegate calls to
      * @param _admin Address of the contract administrator
      * @param _protocolFeeBPS Protocol fee in basis points taken from interest payments
+     * @param _invoiceOriginationFee Fee required to create an invoice
+     * @param _purchaseOrderOriginationFee Fee required to create a purchase order
      */
 
-    constructor(address bullaClaim, address _admin, uint256 _protocolFeeBPS) BullaClaimControllerBase(bullaClaim) {
+    constructor(
+        address bullaClaim,
+        address _admin,
+        uint256 _protocolFeeBPS,
+        uint256 _invoiceOriginationFee,
+        uint256 _purchaseOrderOriginationFee
+    ) BullaClaimControllerBase(bullaClaim) {
         admin = _admin;
         if (_protocolFeeBPS > MAX_BPS) revert InvalidProtocolFee();
         protocolFeeBPS = _protocolFeeBPS;
+        invoiceOriginationFee = _invoiceOriginationFee;
+        purchaseOrderOriginationFee = _purchaseOrderOriginationFee;
     }
 
     /**
@@ -148,7 +129,7 @@ contract BullaInvoice is BullaClaimControllerBase {
 
         // Check if this is a purchase order that hasn't been delivered yet
         if (invoiceDetails.purchaseOrder.deliveryDate != 0 && !invoiceDetails.purchaseOrder.isDelivered) {
-            if (invoiceDetails.depositAmount > claim.paidAmount) {
+            if (invoiceDetails.purchaseOrder.depositAmount > claim.paidAmount) {
                 // Calculate accrued interest and update the stored state for active claims
                 InterestComputationState memory interestComputationState = CompoundInterestLib.computeInterest(
                     claim.claimAmount - claim.paidAmount,
@@ -182,8 +163,8 @@ contract BullaInvoice is BullaClaimControllerBase {
         InterestComputationState memory interestComputationState
     ) private pure returns (uint256) {
         if (invoiceDetails.purchaseOrder.deliveryDate != 0 && !invoiceDetails.purchaseOrder.isDelivered) {
-            if (invoiceDetails.depositAmount > claim.paidAmount) {
-                uint256 remainingPrincipalDeposit = invoiceDetails.depositAmount - claim.paidAmount;
+            if (invoiceDetails.purchaseOrder.depositAmount > claim.paidAmount) {
+                uint256 remainingPrincipalDeposit = invoiceDetails.purchaseOrder.depositAmount - claim.paidAmount;
 
                 // Total amount needed = all accrued interest + remaining principal deposit
                 // payInvoice will pay interest first, then principal
@@ -199,7 +180,7 @@ contract BullaInvoice is BullaClaimControllerBase {
      * @param params The parameters for creating an invoice
      * @return The ID of the created invoice
      */
-    function createInvoice(CreateInvoiceParams memory params) external returns (uint256) {
+    function createInvoice(CreateInvoiceParams memory params) external payable returns (uint256) {
         _validateCreateInvoiceParams(params);
 
         CreateClaimParams memory createClaimParams = CreateClaimParams({
@@ -217,15 +198,18 @@ contract BullaInvoice is BullaClaimControllerBase {
         uint256 claimId = _bullaClaim.createClaimFrom(msg.sender, createClaimParams);
 
         InvoiceDetails memory invoiceDetails = InvoiceDetails({
-            purchaseOrder: PurchaseOrderState({deliveryDate: params.deliveryDate, isDelivered: false}),
+            purchaseOrder: PurchaseOrderState({
+                deliveryDate: params.deliveryDate,
+                isDelivered: false,
+                depositAmount: params.depositAmount
+            }),
             lateFeeConfig: params.lateFeeConfig,
-            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0}),
-            depositAmount: params.depositAmount
+            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
         });
 
         _invoiceDetailsByClaimId[claimId] = invoiceDetails;
 
-        emit InvoiceCreated(claimId, invoiceDetails);
+        emit InvoiceCreated(claimId, invoiceDetails, msg.value);
 
         return claimId;
     }
@@ -238,6 +222,7 @@ contract BullaInvoice is BullaClaimControllerBase {
      */
     function createInvoiceWithMetadata(CreateInvoiceParams memory params, ClaimMetadata memory metadata)
         external
+        payable
         returns (uint256)
     {
         _validateCreateInvoiceParams(params);
@@ -257,15 +242,18 @@ contract BullaInvoice is BullaClaimControllerBase {
         uint256 claimId = _bullaClaim.createClaimWithMetadataFrom(msg.sender, createClaimParams, metadata);
 
         InvoiceDetails memory invoiceDetails = InvoiceDetails({
-            purchaseOrder: PurchaseOrderState({deliveryDate: params.deliveryDate, isDelivered: false}),
+            purchaseOrder: PurchaseOrderState({
+                deliveryDate: params.deliveryDate,
+                isDelivered: false,
+                depositAmount: params.depositAmount
+            }),
             lateFeeConfig: params.lateFeeConfig,
-            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0}),
-            depositAmount: params.depositAmount
+            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
         });
 
         _invoiceDetailsByClaimId[claimId] = invoiceDetails;
 
-        emit InvoiceCreated(claimId, invoiceDetails);
+        emit InvoiceCreated(claimId, invoiceDetails, msg.value);
 
         return claimId;
     }
@@ -572,6 +560,12 @@ contract BullaInvoice is BullaClaimControllerBase {
             revert InvalidDepositAmount();
         }
 
+        // Check origination fee based on invoice type
+        uint256 requiredFee = params.deliveryDate != 0 ? purchaseOrderOriginationFee : invoiceOriginationFee;
+        if (msg.value != requiredFee) {
+            revert IncorrectFee();
+        }
+
         CompoundInterestLib.validateInterestConfig(params.lateFeeConfig);
     }
 
@@ -582,5 +576,14 @@ contract BullaInvoice is BullaClaimControllerBase {
      */
     function _calculateProtocolFee(uint256 grossInterestAmount) private view returns (uint256) {
         return Math.mulDiv(grossInterestAmount, protocolFeeBPS, MAX_BPS);
+    }
+
+    /**
+     * @notice Returns true if this contract implements the interface defined by interfaceId
+     * @param interfaceId The interface identifier, as specified in ERC-165
+     * @return True if the contract implements interfaceId
+     */
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return interfaceId == type(IBullaInvoice).interfaceId || super.supportsInterface(interfaceId);
     }
 }

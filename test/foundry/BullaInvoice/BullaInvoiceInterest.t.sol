@@ -53,7 +53,7 @@ contract TestBullaInvoiceInterest is Test {
 
         bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
         sigHelper = new EIP712Helper(address(bullaClaim));
-        bullaInvoice = new BullaInvoice(address(bullaClaim), admin, 0);
+        bullaInvoice = new BullaInvoice(address(bullaClaim), admin, 0, 0 ether, 0 ether);
 
         vm.prank(debtor);
         token.approve(address(bullaInvoice), type(uint256).max);
