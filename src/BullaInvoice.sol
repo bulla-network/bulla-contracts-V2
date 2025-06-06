@@ -160,11 +160,8 @@ contract BullaInvoice is BullaClaimControllerBase {
                     _invoiceDetailsByClaimId[claimId].interestComputationState = interestComputationState;
                 }
 
-                return _getTotalAmountNeededForPurchaseOrderDepositUnsafe(
-                    claim,
-                    invoiceDetails,
-                    interestComputationState
-                );
+                return
+                    _getTotalAmountNeededForPurchaseOrderDepositUnsafe(claim, invoiceDetails, interestComputationState);
             }
         }
 
@@ -490,20 +487,18 @@ contract BullaInvoice is BullaClaimControllerBase {
                     revert InvalidMsgValue();
                 }
             }
-            
+
             // Use payInvoice to handle payment (interest already calculated and stored above)
             payInvoice(claimId, depositAmount);
-            
+
             // After payment, get updated claim data and use unsafe version
             Claim memory updatedClaim = _bullaClaim.getClaim(claimId);
             InvoiceDetails memory updatedInvoiceDetails = _invoiceDetailsByClaimId[claimId];
-            
+
             uint256 totalAmountNeeded = _getTotalAmountNeededForPurchaseOrderDepositUnsafe(
-                updatedClaim,
-                updatedInvoiceDetails,
-                updatedInvoiceDetails.interestComputationState
+                updatedClaim, updatedInvoiceDetails, updatedInvoiceDetails.interestComputationState
             );
-            
+
             if (totalAmountNeeded == 0) {
                 _bullaClaim.updateBindingFrom(msg.sender, claimId, ClaimBinding.Bound);
             }
@@ -512,14 +507,11 @@ contract BullaInvoice is BullaClaimControllerBase {
             if (msg.value != 0) {
                 revert InvalidMsgValue();
             }
-            
+
             // Use the already calculated interest computation state
-            uint256 totalAmountNeeded = _getTotalAmountNeededForPurchaseOrderDepositUnsafe(
-                claim,
-                invoiceDetails,
-                interestComputationState
-            );
-            
+            uint256 totalAmountNeeded =
+                _getTotalAmountNeededForPurchaseOrderDepositUnsafe(claim, invoiceDetails, interestComputationState);
+
             if (totalAmountNeeded == 0) {
                 _bullaClaim.updateBindingFrom(msg.sender, claimId, ClaimBinding.Bound);
             }
