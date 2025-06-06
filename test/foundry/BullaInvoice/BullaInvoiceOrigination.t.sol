@@ -124,10 +124,9 @@ contract TestBullaInvoiceOrigination is Test {
 
         // Expected InvoiceDetails struct
         InvoiceDetails memory expectedInvoiceDetails = InvoiceDetails({
-            purchaseOrder: PurchaseOrderState({deliveryDate: 0, isDelivered: false}),
+            purchaseOrder: PurchaseOrderState({deliveryDate: 0, isDelivered: false, depositAmount: 0}),
             lateFeeConfig: InterestConfig({interestRateBps: 0, numberOfPeriodsPerYear: 0}),
-            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0}),
-            depositAmount: 0
+            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
         });
 
         // Expect InvoiceCreated event
@@ -160,10 +159,9 @@ contract TestBullaInvoiceOrigination is Test {
 
         // Expected InvoiceDetails struct
         InvoiceDetails memory expectedInvoiceDetails = InvoiceDetails({
-            purchaseOrder: PurchaseOrderState({deliveryDate: block.timestamp + 1 days, isDelivered: false}),
+            purchaseOrder: PurchaseOrderState({deliveryDate: block.timestamp + 1 days, isDelivered: false, depositAmount: 0}),
             lateFeeConfig: InterestConfig({interestRateBps: 0, numberOfPeriodsPerYear: 0}),
-            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0}),
-            depositAmount: 0
+            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
         });
 
         // Expect InvoiceCreated event
@@ -230,10 +228,9 @@ contract TestBullaInvoiceOrigination is Test {
 
         // Expected InvoiceDetails struct
         InvoiceDetails memory expectedInvoiceDetails = InvoiceDetails({
-            purchaseOrder: PurchaseOrderState({deliveryDate: block.timestamp, isDelivered: false}),
+            purchaseOrder: PurchaseOrderState({deliveryDate: block.timestamp, isDelivered: false, depositAmount: 0}),
             lateFeeConfig: InterestConfig({interestRateBps: 0, numberOfPeriodsPerYear: 0}),
-            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0}),
-            depositAmount: 0
+            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
         });
 
         // Expect InvoiceCreated event
@@ -253,10 +250,9 @@ contract TestBullaInvoiceOrigination is Test {
 
         // Expected InvoiceDetails struct
         InvoiceDetails memory expectedInvoiceDetails = InvoiceDetails({
-            purchaseOrder: PurchaseOrderState({deliveryDate: 0, isDelivered: false}),
+            purchaseOrder: PurchaseOrderState({deliveryDate: 0, isDelivered: false, depositAmount: 0}),
             lateFeeConfig: InterestConfig({interestRateBps: 0, numberOfPeriodsPerYear: 0}),
-            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0}),
-            depositAmount: 0
+            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
         });
 
         // Expect InvoiceCreated event with zero fee
@@ -287,18 +283,16 @@ contract TestBullaInvoiceOrigination is Test {
 
         // Expected InvoiceDetails for invoice
         InvoiceDetails memory expectedInvoiceDetails = InvoiceDetails({
-            purchaseOrder: PurchaseOrderState({deliveryDate: 0, isDelivered: false}),
+            purchaseOrder: PurchaseOrderState({deliveryDate: 0, isDelivered: false, depositAmount: 0}),
             lateFeeConfig: InterestConfig({interestRateBps: 0, numberOfPeriodsPerYear: 0}),
-            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0}),
-            depositAmount: 0
+            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
         });
 
         // Expected InvoiceDetails for purchase order
         InvoiceDetails memory expectedPurchaseOrderDetails = InvoiceDetails({
-            purchaseOrder: PurchaseOrderState({deliveryDate: block.timestamp + 1 days, isDelivered: false}),
+            purchaseOrder: PurchaseOrderState({deliveryDate: block.timestamp + 1 days, isDelivered: false, depositAmount: 0}),
             lateFeeConfig: InterestConfig({interestRateBps: 0, numberOfPeriodsPerYear: 0}),
-            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0}),
-            depositAmount: 0
+            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
         });
 
         // Create invoice
@@ -344,10 +338,9 @@ contract TestBullaInvoiceOrigination is Test {
 
         // Expected InvoiceDetails struct
         InvoiceDetails memory expectedInvoiceDetails = InvoiceDetails({
-            purchaseOrder: PurchaseOrderState({deliveryDate: 0, isDelivered: false}),
+            purchaseOrder: PurchaseOrderState({deliveryDate: 0, isDelivered: false, depositAmount: 0}),
             lateFeeConfig: InterestConfig({interestRateBps: 0, numberOfPeriodsPerYear: 0}),
-            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0}),
-            depositAmount: 0
+            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
         });
 
         // Expect InvoiceCreated event

@@ -12,6 +12,7 @@ import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 struct PurchaseOrderState {
     uint256 deliveryDate; // 0 if not a purchase order
     bool isDelivered; // false = is still a purchase order, true = is invoice
+    uint256 depositAmount; // deposit amount for purchase orders
 }
 
 // Data specific to invoices and not claims
@@ -19,7 +20,6 @@ struct InvoiceDetails {
     PurchaseOrderState purchaseOrder;
     InterestConfig lateFeeConfig;
     InterestComputationState interestComputationState;
-    uint256 depositAmount; // deposit amount for purchase orders
 }
 
 error CreditorCannotBeDebtor();
@@ -161,7 +161,7 @@ contract BullaInvoice is BullaClaimControllerBase {
 
         // Check if this is a purchase order that hasn't been delivered yet
         if (invoiceDetails.purchaseOrder.deliveryDate != 0 && !invoiceDetails.purchaseOrder.isDelivered) {
-            if (invoiceDetails.depositAmount > claim.paidAmount) {
+            if (invoiceDetails.purchaseOrder.depositAmount > claim.paidAmount) {
                 // Calculate accrued interest and update the stored state for active claims
                 InterestComputationState memory interestComputationState = CompoundInterestLib.computeInterest(
                     claim.claimAmount - claim.paidAmount,
@@ -195,8 +195,8 @@ contract BullaInvoice is BullaClaimControllerBase {
         InterestComputationState memory interestComputationState
     ) private pure returns (uint256) {
         if (invoiceDetails.purchaseOrder.deliveryDate != 0 && !invoiceDetails.purchaseOrder.isDelivered) {
-            if (invoiceDetails.depositAmount > claim.paidAmount) {
-                uint256 remainingPrincipalDeposit = invoiceDetails.depositAmount - claim.paidAmount;
+            if (invoiceDetails.purchaseOrder.depositAmount > claim.paidAmount) {
+                uint256 remainingPrincipalDeposit = invoiceDetails.purchaseOrder.depositAmount - claim.paidAmount;
 
                 // Total amount needed = all accrued interest + remaining principal deposit
                 // payInvoice will pay interest first, then principal
@@ -230,10 +230,13 @@ contract BullaInvoice is BullaClaimControllerBase {
         uint256 claimId = _bullaClaim.createClaimFrom(msg.sender, createClaimParams);
 
         InvoiceDetails memory invoiceDetails = InvoiceDetails({
-            purchaseOrder: PurchaseOrderState({deliveryDate: params.deliveryDate, isDelivered: false}),
+            purchaseOrder: PurchaseOrderState({
+                deliveryDate: params.deliveryDate,
+                isDelivered: false,
+                depositAmount: params.depositAmount
+            }),
             lateFeeConfig: params.lateFeeConfig,
-            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0}),
-            depositAmount: params.depositAmount
+            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
         });
 
         _invoiceDetailsByClaimId[claimId] = invoiceDetails;
@@ -271,10 +274,13 @@ contract BullaInvoice is BullaClaimControllerBase {
         uint256 claimId = _bullaClaim.createClaimWithMetadataFrom(msg.sender, createClaimParams, metadata);
 
         InvoiceDetails memory invoiceDetails = InvoiceDetails({
-            purchaseOrder: PurchaseOrderState({deliveryDate: params.deliveryDate, isDelivered: false}),
+            purchaseOrder: PurchaseOrderState({
+                deliveryDate: params.deliveryDate,
+                isDelivered: false,
+                depositAmount: params.depositAmount
+            }),
             lateFeeConfig: params.lateFeeConfig,
-            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0}),
-            depositAmount: params.depositAmount
+            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
         });
 
         _invoiceDetailsByClaimId[claimId] = invoiceDetails;
