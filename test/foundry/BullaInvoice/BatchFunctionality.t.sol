@@ -20,10 +20,11 @@ import {
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {BullaInvoice, CreateInvoiceParams, Invoice} from "src/BullaInvoice.sol";
 import {Deployer} from "script/Deployment.s.sol";
-import {BullaClaimTestHelper, EIP712Helper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
+import {BullaInvoiceTestHelper} from "test/foundry/BullaInvoice/BullaInvoiceTestHelper.sol";
+import {EIP712Helper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {CreateInvoiceParamsBuilder} from "test/foundry/BullaInvoice/CreateInvoiceParamsBuilder.sol";
 
-contract TestBullaInvoiceBatchFunctionality is BullaClaimTestHelper {
+contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
     uint256 creditorPK = uint256(0x01);
     uint256 debtorPK = uint256(0x02);
     uint256 charliePK = uint256(0x03);
@@ -34,7 +35,6 @@ contract TestBullaInvoiceBatchFunctionality is BullaClaimTestHelper {
     address charlie = vm.addr(charliePK);
     address alice = vm.addr(alicePK);
     
-    BullaInvoice public bullaInvoice;
     ERC20PermitMock public permitToken;
     
     function setUp() public {
@@ -71,46 +71,6 @@ contract TestBullaInvoiceBatchFunctionality is BullaClaimTestHelper {
 
     /*///////////////////// HELPER FUNCTIONS FOR PERMISSIONS /////////////////////*/
 
-    function _setupCreateInvoicePermissions(address user, uint64 count) internal {
-        uint256 userPK = _getUserPK(user);
-        _permitCreateClaim(userPK, address(bullaInvoice), count);
-    }
-
-    function _setupCreateInvoicePermissions(address user) internal {
-        _setupCreateInvoicePermissions(user, 1);
-    }
-
-    function _setupPayInvoicePermissions(address user) internal {
-        uint256 userPK = _getUserPK(user);
-        _permitPayClaim(
-            userPK,
-            address(bullaInvoice),
-            PayClaimApprovalType.IsApprovedForAll,
-            0,
-            new ClaimPaymentApprovalParam[](0)
-        );
-    }
-
-    function _setupUpdateBindingPermissions(address user, uint64 count) internal {
-        uint256 userPK = _getUserPK(user);
-        _permitUpdateBinding(userPK, address(bullaInvoice), count);
-    }
-
-    function _setupCancelInvoicePermissions(address user, uint64 count) internal {
-        uint256 userPK = _getUserPK(user);
-        _permitCancelClaim(userPK, address(bullaInvoice), count);
-    }
-
-    function _setupImpairInvoicePermissions(address user, uint64 count) internal {
-        uint256 userPK = _getUserPK(user);
-        _permitImpairClaim(userPK, address(bullaInvoice), count);
-    }
-
-    function _setupMarkAsPaidPermissions(address user, uint64 count) internal {
-        uint256 userPK = _getUserPK(user);
-        _permitMarkAsPaid(userPK, address(bullaInvoice), count);
-    }
-
     function _getUserPK(address user) internal view returns (uint256) {
         if (user == creditor) return creditorPK;
         if (user == debtor) return debtorPK;
@@ -130,8 +90,8 @@ contract TestBullaInvoiceBatchFunctionality is BullaClaimTestHelper {
     }
 
     function testBatch_SingleOperation() public {
-        // Setup permissions
-        _setupCreateInvoicePermissions(creditor);
+        // Setup permissions using helper
+        _permitCreateInvoice(creditorPK);
         
         bytes[] memory calls = new bytes[](1);
         
@@ -151,8 +111,8 @@ contract TestBullaInvoiceBatchFunctionality is BullaClaimTestHelper {
     }
 
     function testBatch_MultipleHomogeneousOperations() public {
-        // Setup permissions for multiple invoice creations
-        _setupCreateInvoicePermissions(creditor, 3);
+        // Setup permissions for multiple invoice creations using helper
+        _permitCreateInvoice(creditorPK, 3);
         
         bytes[] memory calls = new bytes[](3);
         
@@ -188,7 +148,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaClaimTestHelper {
 
     function testBatch_RevertOnFail_True() public {
         // Setup permissions for multiple invoice creations
-        _setupCreateInvoicePermissions(creditor, 3);
+        _permitCreateInvoice(creditorPK, 3);
         
         bytes[] memory calls = new bytes[](3);
         
@@ -220,7 +180,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaClaimTestHelper {
 
     function testBatch_RevertOnFail_False() public {
         // Setup permissions for multiple invoice creations
-        _setupCreateInvoicePermissions(creditor, 3);
+        _permitCreateInvoice(creditorPK, 3);
         
         bytes[] memory calls = new bytes[](3);
         
@@ -259,7 +219,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaClaimTestHelper {
 
     function testBatch_CreateInvoicesWithMetadata() public {
         // Setup permissions for multiple invoice creations
-        _setupCreateInvoicePermissions(creditor, 2);
+        _permitCreateInvoice(creditorPK, 2);
         
         ClaimMetadata memory metadata1 = ClaimMetadata({
             tokenURI: "https://example.com/1",
@@ -299,7 +259,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaClaimTestHelper {
 
     function testBatch_PayMultipleInvoices_ERC20() public {
         // Create WETH invoices first (not ETH invoices)
-        _setupCreateInvoicePermissions(creditor, 3);
+        _permitCreateInvoice(creditorPK, 3);
         
         vm.startPrank(creditor);
         uint256 invoiceId1 = bullaInvoice.createInvoice(
@@ -313,8 +273,8 @@ contract TestBullaInvoiceBatchFunctionality is BullaClaimTestHelper {
         );
         vm.stopPrank();
         
-        // Setup payment permissions
-        _setupPayInvoicePermissions(debtor);
+        // Setup payment permissions using helper
+        _permitPayInvoice(debtorPK);
         
         // Ensure debtor has WETH tokens
         vm.prank(debtor);
@@ -350,7 +310,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaClaimTestHelper {
 
     function testBatch_PayMultipleInvoices_ETH() public {
         // Setup permissions first
-        _setupCreateInvoicePermissions(creditor, 2);
+        _permitCreateInvoice(creditorPK, 2);
         
         // Create ETH invoices
         vm.startPrank(creditor);
@@ -362,8 +322,8 @@ contract TestBullaInvoiceBatchFunctionality is BullaClaimTestHelper {
         );
         vm.stopPrank();
         
-        // Setup payment permissions
-        _setupPayInvoicePermissions(debtor);
+        // Setup payment permissions using helper
+        _permitPayInvoice(debtorPK);
         
         // NOTE: Due to BullaInvoice's strict msg.value check (msg.value must equal paymentAmount exactly),
         // ETH payments cannot be batched the same way as in BullaClaim. Each payment must be called individually.
@@ -391,7 +351,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaClaimTestHelper {
 
     function testBatch_UpdateMultipleBindings() public {
         // Setup permissions for creating 2 invoices
-        _setupCreateInvoicePermissions(creditor, 2);
+        _permitCreateInvoice(creditorPK, 2);
         
         // Create invoices
         vm.startPrank(creditor);
@@ -403,8 +363,8 @@ contract TestBullaInvoiceBatchFunctionality is BullaClaimTestHelper {
         );
         vm.stopPrank();
         
-        // Setup update binding permissions
-        _setupUpdateBindingPermissions(creditor, 2);
+        // Setup update binding permissions using helper
+        _permitUpdateInvoiceBinding(creditorPK, 2);
         
         bytes[] memory calls = new bytes[](2);
         
@@ -423,7 +383,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaClaimTestHelper {
 
     function testBatch_CancelMultipleInvoices() public {
         // Setup permissions for creating 2 invoices
-        _setupCreateInvoicePermissions(creditor, 2);
+        _permitCreateInvoice(creditorPK, 2);
         
         // Create invoices
         vm.startPrank(creditor);
@@ -435,8 +395,8 @@ contract TestBullaInvoiceBatchFunctionality is BullaClaimTestHelper {
         );
         vm.stopPrank();
         
-        // Setup cancel permissions
-        _setupCancelInvoicePermissions(creditor, 2);
+        // Setup cancel permissions using helper
+        _permitCancelInvoice(creditorPK, 2);
         
         bytes[] memory calls = new bytes[](2);
         
@@ -459,7 +419,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaClaimTestHelper {
         uint256 pastDueBy = block.timestamp + 1 days;
         
         // Setup permissions first
-        _setupCreateInvoicePermissions(creditor, 2);
+        _permitCreateInvoice(creditorPK, 2);
         
         vm.startPrank(creditor);
         uint256 invoiceId1 = bullaInvoice.createInvoice(
@@ -481,8 +441,8 @@ contract TestBullaInvoiceBatchFunctionality is BullaClaimTestHelper {
         // Move time forward past due date and grace period
         vm.warp(pastDueBy + 2 hours);
         
-        // Setup impair permissions
-        _setupImpairInvoicePermissions(creditor, 2);
+        // Setup impair permissions using helper
+        _permitImpairInvoice(creditorPK, 2);
         
         bytes[] memory calls = new bytes[](2);
         
@@ -502,7 +462,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaClaimTestHelper {
 
     function testBatch_MarkMultipleAsPaid() public {
         // Setup permissions for creating 2 invoices
-        _setupCreateInvoicePermissions(creditor, 2);
+        _permitCreateInvoice(creditorPK, 2);
         
         // Create invoices
         vm.startPrank(creditor);
@@ -514,8 +474,8 @@ contract TestBullaInvoiceBatchFunctionality is BullaClaimTestHelper {
         );
         vm.stopPrank();
         
-        // Setup mark as paid permissions
-        _setupMarkAsPaidPermissions(creditor, 2);
+        // Setup mark as paid permissions using helper
+        _permitMarkInvoiceAsPaid(creditorPK, 2);
         
         bytes[] memory calls = new bytes[](2);
         
@@ -535,7 +495,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaClaimTestHelper {
 
     function testBatch_DeliverMultiplePurchaseOrders() public {
         // Setup permissions first
-        _setupCreateInvoicePermissions(creditor, 2);
+        _permitCreateInvoice(creditorPK, 2);
         
         // Create purchase orders with delivery dates
         vm.startPrank(creditor);
@@ -659,7 +619,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaClaimTestHelper {
         uint256 numInvoices = 10;
         
         // Setup permissions for multiple invoice creations
-        _setupCreateInvoicePermissions(creditor, uint64(numInvoices));
+        _permitCreateInvoice(creditorPK, uint64(numInvoices));
         
         bytes[] memory calls = new bytes[](numInvoices);
         
@@ -681,7 +641,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaClaimTestHelper {
     /*///////////////////// HELPER FUNCTIONS /////////////////////*/
 
     function _newInvoice(address _creditor, address _debtor) internal returns (uint256) {
-        _setupCreateInvoicePermissions(_creditor);
+        _permitCreateInvoice(_getUserPK(_creditor));
         
         vm.prank(_creditor);
         return bullaInvoice.createInvoice(
