@@ -10,6 +10,7 @@ import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import {
     InterestConfig, InterestComputationState, CompoundInterestLib
 } from "contracts/libraries/CompoundInterestLib.sol";
+import {BoringBatchable} from "contracts/libraries/BoringBatchable.sol";
 
 uint256 constant MAX_BPS = 10_000;
 
@@ -68,7 +69,7 @@ struct Loan {
  * @notice A wrapper contract for IBullaClaim that allows both creditors to offer loans that debtors can accept,
  *         and debtors to request loans that creditors can accept
  */
-contract BullaFrendLend is BullaClaimControllerBase {
+contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable {
     using SafeTransferLib for ERC20;
     using SafeTransferLib for address;
 

@@ -246,6 +246,102 @@ contract EIP712Helper {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
         return abi.encodePacked(r, s, v);
     }
+
+    /*///////////////////// ERC20 PERMIT FUNCTIONALITY /////////////////////*/
+
+    /// @notice Creates an ERC20 permit digest for signing
+    /// @param token The ERC20 token contract address
+    /// @param owner The token owner
+    /// @param spender The approved spender
+    /// @param value The approval amount
+    /// @param deadline The permit deadline
+    /// @return The digest to be signed
+    function getERC20PermitDigest(
+        address token,
+        address owner,
+        address spender,
+        uint256 value,
+        uint256 deadline
+    ) public view returns (bytes32) {
+        // ERC20 Permit typehash as defined in EIP-2612
+        bytes32 PERMIT_TYPEHASH = keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+        
+        // Get the token's nonce for this owner
+        uint256 nonce;
+        (bool success, bytes memory data) = token.staticcall(abi.encodeWithSignature("nonces(address)", owner));
+        if (success && data.length >= 32) {
+            nonce = abi.decode(data, (uint256));
+        }
+        
+        // Get the token's domain separator
+        bytes32 domainSeparator;
+        (success, data) = token.staticcall(abi.encodeWithSignature("DOMAIN_SEPARATOR()"));
+        if (success && data.length >= 32) {
+            domainSeparator = abi.decode(data, (bytes32));
+        }
+        
+        bytes32 structHash = keccak256(
+            abi.encode(
+                PERMIT_TYPEHASH,
+                owner,
+                spender,
+                value,
+                nonce,
+                deadline
+            )
+        );
+        
+        return keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                domainSeparator,
+                structHash
+            )
+        );
+    }
+
+    /// @notice Signs an ERC20 permit
+    /// @param pk The private key to sign with
+    /// @param token The ERC20 token contract address
+    /// @param owner The token owner
+    /// @param spender The approved spender
+    /// @param value The approval amount
+    /// @param deadline The permit deadline
+    /// @return The signature bytes (r, s, v format)
+    function signERC20Permit(
+        uint256 pk,
+        address token,
+        address owner,
+        address spender,
+        uint256 value,
+        uint256 deadline
+    ) public returns (bytes memory) {
+        bytes32 digest = getERC20PermitDigest(token, owner, spender, value, deadline);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
+        return abi.encodePacked(r, s, v);
+    }
+
+    /// @notice Signs an ERC20 permit and returns v, r, s components separately
+    /// @param pk The private key to sign with
+    /// @param token The ERC20 token contract address
+    /// @param owner The token owner
+    /// @param spender The approved spender
+    /// @param value The approval amount
+    /// @param deadline The permit deadline
+    /// @return v The recovery parameter
+    /// @return r The first 32 bytes of the signature
+    /// @return s The second 32 bytes of the signature
+    function signERC20PermitComponents(
+        uint256 pk,
+        address token,
+        address owner,
+        address spender,
+        uint256 value,
+        uint256 deadline
+    ) public returns (uint8 v, bytes32 r, bytes32 s) {
+        bytes32 digest = getERC20PermitDigest(token, owner, spender, value, deadline);
+        return vm.sign(pk, digest);
+    }
 }
 
 /// @dev this contract wont compile with solc 0.8.15
