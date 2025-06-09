@@ -30,6 +30,7 @@ import {
 } from "contracts/libraries/CompoundInterestLib.sol";
 import "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
+import "contracts/interfaces/IBullaFrendLend.sol";
 
 contract TestBullaFrendLend is Test {
     WETH public weth;
@@ -38,6 +39,12 @@ contract TestBullaFrendLend is Test {
     BullaClaim public bullaClaim;
     EIP712Helper public sigHelper;
     BullaFrendLend public bullaFrendLend;
+
+    // Events for testing
+    event FeeWithdrawn(address indexed admin, address indexed token, uint256 amount);
+    event LoanOffered(
+        uint256 indexed loanId, address indexed offeredBy, LoanRequestParams loanOffer, uint256 originationFee
+    );
 
     uint256 creditorPK = uint256(0x01);
     uint256 debtorPK = uint256(0x02);
@@ -102,7 +109,9 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
 
-        (LoanRequestParams memory params, bool requestedByCreditor) = bullaFrendLend.loanOffers(loanId);
+        LoanOffer memory loanOffer = bullaFrendLend.getLoanOffer(loanId);
+        LoanRequestParams memory params = loanOffer.params;
+        bool requestedByCreditor = loanOffer.requestedByCreditor;
 
         assertEq(params.interestConfig.interestRateBps, 500, "Interest BPS mismatch");
         assertEq(params.termLength, 30 days, "Term length mismatch");
@@ -123,7 +132,8 @@ contract TestBullaFrendLend is Test {
         vm.prank(debtor);
         uint256 requestId = bullaFrendLend.offerLoan{value: FEE}(request);
 
-        (LoanRequestParams memory params, bool requestedByCreditor) = bullaFrendLend.loanOffers(requestId);
+        LoanRequestParams memory params = bullaFrendLend.getLoanOffer(requestId).params;
+        bool requestedByCreditor = bullaFrendLend.getLoanOffer(requestId).requestedByCreditor;
 
         assertEq(params.interestConfig.interestRateBps, 750, "Interest BPS mismatch");
         assertEq(params.termLength, 30 days, "Term length mismatch");
@@ -205,8 +215,40 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
 
-        (LoanRequestParams memory params,) = bullaFrendLend.loanOffers(loanId);
+        LoanOffer memory loanOffer = bullaFrendLend.getLoanOffer(loanId);
+        LoanRequestParams memory params = loanOffer.params;
         assertEq(params.interestConfig.interestRateBps, 0, "Interest BPS should be zero");
+    }
+
+    function testLoanOfferedEventEmittedWithOriginationFee() public {
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 1 ether);
+
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withDescription("Test Loan with Event").build();
+
+        // Expect the LoanOffered event to be emitted with the correct parameters
+        vm.expectEmit(true, true, false, true);
+        emit LoanOffered(1, creditor, offer, FEE);
+
+        vm.prank(creditor);
+        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+
+        assertEq(loanId, 1, "Loan ID should be 1");
+    }
+
+    function testLoanOfferedEventEmittedByDebtorWithOriginationFee() public {
+        LoanRequestParams memory request = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withDescription("Test Request with Event").build();
+
+        // Expect the LoanOffered event to be emitted with the correct parameters (by debtor)
+        vm.expectEmit(true, true, false, true);
+        emit LoanOffered(1, debtor, request, FEE);
+
+        vm.prank(debtor);
+        uint256 requestId = bullaFrendLend.offerLoan{value: FEE}(request);
+
+        assertEq(requestId, 1, "Request ID should be 1");
     }
 
     function testCannotAcceptCreditorOfferIfNotDebtor() public {
@@ -471,7 +513,8 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         bullaFrendLend.rejectLoanOffer(loanId);
 
-        (LoanRequestParams memory params,) = bullaFrendLend.loanOffers(loanId);
+        LoanOffer memory loanOffer = bullaFrendLend.getLoanOffer(loanId);
+        LoanRequestParams memory params = loanOffer.params;
         assertEq(params.creditor, address(0), "Offer should be deleted after rejection");
     }
 
@@ -485,7 +528,8 @@ contract TestBullaFrendLend is Test {
         vm.prank(debtor);
         bullaFrendLend.rejectLoanOffer(requestId);
 
-        (LoanRequestParams memory params,) = bullaFrendLend.loanOffers(requestId);
+        LoanOffer memory loanOffer = bullaFrendLend.getLoanOffer(requestId);
+        LoanRequestParams memory params = loanOffer.params;
         assertEq(params.debtor, address(0), "Request should be deleted after rejection");
     }
 
@@ -986,6 +1030,318 @@ contract TestBullaFrendLend is Test {
         bullaFrendLend.withdrawAllFees();
 
         assertEq(admin.balance, initialAdminEthBalance, "Admin ETH balance should not change when no fees exist");
+    }
+
+    // ==================== FEE WITHDRAWN EVENT TESTS ====================
+
+    function testFeeWithdrawnEventEmittedForETH() public {
+        // Create loan offer to accumulate ETH fees
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 1 ether);
+
+        LoanRequestParams memory offer =
+            new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
+
+        vm.prank(creditor);
+        bullaFrendLend.offerLoan{value: FEE}(offer);
+
+        uint256 ethBalance = address(bullaFrendLend).balance;
+        assertTrue(ethBalance > 0, "Contract should have ETH balance");
+
+        // Expect FeeWithdrawn event for ETH (address(0))
+        vm.expectEmit(true, true, false, true);
+        emit FeeWithdrawn(admin, address(0), ethBalance);
+
+        vm.prank(admin);
+        bullaFrendLend.withdrawAllFees();
+    }
+
+    function testFeeWithdrawnEventEmittedForERC20Token() public {
+        // Setup loan and make payment to accumulate protocol fees
+        vm.startPrank(creditor);
+        weth.approve(address(bullaFrendLend), 2 ether);
+        vm.stopPrank();
+
+        vm.startPrank(debtor);
+        weth.approve(address(bullaFrendLend), 2 ether);
+        vm.stopPrank();
+
+        bullaClaim.permitCreateClaim({
+            user: debtor,
+            controller: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
+        });
+
+        bullaClaim.permitPayClaim({
+            user: debtor,
+            controller: address(bullaFrendLend),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaFrendLend),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withInterestRateBps(1000).withNumberOfPeriodsPerYear(12).build();
+
+        vm.prank(creditor);
+        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+
+        vm.prank(debtor);
+        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+
+        // Fast forward to accrue interest
+        vm.warp(block.timestamp + 90 days);
+
+        // Make payment to accumulate fees
+        (, uint256 interest) = bullaFrendLend.getTotalAmountDue(claimId);
+        vm.prank(debtor);
+        bullaFrendLend.payLoan(claimId, interest);
+
+        uint256 tokenFees = bullaFrendLend.protocolFeesByToken(address(weth));
+        assertTrue(tokenFees > 0, "Contract should have token fees");
+
+        // Expect FeeWithdrawn event for WETH
+        vm.expectEmit(true, true, false, true);
+        emit FeeWithdrawn(admin, address(weth), tokenFees);
+
+        vm.prank(admin);
+        bullaFrendLend.withdrawAllFees();
+    }
+
+    function testFeeWithdrawnEventEmittedForMultipleTokens() public {
+        // Setup similar to testProtocolFeeWithMultipleTokens but just focusing on events
+        vm.startPrank(creditor);
+        weth.approve(address(bullaFrendLend), 10 ether);
+        usdc.approve(address(bullaFrendLend), 10000 * 10 ** 6);
+        dai.approve(address(bullaFrendLend), 10000 ether);
+        vm.stopPrank();
+
+        vm.startPrank(debtor);
+        weth.approve(address(bullaFrendLend), 10 ether);
+        usdc.approve(address(bullaFrendLend), 10000 * 10 ** 6);
+        dai.approve(address(bullaFrendLend), 10000 ether);
+        vm.stopPrank();
+
+        bullaClaim.permitCreateClaim({
+            user: debtor,
+            controller: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 3,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 3,
+                isBindingAllowed: true
+            })
+        });
+
+        bullaClaim.permitPayClaim({
+            user: debtor,
+            controller: address(bullaFrendLend),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaFrendLend),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        // Create loans for different tokens
+        LoanRequestParams memory wethOffer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withInterestRateBps(1000).withNumberOfPeriodsPerYear(12).build();
+
+        LoanRequestParams memory usdcOffer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(usdc)).withLoanAmount(1000 * 10 ** 6).withInterestRateBps(800).withNumberOfPeriodsPerYear(12)
+            .build();
+
+        LoanRequestParams memory daiOffer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(dai)).withLoanAmount(1000 ether).withInterestRateBps(1200).withNumberOfPeriodsPerYear(12)
+            .build();
+
+        vm.startPrank(creditor);
+        uint256 wethLoanId = bullaFrendLend.offerLoan{value: FEE}(wethOffer);
+        uint256 usdcLoanId = bullaFrendLend.offerLoan{value: FEE}(usdcOffer);
+        uint256 daiLoanId = bullaFrendLend.offerLoan{value: FEE}(daiOffer);
+        vm.stopPrank();
+
+        vm.startPrank(debtor);
+        uint256 wethClaimId = bullaFrendLend.acceptLoan(wethLoanId);
+        uint256 usdcClaimId = bullaFrendLend.acceptLoan(usdcLoanId);
+        uint256 daiClaimId = bullaFrendLend.acceptLoan(daiLoanId);
+        vm.stopPrank();
+
+        // Fast forward to accrue interest
+        vm.warp(block.timestamp + 90 days);
+
+        // Make payments to accumulate fees
+        vm.startPrank(debtor);
+        (, uint256 wethInterest) = bullaFrendLend.getTotalAmountDue(wethClaimId);
+        bullaFrendLend.payLoan(wethClaimId, wethInterest);
+
+        (, uint256 usdcInterest) = bullaFrendLend.getTotalAmountDue(usdcClaimId);
+        bullaFrendLend.payLoan(usdcClaimId, usdcInterest);
+
+        (, uint256 daiInterest) = bullaFrendLend.getTotalAmountDue(daiClaimId);
+        bullaFrendLend.payLoan(daiClaimId, daiInterest);
+        vm.stopPrank();
+
+        // Get fee amounts before withdrawal
+        uint256 ethBalance = address(bullaFrendLend).balance;
+        uint256 wethFees = bullaFrendLend.protocolFeesByToken(address(weth));
+        uint256 usdcFees = bullaFrendLend.protocolFeesByToken(address(usdc));
+        uint256 daiFees = bullaFrendLend.protocolFeesByToken(address(dai));
+
+        // Expect all FeeWithdrawn events
+        vm.expectEmit(true, true, false, true);
+        emit FeeWithdrawn(admin, address(0), ethBalance);
+
+        vm.expectEmit(true, true, false, true);
+        emit FeeWithdrawn(admin, address(weth), wethFees);
+
+        vm.expectEmit(true, true, false, true);
+        emit FeeWithdrawn(admin, address(usdc), usdcFees);
+
+        vm.expectEmit(true, true, false, true);
+        emit FeeWithdrawn(admin, address(dai), daiFees);
+
+        vm.prank(admin);
+        bullaFrendLend.withdrawAllFees();
+    }
+
+    function testNoFeeWithdrawnEventWhenNoFeesToWithdraw() public {
+        // No loan offers made, so no fees accumulated
+        uint256 adminBalanceBefore = admin.balance;
+
+        // Should not emit any FeeWithdrawn events
+        vm.recordLogs();
+
+        vm.prank(admin);
+        bullaFrendLend.withdrawAllFees();
+
+        // Check that no FeeWithdrawn events were emitted
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        for (uint256 i = 0; i < logs.length; i++) {
+            // FeeWithdrawn event has signature: keccak256("FeeWithdrawn(address,address,uint256)")
+            assertFalse(
+                logs[i].topics[0] == keccak256("FeeWithdrawn(address,address,uint256)"),
+                "No FeeWithdrawn events should be emitted"
+            );
+        }
+
+        assertEq(admin.balance, adminBalanceBefore, "Admin balance should be unchanged");
+    }
+
+    function testFeeWithdrawnEventNotEmittedForZeroTokenFees() public {
+        // Setup loan and make payment to accumulate token fees
+        vm.startPrank(creditor);
+        weth.approve(address(bullaFrendLend), 2 ether);
+        vm.stopPrank();
+
+        vm.startPrank(debtor);
+        weth.approve(address(bullaFrendLend), 2 ether);
+        vm.stopPrank();
+
+        bullaClaim.permitCreateClaim({
+            user: debtor,
+            controller: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
+        });
+
+        bullaClaim.permitPayClaim({
+            user: debtor,
+            controller: address(bullaFrendLend),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaFrendLend),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withInterestRateBps(1000).withNumberOfPeriodsPerYear(12).build();
+
+        vm.prank(creditor);
+        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+
+        vm.prank(debtor);
+        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+
+        // Fast forward to accrue interest
+        vm.warp(block.timestamp + 90 days);
+
+        // Make payment to accumulate fees
+        (, uint256 interest) = bullaFrendLend.getTotalAmountDue(claimId);
+        vm.prank(debtor);
+        bullaFrendLend.payLoan(claimId, interest);
+
+        // First withdrawal - should emit event
+        uint256 tokenFees = bullaFrendLend.protocolFeesByToken(address(weth));
+
+        vm.expectEmit(true, true, false, true);
+        emit FeeWithdrawn(admin, address(weth), tokenFees);
+
+        vm.prank(admin);
+        bullaFrendLend.withdrawAllFees();
+
+        // Second withdrawal - should NOT emit event for weth since fees are now 0
+        vm.recordLogs();
+
+        vm.prank(admin);
+        bullaFrendLend.withdrawAllFees();
+
+        // Check that no FeeWithdrawn events were emitted for weth
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].topics[0] == keccak256("FeeWithdrawn(address,address,uint256)")) {
+                // If any FeeWithdrawn event was emitted, it should not be for weth
+                address tokenAddress = address(uint160(uint256(logs[i].topics[2])));
+                assertFalse(
+                    tokenAddress == address(weth), "No FeeWithdrawn event should be emitted for weth with zero fees"
+                );
+            }
+        }
     }
 
     function testTokenTrackingUniqueness() public {
