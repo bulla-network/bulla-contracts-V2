@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.15;
 
 import "contracts/interfaces/IBullaClaim.sol";
@@ -12,6 +12,7 @@ import {ERC165} from "openzeppelin-contracts/contracts/utils/introspection/ERC16
 import {
     InterestConfig, InterestComputationState, CompoundInterestLib
 } from "contracts/libraries/CompoundInterestLib.sol";
+import {BoringBatchable} from "contracts/libraries/BoringBatchable.sol";
 
 error IncorrectFee();
 error NotCreditor();
@@ -31,7 +32,8 @@ error InvalidGracePeriod();
  * @notice A wrapper contract for IBullaClaim that allows both creditors to offer loans that debtors can accept,
  *         and debtors to request loans that creditors can accept
  */
-contract BullaFrendLend is BullaClaimControllerBase, ERC165, IBullaFrendLend {
+ 
+contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IBullaFrendLend {
     using SafeTransferLib for ERC20;
     using SafeTransferLib for address;
 

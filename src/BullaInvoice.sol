@@ -10,6 +10,7 @@ import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import {ERC165} from "openzeppelin-contracts/contracts/utils/introspection/ERC165.sol";
+import {BoringBatchable} from "contracts/libraries/BoringBatchable.sol";
 
 // Data specific to invoices and not claims
 struct InvoiceDetails {
@@ -38,7 +39,8 @@ error WithdrawalFailed();
  * @title BullaInvoice
  * @notice A wrapper contract for IBullaClaim that delegates all calls to the provided contract instance
  */
-contract BullaInvoice is BullaClaimControllerBase, ERC165, IBullaInvoice {
+ 
+contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBullaInvoice {
     using SafeTransferLib for address;
     using SafeTransferLib for ERC20;
 
