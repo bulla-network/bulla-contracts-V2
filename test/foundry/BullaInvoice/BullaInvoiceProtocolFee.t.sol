@@ -42,6 +42,8 @@ contract TestBullaInvoiceProtocolFee is Test {
     ERC20Mock public token2;
 
     uint256 constant MAX_BPS = 10_000;
+    uint256 constant INVOICE_ORIGINATION_FEE = 0 ether;
+    uint256 constant PURCHASE_ORDER_ORIGINATION_FEE = 0 ether;
     uint256 creditorPK = uint256(0x01);
     uint256 debtorPK = uint256(0x02);
     uint256 adminPK = uint256(0x03);
@@ -52,7 +54,7 @@ contract TestBullaInvoiceProtocolFee is Test {
     address nonAdmin = vm.addr(nonAdminPK);
 
     // Events for testing
-    event InvoiceCreated(uint256 indexed claimId, InvoiceDetails invoiceDetails);
+    event InvoiceCreated(uint256 indexed claimId, InvoiceDetails invoiceDetails, uint256 originationFee);
     event InvoicePaid(uint256 indexed claimId, uint256 grossInterestPaid, uint256 principalPaid, uint256 protocolFee);
     event ProtocolFeeUpdated(uint256 oldFee, uint256 newFee);
     event FeeWithdrawn(address indexed admin, address indexed token, uint256 amount);
@@ -66,7 +68,8 @@ contract TestBullaInvoiceProtocolFee is Test {
         sigHelper = new EIP712Helper(address(bullaClaim));
 
         // Start with 50% protocol fee for mathematical simplicity
-        bullaInvoice = new BullaInvoice(address(bullaClaim), admin, 5000);
+        bullaInvoice =
+            new BullaInvoice(address(bullaClaim), admin, 5000, INVOICE_ORIGINATION_FEE, PURCHASE_ORDER_ORIGINATION_FEE);
 
         // Setup balances
         vm.deal(debtor, 100 ether);
@@ -77,26 +80,52 @@ contract TestBullaInvoiceProtocolFee is Test {
     // ==================== 1. CONSTRUCTOR & INITIALIZATION TESTS ====================
 
     function testConstructorWithZeroProtocolFee() public {
-        BullaInvoice testInvoice = new BullaInvoice(address(bullaClaim), admin, 0);
+        BullaInvoice testInvoice =
+            new BullaInvoice(address(bullaClaim), admin, 0, INVOICE_ORIGINATION_FEE, PURCHASE_ORDER_ORIGINATION_FEE);
         assertEq(testInvoice.protocolFeeBPS(), 0, "Protocol fee should be 0");
         assertEq(testInvoice.admin(), admin, "Admin should be set correctly");
+        assertEq(
+            testInvoice.invoiceOriginationFee(),
+            INVOICE_ORIGINATION_FEE,
+            "Invoice origination fee should be set correctly"
+        );
+        assertEq(
+            testInvoice.purchaseOrderOriginationFee(),
+            PURCHASE_ORDER_ORIGINATION_FEE,
+            "Purchase order origination fee should be set correctly"
+        );
     }
 
     function testConstructorWithMaxProtocolFee() public {
-        BullaInvoice testInvoice = new BullaInvoice(address(bullaClaim), admin, MAX_BPS);
+        BullaInvoice testInvoice = new BullaInvoice(
+            address(bullaClaim), admin, MAX_BPS, INVOICE_ORIGINATION_FEE, PURCHASE_ORDER_ORIGINATION_FEE
+        );
         assertEq(testInvoice.protocolFeeBPS(), MAX_BPS, "Protocol fee should be MAX_BPS");
         assertEq(testInvoice.admin(), admin, "Admin should be set correctly");
+        assertEq(
+            testInvoice.invoiceOriginationFee(),
+            INVOICE_ORIGINATION_FEE,
+            "Invoice origination fee should be set correctly"
+        );
+        assertEq(
+            testInvoice.purchaseOrderOriginationFee(),
+            PURCHASE_ORDER_ORIGINATION_FEE,
+            "Purchase order origination fee should be set correctly"
+        );
     }
 
     function testConstructorRevertsWithInvalidProtocolFee() public {
         vm.expectRevert(InvalidProtocolFee.selector);
-        new BullaInvoice(address(bullaClaim), admin, MAX_BPS + 1);
+        new BullaInvoice(
+            address(bullaClaim), admin, MAX_BPS + 1, INVOICE_ORIGINATION_FEE, PURCHASE_ORDER_ORIGINATION_FEE
+        );
     }
 
     // ==================== 2. PROTOCOL FEE CALCULATION TESTS ====================
 
     function testFeeCalculationWithZeroProtocolFee() public {
-        BullaInvoice zeroFeeInvoice = new BullaInvoice(address(bullaClaim), admin, 0);
+        BullaInvoice zeroFeeInvoice =
+            new BullaInvoice(address(bullaClaim), admin, 0, INVOICE_ORIGINATION_FEE, PURCHASE_ORDER_ORIGINATION_FEE);
 
         uint256 invoiceId = _createAndSetupInvoice(zeroFeeInvoice, address(0), 1 ether, _getInterestConfig(1000, 12));
 
@@ -112,7 +141,9 @@ contract TestBullaInvoiceProtocolFee is Test {
     }
 
     function testFeeCalculationWith100PercentProtocolFee() public {
-        BullaInvoice maxFeeInvoice = new BullaInvoice(address(bullaClaim), admin, MAX_BPS);
+        BullaInvoice maxFeeInvoice = new BullaInvoice(
+            address(bullaClaim), admin, MAX_BPS, INVOICE_ORIGINATION_FEE, PURCHASE_ORDER_ORIGINATION_FEE
+        );
 
         uint256 invoiceId = _createAndSetupInvoice(maxFeeInvoice, address(0), 1 ether, _getInterestConfig(1000, 12));
 
@@ -177,8 +208,10 @@ contract TestBullaInvoiceProtocolFee is Test {
         CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withToken(token)
             .withClaimAmount(amount).withLateFeeConfig(interestConfig).build();
 
+        uint256 fee = invoice.invoiceOriginationFee();
+
         vm.prank(creditor);
-        return invoice.createInvoice(params);
+        return invoice.createInvoice{value: fee}(params);
     }
 
     function _getInterestConfig(uint16 rateBps, uint16 periodsPerYear) internal pure returns (InterestConfig memory) {
@@ -310,7 +343,9 @@ contract TestBullaInvoiceProtocolFee is Test {
     // ==================== CREDITOR TOTAL ZERO EDGE CASE ====================
 
     function testCreditorTotalZeroWith100PercentProtocolFee() public {
-        BullaInvoice maxFeeInvoice = new BullaInvoice(address(bullaClaim), admin, MAX_BPS); // 100% protocol fee
+        BullaInvoice maxFeeInvoice = new BullaInvoice(
+            address(bullaClaim), admin, MAX_BPS, INVOICE_ORIGINATION_FEE, PURCHASE_ORDER_ORIGINATION_FEE
+        ); // 100% protocol fee
 
         uint256 invoiceId = _createAndSetupInvoice(maxFeeInvoice, address(0), 1 ether, _getInterestConfig(1200, 12));
 
@@ -672,7 +707,8 @@ contract TestBullaInvoiceProtocolFee is Test {
     }
 
     function testEventEmissionWhenProtocolFeeIsZero() public {
-        BullaInvoice zeroFeeInvoice = new BullaInvoice(address(bullaClaim), admin, 0);
+        BullaInvoice zeroFeeInvoice =
+            new BullaInvoice(address(bullaClaim), admin, 0, INVOICE_ORIGINATION_FEE, PURCHASE_ORDER_ORIGINATION_FEE);
         uint256 invoiceId = _createAndSetupInvoice(zeroFeeInvoice, address(0), 1 ether, _getInterestConfig(1200, 12));
 
         vm.warp(block.timestamp + 90 days);
