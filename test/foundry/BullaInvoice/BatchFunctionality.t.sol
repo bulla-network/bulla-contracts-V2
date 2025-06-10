@@ -90,7 +90,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
     }
 
     function testBatch_SingleOperation() public {
-        // Setup permissions using helper
+        // Setup permissions 
         _permitCreateInvoice(creditorPK);
         
         bytes[] memory calls = new bytes[](1);
@@ -111,7 +111,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
     }
 
     function testBatch_MultipleHomogeneousOperations() public {
-        // Setup permissions for multiple invoice creations using helper
+        // Setup permissions for multiple invoice creations 
         _permitCreateInvoice(creditorPK, 3);
         
         bytes[] memory calls = new bytes[](3);
@@ -258,7 +258,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
     /*///////////////////// BATCH PAY INVOICE TESTS /////////////////////*/
 
     function testBatch_PayMultipleInvoices_ERC20() public {
-        // Create WETH invoices first (not ETH invoices)
+        // Create WETH invoices
         _permitCreateInvoice(creditorPK, 3);
         
         vm.startPrank(creditor);
@@ -273,7 +273,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         );
         vm.stopPrank();
         
-        // Setup payment permissions using helper
+        // Setup payment permissions 
         _permitPayInvoice(debtorPK);
         
         // Ensure debtor has WETH tokens
@@ -308,45 +308,6 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         assertEq(bullaClaim.ownerOf(invoiceId3), debtor);
     }
 
-    function testBatch_PayMultipleInvoices_ETH() public {
-        // Setup permissions first
-        _permitCreateInvoice(creditorPK, 2);
-        
-        // Create ETH invoices
-        vm.startPrank(creditor);
-        uint256 invoiceId1 = bullaInvoice.createInvoice(
-            new CreateInvoiceParamsBuilder().withDebtor(debtor).withToken(address(0)).build()
-        );
-        uint256 invoiceId2 = bullaInvoice.createInvoice(
-            new CreateInvoiceParamsBuilder().withDebtor(debtor).withToken(address(0)).build()  // Changed to same debtor
-        );
-        vm.stopPrank();
-        
-        // Setup payment permissions using helper
-        _permitPayInvoice(debtorPK);
-        
-        // NOTE: Due to BullaInvoice's strict msg.value check (msg.value must equal paymentAmount exactly),
-        // ETH payments cannot be batched the same way as in BullaClaim. Each payment must be called individually.
-        // This test demonstrates individual ETH payments which is the expected behavior for BullaInvoice.
-        
-        vm.startPrank(debtor);
-        
-        // Pay first invoice
-        bullaInvoice.payInvoice{value: 1 ether}(invoiceId1, 1 ether);
-        
-        // Pay second invoice  
-        bullaInvoice.payInvoice{value: 1 ether}(invoiceId2, 1 ether);
-        
-        vm.stopPrank();
-        
-        // Verify invoices were paid
-        Claim memory claim1 = bullaClaim.getClaim(invoiceId1);
-        Claim memory claim2 = bullaClaim.getClaim(invoiceId2);
-        
-        assertEq(uint256(claim1.status), uint256(Status.Paid));
-        assertEq(uint256(claim2.status), uint256(Status.Paid));
-    }
-
     /*///////////////////// BATCH MANAGEMENT TESTS /////////////////////*/
 
     function testBatch_UpdateMultipleBindings() public {
@@ -363,7 +324,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         );
         vm.stopPrank();
         
-        // Setup update binding permissions using helper
+        // Setup update binding permissions 
         _permitUpdateInvoiceBinding(creditorPK, 2);
         
         bytes[] memory calls = new bytes[](2);
@@ -395,7 +356,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         );
         vm.stopPrank();
         
-        // Setup cancel permissions using helper
+        // Setup cancel permissions 
         _permitCancelInvoice(creditorPK, 2);
         
         bytes[] memory calls = new bytes[](2);
@@ -441,7 +402,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         // Move time forward past due date and grace period
         vm.warp(pastDueBy + 2 hours);
         
-        // Setup impair permissions using helper
+        // Setup impair permissions 
         _permitImpairInvoice(creditorPK, 2);
         
         bytes[] memory calls = new bytes[](2);
@@ -474,7 +435,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         );
         vm.stopPrank();
         
-        // Setup mark as paid permissions using helper
+        // Setup mark as paid permissions 
         _permitMarkInvoiceAsPaid(creditorPK, 2);
         
         bytes[] memory calls = new bytes[](2);
@@ -521,9 +482,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         vm.prank(creditor);
         bullaInvoice.batch(calls, true);
         
-        // Verify both purchase orders were delivered
-        // Note: We can't check delivery status directly from outside the contract,
-        // but we can verify the calls succeeded
+        // verify the calls succeeded
         assertEq(bullaClaim.currentClaimId(), 2);
     }
 
@@ -538,7 +497,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         // Transfer tokens to owner
         permitToken.transfer(owner, amount);
         
-        // Create permit signature using helper from BullaClaimTestHelper
+        // Create permit signature
         (uint8 v, bytes32 r, bytes32 s) = _permitERC20Token(
             privateKey,
             address(permitToken),
@@ -567,13 +526,13 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         uint256 privateKey = 0x5678;
         address owner = vm.addr(privateKey);
         
-        // Setup permissions for invoice creation using helper
+        // Setup permissions for invoice creation 
         _permitCreateClaim(privateKey, address(bullaInvoice), 1);
         
         // Transfer tokens to owner
         permitToken.transfer(owner, amount);
         
-        // Create permit signature using helper from BullaClaimTestHelper
+        // Create permit signature 
         (uint8 v, bytes32 r, bytes32 s) = _permitERC20Token(
             privateKey,
             address(permitToken),

@@ -275,7 +275,7 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         // Transfer tokens to owner
         permitToken.transfer(owner, amount);
         
-        // Create permit signature using helper from BullaFrendLendTestHelper
+        // Create permit signature
         (uint8 v, bytes32 r, bytes32 s) = _permitERC20Token(
             privateKey,
             address(permitToken),
