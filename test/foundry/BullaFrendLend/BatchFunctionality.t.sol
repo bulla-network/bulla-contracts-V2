@@ -266,6 +266,38 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         assertEq(permitToken.allowance(owner, address(bullaClaim)), amount);
     }
 
+    function testPermitToken_ValidSignature() public {
+        uint256 amount = 1000 ether;
+        uint256 deadline = block.timestamp + 1 hours;
+        uint256 privateKey = 0x1234;
+        address owner = vm.addr(privateKey);
+        
+        // Transfer tokens to owner
+        permitToken.transfer(owner, amount);
+        
+        // Create permit signature using helper from BullaFrendLendTestHelper
+        (uint8 v, bytes32 r, bytes32 s) = _permitERC20Token(
+            privateKey,
+            address(permitToken),
+            address(bullaClaim),
+            amount,
+            deadline
+        );
+        
+        // Call permitToken directly (not through batch)
+        (bool success,) = address(bullaClaim).call(
+            abi.encodeWithSignature(
+                "permitToken(address,address,address,uint256,uint256,uint8,bytes32,bytes32)",
+                address(permitToken), owner, address(bullaClaim), amount, deadline, v, r, s
+            )
+        );
+        
+        assertTrue(success, "permitToken call should succeed");
+        
+        // Verify allowance was set
+        assertEq(permitToken.allowance(owner, address(bullaClaim)), amount);
+    }
+
     /*///////////////////// EDGE CASES /////////////////////*/
 
     function testBatch_LimitedNumberOfOperations() public {
@@ -728,6 +760,44 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
     function testBatch_RejectMultipleOffers_GasLimit() public {
         // Test with a reasonable number of operations to avoid gas limit issues
         uint256 numOffers = 5;
+        
+        // Create multiple loan offers individually first
+        uint256[] memory offerIds = new uint256[](numOffers);
+        
+        vm.startPrank(creditor);
+        for (uint256 i = 0; i < numOffers; i++) {
+            offerIds[i] = bullaFrendLend.offerLoan{value: FEE}(
+                new LoanRequestParamsBuilder()
+                    .withCreditor(creditor)
+                    .withDebtor(address(uint160(0x1000 + i)))
+                    .withToken(address(weth))
+                    .build()
+            );
+        }
+        vm.stopPrank();
+        
+        // Now batch reject all offers (no fees required for rejection)
+        bytes[] memory calls = new bytes[](numOffers);
+        
+        for (uint256 i = 0; i < numOffers; i++) {
+            calls[i] = abi.encodeCall(BullaFrendLend.rejectLoanOffer, (offerIds[i]));
+        }
+        
+        vm.prank(creditor);
+        bullaFrendLend.batch(calls, true);
+        
+        // Verify all offers were rejected
+        for (uint256 i = 0; i < numOffers; i++) {
+            (LoanRequestParams memory params,) = bullaFrendLend.loanOffers(offerIds[i]);
+            assertEq(params.creditor, address(0)); // Deleted offer has zero address
+        }
+        
+        assertEq(bullaFrendLend.loanOfferCount(), numOffers); // Count doesn't decrease on rejection
+    }
+
+    function testBatch_MaxGasLimit() public {
+        // Test with a reasonable number of operations to avoid gas limit issues
+        uint256 numOffers = 10;
         
         // Create multiple loan offers individually first
         uint256[] memory offerIds = new uint256[](numOffers);
