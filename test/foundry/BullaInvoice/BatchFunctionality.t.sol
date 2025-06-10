@@ -49,7 +49,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
 
         bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
         sigHelper = new EIP712Helper(address(bullaClaim));
-        bullaInvoice = new BullaInvoice(address(bullaClaim), address(this), 0);
+        bullaInvoice = new BullaInvoice(address(bullaClaim), address(this), 0, 0, 0);
 
         // Setup token balances
         weth.transferFrom(address(this), creditor, 10000 ether);

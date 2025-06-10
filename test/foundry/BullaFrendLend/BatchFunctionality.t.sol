@@ -112,10 +112,10 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         bullaFrendLend.batch{value: FEE}(calls, true);
         
         // Verify loan offer was created
-        (LoanRequestParams memory params, bool requestedByCreditor) = bullaFrendLend.loanOffers(1);
-        assertEq(params.creditor, creditor);
-        assertEq(params.debtor, debtor);
-        assertTrue(requestedByCreditor);
+        LoanOffer memory loanOffer = bullaFrendLend.getLoanOffer(1);
+        assertEq(loanOffer.params.creditor, creditor);
+        assertEq(loanOffer.params.debtor, debtor);
+        assertTrue(loanOffer.requestedByCreditor);
         assertEq(bullaFrendLend.loanOfferCount(), 1);
     }
 
@@ -185,11 +185,11 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         bullaFrendLend.batch(calls, false); // revertOnFail = false
         
         // Verify first and third operations succeeded, second failed
-        (LoanRequestParams memory params1,) = bullaFrendLend.loanOffers(validOfferId1);
-        (LoanRequestParams memory params2,) = bullaFrendLend.loanOffers(validOfferId2);
+        LoanOffer memory loanOffer1 = bullaFrendLend.getLoanOffer(validOfferId1);
+        LoanOffer memory loanOffer2 = bullaFrendLend.getLoanOffer(validOfferId2);
         
-        assertEq(params1.creditor, address(0)); // First offer was deleted
-        assertEq(params2.creditor, address(0)); // Third offer was deleted
+        assertEq(loanOffer1.params.creditor, address(0)); // First offer was deleted
+        assertEq(loanOffer2.params.creditor, address(0)); // Third offer was deleted
         
     }
 
@@ -223,11 +223,11 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         bullaFrendLend.batch(calls, true);
         
         // Verify all loan offers were rejected (deleted)
-        (LoanRequestParams memory params1,) = bullaFrendLend.loanOffers(loanId1);
-        (LoanRequestParams memory params2,) = bullaFrendLend.loanOffers(loanId2);
+        LoanOffer memory loanOffer1 = bullaFrendLend.getLoanOffer(loanId1);
+        LoanOffer memory loanOffer2 = bullaFrendLend.getLoanOffer(loanId2);
         
-        assertEq(params1.creditor, address(0));
-        assertEq(params2.creditor, address(0));
+        assertEq(loanOffer1.params.creditor, address(0));
+        assertEq(loanOffer2.params.creditor, address(0));
     }
 
     /*///////////////////// BATCH PERMIT TESTS /////////////////////*/
@@ -331,8 +331,8 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         
         // Verify all offers were rejected
         for (uint256 i = 0; i < numRejects; i++) {
-            (LoanRequestParams memory params,) = bullaFrendLend.loanOffers(offerIds[i]);
-            assertEq(params.creditor, address(0)); // Deleted offer has zero address
+            LoanOffer memory loanOffer = bullaFrendLend.getLoanOffer(offerIds[i]);
+            assertEq(loanOffer.params.creditor, address(0)); // Deleted offer has zero address
         }
     }
 
@@ -788,8 +788,8 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         
         // Verify all offers were rejected
         for (uint256 i = 0; i < numOffers; i++) {
-            (LoanRequestParams memory params,) = bullaFrendLend.loanOffers(offerIds[i]);
-            assertEq(params.creditor, address(0)); // Deleted offer has zero address
+            LoanOffer memory loanOffer = bullaFrendLend.getLoanOffer(offerIds[i]);
+            assertEq(loanOffer.params.creditor, address(0)); // Deleted offer has zero address
         }
         
         assertEq(bullaFrendLend.loanOfferCount(), numOffers); // Count doesn't decrease on rejection
@@ -826,8 +826,8 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         
         // Verify all offers were rejected
         for (uint256 i = 0; i < numOffers; i++) {
-            (LoanRequestParams memory params,) = bullaFrendLend.loanOffers(offerIds[i]);
-            assertEq(params.creditor, address(0)); // Deleted offer has zero address
+            LoanOffer memory loanOffer = bullaFrendLend.getLoanOffer(offerIds[i]);
+            assertEq(loanOffer.params.creditor, address(0)); // Deleted offer has zero address
         }
         
         assertEq(bullaFrendLend.loanOfferCount(), numOffers); // Count doesn't decrease on rejection
