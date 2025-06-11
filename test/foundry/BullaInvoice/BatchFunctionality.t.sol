@@ -76,7 +76,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         if (user == debtor) return debtorPK;
         if (user == charlie) return charliePK;
         if (user == alice) return alicePK;
-        return 12345; // default
+        revert("Invalid user address");
     }
 
     /*///////////////////// CORE BATCH FUNCTIONALITY TESTS /////////////////////*/
@@ -474,6 +474,12 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         );
         vm.stopPrank();
         
+        // Verify initial state - both should be undelivered
+        Invoice memory invoice1Before = bullaInvoice.getInvoice(poId1);
+        Invoice memory invoice2Before = bullaInvoice.getInvoice(poId2);
+        assertFalse(invoice1Before.purchaseOrder.isDelivered, "Purchase order 1 should not be delivered initially");
+        assertFalse(invoice2Before.purchaseOrder.isDelivered, "Purchase order 2 should not be delivered initially");
+        
         bytes[] memory calls = new bytes[](2);
         
         calls[0] = abi.encodeCall(BullaInvoice.deliverPurchaseOrder, (poId1));
@@ -482,8 +488,11 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         vm.prank(creditor);
         bullaInvoice.batch(calls, true);
         
-        // verify the calls succeeded
-        assertEq(bullaClaim.currentClaimId(), 2);
+        // Verify both purchase orders are now delivered
+        Invoice memory invoice1After = bullaInvoice.getInvoice(poId1);
+        Invoice memory invoice2After = bullaInvoice.getInvoice(poId2);
+        assertTrue(invoice1After.purchaseOrder.isDelivered, "Purchase order 1 should be delivered after batch call");
+        assertTrue(invoice2After.purchaseOrder.isDelivered, "Purchase order 2 should be delivered after batch call");
     }
 
     /*///////////////////// PERMITTOKEN TESTS /////////////////////*/

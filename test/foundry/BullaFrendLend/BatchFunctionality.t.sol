@@ -82,7 +82,7 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         if (user == debtor) return debtorPK;
         if (user == charlie) return charliePK;
         if (user == admin) return adminPK;
-        return 12345; // default
+        revert("Invalid user address");
     }
 
     /*///////////////////// BASIC BATCH FUNCTIONALITY TESTS /////////////////////*/
@@ -170,6 +170,14 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         );
         vm.stopPrank();
         
+        // Validate loan offers were created properly
+        LoanOffer memory initialOffer1 = bullaFrendLend.getLoanOffer(validOfferId1);
+        LoanOffer memory initialOffer2 = bullaFrendLend.getLoanOffer(validOfferId2);
+        
+        assertEq(initialOffer1.params.creditor, creditor, "First loan offer should have been created with correct creditor");
+        assertEq(initialOffer2.params.creditor, creditor, "Second loan offer should have been created with correct creditor");
+
+        
         bytes[] memory calls = new bytes[](3);
         
         // First call is valid (creditor rejecting their own offer)
@@ -213,6 +221,13 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
                 .build()
         );
         vm.stopPrank();
+        
+        // Validate loan offers were created properly
+        LoanOffer memory initialOffer1 = bullaFrendLend.getLoanOffer(loanId1);
+        LoanOffer memory initialOffer2 = bullaFrendLend.getLoanOffer(loanId2);
+        
+        assertEq(initialOffer1.params.creditor, creditor, "First loan offer should have been created with correct creditor");
+        assertEq(initialOffer2.params.creditor, creditor, "Second loan offer should have been created with correct creditor");
         
         bytes[] memory calls = new bytes[](2);
         
@@ -302,7 +317,7 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
 
     function testBatch_LimitedNumberOfOperations() public {
         // Test with a small number of operations to demonstrate batching without hitting gas limits
-        uint256 numRejects = 3;
+        uint256 numRejects = 10;
         
         // Create multiple loan offers individually first
         uint256[] memory offerIds = new uint256[](numRejects);
@@ -318,6 +333,13 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
             );
         }
         vm.stopPrank();
+        
+        // Validate loan offers were created
+        for (uint256 i = 0; i < numRejects; i++) {
+            LoanOffer memory initialOffer = bullaFrendLend.getLoanOffer(offerIds[i]);
+            assertEq(initialOffer.params.creditor, creditor, "Loan offer should have been created with correct creditor");
+            assertEq(initialOffer.params.debtor, address(uint160(0x1000 + i)), "Loan offer should have correct debtor");
+        }
         
         // Now batch reject all offers (no fees required for rejection)
         bytes[] memory calls = new bytes[](numRejects);
@@ -759,7 +781,7 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
 
     function testBatch_RejectMultipleOffers_GasLimit() public {
         // Test with a reasonable number of operations to avoid gas limit issues
-        uint256 numOffers = 5;
+        uint256 numOffers = 10;
         
         // Create multiple loan offers individually first
         uint256[] memory offerIds = new uint256[](numOffers);
