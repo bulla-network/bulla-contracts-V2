@@ -32,7 +32,6 @@ error InvalidGracePeriod();
  * @notice A wrapper contract for IBullaClaim that allows both creditors to offer loans that debtors can accept,
  *         and debtors to request loans that creditors can accept
  */
- 
 contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IBullaFrendLend {
     using SafeTransferLib for ERC20;
     using SafeTransferLib for address;

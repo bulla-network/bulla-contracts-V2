@@ -26,6 +26,7 @@ import {
     IncorrectMsgValue,
     IncorrectFee
 } from "contracts/BullaInvoice.sol";
+import {InvoiceDetailsBuilder} from "test/foundry/BullaInvoice/InvoiceDetailsBuilder.t.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {CreateInvoiceParamsBuilder} from "test/foundry/BullaInvoice/CreateInvoiceParamsBuilder.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
@@ -123,11 +124,7 @@ contract TestBullaInvoiceOrigination is Test {
         uint256 contractBalanceBefore = address(bullaInvoice).balance;
 
         // Expected InvoiceDetails struct
-        InvoiceDetails memory expectedInvoiceDetails = InvoiceDetails({
-            purchaseOrder: PurchaseOrderState({deliveryDate: 0, isDelivered: false, depositAmount: 0}),
-            lateFeeConfig: InterestConfig({interestRateBps: 0, numberOfPeriodsPerYear: 0}),
-            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
-        });
+        InvoiceDetails memory expectedInvoiceDetails = new InvoiceDetailsBuilder().build();
 
         // Expect InvoiceCreated event
         vm.expectEmit(true, false, false, true);
@@ -158,11 +155,8 @@ contract TestBullaInvoiceOrigination is Test {
         uint256 contractBalanceBefore = address(bullaInvoice).balance;
 
         // Expected InvoiceDetails struct
-        InvoiceDetails memory expectedInvoiceDetails = InvoiceDetails({
-            purchaseOrder: PurchaseOrderState({deliveryDate: block.timestamp + 1 days, isDelivered: false, depositAmount: 0}),
-            lateFeeConfig: InterestConfig({interestRateBps: 0, numberOfPeriodsPerYear: 0}),
-            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
-        });
+        InvoiceDetails memory expectedInvoiceDetails =
+            new InvoiceDetailsBuilder().withDeliveryDate(block.timestamp + 1 days).build();
 
         // Expect InvoiceCreated event
         vm.expectEmit(true, false, false, true);
@@ -227,11 +221,8 @@ contract TestBullaInvoiceOrigination is Test {
         uint256 expectedFee = bullaInvoice.purchaseOrderOriginationFee();
 
         // Expected InvoiceDetails struct
-        InvoiceDetails memory expectedInvoiceDetails = InvoiceDetails({
-            purchaseOrder: PurchaseOrderState({deliveryDate: block.timestamp, isDelivered: false, depositAmount: 0}),
-            lateFeeConfig: InterestConfig({interestRateBps: 0, numberOfPeriodsPerYear: 0}),
-            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
-        });
+        InvoiceDetails memory expectedInvoiceDetails =
+            new InvoiceDetailsBuilder().withDeliveryDate(block.timestamp).build();
 
         // Expect InvoiceCreated event
         vm.expectEmit(true, false, false, true);
@@ -249,11 +240,7 @@ contract TestBullaInvoiceOrigination is Test {
             .build();
 
         // Expected InvoiceDetails struct
-        InvoiceDetails memory expectedInvoiceDetails = InvoiceDetails({
-            purchaseOrder: PurchaseOrderState({deliveryDate: 0, isDelivered: false, depositAmount: 0}),
-            lateFeeConfig: InterestConfig({interestRateBps: 0, numberOfPeriodsPerYear: 0}),
-            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
-        });
+        InvoiceDetails memory expectedInvoiceDetails = new InvoiceDetailsBuilder().build();
 
         // Expect InvoiceCreated event with zero fee
         vm.expectEmit(true, false, false, true);
@@ -282,18 +269,11 @@ contract TestBullaInvoiceOrigination is Test {
         uint256 purchaseOrderFee = bullaInvoice.purchaseOrderOriginationFee();
 
         // Expected InvoiceDetails for invoice
-        InvoiceDetails memory expectedInvoiceDetails = InvoiceDetails({
-            purchaseOrder: PurchaseOrderState({deliveryDate: 0, isDelivered: false, depositAmount: 0}),
-            lateFeeConfig: InterestConfig({interestRateBps: 0, numberOfPeriodsPerYear: 0}),
-            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
-        });
+        InvoiceDetails memory expectedInvoiceDetails = new InvoiceDetailsBuilder().build();
 
         // Expected InvoiceDetails for purchase order
-        InvoiceDetails memory expectedPurchaseOrderDetails = InvoiceDetails({
-            purchaseOrder: PurchaseOrderState({deliveryDate: block.timestamp + 1 days, isDelivered: false, depositAmount: 0}),
-            lateFeeConfig: InterestConfig({interestRateBps: 0, numberOfPeriodsPerYear: 0}),
-            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
-        });
+        InvoiceDetails memory expectedPurchaseOrderDetails =
+            new InvoiceDetailsBuilder().withDeliveryDate(block.timestamp + 1 days).build();
 
         // Create invoice
         vm.expectEmit(true, false, false, true);
@@ -337,11 +317,7 @@ contract TestBullaInvoiceOrigination is Test {
         uint256 fee = bullaInvoice.invoiceOriginationFee();
 
         // Expected InvoiceDetails struct
-        InvoiceDetails memory expectedInvoiceDetails = InvoiceDetails({
-            purchaseOrder: PurchaseOrderState({deliveryDate: 0, isDelivered: false, depositAmount: 0}),
-            lateFeeConfig: InterestConfig({interestRateBps: 0, numberOfPeriodsPerYear: 0}),
-            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
-        });
+        InvoiceDetails memory expectedInvoiceDetails = new InvoiceDetailsBuilder().build();
 
         // Expect InvoiceCreated event
         vm.expectEmit(true, false, false, true);

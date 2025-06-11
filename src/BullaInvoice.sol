@@ -14,6 +14,7 @@ import {BoringBatchable} from "contracts/libraries/BoringBatchable.sol";
 
 // Data specific to invoices and not claims
 struct InvoiceDetails {
+    bool requestedByCreditor;
     PurchaseOrderState purchaseOrder;
     InterestConfig lateFeeConfig;
     InterestComputationState interestComputationState;
@@ -39,7 +40,6 @@ error WithdrawalFailed();
  * @title BullaInvoice
  * @notice A wrapper contract for IBullaClaim that delegates all calls to the provided contract instance
  */
- 
 contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBullaInvoice {
     using SafeTransferLib for address;
     using SafeTransferLib for ERC20;
@@ -48,6 +48,8 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
     uint256 public protocolFeeBPS;
     uint256 public invoiceOriginationFee;
     uint256 public purchaseOrderOriginationFee;
+
+    ClaimMetadata public EMPTY_METADATA = ClaimMetadata({attachmentURI: "", tokenURI: ""});
 
     address[] public protocolFeeTokens;
     mapping(address => uint256) public protocolFeesByToken;
@@ -110,6 +112,7 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
             binding: claim.binding,
             payerReceivesClaimOnPayment: claim.payerReceivesClaimOnPayment,
             debtor: claim.debtor,
+            creditor: claim.creditor,
             token: claim.token,
             dueBy: claim.dueBy,
             purchaseOrder: invoiceDetails.purchaseOrder,
@@ -177,43 +180,32 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
         return 0; // No remaining deposit amount needed
     }
 
+    /// @notice Creates an invoice as the debtor
+    /// @param params The parameters for creating an invoice
+    /// @return The ID of the created invoice
+    function createSelfBillingInvoice(CreateInvoiceParams memory params) external payable returns (uint256) {
+        return _createInvoice(params, EMPTY_METADATA, false);
+    }
+
+    /// @notice Creates an invoice as the debtor with metadata
+    /// @param params The parameters for creating an invoice
+    /// @param metadata The metadata for the invoice
+    /// @return The ID of the created invoice
+    function createSelfBillingInvoiceWithMetadata(CreateInvoiceParams memory params, ClaimMetadata memory metadata)
+        external
+        payable
+        returns (uint256)
+    {
+        return _createInvoice(params, metadata, false);
+    }
+
     /**
      * @notice Creates an invoice
      * @param params The parameters for creating an invoice
      * @return The ID of the created invoice
      */
     function createInvoice(CreateInvoiceParams memory params) external payable returns (uint256) {
-        _validateCreateInvoiceParams(params);
-
-        CreateClaimParams memory createClaimParams = CreateClaimParams({
-            creditor: msg.sender,
-            debtor: params.debtor,
-            claimAmount: params.claimAmount,
-            description: params.description,
-            token: params.token,
-            binding: params.binding,
-            payerReceivesClaimOnPayment: params.payerReceivesClaimOnPayment,
-            dueBy: params.dueBy,
-            impairmentGracePeriod: params.impairmentGracePeriod
-        });
-
-        uint256 claimId = _bullaClaim.createClaimFrom(msg.sender, createClaimParams);
-
-        InvoiceDetails memory invoiceDetails = InvoiceDetails({
-            purchaseOrder: PurchaseOrderState({
-                deliveryDate: params.deliveryDate,
-                isDelivered: false,
-                depositAmount: params.depositAmount
-            }),
-            lateFeeConfig: params.lateFeeConfig,
-            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
-        });
-
-        _invoiceDetailsByClaimId[claimId] = invoiceDetails;
-
-        emit InvoiceCreated(claimId, invoiceDetails, msg.value);
-
-        return claimId;
+        return _createInvoice(params, EMPTY_METADATA, true);
     }
 
     /**
@@ -227,11 +219,21 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
         payable
         returns (uint256)
     {
+        return _createInvoice(params, metadata, true);
+    }
+
+    function _createInvoice(CreateInvoiceParams memory params, ClaimMetadata memory metadata, bool requestedByCreditor)
+        private
+        returns (uint256)
+    {
         _validateCreateInvoiceParams(params);
 
+        (address creditor, address debtor) =
+            requestedByCreditor ? (msg.sender, params.recipient) : (params.recipient, msg.sender);
+
         CreateClaimParams memory createClaimParams = CreateClaimParams({
-            creditor: msg.sender,
-            debtor: params.debtor,
+            creditor: creditor,
+            debtor: debtor,
             claimAmount: params.claimAmount,
             description: params.description,
             token: params.token,
@@ -241,7 +243,9 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
             impairmentGracePeriod: params.impairmentGracePeriod
         });
 
-        uint256 claimId = _bullaClaim.createClaimWithMetadataFrom(msg.sender, createClaimParams, metadata);
+        uint256 claimId = bytes(metadata.attachmentURI).length > 0 && bytes(metadata.tokenURI).length > 0
+            ? _bullaClaim.createClaimWithMetadataFrom(msg.sender, createClaimParams, metadata)
+            : _bullaClaim.createClaimFrom(msg.sender, createClaimParams);
 
         InvoiceDetails memory invoiceDetails = InvoiceDetails({
             purchaseOrder: PurchaseOrderState({
@@ -250,7 +254,8 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
                 depositAmount: params.depositAmount
             }),
             lateFeeConfig: params.lateFeeConfig,
-            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
+            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0}),
+            requestedByCreditor: requestedByCreditor
         });
 
         _invoiceDetailsByClaimId[claimId] = invoiceDetails;
@@ -547,10 +552,6 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
      * @param params The parameters for creating an invoice
      */
     function _validateCreateInvoiceParams(CreateInvoiceParams memory params) private view {
-        if (msg.sender == params.debtor) {
-            revert CreditorCannotBeDebtor();
-        }
-
         if (
             params.deliveryDate != 0
                 && (params.deliveryDate < block.timestamp || params.deliveryDate > type(uint40).max)

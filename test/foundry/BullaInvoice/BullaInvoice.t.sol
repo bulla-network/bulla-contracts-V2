@@ -1158,70 +1158,6 @@ contract TestBullaInvoice is Test {
         bullaInvoice.createInvoiceWithMetadata(params, metadata);
     }
 
-    // Test creditor cannot be debtor in createInvoice
-    function testCreditorCannotBeDebtorInCreateInvoice() public {
-        // Setup permissions
-        bullaClaim.permitCreateClaim({
-            user: creditor,
-            controller: address(bullaInvoice),
-            approvalType: CreateClaimApprovalType.Approved,
-            approvalCount: 1,
-            isBindingAllowed: false,
-            signature: sigHelper.signCreateClaimPermit({
-                pk: creditorPK,
-                user: creditor,
-                controller: address(bullaInvoice),
-                approvalType: CreateClaimApprovalType.Approved,
-                approvalCount: 1,
-                isBindingAllowed: false
-            })
-        });
-
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(creditor).withDescription(
-            "Test Invoice with Same Creditor and Debtor"
-        ).build();
-
-        // Try to create an invoice where creditor (msg.sender) is the same as debtor
-        vm.prank(creditor);
-        vm.expectRevert(CreditorCannotBeDebtor.selector);
-        bullaInvoice.createInvoice(params);
-    }
-
-    // Test creditor cannot be debtor in createInvoiceWithMetadata
-    function testCreditorCannotBeDebtorInCreateInvoiceWithMetadata() public {
-        // Setup permissions
-        bullaClaim.permitCreateClaim({
-            user: creditor,
-            controller: address(bullaInvoice),
-            approvalType: CreateClaimApprovalType.Approved,
-            approvalCount: 1,
-            isBindingAllowed: false,
-            signature: sigHelper.signCreateClaimPermit({
-                pk: creditorPK,
-                user: creditor,
-                controller: address(bullaInvoice),
-                approvalType: CreateClaimApprovalType.Approved,
-                approvalCount: 1,
-                isBindingAllowed: false
-            })
-        });
-
-        // Create metadata
-        ClaimMetadata memory metadata = ClaimMetadata({
-            tokenURI: "Invalid Invoice - Same Creditor and Debtor",
-            attachmentURI: "This should fail due to creditor being same as debtor"
-        });
-
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(creditor).withDescription(
-            "Test Invoice with Metadata and Same Creditor and Debtor"
-        ).build();
-
-        // Try to create an invoice with metadata where creditor (msg.sender) is the same as debtor
-        vm.prank(creditor);
-        vm.expectRevert(CreditorCannotBeDebtor.selector);
-        bullaInvoice.createInvoiceWithMetadata(params, metadata);
-    }
-
     /// PURCHASE ORDER TESTS ///
 
     function testCreateInvoiceWithPurchaseOrder() public {
@@ -3005,10 +2941,6 @@ contract TestBullaInvoice is Test {
 
         // Check the amounts excluding accrued interest
         uint256 remainingPrincipalDepositExcludingInterest = depositAmount - invoiceBefore.paidAmount;
-
-        // Record balances before payment
-        uint256 debtorBalanceBefore = debtor.balance;
-        uint256 creditorBalanceBefore = creditor.balance;
 
         // Attempt to accept purchase order by paying only the principal deposit amount (insufficient)
         vm.prank(debtor);

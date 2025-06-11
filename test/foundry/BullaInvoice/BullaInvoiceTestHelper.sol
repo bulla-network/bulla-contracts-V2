@@ -4,11 +4,7 @@ pragma solidity ^0.8.14;
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {BullaInvoice, CreateInvoiceParams} from "src/BullaInvoice.sol";
 import {CreateInvoiceParamsBuilder} from "test/foundry/BullaInvoice/CreateInvoiceParamsBuilder.sol";
-import {
-    CreateClaimApprovalType,
-    PayClaimApprovalType,
-    ClaimPaymentApprovalParam
-} from "contracts/types/Types.sol";
+import {CreateClaimApprovalType, PayClaimApprovalType, ClaimPaymentApprovalParam} from "contracts/types/Types.sol";
 
 /**
  * @title BullaInvoiceTestHelper
@@ -53,11 +49,7 @@ contract BullaInvoiceTestHelper is BullaClaimTestHelper {
      */
     function _permitPayInvoice(uint256 userPK) internal {
         _permitPayClaim(
-            userPK,
-            address(bullaInvoice),
-            PayClaimApprovalType.IsApprovedForAll,
-            0,
-            new ClaimPaymentApprovalParam[](0)
+            userPK, address(bullaInvoice), PayClaimApprovalType.IsApprovedForAll, 0, new ClaimPaymentApprovalParam[](0)
         );
     }
 
@@ -164,11 +156,9 @@ contract BullaInvoiceTestHelper is BullaClaimTestHelper {
     function _createSimpleInvoice(uint256 creditorPK, address debtor) internal returns (uint256 invoiceId) {
         address creditor = vm.addr(creditorPK);
         _permitCreateInvoice(creditorPK);
-        
+
         vm.prank(creditor);
-        invoiceId = bullaInvoice.createInvoice(
-            new CreateInvoiceParamsBuilder().withDebtor(debtor).build()
-        );
+        invoiceId = bullaInvoice.createInvoice(new CreateInvoiceParamsBuilder().withDebtor(debtor).build());
     }
 
     /**
@@ -177,10 +167,13 @@ contract BullaInvoiceTestHelper is BullaClaimTestHelper {
      * @param params The invoice creation parameters
      * @return invoiceId The ID of the created invoice
      */
-    function _createInvoiceWithParams(uint256 creditorPK, CreateInvoiceParams memory params) internal returns (uint256 invoiceId) {
+    function _createInvoiceWithParams(uint256 creditorPK, CreateInvoiceParams memory params)
+        internal
+        returns (uint256 invoiceId)
+    {
         address creditor = vm.addr(creditorPK);
         _permitCreateInvoice(creditorPK);
-        
+
         vm.prank(creditor);
         invoiceId = bullaInvoice.createInvoice(params);
     }
@@ -191,17 +184,18 @@ contract BullaInvoiceTestHelper is BullaClaimTestHelper {
      * @param debtors Array of debtor addresses
      * @return invoiceIds Array of created invoice IDs
      */
-    function _createMultipleInvoices(uint256 creditorPK, address[] memory debtors) internal returns (uint256[] memory invoiceIds) {
+    function _createMultipleInvoices(uint256 creditorPK, address[] memory debtors)
+        internal
+        returns (uint256[] memory invoiceIds)
+    {
         address creditor = vm.addr(creditorPK);
         _permitCreateInvoice(creditorPK, uint64(debtors.length));
-        
+
         invoiceIds = new uint256[](debtors.length);
         vm.startPrank(creditor);
         for (uint256 i = 0; i < debtors.length; i++) {
-            invoiceIds[i] = bullaInvoice.createInvoice(
-                new CreateInvoiceParamsBuilder().withDebtor(debtors[i]).build()
-            );
+            invoiceIds[i] = bullaInvoice.createInvoice(new CreateInvoiceParamsBuilder().withDebtor(debtors[i]).build());
         }
         vm.stopPrank();
     }
-} 
+}

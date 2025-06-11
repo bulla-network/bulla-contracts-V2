@@ -8,12 +8,13 @@ import "../libraries/CompoundInterestLib.sol";
 struct Invoice {
     uint256 claimAmount;
     uint256 paidAmount;
+    uint256 dueBy;
+    address creditor;
+    address debtor;
+    address token;
     Status status;
     ClaimBinding binding;
     bool payerReceivesClaimOnPayment;
-    address debtor;
-    address token;
-    uint256 dueBy;
     PurchaseOrderState purchaseOrder;
     InterestConfig lateFeeConfig;
     InterestComputationState interestComputationState;
@@ -21,12 +22,13 @@ struct Invoice {
 
 struct PurchaseOrderState {
     uint256 deliveryDate;
-    bool isDelivered;
     uint256 depositAmount;
+    bool isDelivered;
 }
 
+// Directionality is determined by the function that calls it
 struct CreateInvoiceParams {
-    address debtor;
+    address recipient;
     uint256 claimAmount;
     uint256 dueBy;
     uint256 deliveryDate;

@@ -448,9 +448,6 @@ contract TestBullaInvoiceProtocolFee is Test {
         uint256 accruedInterest = invoice.interestComputationState.accruedInterest;
         uint256 paymentAmount = accruedInterest + 0.5 ether;
 
-        uint256 creditorBalanceBefore = creditor.balance;
-        uint256 contractBalanceBefore = address(bullaInvoice).balance;
-
         // Make ETH payment with correct msg.value does not throw
         vm.prank(debtor);
         bullaInvoice.payInvoice{value: paymentAmount}(invoiceId, paymentAmount);
