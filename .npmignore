@@ -1,0 +1,30 @@
+# Development files
+test/
+script/
+cache/
+.gas-snapshot
+.env*
+.vscode/
+.github/
+
+# Build artifacts we don't want to publish
+typechain-types/
+coverage/
+*.log
+npm-debug.log*
+
+# Git and version control
+.git/
+.gitignore
+.gitmodules
+
+# Foundry specific
+lib/
+foundry.toml
+.releaserc.json
+
+# Misc
+README.md
+LICENSE
+LICENSE_AGPL
+CHANGELOG.md 

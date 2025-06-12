@@ -1,0 +1,97 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  FOUNDRY_PROFILE: ci
+
+jobs:
+  test:
+    name: "Test Before Release 🧪"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Install forge dependencies
+        run: forge install
+
+      - name: Run forge build
+        run: |
+          forge --version
+          forge build --sizes
+        id: build
+
+      - name: Run tests
+        run: forge test --gas-report
+
+      - name: Generate coverage report
+        run: |
+          forge coverage --report lcov
+          # Filter out mocks and test files from coverage
+          node -e "
+            const fs = require('fs'); 
+            const data = fs.readFileSync('lcov.info','utf8'); 
+            fs.writeFileSync('lcov.info', 
+              data.split('\n')
+                  .filter(line => !line.includes('SF:src/mocks/'))
+                  .filter(line => !line.includes('SF:test/'))
+                  .join('\n')
+            );
+          "
+
+  release:
+    name: "Semantic Release 🚀"
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.repository == 'bulla-network/bulla-contracts-V2' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "yarn"
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v0.3.0
+
+      - name: Install forge dependencies
+        run: forge install
+
+      - name: Install yarn dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build contracts
+        run: forge build
+
+      - name: Run tests
+        run: forge test --gas-report
+
+      - name: Verify package can be packed
+        run: yarn pack --dry-run
+
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npx semantic-release

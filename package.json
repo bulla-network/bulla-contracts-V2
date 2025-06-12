@@ -8,7 +8,19 @@
   "license": "BUSL-1.1",
   "private": true,
   "engines": {
-    "node": ">=16"
+    "node": ">=18"
+  },
+  "files": [
+    "src/**/*.sol",
+    "out/**/*.json",
+    "!src/mocks/**",
+    "!**/*.t.sol",
+    "!**/*.s.sol"
+  ],
+  "exports": {
+    "./contracts/*": "./src/*",
+    "./artifacts/*": "./out/*",
+    "./package.json": "./package.json"
   },
   "scripts": {
     "build": "forge build",
@@ -16,11 +28,37 @@
     "dev": "forge test -vvv -w --run-all --gas-report",
     "gas": "forge snapshot && forge build --sizes",
     "coverage": "forge coverage --report lcov && node -e \"const fs=require('fs'); const data=fs.readFileSync('lcov.info','utf8'); fs.writeFileSync('lcov.info', data.split('\\n').filter(line => !line.includes('SF:src/mocks/')).join('\\n'));\"",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "prepublishOnly": "yarn build && yarn test"
   },
   "devDependencies": {
     "husky": "^7.0.0",
     "solidity-coverage": "^0.8.2",
-    "toml": "^3.0.0"
+    "toml": "^3.0.0",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "semantic-release": "^21.0.7"
+  },
+  "release": {
+    "branches": [
+      "main"
+    ],
+    "plugins": [
+      "@semantic-release/commit-analyzer",
+      "@semantic-release/release-notes-generator",
+      "@semantic-release/changelog",
+      "@semantic-release/npm",
+      "@semantic-release/github",
+      [
+        "@semantic-release/git",
+        {
+          "assets": [
+            "CHANGELOG.md",
+            "package.json"
+          ],
+          "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+        }
+      ]
+    ]
   }
 }
