@@ -58,6 +58,9 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
     mapping(address => bool) private _tokenExists;
 
     mapping(uint256 => InvoiceDetails) private _invoiceDetailsByClaimId;
+    
+    // Track if we're currently in a batch operation to skip individual fee validation
+    bool private _inBatchOperation;
 
     event InvoiceCreated(uint256 indexed claimId, InvoiceDetails invoiceDetails, uint256 originationFee);
     event InvoicePaid(uint256 indexed claimId, uint256 grossInterestPaid, uint256 principalPaid, uint256 protocolFee);
@@ -556,13 +559,20 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
             revert InvoiceBatchInvalidMsgValue();
         }
         
+        // Set batch operation flag before executing calls
+        _inBatchOperation = true;
+        
         // Execute each call
         for (uint256 i = 0; i < calls.length; i++) {
             (bool success, bytes memory result) = address(this).delegatecall(calls[i]);
             if (!success) {
+                _inBatchOperation = false; // Reset flag before reverting
                 revert(_getRevertMsg(result));
             }
         }
+        
+        // Reset batch operation flag after successful execution
+        _inBatchOperation = false;
     }
 
     /// PRIVATE FUNCTIONS ///
@@ -587,10 +597,13 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
             revert InvalidDepositAmount();
         }
 
-        // Check origination fee based on invoice type
-        uint256 requiredFee = params.deliveryDate != 0 ? purchaseOrderOriginationFee : invoiceOriginationFee;
-        if (msg.value != requiredFee) {
-            revert IncorrectFee();
+        // Skip fee validation when in batch operation (fees are validated at batch level)
+        if (!_inBatchOperation) {
+            // Check origination fee based on invoice type
+            uint256 requiredFee = params.deliveryDate != 0 ? purchaseOrderOriginationFee : invoiceOriginationFee;
+            if (msg.value != requiredFee) {
+                revert IncorrectFee();
+            }
         }
 
         CompoundInterestLib.validateInterestConfig(params.lateFeeConfig);
