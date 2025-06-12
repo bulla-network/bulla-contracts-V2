@@ -77,15 +77,16 @@ struct ClaimStorage {
 struct Claim {
     uint256 claimAmount;
     uint256 paidAmount;
+    uint256 dueBy;
+    uint256 impairmentGracePeriod;
+    address originalCreditor;
+    address debtor;
+    address creditor;
+    address token;
+    address controller;
     Status status;
     ClaimBinding binding;
     bool payerReceivesClaimOnPayment;
-    address originalCreditor;
-    address debtor;
-    address token;
-    address controller;
-    uint256 dueBy;
-    uint256 impairmentGracePeriod;
 }
 
 ////// APPROVALS //////

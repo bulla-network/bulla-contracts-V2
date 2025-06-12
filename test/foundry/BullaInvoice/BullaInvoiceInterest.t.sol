@@ -13,7 +13,6 @@ import {
     BullaInvoice,
     CreateInvoiceParams,
     Invoice,
-    CreditorCannotBeDebtor,
     InvalidDeliveryDate,
     NotOriginalCreditor,
     PurchaseOrderAlreadyDelivered,
@@ -103,9 +102,8 @@ contract TestBullaInvoiceInterest is Test {
             numberOfPeriodsPerYear: 12 // Monthly compounding
         });
 
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withToken(
-            address(token)
-        ).withDueBy(dueBy).withLateFeeConfig(lateFeeConfig).build();
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withToken(address(token)).withDueBy(dueBy).withLateFeeConfig(lateFeeConfig).build();
 
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -126,9 +124,8 @@ contract TestBullaInvoiceInterest is Test {
             numberOfPeriodsPerYear: 12 // Monthly compounding
         });
 
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withToken(
-            address(token)
-        ).withDueBy(dueBy).withLateFeeConfig(lateFeeConfig).build();
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withToken(address(token)).withDueBy(dueBy).withLateFeeConfig(lateFeeConfig).build();
 
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -154,9 +151,8 @@ contract TestBullaInvoiceInterest is Test {
             numberOfPeriodsPerYear: 12 // Monthly compounding
         });
 
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withToken(
-            address(token)
-        ).withDueBy(dueBy).withLateFeeConfig(lateFeeConfig).build();
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withToken(address(token)).withDueBy(dueBy).withLateFeeConfig(lateFeeConfig).build();
 
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -179,9 +175,8 @@ contract TestBullaInvoiceInterest is Test {
             numberOfPeriodsPerYear: 1 // yearly compounding
         });
 
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withToken(
-            address(token)
-        ).withDueBy(dueBy).withLateFeeConfig(lateFeeConfig).build();
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withToken(address(token)).withDueBy(dueBy).withLateFeeConfig(lateFeeConfig).build();
 
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -234,9 +229,8 @@ contract TestBullaInvoiceInterest is Test {
             numberOfPeriodsPerYear: 12 // Monthly compounding
         });
 
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withToken(
-            address(token)
-        ).withDueBy(dueBy).withLateFeeConfig(lateFeeConfig).build();
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withToken(address(token)).withDueBy(dueBy).withLateFeeConfig(lateFeeConfig).build();
 
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -280,9 +274,8 @@ contract TestBullaInvoiceInterest is Test {
             numberOfPeriodsPerYear: 12 // Monthly compounding
         });
 
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withToken(
-            address(token)
-        ).withDueBy(dueBy).withLateFeeConfig(lateFeeConfig).build();
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withToken(address(token)).withDueBy(dueBy).withLateFeeConfig(lateFeeConfig).build();
 
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -321,9 +314,8 @@ contract TestBullaInvoiceInterest is Test {
             numberOfPeriodsPerYear: 4 // Quarterly compounding
         });
 
-        CreateInvoiceParams memory params1 = new CreateInvoiceParamsBuilder().withDebtor(debtor).withToken(
-            address(token)
-        ).withDueBy(dueBy).withLateFeeConfig(quarterlyConfig).build();
+        CreateInvoiceParams memory params1 = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withToken(address(token)).withDueBy(dueBy).withLateFeeConfig(quarterlyConfig).build();
 
         vm.prank(creditor);
         uint256 invoiceId1 = bullaInvoice.createInvoice(params1);
@@ -334,9 +326,8 @@ contract TestBullaInvoiceInterest is Test {
             numberOfPeriodsPerYear: 12 // Monthly compounding
         });
 
-        CreateInvoiceParams memory params2 = new CreateInvoiceParamsBuilder().withDebtor(debtor).withToken(
-            address(token)
-        ).withDueBy(dueBy).withLateFeeConfig(monthlyConfig).build();
+        CreateInvoiceParams memory params2 = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withToken(address(token)).withDueBy(dueBy).withLateFeeConfig(monthlyConfig).build();
 
         vm.prank(creditor);
         uint256 invoiceId2 = bullaInvoice.createInvoice(params2);
@@ -377,9 +368,8 @@ contract TestBullaInvoiceInterest is Test {
             numberOfPeriodsPerYear: 12 // Monthly compounding (doesn't matter with 0%)
         });
 
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withToken(
-            address(token)
-        ).withDueBy(dueBy).withLateFeeConfig(zeroInterestConfig).build();
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withToken(address(token)).withDueBy(dueBy).withLateFeeConfig(zeroInterestConfig).build();
 
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
@@ -402,9 +392,8 @@ contract TestBullaInvoiceInterest is Test {
             numberOfPeriodsPerYear: 12 // Monthly compounding
         });
 
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withToken(
-            address(token)
-        ).withDueBy(dueBy).withLateFeeConfig(lateFeeConfig).build();
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withToken(address(token)).withDueBy(dueBy).withLateFeeConfig(lateFeeConfig).build();
 
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);

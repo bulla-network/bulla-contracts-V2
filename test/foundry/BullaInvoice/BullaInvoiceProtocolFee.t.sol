@@ -12,7 +12,6 @@ import {
     BullaInvoice,
     CreateInvoiceParams,
     Invoice,
-    CreditorCannotBeDebtor,
     InvalidDeliveryDate,
     NotOriginalCreditor,
     PurchaseOrderAlreadyDelivered,
@@ -205,8 +204,8 @@ contract TestBullaInvoiceProtocolFee is Test {
         });
 
         // Create invoice with interest
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withToken(token)
-            .withClaimAmount(amount).withLateFeeConfig(interestConfig).build();
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withToken(token).withClaimAmount(amount).withLateFeeConfig(interestConfig).build();
 
         uint256 fee = invoice.invoiceOriginationFee();
 
@@ -447,9 +446,6 @@ contract TestBullaInvoiceProtocolFee is Test {
         Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
         uint256 accruedInterest = invoice.interestComputationState.accruedInterest;
         uint256 paymentAmount = accruedInterest + 0.5 ether;
-
-        uint256 creditorBalanceBefore = creditor.balance;
-        uint256 contractBalanceBefore = address(bullaInvoice).balance;
 
         // Make ETH payment with correct msg.value does not throw
         vm.prank(debtor);
