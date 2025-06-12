@@ -604,6 +604,254 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         assertEq(bullaClaim.currentClaimId(), numInvoices);
     }
 
+    /*///////////////////// BATCH CREATE INVOICES TESTS /////////////////////*/
+
+    function testBatchCreateInvoices_MultipleInvoices() public {
+        // Setup permissions for multiple invoice creations
+        _permitCreateInvoice(creditorPK, 3);
+        
+        bytes[] memory calls = new bytes[](3);
+        
+        calls[0] = abi.encodeCall(
+            BullaInvoice.createInvoice,
+            (new CreateInvoiceParamsBuilder().withDebtor(debtor).withClaimAmount(1 ether).build())
+        );
+        calls[1] = abi.encodeCall(
+            BullaInvoice.createInvoice,
+            (new CreateInvoiceParamsBuilder().withDebtor(charlie).withClaimAmount(2 ether).build())
+        );
+        calls[2] = abi.encodeCall(
+            BullaInvoice.createInvoice,
+            (new CreateInvoiceParamsBuilder().withDebtor(alice).withClaimAmount(3 ether).build())
+        );
+        
+        // Calculate required total fee (3 invoices * invoiceOriginationFee)
+        uint256 totalFee = 3 * bullaInvoice.invoiceOriginationFee();
+        
+        vm.prank(creditor);
+        bullaInvoice.batchCreateInvoices{value: totalFee}(calls);
+        
+        // Verify all invoices were created
+        assertEq(bullaClaim.currentClaimId(), 3);
+        
+        Claim memory claim1 = bullaClaim.getClaim(1);
+        Claim memory claim2 = bullaClaim.getClaim(2);
+        Claim memory claim3 = bullaClaim.getClaim(3);
+        
+        assertEq(claim1.claimAmount, 1 ether);
+        assertEq(claim2.claimAmount, 2 ether);
+        assertEq(claim3.claimAmount, 3 ether);
+        assertEq(claim1.debtor, debtor);
+        assertEq(claim2.debtor, charlie);
+        assertEq(claim3.debtor, alice);
+    }
+
+    function testBatchCreateInvoices_MixedInvoicesAndPurchaseOrders() public {
+        // Setup permissions
+        _permitCreateInvoice(creditorPK, 3);
+        
+        bytes[] memory calls = new bytes[](3);
+        
+        // Regular invoice
+        calls[0] = abi.encodeCall(
+            BullaInvoice.createInvoice,
+            (new CreateInvoiceParamsBuilder().withDebtor(debtor).build())
+        );
+        
+        // Purchase order (has delivery date)
+        calls[1] = abi.encodeCall(
+            BullaInvoice.createInvoice,
+            (new CreateInvoiceParamsBuilder()
+                .withDebtor(charlie)
+                .withDeliveryDate(block.timestamp + 1 days)
+                .build())
+        );
+        
+        // Another regular invoice
+        calls[2] = abi.encodeCall(
+            BullaInvoice.createInvoice,
+            (new CreateInvoiceParamsBuilder().withDebtor(alice).build())
+        );
+        
+        // Calculate required total fee (2 invoices + 1 purchase order)
+        uint256 totalFee = 2 * bullaInvoice.invoiceOriginationFee() + 1 * bullaInvoice.purchaseOrderOriginationFee();
+        
+        vm.prank(creditor);
+        bullaInvoice.batchCreateInvoices{value: totalFee}(calls);
+        
+        assertEq(bullaClaim.currentClaimId(), 3);
+        
+        // Verify the purchase order has delivery date
+        Invoice memory invoice2 = bullaInvoice.getInvoice(2);
+        assertEq(invoice2.purchaseOrder.deliveryDate, block.timestamp + 1 days);
+        assertFalse(invoice2.purchaseOrder.isDelivered);
+    }
+
+    function testBatchCreateInvoices_WithMetadata() public {
+        // Setup permissions
+        _permitCreateInvoice(creditorPK, 2);
+        
+        ClaimMetadata memory metadata1 = ClaimMetadata({
+            tokenURI: "https://example.com/1",
+            attachmentURI: "https://attachment.com/1"
+        });
+        
+        ClaimMetadata memory metadata2 = ClaimMetadata({
+            tokenURI: "https://example.com/2",
+            attachmentURI: "https://attachment.com/2"
+        });
+        
+        bytes[] memory calls = new bytes[](2);
+        
+        calls[0] = abi.encodeCall(
+            BullaInvoice.createInvoiceWithMetadata,
+            (new CreateInvoiceParamsBuilder().withDebtor(debtor).build(), metadata1)
+        );
+        calls[1] = abi.encodeCall(
+            BullaInvoice.createInvoiceWithMetadata,
+            (new CreateInvoiceParamsBuilder().withDebtor(charlie).build(), metadata2)
+        );
+        
+        uint256 totalFee = 2 * bullaInvoice.invoiceOriginationFee();
+        
+        vm.prank(creditor);
+        bullaInvoice.batchCreateInvoices{value: totalFee}(calls);
+        
+        assertEq(bullaClaim.currentClaimId(), 2);
+        
+        // Verify metadata was set
+        (string memory tokenURI1, string memory attachmentURI1) = bullaClaim.claimMetadata(1);
+        (string memory tokenURI2, string memory attachmentURI2) = bullaClaim.claimMetadata(2);
+        
+        assertEq(tokenURI1, "https://example.com/1");
+        assertEq(attachmentURI1, "https://attachment.com/1");
+        assertEq(tokenURI2, "https://example.com/2");
+        assertEq(attachmentURI2, "https://attachment.com/2");
+    }
+
+    function testBatchCreateInvoices_EmptyArray() public {
+        bytes[] memory calls = new bytes[](0);
+        
+        // Should not revert with empty array and no msg.value
+        bullaInvoice.batchCreateInvoices{value: 0}(calls);
+        
+        assertEq(bullaClaim.currentClaimId(), 0);
+    }
+
+    function testBatchCreateInvoices_InvalidMsgValue_TooLow() public {
+        _permitCreateInvoice(creditorPK, 2);
+        
+        bytes[] memory calls = new bytes[](2);
+        
+        calls[0] = abi.encodeCall(
+            BullaInvoice.createInvoice,
+            (new CreateInvoiceParamsBuilder().withDebtor(debtor).build())
+        );
+        calls[1] = abi.encodeCall(
+            BullaInvoice.createInvoice,
+            (new CreateInvoiceParamsBuilder().withDebtor(charlie).build())
+        );
+        
+        uint256 requiredFee = 2 * bullaInvoice.invoiceOriginationFee();
+        // Handle case where origination fee might be 0
+        uint256 insufficientFee = requiredFee > 0 ? requiredFee - 1 : 1;
+        
+        vm.prank(creditor);
+        vm.expectRevert(abi.encodeWithSignature("InvoiceBatchInvalidMsgValue()"));
+        bullaInvoice.batchCreateInvoices{value: insufficientFee}(calls);
+    }
+
+    function testBatchCreateInvoices_InvalidMsgValue_TooHigh() public {
+        _permitCreateInvoice(creditorPK, 2);
+        
+        bytes[] memory calls = new bytes[](2);
+        
+        calls[0] = abi.encodeCall(
+            BullaInvoice.createInvoice,
+            (new CreateInvoiceParamsBuilder().withDebtor(debtor).build())
+        );
+        calls[1] = abi.encodeCall(
+            BullaInvoice.createInvoice,
+            (new CreateInvoiceParamsBuilder().withDebtor(charlie).build())
+        );
+        
+        uint256 requiredFee = 2 * bullaInvoice.invoiceOriginationFee();
+        uint256 excessiveFee = requiredFee + 1;
+        
+        vm.prank(creditor);
+        vm.expectRevert(abi.encodeWithSignature("InvoiceBatchInvalidMsgValue()"));
+        bullaInvoice.batchCreateInvoices{value: excessiveFee}(calls);
+    }
+
+    function testBatchCreateInvoices_InvalidCalldata() public {
+        bytes[] memory calls = new bytes[](1);
+        
+        // Invalid function selector
+        calls[0] = abi.encodeCall(BullaInvoice.payInvoice, (1, 1 ether));
+        
+        vm.prank(creditor);
+        vm.expectRevert(abi.encodeWithSignature("InvoiceBatchInvalidCalldata()"));
+        bullaInvoice.batchCreateInvoices{value: 0}(calls);
+    }
+
+    function testBatchCreateInvoices_OneCallFails() public {
+        _permitCreateInvoice(creditorPK, 2);
+        
+        bytes[] memory calls = new bytes[](2);
+        
+        // Valid call
+        calls[0] = abi.encodeCall(
+            BullaInvoice.createInvoice,
+            (new CreateInvoiceParamsBuilder().withDebtor(debtor).build())
+        );
+        
+        // Invalid call (creditor cannot be debtor)
+        calls[1] = abi.encodeCall(
+            BullaInvoice.createInvoice,
+            (new CreateInvoiceParamsBuilder().withDebtor(creditor).build())
+        );
+        
+        uint256 totalFee = 2 * bullaInvoice.invoiceOriginationFee();
+        
+        vm.prank(creditor);
+        vm.expectRevert("Transaction reverted silently");
+        bullaInvoice.batchCreateInvoices{value: totalFee}(calls);
+        
+        // No invoices should be created due to revert
+        assertEq(bullaClaim.currentClaimId(), 0);
+    }
+
+    function testBatchCreateInvoices_LargeNumberOfInvoices() public {
+        uint256 numInvoices = 10;
+        _permitCreateInvoice(creditorPK, uint64(numInvoices));
+        
+        bytes[] memory calls = new bytes[](numInvoices);
+        
+        for (uint256 i = 0; i < numInvoices; i++) {
+            calls[i] = abi.encodeCall(
+                BullaInvoice.createInvoice,
+                (new CreateInvoiceParamsBuilder()
+                    .withDebtor(address(uint160(0x1000 + i)))
+                    .withClaimAmount((i + 1) * 1 ether)
+                    .build())
+            );
+        }
+        
+        uint256 totalFee = numInvoices * bullaInvoice.invoiceOriginationFee();
+        
+        vm.prank(creditor);
+        bullaInvoice.batchCreateInvoices{value: totalFee}(calls);
+        
+        assertEq(bullaClaim.currentClaimId(), numInvoices);
+        
+        // Verify a few invoices
+        Claim memory claim1 = bullaClaim.getClaim(1);
+        Claim memory claim10 = bullaClaim.getClaim(10);
+        
+        assertEq(claim1.claimAmount, 1 ether);
+        assertEq(claim10.claimAmount, 10 ether);
+    }
+
     /*///////////////////// HELPER FUNCTIONS /////////////////////*/
 
     function _newInvoice(address _creditor, address _debtor) internal returns (uint256) {

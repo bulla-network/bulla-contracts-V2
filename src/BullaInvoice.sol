@@ -34,7 +34,8 @@ error IncorrectMsgValue();
 error IncorrectFee();
 error NotAdmin();
 error WithdrawalFailed();
-error NotCreditorOrDebtor();
+error InvoiceBatchInvalidMsgValue();
+error InvoiceBatchInvalidCalldata();
 
 /**
  * @title BullaInvoice
@@ -521,6 +522,46 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
         protocolFeeBPS = _protocolFeeBPS;
 
         emit ProtocolFeeUpdated(oldFee, _protocolFeeBPS);
+    }
+
+    /**
+     * @notice Batch create multiple invoices with proper msg.value handling
+     * @param calls Array of encoded createInvoice or createInvoiceWithMetadata calls
+     */
+    function batchCreateInvoices(bytes[] calldata calls) external payable {
+        if (calls.length == 0) return;
+        
+        uint256 totalRequiredFee = 0;
+        
+        // Calculate total required fees by decoding each call
+        for (uint256 i = 0; i < calls.length; i++) {
+            bytes4 selector = bytes4(calls[i][:4]);
+            
+            if (selector == this.createInvoice.selector) {
+                CreateInvoiceParams memory params = abi.decode(calls[i][4:], (CreateInvoiceParams));
+                uint256 requiredFee = params.deliveryDate != 0 ? purchaseOrderOriginationFee : invoiceOriginationFee;
+                totalRequiredFee += requiredFee;
+            } else if (selector == this.createInvoiceWithMetadata.selector) {
+                (CreateInvoiceParams memory params,) = abi.decode(calls[i][4:], (CreateInvoiceParams, ClaimMetadata));
+                uint256 requiredFee = params.deliveryDate != 0 ? purchaseOrderOriginationFee : invoiceOriginationFee;
+                totalRequiredFee += requiredFee;
+            } else {
+                revert InvoiceBatchInvalidCalldata();
+            }
+        }
+        
+        // Validate total msg.value matches required fees
+        if (msg.value != totalRequiredFee) {
+            revert InvoiceBatchInvalidMsgValue();
+        }
+        
+        // Execute each call
+        for (uint256 i = 0; i < calls.length; i++) {
+            (bool success, bytes memory result) = address(this).delegatecall(calls[i]);
+            if (!success) {
+                revert(_getRevertMsg(result));
+            }
+        }
     }
 
     /// PRIVATE FUNCTIONS ///
