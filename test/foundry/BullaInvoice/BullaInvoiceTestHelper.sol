@@ -158,7 +158,9 @@ contract BullaInvoiceTestHelper is BullaClaimTestHelper {
         _permitCreateInvoice(creditorPK);
 
         vm.prank(creditor);
-        invoiceId = bullaInvoice.createInvoice(new CreateInvoiceParamsBuilder().withDebtor(debtor).build());
+        invoiceId = bullaInvoice.createInvoice(
+            new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor).build()
+        );
     }
 
     /**
@@ -194,7 +196,9 @@ contract BullaInvoiceTestHelper is BullaClaimTestHelper {
         invoiceIds = new uint256[](debtors.length);
         vm.startPrank(creditor);
         for (uint256 i = 0; i < debtors.length; i++) {
-            invoiceIds[i] = bullaInvoice.createInvoice(new CreateInvoiceParamsBuilder().withDebtor(debtors[i]).build());
+            invoiceIds[i] = bullaInvoice.createInvoice(
+                new CreateInvoiceParamsBuilder().withDebtor(debtors[i]).withCreditor(creditor).build()
+            );
         }
         vm.stopPrank();
     }

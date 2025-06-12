@@ -11,7 +11,6 @@ import {
     BullaInvoice,
     CreateInvoiceParams,
     Invoice,
-    CreditorCannotBeDebtor,
     InvalidDeliveryDate,
     NotOriginalCreditor,
     PurchaseOrderAlreadyDelivered,
@@ -117,7 +116,8 @@ contract TestBullaInvoiceOrigination is Test {
 
     function testCreateInvoiceWithCorrectInvoiceFee() public {
         // Setup for no delivery date (invoice)
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withDeliveryDate(0) // No delivery date = invoice
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withDeliveryDate(0) // No delivery date = invoice
             .build();
 
         uint256 expectedFee = bullaInvoice.invoiceOriginationFee();
@@ -146,9 +146,8 @@ contract TestBullaInvoiceOrigination is Test {
 
     function testCreatePurchaseOrderWithCorrectFee() public {
         // Setup for delivery date (purchase order)
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withDeliveryDate(
-            block.timestamp + 1 days
-        ) // Has delivery date = purchase order
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withDeliveryDate(block.timestamp + 1 days) // Has delivery date = purchase order
             .build();
 
         uint256 expectedFee = bullaInvoice.purchaseOrderOriginationFee();
@@ -177,7 +176,8 @@ contract TestBullaInvoiceOrigination is Test {
     // ==================== FEE VALIDATION ERROR TESTS ====================
 
     function testCreateInvoiceRevertsWithIncorrectFee() public {
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withDeliveryDate(0) // No delivery date = invoice
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withDeliveryDate(0) // No delivery date = invoice
             .build();
 
         uint256 incorrectFee = bullaInvoice.invoiceOriginationFee() + 0.001 ether;
@@ -188,9 +188,8 @@ contract TestBullaInvoiceOrigination is Test {
     }
 
     function testCreatePurchaseOrderRevertsWithIncorrectFee() public {
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withDeliveryDate(
-            block.timestamp + 1 days
-        ) // Has delivery date = purchase order
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withDeliveryDate(block.timestamp + 1 days) // Has delivery date = purchase order
             .build();
 
         uint256 incorrectFee = bullaInvoice.purchaseOrderOriginationFee() + 0.001 ether;
@@ -201,7 +200,8 @@ contract TestBullaInvoiceOrigination is Test {
     }
 
     function testCreateInvoiceRevertsWhenNoFeeProvided() public {
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withDeliveryDate(0) // No delivery date = invoice
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withDeliveryDate(0) // No delivery date = invoice
             .build();
 
         vm.prank(creditor);
@@ -213,9 +213,8 @@ contract TestBullaInvoiceOrigination is Test {
 
     function testCreateInvoiceAtExactBlockTimestamp() public {
         // Delivery date at exact block timestamp should be treated as purchase order
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withDeliveryDate(
-            block.timestamp
-        ) // Exact timestamp = purchase order
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withDeliveryDate(block.timestamp) // Exact timestamp = purchase order
             .build();
 
         uint256 expectedFee = bullaInvoice.purchaseOrderOriginationFee();
@@ -236,7 +235,8 @@ contract TestBullaInvoiceOrigination is Test {
 
     function testCreateInvoiceWithZeroConfiguredFees() public {
         // Test with zero fee contract
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withDeliveryDate(0) // No delivery date = invoice
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withDeliveryDate(0) // No delivery date = invoice
             .build();
 
         // Expected InvoiceDetails struct
@@ -256,13 +256,13 @@ contract TestBullaInvoiceOrigination is Test {
     // ==================== FEE WITHDRAWAL ====================
 
     function testAdminCanWithdrawOriginationFees() public {
-        CreateInvoiceParams memory invoiceParams = new CreateInvoiceParamsBuilder().withDebtor(debtor).withDeliveryDate(
-            0
-        ) // No delivery date = invoice
+        CreateInvoiceParams memory invoiceParams = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(
+            creditor
+        ).withDeliveryDate(0) // No delivery date = invoice
             .build();
 
         CreateInvoiceParams memory purchaseOrderParams = new CreateInvoiceParamsBuilder().withDebtor(debtor)
-            .withDeliveryDate(block.timestamp + 1 days) // Has delivery date = purchase order
+            .withCreditor(creditor).withDeliveryDate(block.timestamp + 1 days) // Has delivery date = purchase order
             .build();
 
         uint256 invoiceFee = bullaInvoice.invoiceOriginationFee();
@@ -311,7 +311,8 @@ contract TestBullaInvoiceOrigination is Test {
 
     function testNonAdminCannotWithdrawFees() public {
         // Create an invoice with fee
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withDeliveryDate(0) // No delivery date = invoice
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withDeliveryDate(0) // No delivery date = invoice
             .build();
 
         uint256 fee = bullaInvoice.invoiceOriginationFee();

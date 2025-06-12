@@ -28,7 +28,8 @@ struct PurchaseOrderState {
 
 // Directionality is determined by the function that calls it
 struct CreateInvoiceParams {
-    address recipient;
+    address debtor;
+    address creditor;
     uint256 claimAmount;
     uint256 dueBy;
     uint256 deliveryDate;

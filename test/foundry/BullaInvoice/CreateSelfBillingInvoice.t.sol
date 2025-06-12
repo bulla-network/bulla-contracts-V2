@@ -11,7 +11,6 @@ import {
     BullaInvoice,
     CreateInvoiceParams,
     Invoice,
-    CreditorCannotBeDebtor,
     InvalidDeliveryDate,
     NotOriginalCreditor,
     PurchaseOrderAlreadyDelivered,
@@ -125,12 +124,10 @@ contract TestCreateSelfBillingInvoice is Test {
     // ==================== BASIC SELF BILLING TESTS ====================
 
     function testCreateSelfBillingInvoice() public {
-        // Create invoice params where debtor creates invoice for creditor to pay
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withCreditor(creditor).withClaimAmount(
-            5 ether
-        ).withDescription("Self-billing invoice - payment request").withToken(address(0)).withDueBy(
-            block.timestamp + 30 days
-        ) // ETH
+        // Create invoice params where debtor creates invoice
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withClaimAmount(5 ether).withDescription("Self-billing invoice - payment request").withToken(address(0))
+            .withDueBy(block.timestamp + 30 days) // ETH
             .build();
 
         uint256 contractBalanceBefore = address(bullaInvoice).balance;
@@ -159,7 +156,7 @@ contract TestCreateSelfBillingInvoice is Test {
 
         // Debtor creates self-billing invoice
         vm.prank(debtor);
-        uint256 invoiceId = bullaInvoice.createSelfBillingInvoice{value: INVOICE_ORIGINATION_FEE}(params);
+        uint256 invoiceId = bullaInvoice.createInvoice{value: INVOICE_ORIGINATION_FEE}(params);
 
         // Verify fee was sent to contract
         assertEq(
@@ -194,15 +191,13 @@ contract TestCreateSelfBillingInvoice is Test {
 
     function testCreateSelfBillingInvoiceWithERC20Token() public {
         // Create invoice params for ERC20 token payment
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withCreditor(creditor).withClaimAmount(
-            1000 ether
-        ).withDescription("ERC20 self-billing invoice").withToken(address(testToken)).withDueBy(
-            block.timestamp + 15 days
-        ).build();
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withClaimAmount(1000 ether).withDescription("ERC20 self-billing invoice").withToken(address(testToken))
+            .withDueBy(block.timestamp + 15 days).build();
 
         // Debtor creates self-billing invoice for ERC20 payment
         vm.prank(debtor);
-        uint256 invoiceId = bullaInvoice.createSelfBillingInvoice{value: INVOICE_ORIGINATION_FEE}(params);
+        uint256 invoiceId = bullaInvoice.createInvoice{value: INVOICE_ORIGINATION_FEE}(params);
 
         // Verify invoice was created successfully
         assertTrue(invoiceId > 0, "Invoice should be created");
@@ -220,14 +215,15 @@ contract TestCreateSelfBillingInvoice is Test {
 
     function testCreateSelfBillingInvoiceWithBoundStatus() public {
         // Create invoice params with bound status
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withCreditor(creditor).withClaimAmount(
-            2 ether
-        ).withDescription("Bound self-billing invoice").withToken(address(0)).withBinding(ClaimBinding.Bound) // Debtor can bind themselves
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withClaimAmount(2 ether).withDescription("Bound self-billing invoice").withToken(address(0)).withBinding(
+            ClaimBinding.Bound
+        ) // Debtor can bind themselves
             .build();
 
         // Debtor creates bound self-billing invoice
         vm.prank(debtor);
-        uint256 invoiceId = bullaInvoice.createSelfBillingInvoice{value: INVOICE_ORIGINATION_FEE}(params);
+        uint256 invoiceId = bullaInvoice.createInvoice{value: INVOICE_ORIGINATION_FEE}(params);
 
         // Verify the claim is bound
         Claim memory claim = bullaClaim.getClaim(invoiceId);
@@ -244,14 +240,13 @@ contract TestCreateSelfBillingInvoice is Test {
         });
 
         // Create invoice params with interest
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withCreditor(creditor).withClaimAmount(
-            10 ether
-        ).withDescription("Self-billing invoice with interest").withToken(address(0)).withLateFeeConfig(interestConfig)
-            .withDueBy(block.timestamp + 60 days).build();
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withClaimAmount(10 ether).withDescription("Self-billing invoice with interest").withToken(address(0))
+            .withLateFeeConfig(interestConfig).withDueBy(block.timestamp + 60 days).build();
 
         // Debtor creates self-billing invoice with interest
         vm.prank(debtor);
-        uint256 invoiceId = bullaInvoice.createSelfBillingInvoice{value: INVOICE_ORIGINATION_FEE}(params);
+        uint256 invoiceId = bullaInvoice.createInvoice{value: INVOICE_ORIGINATION_FEE}(params);
 
         // Verify invoice was created successfully
         assertTrue(invoiceId > 0, "Invoice should be created");
@@ -270,10 +265,10 @@ contract TestCreateSelfBillingInvoice is Test {
         uint256 depositAmount = 1 ether;
 
         // Create purchase order params
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withCreditor(creditor).withClaimAmount(
-            5 ether
-        ).withDescription("Self-billing purchase order").withToken(address(0)).withDeliveryDate(deliveryDate)
-            .withDepositAmount(depositAmount).build();
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withClaimAmount(5 ether).withDescription("Self-billing purchase order").withToken(address(0)).withDeliveryDate(
+            deliveryDate
+        ).withDepositAmount(depositAmount).build();
 
         // Expected InvoiceDetails struct for self-billing purchase order
         InvoiceDetails memory expectedInvoiceDetails = new InvoiceDetailsBuilder().withRequestedByCreditor(false)
@@ -285,7 +280,7 @@ contract TestCreateSelfBillingInvoice is Test {
 
         // Debtor creates self-billing purchase order
         vm.prank(debtor);
-        uint256 invoiceId = bullaInvoice.createSelfBillingInvoice{value: PURCHASE_ORDER_ORIGINATION_FEE}(params);
+        uint256 invoiceId = bullaInvoice.createInvoice{value: PURCHASE_ORDER_ORIGINATION_FEE}(params);
 
         // Verify purchase order was created
         assertTrue(invoiceId > 0, "Purchase order should be created");
@@ -305,33 +300,32 @@ contract TestCreateSelfBillingInvoice is Test {
 
     function testSelfBillingMustPayCorrectOriginationFee() public {
         CreateInvoiceParams memory params =
-            new CreateInvoiceParamsBuilder().withCreditor(creditor).withClaimAmount(5 ether).build();
+            new CreateInvoiceParamsBuilder().withCreditor(creditor).withDebtor(debtor).withClaimAmount(5 ether).build();
 
         // Try with wrong fee
         vm.prank(debtor);
         vm.expectRevert(IncorrectFee.selector);
-        bullaInvoice.createSelfBillingInvoice{value: INVOICE_ORIGINATION_FEE + 0.001 ether}(params);
+        bullaInvoice.createInvoice{value: INVOICE_ORIGINATION_FEE + 0.001 ether}(params);
 
         // Try with no fee
         vm.prank(debtor);
         vm.expectRevert(IncorrectFee.selector);
-        bullaInvoice.createSelfBillingInvoice{value: 0}(params);
+        bullaInvoice.createInvoice{value: 0}(params);
     }
 
     function testSelfBillingMustPayCorrectPurchaseOrderFee() public {
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withCreditor(creditor).withClaimAmount(
-            5 ether
-        ).withDeliveryDate(block.timestamp + 7 days).build();
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withClaimAmount(5 ether).withDeliveryDate(block.timestamp + 7 days).build();
 
         // Try with invoice fee instead of purchase order fee
         vm.prank(debtor);
         vm.expectRevert(IncorrectFee.selector);
-        bullaInvoice.createSelfBillingInvoice{value: INVOICE_ORIGINATION_FEE}(params);
+        bullaInvoice.createInvoice{value: INVOICE_ORIGINATION_FEE}(params);
 
         // Try with wrong purchase order fee
         vm.prank(debtor);
         vm.expectRevert(IncorrectFee.selector);
-        bullaInvoice.createSelfBillingInvoice{value: PURCHASE_ORDER_ORIGINATION_FEE + 0.001 ether}(params);
+        bullaInvoice.createInvoice{value: PURCHASE_ORDER_ORIGINATION_FEE + 0.001 ether}(params);
     }
 
     function testSelfBillingInvalidDeliveryDate() public {
@@ -339,47 +333,48 @@ contract TestCreateSelfBillingInvoice is Test {
 
         // Create invoice params with past delivery date
         uint256 pastDeliveryDate = block.timestamp - 1 days;
-        CreateInvoiceParams memory params =
-            new CreateInvoiceParamsBuilder().withCreditor(creditor).withDeliveryDate(pastDeliveryDate).build();
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withDeliveryDate(pastDeliveryDate).build();
 
         // Create should revert with InvalidDeliveryDate
         vm.prank(debtor);
         vm.expectRevert(InvalidDeliveryDate.selector);
-        bullaInvoice.createSelfBillingInvoice{value: PURCHASE_ORDER_ORIGINATION_FEE}(params);
+        bullaInvoice.createInvoice{value: PURCHASE_ORDER_ORIGINATION_FEE}(params);
 
         // Create invoice params with future delivery date beyond uint40
         uint256 farFutureDeliveryDate = uint256(type(uint40).max) + 1;
-        params = new CreateInvoiceParamsBuilder().withCreditor(creditor).withDeliveryDate(farFutureDeliveryDate).build();
+        params = new CreateInvoiceParamsBuilder().withCreditor(creditor).withDebtor(debtor).withDeliveryDate(
+            farFutureDeliveryDate
+        ).build();
 
         // Create should revert with InvalidDeliveryDate
         vm.prank(debtor);
         vm.expectRevert(InvalidDeliveryDate.selector);
-        bullaInvoice.createSelfBillingInvoice{value: PURCHASE_ORDER_ORIGINATION_FEE}(params);
+        bullaInvoice.createInvoice{value: PURCHASE_ORDER_ORIGINATION_FEE}(params);
     }
 
     function testSelfBillingInvalidDepositAmount() public {
         // Try to create self-billing invoice with deposit larger than claim amount
         uint256 claimAmount = 1 ether;
         uint256 depositAmount = 2 ether; // Larger than claim amount
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withCreditor(creditor).withClaimAmount(
-            claimAmount
-        ).withDepositAmount(depositAmount).build();
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withClaimAmount(claimAmount).withDepositAmount(depositAmount).build();
 
         vm.prank(debtor);
         vm.expectRevert(abi.encodeWithSelector(InvalidDepositAmount.selector));
-        bullaInvoice.createSelfBillingInvoice{value: INVOICE_ORIGINATION_FEE}(params);
+        bullaInvoice.createInvoice{value: INVOICE_ORIGINATION_FEE}(params);
     }
 
     // ==================== PAYMENT FLOW TESTS ====================
 
     function testDebtorCanPaySelfBillingInvoice() public {
         // Debtor creates self-billing invoice
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withCreditor(creditor).withClaimAmount(
-            2 ether
-        ).withDescription("Self-billing invoice to be paid by debtor").withToken(address(0)).build();
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withClaimAmount(2 ether).withDescription("Self-billing invoice to be paid by debtor").withToken(address(0))
+            .build();
 
         vm.prank(debtor);
-        uint256 invoiceId = bullaInvoice.createSelfBillingInvoice{value: INVOICE_ORIGINATION_FEE}(params);
+        uint256 invoiceId = bullaInvoice.createInvoice{value: INVOICE_ORIGINATION_FEE}(params);
 
         // Verify initial state
         Claim memory claim = bullaClaim.getClaim(invoiceId);
@@ -409,13 +404,12 @@ contract TestCreateSelfBillingInvoice is Test {
         dueBy = bound(dueBy, block.timestamp + 1 days, type(uint40).max);
 
         // Create invoice params with fuzzing values
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withCreditor(creditor).withClaimAmount(
-            amount
-        ).withDueBy(dueBy).withDescription("Fuzz Test Self-Billing Invoice").build();
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withClaimAmount(amount).withDueBy(dueBy).withDescription("Fuzz Test Self-Billing Invoice").build();
 
         // Create a self-billing invoice
         vm.prank(debtor);
-        uint256 invoiceId = bullaInvoice.createSelfBillingInvoice{value: INVOICE_ORIGINATION_FEE}(params);
+        uint256 invoiceId = bullaInvoice.createInvoice{value: INVOICE_ORIGINATION_FEE}(params);
 
         // Verify invoice was created correctly
         Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);

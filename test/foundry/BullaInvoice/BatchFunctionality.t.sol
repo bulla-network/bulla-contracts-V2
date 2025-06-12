@@ -96,8 +96,10 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         bytes[] memory calls = new bytes[](1);
 
         // Create a single invoice via batch
-        calls[0] =
-            abi.encodeCall(BullaInvoice.createInvoice, (new CreateInvoiceParamsBuilder().withDebtor(debtor).build()));
+        calls[0] = abi.encodeCall(
+            BullaInvoice.createInvoice,
+            (new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor).build())
+        );
 
         vm.prank(creditor);
         bullaInvoice.batch(calls, true);
@@ -117,15 +119,21 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         // Create multiple invoices in batch
         calls[0] = abi.encodeCall(
             BullaInvoice.createInvoice,
-            (new CreateInvoiceParamsBuilder().withDebtor(debtor).withClaimAmount(1 ether).build())
+            (
+                new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor).withClaimAmount(1 ether)
+                    .build()
+            )
         );
         calls[1] = abi.encodeCall(
             BullaInvoice.createInvoice,
-            (new CreateInvoiceParamsBuilder().withDebtor(charlie).withClaimAmount(2 ether).build())
+            (
+                new CreateInvoiceParamsBuilder().withDebtor(charlie).withCreditor(creditor).withClaimAmount(2 ether)
+                    .build()
+            )
         );
         calls[2] = abi.encodeCall(
             BullaInvoice.createInvoice,
-            (new CreateInvoiceParamsBuilder().withDebtor(alice).withClaimAmount(3 ether).build())
+            (new CreateInvoiceParamsBuilder().withDebtor(alice).withCreditor(creditor).withClaimAmount(3 ether).build())
         );
 
         vm.prank(creditor);
@@ -151,17 +159,22 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         bytes[] memory calls = new bytes[](3);
 
         // First call succeeds
-        calls[0] =
-            abi.encodeCall(BullaInvoice.createInvoice, (new CreateInvoiceParamsBuilder().withDebtor(debtor).build()));
+        calls[0] = abi.encodeCall(
+            BullaInvoice.createInvoice,
+            (new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor).build())
+        );
 
         // Second call fails (invalid claim amount)
         calls[1] = abi.encodeCall(
-            BullaInvoice.createInvoice, (new CreateInvoiceParamsBuilder().withDebtor(debtor).withClaimAmount(0).build())
+            BullaInvoice.createInvoice,
+            (new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor).withClaimAmount(0).build())
         );
 
         // Third call would succeed but won't be reached
-        calls[2] =
-            abi.encodeCall(BullaInvoice.createInvoice, (new CreateInvoiceParamsBuilder().withDebtor(charlie).build()));
+        calls[2] = abi.encodeCall(
+            BullaInvoice.createInvoice,
+            (new CreateInvoiceParamsBuilder().withDebtor(charlie).withCreditor(creditor).build())
+        );
 
         vm.prank(creditor);
         vm.expectRevert("Transaction reverted silently");
@@ -178,17 +191,22 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         bytes[] memory calls = new bytes[](3);
 
         // First call succeeds
-        calls[0] =
-            abi.encodeCall(BullaInvoice.createInvoice, (new CreateInvoiceParamsBuilder().withDebtor(debtor).build()));
+        calls[0] = abi.encodeCall(
+            BullaInvoice.createInvoice,
+            (new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor).build())
+        );
 
         // Second call fails (invalid claim amount)
         calls[1] = abi.encodeCall(
-            BullaInvoice.createInvoice, (new CreateInvoiceParamsBuilder().withDebtor(debtor).withClaimAmount(0).build())
+            BullaInvoice.createInvoice,
+            (new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor).withClaimAmount(0).build())
         );
 
         // Third call succeeds
-        calls[2] =
-            abi.encodeCall(BullaInvoice.createInvoice, (new CreateInvoiceParamsBuilder().withDebtor(charlie).build()));
+        calls[2] = abi.encodeCall(
+            BullaInvoice.createInvoice,
+            (new CreateInvoiceParamsBuilder().withDebtor(charlie).withCreditor(creditor).build())
+        );
 
         vm.prank(creditor);
         bullaInvoice.batch(calls, false);
@@ -219,11 +237,11 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
 
         calls[0] = abi.encodeCall(
             BullaInvoice.createInvoiceWithMetadata,
-            (new CreateInvoiceParamsBuilder().withDebtor(debtor).build(), metadata1)
+            (new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor).build(), metadata1)
         );
         calls[1] = abi.encodeCall(
             BullaInvoice.createInvoiceWithMetadata,
-            (new CreateInvoiceParamsBuilder().withDebtor(charlie).build(), metadata2)
+            (new CreateInvoiceParamsBuilder().withDebtor(charlie).withCreditor(creditor).build(), metadata2)
         );
 
         vm.prank(creditor);
@@ -247,13 +265,13 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
 
         vm.startPrank(creditor);
         uint256 invoiceId1 = bullaInvoice.createInvoice(
-            new CreateInvoiceParamsBuilder().withDebtor(debtor).withToken(address(weth)).build()
+            new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor).withToken(address(weth)).build()
         );
         uint256 invoiceId2 = bullaInvoice.createInvoice(
-            new CreateInvoiceParamsBuilder().withDebtor(debtor).withToken(address(weth)).build()
+            new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor).withToken(address(weth)).build()
         );
         uint256 invoiceId3 = bullaInvoice.createInvoice(
-            new CreateInvoiceParamsBuilder().withDebtor(debtor).withToken(address(weth)).build()
+            new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor).withToken(address(weth)).build()
         );
         vm.stopPrank();
 
@@ -300,8 +318,12 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
 
         // Create invoices
         vm.startPrank(creditor);
-        uint256 invoiceId1 = bullaInvoice.createInvoice(new CreateInvoiceParamsBuilder().withDebtor(debtor).build());
-        uint256 invoiceId2 = bullaInvoice.createInvoice(new CreateInvoiceParamsBuilder().withDebtor(charlie).build());
+        uint256 invoiceId1 = bullaInvoice.createInvoice(
+            new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor).build()
+        );
+        uint256 invoiceId2 = bullaInvoice.createInvoice(
+            new CreateInvoiceParamsBuilder().withDebtor(charlie).withCreditor(creditor).build()
+        );
         vm.stopPrank();
 
         // Setup update binding permissions
@@ -328,8 +350,12 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
 
         // Create invoices
         vm.startPrank(creditor);
-        uint256 invoiceId1 = bullaInvoice.createInvoice(new CreateInvoiceParamsBuilder().withDebtor(debtor).build());
-        uint256 invoiceId2 = bullaInvoice.createInvoice(new CreateInvoiceParamsBuilder().withDebtor(charlie).build());
+        uint256 invoiceId1 = bullaInvoice.createInvoice(
+            new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor).build()
+        );
+        uint256 invoiceId2 = bullaInvoice.createInvoice(
+            new CreateInvoiceParamsBuilder().withDebtor(charlie).withCreditor(creditor).build()
+        );
         vm.stopPrank();
 
         // Setup cancel permissions
@@ -360,12 +386,12 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
 
         vm.startPrank(creditor);
         uint256 invoiceId1 = bullaInvoice.createInvoice(
-            new CreateInvoiceParamsBuilder().withDebtor(debtor).withDueBy(pastDueBy).withImpairmentGracePeriod(1 hours)
-                .build()
+            new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor).withDueBy(pastDueBy)
+                .withImpairmentGracePeriod(1 hours).build()
         );
         uint256 invoiceId2 = bullaInvoice.createInvoice(
-            new CreateInvoiceParamsBuilder().withDebtor(charlie).withDueBy(pastDueBy).withImpairmentGracePeriod(1 hours)
-                .build()
+            new CreateInvoiceParamsBuilder().withDebtor(charlie).withCreditor(creditor).withDueBy(pastDueBy)
+                .withImpairmentGracePeriod(1 hours).build()
         );
         vm.stopPrank();
 
@@ -397,8 +423,12 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
 
         // Create invoices
         vm.startPrank(creditor);
-        uint256 invoiceId1 = bullaInvoice.createInvoice(new CreateInvoiceParamsBuilder().withDebtor(debtor).build());
-        uint256 invoiceId2 = bullaInvoice.createInvoice(new CreateInvoiceParamsBuilder().withDebtor(charlie).build());
+        uint256 invoiceId1 = bullaInvoice.createInvoice(
+            new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor).build()
+        );
+        uint256 invoiceId2 = bullaInvoice.createInvoice(
+            new CreateInvoiceParamsBuilder().withDebtor(charlie).withCreditor(creditor).build()
+        );
         vm.stopPrank();
 
         // Setup mark as paid permissions
@@ -427,10 +457,14 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         // Create purchase orders with delivery dates
         vm.startPrank(creditor);
         uint256 poId1 = bullaInvoice.createInvoice(
-            new CreateInvoiceParamsBuilder().withDebtor(debtor).withDeliveryDate(block.timestamp + 1 days).build()
+            new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor).withDeliveryDate(
+                block.timestamp + 1 days
+            ).build()
         );
         uint256 poId2 = bullaInvoice.createInvoice(
-            new CreateInvoiceParamsBuilder().withDebtor(charlie).withDeliveryDate(block.timestamp + 1 days).build()
+            new CreateInvoiceParamsBuilder().withDebtor(charlie).withCreditor(creditor).withDeliveryDate(
+                block.timestamp + 1 days
+            ).build()
         );
         vm.stopPrank();
 
@@ -526,9 +560,8 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         calls[1] = abi.encodeCall(
             BullaInvoice.createInvoice,
             (
-                new CreateInvoiceParamsBuilder().withDebtor(debtor).withToken(address(permitToken)).withClaimAmount(
-                    amount
-                ).build()
+                new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(owner).withToken(address(permitToken))
+                    .withClaimAmount(amount).build()
             )
         );
 
@@ -558,7 +591,10 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         for (uint256 i = 0; i < numInvoices; i++) {
             calls[i] = abi.encodeCall(
                 BullaInvoice.createInvoice,
-                (new CreateInvoiceParamsBuilder().withDebtor(address(uint160(0x1000 + i))).build())
+                (
+                    new CreateInvoiceParamsBuilder().withDebtor(address(uint160(0x1000 + i))).withCreditor(creditor)
+                        .build()
+                )
             );
         }
 
@@ -574,6 +610,8 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         _permitCreateInvoice(_getUserPK(_creditor));
 
         vm.prank(_creditor);
-        return bullaInvoice.createInvoice(new CreateInvoiceParamsBuilder().withDebtor(_debtor).build());
+        return bullaInvoice.createInvoice(
+            new CreateInvoiceParamsBuilder().withDebtor(_debtor).withCreditor(creditor).build()
+        );
     }
 }

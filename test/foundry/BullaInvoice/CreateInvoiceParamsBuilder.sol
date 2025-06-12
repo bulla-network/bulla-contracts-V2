@@ -5,7 +5,8 @@ import {CreateInvoiceParams, ClaimBinding} from "contracts/BullaInvoice.sol";
 import {InterestConfig} from "contracts/libraries/CompoundInterestLib.sol";
 
 contract CreateInvoiceParamsBuilder {
-    address private _recipient;
+    address private _debtor;
+    address private _creditor;
     uint256 private _claimAmount;
     uint256 private _dueBy;
     uint256 private _deliveryDate;
@@ -19,7 +20,8 @@ contract CreateInvoiceParamsBuilder {
 
     constructor() {
         // Default values
-        _recipient = address(0);
+        _debtor = address(0);
+        _creditor = address(0);
         _claimAmount = 1 ether;
         _dueBy = block.timestamp + 30 days;
         _deliveryDate = 0;
@@ -33,12 +35,12 @@ contract CreateInvoiceParamsBuilder {
     }
 
     function withDebtor(address debtor) public returns (CreateInvoiceParamsBuilder) {
-        _recipient = debtor;
+        _debtor = debtor;
         return this;
     }
 
     function withCreditor(address creditor) public returns (CreateInvoiceParamsBuilder) {
-        _recipient = creditor;
+        _creditor = creditor;
         return this;
     }
 
@@ -94,7 +96,8 @@ contract CreateInvoiceParamsBuilder {
 
     function build() public view returns (CreateInvoiceParams memory) {
         return CreateInvoiceParams({
-            recipient: _recipient,
+            debtor: _debtor,
+            creditor: _creditor,
             claimAmount: _claimAmount,
             dueBy: _dueBy,
             deliveryDate: _deliveryDate,

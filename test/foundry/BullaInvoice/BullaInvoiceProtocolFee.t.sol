@@ -12,7 +12,6 @@ import {
     BullaInvoice,
     CreateInvoiceParams,
     Invoice,
-    CreditorCannotBeDebtor,
     InvalidDeliveryDate,
     NotOriginalCreditor,
     PurchaseOrderAlreadyDelivered,
@@ -205,8 +204,8 @@ contract TestBullaInvoiceProtocolFee is Test {
         });
 
         // Create invoice with interest
-        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withToken(token)
-            .withClaimAmount(amount).withLateFeeConfig(interestConfig).build();
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withToken(token).withClaimAmount(amount).withLateFeeConfig(interestConfig).build();
 
         uint256 fee = invoice.invoiceOriginationFee();
 
