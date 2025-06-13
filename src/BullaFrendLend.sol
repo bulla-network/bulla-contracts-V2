@@ -26,6 +26,8 @@ error LoanOfferNotFound();
 error NativeTokenNotSupported();
 error InvalidProtocolFee();
 error InvalidGracePeriod();
+error FrendLendBatchInvalidMsgValue();
+error FrendLendBatchInvalidCalldata();
 
 /**
  * @title BullaFrendLend
@@ -48,6 +50,9 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
     mapping(uint256 => LoanOffer) private _loanOffers;
     mapping(uint256 => LoanDetails) private _loanDetailsByClaimId;
     mapping(uint256 => ClaimMetadata) private _loanOfferMetadata;
+    
+    // Track if we're currently in a batch operation to skip individual fee validation
+    bool private _inBatchOperation;
 
     event LoanOffered(
         uint256 indexed loanId, address indexed offeredBy, LoanRequestParams loanOffer, uint256 originationFee
@@ -394,12 +399,57 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
         emit ProtocolFeeUpdated(oldFee, _protocolFeeBPS);
     }
 
+    /**
+     * @notice Batch create multiple loan offers with proper msg.value handling
+     * @param calls Array of encoded offerLoan or offerLoanWithMetadata calls
+     */
+    function batchOfferLoans(bytes[] calldata calls) external payable {
+        if (calls.length == 0) return;
+        
+        uint256 totalRequiredFee = 0;
+        
+        // Calculate total required fees by decoding each call
+        for (uint256 i = 0; i < calls.length; i++) {
+            bytes4 selector = bytes4(calls[i][:4]);
+            
+            if (selector == this.offerLoan.selector || selector == this.offerLoanWithMetadata.selector) {
+                totalRequiredFee += fee;
+            } else {
+                revert FrendLendBatchInvalidCalldata();
+            }
+        }
+        
+        // Validate total msg.value matches required fees
+        if (msg.value != totalRequiredFee) {
+            revert FrendLendBatchInvalidMsgValue();
+        }
+        
+        // Set batch operation flag before executing calls
+        _inBatchOperation = true;
+        
+        // Execute each call
+        for (uint256 i = 0; i < calls.length; i++) {
+            (bool success, bytes memory result) = address(this).delegatecall(calls[i]);
+            if (!success) {
+                _inBatchOperation = false; // Reset flag before reverting
+                revert(_getRevertMsg(result));
+            }
+        }
+        
+        // Reset batch operation flag after successful execution
+        _inBatchOperation = false;
+    }
+
     ////////////////////////////////
     // Private functions
     ////////////////////////////////
 
     function _validateLoanOffer(LoanRequestParams calldata offer, bool requestedByCreditor) private view {
-        if (msg.value != fee) revert IncorrectFee();
+        // Skip fee validation when in batch operation (fees are validated at batch level)
+        if (!_inBatchOperation) {
+            if (msg.value != fee) revert IncorrectFee();
+        }
+        
         if (!requestedByCreditor && msg.sender != offer.debtor) {
             revert NotCreditorOrDebtor();
         }
