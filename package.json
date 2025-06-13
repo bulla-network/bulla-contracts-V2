@@ -4,7 +4,23 @@
   "description": "V2 smart contracts for the Bulla Protocol",
   "main": "package.json",
   "repository": "https://github.com/bulla-network/bulla-contracts-V2",
-  "author": "--view <colinrnielsen@gmail.com>",
+  "contributors": [
+    {
+      "name": "Colin Nielsen",
+      "email": "colinrnielsen@gmail.com",
+      "url": "https://github.com/colinnielsen"
+    },
+    {
+      "name": "Benjamin Gobeil",
+      "email": "bkgobeil@gmail.com",
+      "url": "https://x.com/GobeilBen"
+    },
+    {
+      "name": "solidoracle",
+      "email": "solidoracle17@gmail.com",
+      "url": "https://x.com/solidoracle"
+    }
+  ],
   "license": "BUSL-1.1",
   "private": false,
   "engines": {
