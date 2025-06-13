@@ -1,3 +1,10 @@
+## [1.0.5](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.0.4...v1.0.5) (2025-06-13)
+
+
+### Bug Fixes
+
+* make package public ([3f5979a](https://github.com/bulla-network/bulla-contracts-V2/commit/3f5979a890b2bf7fc01b8fc7466141bcf6b55bd5))
+
 ## [1.0.4](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.0.3...v1.0.4) (2025-06-13)
 
 
