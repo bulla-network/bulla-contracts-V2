@@ -1,12 +1,12 @@
 {
   "name": "bulla-contracts-v2",
   "version": "1.0.1",
-  "description": "V2 smart contracts for the bulla protocol",
+  "description": "V2 smart contracts for the Bulla Protocol",
   "main": "package.json",
   "repository": "https://github.com/bulla-network/bulla-contracts-V2",
   "author": "--view <colinrnielsen@gmail.com>",
   "license": "BUSL-1.1",
-  "private": true,
+  "private": false,
   "engines": {
     "node": ">=18"
   },
