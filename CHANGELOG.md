@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.0.1...v1.0.2) (2025-06-13)
+
+
+### Bug Fixes
+
+* deploy new package ([1a721e6](https://github.com/bulla-network/bulla-contracts-V2/commit/1a721e64c18e9d5ad0474faefaa3c1b782917dc6))
+
 ## [1.0.1](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.0.0...v1.0.1) (2025-06-13)
 
 
