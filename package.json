@@ -4,6 +4,9 @@
   "description": "V2 smart contracts for the Bulla Protocol",
   "main": "package.json",
   "repository": "https://github.com/bulla-network/bulla-contracts-V2",
+  "publishConfig": {
+    "access": "public"
+  },
   "contributors": [
     {
       "name": "Colin Nielsen",
@@ -45,7 +48,8 @@
     "gas": "forge snapshot && forge build --sizes",
     "coverage": "forge coverage --report lcov && node -e \"const fs=require('fs'); const data=fs.readFileSync('lcov.info','utf8'); fs.writeFileSync('lcov.info', data.split('\\n').filter(line => !line.includes('SF:src/mocks/')).join('\\n'));\"",
     "prepare": "husky install",
-    "prepublishOnly": "yarn build && yarn test"
+    "prepublishOnly": "yarn build && yarn test",
+    "semantic-release": "semantic-release"
   },
   "devDependencies": {
     "husky": "^7.0.0",
