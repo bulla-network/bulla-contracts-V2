@@ -1,3 +1,11 @@
+## [1.0.3](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.0.2...v1.0.3) (2025-06-13)
+
+
+### Bug Fixes
+
+* add contributors to package ([a12b670](https://github.com/bulla-network/bulla-contracts-V2/commit/a12b670edb317bad0312e4ccf7b56c3f704327f2))
+* package name ([ef14e7c](https://github.com/bulla-network/bulla-contracts-V2/commit/ef14e7cdaf47a97abdda9efd805f8a407e0fb3f2))
+
 ## [1.0.2](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.0.1...v1.0.2) (2025-06-13)
 
 
