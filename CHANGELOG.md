@@ -1,3 +1,10 @@
+## [1.0.6](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.0.5...v1.0.6) (2025-06-13)
+
+
+### Bug Fixes
+
+* make package public for as understood by semantic-release ([f1bd9a3](https://github.com/bulla-network/bulla-contracts-V2/commit/f1bd9a30cf9c067e75717c9aa503fc673600e7fb))
+
 ## [1.0.5](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.0.4...v1.0.5) (2025-06-13)
 
 
