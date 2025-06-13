@@ -909,7 +909,10 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         );
         calls[2] = abi.encodeCall(
             BullaFrendLend.offerLoan,
-            (new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(permitToken)).build())
+            (
+                new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(permitToken))
+                    .build()
+            )
         );
 
         vm.prank(creditor);

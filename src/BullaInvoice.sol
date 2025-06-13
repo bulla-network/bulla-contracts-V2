@@ -58,7 +58,7 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
     mapping(address => bool) private _tokenExists;
 
     mapping(uint256 => InvoiceDetails) private _invoiceDetailsByClaimId;
-    
+
     // Track if we're currently in a batch operation to skip individual fee validation
     bool private _inBatchOperation;
 
@@ -534,13 +534,13 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
      */
     function batchCreateInvoices(bytes[] calldata calls) external payable {
         if (calls.length == 0) return;
-        
+
         uint256 totalRequiredFee = 0;
-        
+
         // Calculate total required fees by decoding each call
         for (uint256 i = 0; i < calls.length; i++) {
             bytes4 selector = bytes4(calls[i][:4]);
-            
+
             if (selector == this.createInvoice.selector) {
                 CreateInvoiceParams memory params = abi.decode(calls[i][4:], (CreateInvoiceParams));
                 uint256 requiredFee = params.deliveryDate != 0 ? purchaseOrderOriginationFee : invoiceOriginationFee;
@@ -553,15 +553,15 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
                 revert InvoiceBatchInvalidCalldata();
             }
         }
-        
+
         // Validate total msg.value matches required fees
         if (msg.value != totalRequiredFee) {
             revert InvoiceBatchInvalidMsgValue();
         }
-        
+
         // Set batch operation flag before executing calls
         _inBatchOperation = true;
-        
+
         // Execute each call
         for (uint256 i = 0; i < calls.length; i++) {
             (bool success, bytes memory result) = address(this).delegatecall(calls[i]);
@@ -570,7 +570,7 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
                 revert(_getRevertMsg(result));
             }
         }
-        
+
         // Reset batch operation flag after successful execution
         _inBatchOperation = false;
     }

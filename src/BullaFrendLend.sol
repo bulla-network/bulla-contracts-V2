@@ -50,7 +50,7 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
     mapping(uint256 => LoanOffer) private _loanOffers;
     mapping(uint256 => LoanDetails) private _loanDetailsByClaimId;
     mapping(uint256 => ClaimMetadata) private _loanOfferMetadata;
-    
+
     // Track if we're currently in a batch operation to skip individual fee validation
     bool private _inBatchOperation;
 
@@ -405,28 +405,28 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
      */
     function batchOfferLoans(bytes[] calldata calls) external payable {
         if (calls.length == 0) return;
-        
+
         uint256 totalRequiredFee = 0;
-        
+
         // Calculate total required fees by decoding each call
         for (uint256 i = 0; i < calls.length; i++) {
             bytes4 selector = bytes4(calls[i][:4]);
-            
+
             if (selector == this.offerLoan.selector || selector == this.offerLoanWithMetadata.selector) {
                 totalRequiredFee += fee;
             } else {
                 revert FrendLendBatchInvalidCalldata();
             }
         }
-        
+
         // Validate total msg.value matches required fees
         if (msg.value != totalRequiredFee) {
             revert FrendLendBatchInvalidMsgValue();
         }
-        
+
         // Set batch operation flag before executing calls
         _inBatchOperation = true;
-        
+
         // Execute each call
         for (uint256 i = 0; i < calls.length; i++) {
             (bool success, bytes memory result) = address(this).delegatecall(calls[i]);
@@ -435,7 +435,7 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
                 revert(_getRevertMsg(result));
             }
         }
-        
+
         // Reset batch operation flag after successful execution
         _inBatchOperation = false;
     }
@@ -449,7 +449,7 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
         if (!_inBatchOperation) {
             if (msg.value != fee) revert IncorrectFee();
         }
-        
+
         if (!requestedByCreditor && msg.sender != offer.debtor) {
             revert NotCreditorOrDebtor();
         }

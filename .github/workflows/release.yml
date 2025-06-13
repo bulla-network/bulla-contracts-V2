@@ -62,7 +62,7 @@ jobs:
         with:
           fetch-depth: 0
           submodules: recursive
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PT_GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
