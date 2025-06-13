@@ -784,4 +784,167 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
 
         assertEq(bullaFrendLend.loanOfferCount(), numOffers); // Count doesn't decrease on rejection
     }
+
+    /*///////////////////// BATCH LOAN OFFER TESTS /////////////////////*/
+
+    function testBatchOfferLoans_EmptyArray() public {
+        bytes[] memory calls = new bytes[](0);
+
+        // Should not revert with empty array and no value
+        bullaFrendLend.batchOfferLoans(calls);
+    }
+
+    function testBatchOfferLoans_MultipleOffers() public {
+        bytes[] memory calls = new bytes[](3);
+
+        calls[0] = abi.encodeCall(
+            BullaFrendLend.offerLoan,
+            (
+                new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth))
+                    .withLoanAmount(1 ether).build()
+            )
+        );
+        calls[1] = abi.encodeCall(
+            BullaFrendLend.offerLoan,
+            (
+                new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(charlie).withToken(address(weth))
+                    .withLoanAmount(2 ether).build()
+            )
+        );
+        calls[2] = abi.encodeCall(
+            BullaFrendLend.offerLoanWithMetadata,
+            (
+                new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(permitToken))
+                    .withLoanAmount(3 ether).build(),
+                ClaimMetadata({tokenURI: "test-uri", attachmentURI: "test-attachment"})
+            )
+        );
+
+        vm.prank(creditor);
+        bullaFrendLend.batchOfferLoans{value: 3 * FEE}(calls);
+
+        // Verify all loan offers were created
+        assertEq(bullaFrendLend.loanOfferCount(), 3);
+
+        LoanOffer memory offer1 = bullaFrendLend.getLoanOffer(1);
+        LoanOffer memory offer2 = bullaFrendLend.getLoanOffer(2);
+        LoanOffer memory offer3 = bullaFrendLend.getLoanOffer(3);
+
+        assertEq(offer1.params.loanAmount, 1 ether);
+        assertEq(offer1.params.debtor, debtor);
+        assertEq(offer2.params.loanAmount, 2 ether);
+        assertEq(offer2.params.debtor, charlie);
+        assertEq(offer3.params.loanAmount, 3 ether);
+        assertEq(offer3.params.token, address(permitToken));
+
+        // Check metadata for the third offer
+        ClaimMetadata memory metadata = bullaFrendLend.getLoanOfferMetadata(3);
+        assertEq(metadata.tokenURI, "test-uri");
+        assertEq(metadata.attachmentURI, "test-attachment");
+    }
+
+    function testBatchOfferLoans_InvalidMsgValue_TooLow() public {
+        bytes[] memory calls = new bytes[](2);
+
+        calls[0] = abi.encodeCall(
+            BullaFrendLend.offerLoan,
+            (new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build())
+        );
+        calls[1] = abi.encodeCall(
+            BullaFrendLend.offerLoan,
+            (new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(charlie).withToken(address(weth)).build())
+        );
+
+        vm.prank(creditor);
+        vm.expectRevert(abi.encodeWithSignature("FrendLendBatchInvalidMsgValue()"));
+        bullaFrendLend.batchOfferLoans{value: FEE}(calls); // Should be 2 * FEE
+    }
+
+    function testBatchOfferLoans_InvalidMsgValue_TooHigh() public {
+        bytes[] memory calls = new bytes[](2);
+
+        calls[0] = abi.encodeCall(
+            BullaFrendLend.offerLoan,
+            (new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build())
+        );
+        calls[1] = abi.encodeCall(
+            BullaFrendLend.offerLoan,
+            (new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(charlie).withToken(address(weth)).build())
+        );
+
+        vm.prank(creditor);
+        vm.expectRevert(abi.encodeWithSignature("FrendLendBatchInvalidMsgValue()"));
+        bullaFrendLend.batchOfferLoans{value: 3 * FEE}(calls); // Should be 2 * FEE
+    }
+
+    function testBatchOfferLoans_InvalidCalldata() public {
+        bytes[] memory calls = new bytes[](2);
+
+        calls[0] = abi.encodeCall(
+            BullaFrendLend.offerLoan,
+            (new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build())
+        );
+        // Invalid call - not a loan offer function
+        calls[1] = abi.encodeCall(BullaFrendLend.rejectLoanOffer, (1));
+
+        vm.prank(creditor);
+        vm.expectRevert(abi.encodeWithSignature("FrendLendBatchInvalidCalldata()"));
+        bullaFrendLend.batchOfferLoans{value: 2 * FEE}(calls);
+    }
+
+    function testBatchOfferLoans_FailureInMiddle() public {
+        bytes[] memory calls = new bytes[](3);
+
+        calls[0] = abi.encodeCall(
+            BullaFrendLend.offerLoan,
+            (new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build())
+        );
+        // This call will fail due to invalid term length
+        calls[1] = abi.encodeCall(
+            BullaFrendLend.offerLoan,
+            (
+                new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(charlie).withToken(address(weth))
+                    .withTermLength(0).build()
+            )
+        );
+        calls[2] = abi.encodeCall(
+            BullaFrendLend.offerLoan,
+            (new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(permitToken)).build())
+        );
+
+        vm.prank(creditor);
+        vm.expectRevert("Transaction reverted silently");
+        bullaFrendLend.batchOfferLoans{value: 3 * FEE}(calls);
+
+        // Verify no loan offers were created due to revert
+        assertEq(bullaFrendLend.loanOfferCount(), 0);
+    }
+
+    function testBatchOfferLoans_DebtorRequests() public {
+        bytes[] memory calls = new bytes[](2);
+
+        // Debtor making loan requests (creditor will accept)
+        calls[0] = abi.encodeCall(
+            BullaFrendLend.offerLoan,
+            (new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build())
+        );
+        calls[1] = abi.encodeCall(
+            BullaFrendLend.offerLoan,
+            (new LoanRequestParamsBuilder().withCreditor(charlie).withDebtor(debtor).withToken(address(weth)).build())
+        );
+
+        vm.prank(debtor);
+        bullaFrendLend.batchOfferLoans{value: 2 * FEE}(calls);
+
+        // Verify loan requests were created
+        assertEq(bullaFrendLend.loanOfferCount(), 2);
+
+        LoanOffer memory offer1 = bullaFrendLend.getLoanOffer(1);
+        LoanOffer memory offer2 = bullaFrendLend.getLoanOffer(2);
+
+        assertFalse(offer1.requestedByCreditor); // Requested by debtor
+        assertFalse(offer2.requestedByCreditor); // Requested by debtor
+        assertEq(offer1.params.creditor, creditor);
+        assertEq(offer2.params.creditor, charlie);
+    }
 }
