@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.0.0...v1.0.1) (2025-06-13)
+
+
+### Bug Fixes
+
+* **CI:** use bot for CI ([b4fc819](https://github.com/bulla-network/bulla-contracts-V2/commit/b4fc819396c5d3bc26294806c9ad63aace52efdf))
+
 # 1.0.0 (2025-06-13)
 
 
