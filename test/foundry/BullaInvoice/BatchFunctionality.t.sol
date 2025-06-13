@@ -251,13 +251,13 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
 
         vm.startPrank(creditor);
         uint256 invoiceId1 = bullaInvoice.createInvoice{value: INVOICE_ORIGINATION_FEE}(
-            new CreateInvoiceParamsBuilder().withDebtor(debtor).withToken(address(weth)).build()
+            new CreateInvoiceParamsBuilder().withDebtor(debtor).withToken(address(weth)).withCreditor(creditor).build()
         );
         uint256 invoiceId2 = bullaInvoice.createInvoice{value: INVOICE_ORIGINATION_FEE}(
-            new CreateInvoiceParamsBuilder().withDebtor(debtor).withToken(address(weth)).build()
+            new CreateInvoiceParamsBuilder().withDebtor(debtor).withToken(address(weth)).withCreditor(creditor).build()
         );
         uint256 invoiceId3 = bullaInvoice.createInvoice{value: INVOICE_ORIGINATION_FEE}(
-            new CreateInvoiceParamsBuilder().withDebtor(debtor).withToken(address(weth)).build()
+            new CreateInvoiceParamsBuilder().withDebtor(debtor).withToken(address(weth)).withCreditor(creditor).build()
         );
         vm.stopPrank();
 
@@ -305,10 +305,10 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         // Create invoices individually with proper fees
         vm.startPrank(creditor);
         uint256 invoiceId1 = bullaInvoice.createInvoice{value: INVOICE_ORIGINATION_FEE}(
-            new CreateInvoiceParamsBuilder().withDebtor(debtor).build()
+            new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor).build()
         );
         uint256 invoiceId2 = bullaInvoice.createInvoice{value: INVOICE_ORIGINATION_FEE}(
-            new CreateInvoiceParamsBuilder().withDebtor(charlie).build()
+            new CreateInvoiceParamsBuilder().withDebtor(charlie).withCreditor(creditor).build()
         );
         vm.stopPrank();
 
@@ -337,10 +337,10 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         // Create invoices individually with proper fees
         vm.startPrank(creditor);
         uint256 invoiceId1 = bullaInvoice.createInvoice{value: INVOICE_ORIGINATION_FEE}(
-            new CreateInvoiceParamsBuilder().withDebtor(debtor).build()
+            new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor).build()
         );
         uint256 invoiceId2 = bullaInvoice.createInvoice{value: INVOICE_ORIGINATION_FEE}(
-            new CreateInvoiceParamsBuilder().withDebtor(charlie).build()
+            new CreateInvoiceParamsBuilder().withDebtor(charlie).withCreditor(creditor).build()
         );
         vm.stopPrank();
 
@@ -374,6 +374,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         uint256 invoiceId1 = bullaInvoice.createInvoice{value: INVOICE_ORIGINATION_FEE}(
             new CreateInvoiceParamsBuilder()
                 .withDebtor(debtor)
+                .withCreditor(creditor)
                 .withDueBy(pastDueBy)
                 .withImpairmentGracePeriod(1 hours)
                 .build()
@@ -381,6 +382,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         uint256 invoiceId2 = bullaInvoice.createInvoice{value: INVOICE_ORIGINATION_FEE}(
             new CreateInvoiceParamsBuilder()
                 .withDebtor(charlie)
+                .withCreditor(creditor)
                 .withDueBy(pastDueBy)
                 .withImpairmentGracePeriod(1 hours)
                 .build()
@@ -416,10 +418,10 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         // Create invoices individually with proper fees
         vm.startPrank(creditor);
         uint256 invoiceId1 = bullaInvoice.createInvoice{value: INVOICE_ORIGINATION_FEE}(
-            new CreateInvoiceParamsBuilder().withDebtor(debtor).build()
+            new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor).build()
         );
         uint256 invoiceId2 = bullaInvoice.createInvoice{value: INVOICE_ORIGINATION_FEE}(
-            new CreateInvoiceParamsBuilder().withDebtor(charlie).build()
+            new CreateInvoiceParamsBuilder().withDebtor(charlie).withCreditor(creditor).build()
         );
         vm.stopPrank();
 
@@ -451,12 +453,14 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         uint256 poId1 = bullaInvoice.createInvoice{value: PURCHASE_ORDER_ORIGINATION_FEE}(
             new CreateInvoiceParamsBuilder()
                 .withDebtor(debtor)
+                .withCreditor(creditor)
                 .withDeliveryDate(block.timestamp + 1 days)
                 .build()
         );
         uint256 poId2 = bullaInvoice.createInvoice{value: PURCHASE_ORDER_ORIGINATION_FEE}(
             new CreateInvoiceParamsBuilder()
                 .withDebtor(charlie)
+                .withCreditor(creditor)
                 .withDeliveryDate(block.timestamp + 1 days)
                 .build()
         );
@@ -597,15 +601,15 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         
         calls[0] = abi.encodeCall(
             BullaInvoice.createInvoice,
-            (new CreateInvoiceParamsBuilder().withDebtor(debtor).withClaimAmount(1 ether).build())
+            (new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor).withClaimAmount(1 ether).build())
         );
         calls[1] = abi.encodeCall(
             BullaInvoice.createInvoice,
-            (new CreateInvoiceParamsBuilder().withDebtor(charlie).withClaimAmount(2 ether).build())
+            (new CreateInvoiceParamsBuilder().withDebtor(charlie).withCreditor(creditor).withClaimAmount(2 ether).build())
         );
         calls[2] = abi.encodeCall(
             BullaInvoice.createInvoice,
-            (new CreateInvoiceParamsBuilder().withDebtor(alice).withClaimAmount(3 ether).build())
+            (new CreateInvoiceParamsBuilder().withDebtor(alice).withCreditor(creditor).withClaimAmount(3 ether).build())
         );
         
         // Calculate required total fee (3 invoices * invoiceOriginationFee)
@@ -638,7 +642,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         // Regular invoice
         calls[0] = abi.encodeCall(
             BullaInvoice.createInvoice,
-            (new CreateInvoiceParamsBuilder().withDebtor(debtor).build())
+            (new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor).build())
         );
         
         // Purchase order (has delivery date)
@@ -646,6 +650,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
             BullaInvoice.createInvoice,
             (new CreateInvoiceParamsBuilder()
                 .withDebtor(charlie)
+                .withCreditor(creditor)
                 .withDeliveryDate(block.timestamp + 1 days)
                 .build())
         );
@@ -653,7 +658,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         // Another regular invoice
         calls[2] = abi.encodeCall(
             BullaInvoice.createInvoice,
-            (new CreateInvoiceParamsBuilder().withDebtor(alice).build())
+            (new CreateInvoiceParamsBuilder().withDebtor(alice).withCreditor(creditor).build())
         );
         
         // Calculate required total fee (2 invoices + 1 purchase order)
@@ -688,11 +693,11 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         
         calls[0] = abi.encodeCall(
             BullaInvoice.createInvoiceWithMetadata,
-            (new CreateInvoiceParamsBuilder().withDebtor(debtor).build(), metadata1)
+            (new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor).build(), metadata1)
         );
         calls[1] = abi.encodeCall(
             BullaInvoice.createInvoiceWithMetadata,
-            (new CreateInvoiceParamsBuilder().withDebtor(charlie).build(), metadata2)
+            (new CreateInvoiceParamsBuilder().withDebtor(charlie).withCreditor(creditor).build(), metadata2)
         );
         
         uint256 totalFee = 2 * bullaInvoice.invoiceOriginationFee();
@@ -815,6 +820,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
                 BullaInvoice.createInvoice,
                 (new CreateInvoiceParamsBuilder()
                     .withDebtor(address(uint160(0x1000 + i)))
+                    .withCreditor(creditor)
                     .withClaimAmount((i + 1) * 1 ether)
                     .build())
             );
