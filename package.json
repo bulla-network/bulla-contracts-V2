@@ -1,5 +1,5 @@
 {
-  "name": "@bulla-network/contracts-v2",
+  "name": "@bulla/contracts-v2",
   "version": "1.0.3",
   "description": "V2 smart contracts for the Bulla Protocol",
   "main": "package.json",
