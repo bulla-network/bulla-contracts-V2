@@ -1,3 +1,10 @@
+## [1.0.4](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.0.3...v1.0.4) (2025-06-13)
+
+
+### Bug Fixes
+
+* try new package name ([ffbbca5](https://github.com/bulla-network/bulla-contracts-V2/commit/ffbbca57e3a220e8e01d2ba371e5fede609dc8df))
+
 ## [1.0.3](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.0.2...v1.0.3) (2025-06-13)
 
 
