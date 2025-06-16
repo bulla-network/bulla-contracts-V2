@@ -462,7 +462,7 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
         if (offer.termLength == 0) revert InvalidTermLength();
         if (offer.token == address(0)) revert NativeTokenNotSupported();
         if (offer.impairmentGracePeriod > type(uint40).max) revert InvalidGracePeriod();
-        
+
         // Check if offer has expired (only if expiresAt is set to a non-zero value)
         if (offer.expiresAt > 0 && block.timestamp > offer.expiresAt) {
             revert LoanOfferExpired();

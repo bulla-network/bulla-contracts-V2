@@ -35,7 +35,7 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
     address creditor = vm.addr(creditorPK);
     address debtor = vm.addr(debtorPK);
     address admin = vm.addr(adminPK);
-    
+
     uint256 constant FEE = 0.01 ether;
     uint256 constant PROTOCOL_FEE_BPS = 1000; // 10% protocol fee
 
@@ -64,11 +64,8 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 1 ether);
 
-        LoanRequestParams memory offer = new LoanRequestParamsBuilder()
-            .withCreditor(creditor)
-            .withDebtor(debtor)
-            .withToken(address(weth))
-            .withExpiresAt(0) // No expiry
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withExpiresAt(0) // No expiry
             .build();
 
         vm.prank(creditor);
@@ -82,16 +79,12 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
     function testOfferLoan_WithFutureExpiry() public {
         // Test that offers with future expiry work normally
         uint256 futureExpiry = block.timestamp + 1 days;
-        
+
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 1 ether);
 
-        LoanRequestParams memory offer = new LoanRequestParamsBuilder()
-            .withCreditor(creditor)
-            .withDebtor(debtor)
-            .withToken(address(weth))
-            .withExpiresAt(futureExpiry)
-            .build();
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withExpiresAt(futureExpiry).build();
 
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
@@ -104,16 +97,12 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
     function testOfferLoan_WithPastExpiry_ShouldFail() public {
         vm.warp(block.timestamp + 2 hours);
         uint256 pastExpiry = block.timestamp - 1 hours;
-        
+
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 1 ether);
 
-        LoanRequestParams memory offer = new LoanRequestParamsBuilder()
-            .withCreditor(creditor)
-            .withDebtor(debtor)
-            .withToken(address(weth))
-            .withExpiresAt(pastExpiry)
-            .build();
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withExpiresAt(pastExpiry).build();
 
         vm.prank(creditor);
         vm.expectRevert(abi.encodeWithSelector(LoanOfferExpired.selector));
@@ -125,29 +114,25 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
     function testAcceptLoan_BeforeExpiry_Success() public {
         // Test that loans can be accepted before expiry
         uint256 futureExpiry = block.timestamp + 1 hours;
-        
+
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 1 ether);
 
-        LoanRequestParams memory offer = new LoanRequestParamsBuilder()
-            .withCreditor(creditor)
-            .withDebtor(debtor)
-            .withToken(address(weth))
-            .withExpiresAt(futureExpiry)
-            .build();
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withExpiresAt(futureExpiry).build();
 
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
 
         // Accept the loan before expiry
         _permitAcceptLoan(debtorPK);
-        
+
         vm.prank(debtor);
         uint256 claimId = bullaFrendLend.acceptLoan(loanId);
 
         // Verify loan was accepted successfully
         assertTrue(claimId > 0, "Claim should be created");
-        
+
         // Verify offer was deleted after acceptance
         LoanOffer memory deletedOffer = bullaFrendLend.getLoanOffer(loanId);
         assertEq(deletedOffer.params.creditor, address(0), "Offer should be deleted");
@@ -156,16 +141,12 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
     function testAcceptLoan_AfterExpiry_ShouldFail() public {
         // Test that loans cannot be accepted after expiry
         uint256 shortExpiry = block.timestamp + 1 hours;
-        
+
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 1 ether);
 
-        LoanRequestParams memory offer = new LoanRequestParamsBuilder()
-            .withCreditor(creditor)
-            .withDebtor(debtor)
-            .withToken(address(weth))
-            .withExpiresAt(shortExpiry)
-            .build();
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withExpiresAt(shortExpiry).build();
 
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
@@ -175,7 +156,7 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
 
         // Try to accept the expired loan
         _permitAcceptLoan(debtorPK);
-        
+
         vm.prank(debtor);
         vm.expectRevert(abi.encodeWithSelector(LoanOfferExpired.selector));
         bullaFrendLend.acceptLoan(loanId);
@@ -184,16 +165,12 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
     function testAcceptLoan_AtExactExpiryTime_ShouldFail() public {
         // Test that loans cannot be accepted at exact expiry time
         uint256 exactExpiry = block.timestamp + 1 hours;
-        
+
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 1 ether);
 
-        LoanRequestParams memory offer = new LoanRequestParamsBuilder()
-            .withCreditor(creditor)
-            .withDebtor(debtor)
-            .withToken(address(weth))
-            .withExpiresAt(exactExpiry)
-            .build();
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withExpiresAt(exactExpiry).build();
 
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
@@ -203,7 +180,7 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
 
         // Try to accept at exact expiry time
         _permitAcceptLoan(debtorPK);
-        
+
         vm.prank(debtor);
         vm.warp(exactExpiry + 1);
         vm.expectRevert(abi.encodeWithSelector(LoanOfferExpired.selector));
@@ -216,12 +193,8 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
         // Test that debtor can create loan requests with expiry
         uint256 futureExpiry = block.timestamp + 2 days;
 
-        LoanRequestParams memory request = new LoanRequestParamsBuilder()
-            .withCreditor(creditor)
-            .withDebtor(debtor)
-            .withToken(address(weth))
-            .withExpiresAt(futureExpiry)
-            .build();
+        LoanRequestParams memory request = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withExpiresAt(futureExpiry).build();
 
         vm.prank(debtor);
         uint256 requestId = bullaFrendLend.offerLoan{value: FEE}(request);
@@ -235,12 +208,8 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
         // Test that creditor cannot accept debtor request after expiry
         uint256 shortExpiry = block.timestamp + 30 minutes;
 
-        LoanRequestParams memory request = new LoanRequestParamsBuilder()
-            .withCreditor(creditor)
-            .withDebtor(debtor)
-            .withToken(address(weth))
-            .withExpiresAt(shortExpiry)
-            .build();
+        LoanRequestParams memory request = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withExpiresAt(shortExpiry).build();
 
         vm.prank(debtor);
         uint256 requestId = bullaFrendLend.offerLoan{value: FEE}(request);
@@ -252,7 +221,7 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 1 ether);
         _permitAcceptLoan(creditorPK);
-        
+
         vm.prank(creditor);
         vm.expectRevert(abi.encodeWithSelector(LoanOfferExpired.selector));
         bullaFrendLend.acceptLoan(requestId);
@@ -264,29 +233,19 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
         // Test multiple offers with different expiry times
         uint256 shortExpiry = block.timestamp + 30 minutes;
         uint256 longExpiry = block.timestamp + 2 days;
-        
+
         vm.startPrank(creditor);
         weth.approve(address(bullaFrendLend), 3 ether);
 
         // Create offer with short expiry
-        LoanRequestParams memory shortOffer = new LoanRequestParamsBuilder()
-            .withCreditor(creditor)
-            .withDebtor(debtor)
-            .withToken(address(weth))
-            .withLoanAmount(1 ether)
-            .withExpiresAt(shortExpiry)
-            .build();
+        LoanRequestParams memory shortOffer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withLoanAmount(1 ether).withExpiresAt(shortExpiry).build();
 
         uint256 shortLoanId = bullaFrendLend.offerLoan{value: FEE}(shortOffer);
 
         // Create offer with long expiry
-        LoanRequestParams memory longOffer = new LoanRequestParamsBuilder()
-            .withCreditor(creditor)
-            .withDebtor(debtor)
-            .withToken(address(weth))
-            .withLoanAmount(2 ether)
-            .withExpiresAt(longExpiry)
-            .build();
+        LoanRequestParams memory longOffer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withLoanAmount(2 ether).withExpiresAt(longExpiry).build();
 
         uint256 longLoanId = bullaFrendLend.offerLoan{value: FEE}(longOffer);
         vm.stopPrank();
@@ -318,12 +277,8 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 1 ether);
 
-        LoanRequestParams memory offer = new LoanRequestParamsBuilder()
-            .withCreditor(creditor)
-            .withDebtor(debtor)
-            .withToken(address(weth))
-            .withExpiresAt(futureExpiry)
-            .build();
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withExpiresAt(futureExpiry).build();
 
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoanWithMetadata{value: FEE}(offer, metadata);
@@ -349,16 +304,12 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
     function testRejectExpiredOffer_ShouldStillWork() public {
         // Test that expired offers can still be rejected/rescinded
         uint256 shortExpiry = block.timestamp + 30 minutes;
-        
+
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 1 ether);
 
-        LoanRequestParams memory offer = new LoanRequestParamsBuilder()
-            .withCreditor(creditor)
-            .withDebtor(debtor)
-            .withToken(address(weth))
-            .withExpiresAt(shortExpiry)
-            .build();
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withExpiresAt(shortExpiry).build();
 
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
@@ -380,32 +331,22 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
     function testBatchOfferLoans_WithExpiry() public {
         // Test batch loan offers with expiry times
         uint256 futureExpiry = block.timestamp + 1 days;
-        
+
         bytes[] memory calls = new bytes[](2);
 
         calls[0] = abi.encodeCall(
             BullaFrendLend.offerLoan,
             (
-                new LoanRequestParamsBuilder()
-                    .withCreditor(creditor)
-                    .withDebtor(debtor)
-                    .withToken(address(weth))
-                    .withLoanAmount(1 ether)
-                    .withExpiresAt(futureExpiry)
-                    .build()
+                new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth))
+                    .withLoanAmount(1 ether).withExpiresAt(futureExpiry).build()
             )
         );
 
         calls[1] = abi.encodeCall(
             BullaFrendLend.offerLoan,
             (
-                new LoanRequestParamsBuilder()
-                    .withCreditor(creditor)
-                    .withDebtor(debtor)
-                    .withToken(address(weth))
-                    .withLoanAmount(2 ether)
-                    .withExpiresAt(futureExpiry + 1 days)
-                    .build()
+                new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth))
+                    .withLoanAmount(2 ether).withExpiresAt(futureExpiry + 1 days).build()
             )
         );
 
@@ -425,28 +366,21 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
         vm.warp(block.timestamp + 2 hours);
         uint256 pastExpiry = block.timestamp - 1 hours;
         uint256 futureExpiry = block.timestamp + 1 days;
-        
+
         bytes[] memory calls = new bytes[](2);
 
         calls[0] = abi.encodeCall(
             BullaFrendLend.offerLoan,
             (
-                new LoanRequestParamsBuilder()
-                    .withCreditor(creditor)
-                    .withDebtor(debtor)
-                    .withToken(address(weth))
-                    .withExpiresAt(futureExpiry)
-                    .build()
+                new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth))
+                    .withExpiresAt(futureExpiry).build()
             )
         );
 
         calls[1] = abi.encodeCall(
             BullaFrendLend.offerLoan,
             (
-                new LoanRequestParamsBuilder()
-                    .withCreditor(creditor)
-                    .withDebtor(debtor)
-                    .withToken(address(weth))
+                new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth))
                     .withExpiresAt(pastExpiry) // This should cause failure
                     .build()
             )
@@ -465,16 +399,12 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
     function testExpiryBoundaryConditions() public {
         // Test expiry exactly at block.timestamp
         uint256 currentTime = block.timestamp;
-        
+
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 1 ether);
 
-        LoanRequestParams memory offer = new LoanRequestParamsBuilder()
-            .withCreditor(creditor)
-            .withDebtor(debtor)
-            .withToken(address(weth))
-            .withExpiresAt(currentTime)
-            .build();
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withExpiresAt(currentTime).build();
 
         // Creating at current time should still work (not yet expired)
         vm.prank(creditor);
@@ -483,7 +413,7 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
         // But accepting should fail because block.timestamp > expiresAt when we move forward
         vm.warp(currentTime + 1);
         _permitAcceptLoan(debtorPK);
-        
+
         vm.prank(debtor);
         vm.expectRevert(abi.encodeWithSelector(LoanOfferExpired.selector));
         bullaFrendLend.acceptLoan(loanId);
@@ -492,16 +422,12 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
     function testLargeExpiryTimestamp() public {
         // Test with a very large expiry timestamp (far in the future)
         uint256 farFutureExpiry = block.timestamp + 365 days * 100; // 100 years in the future
-        
+
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 1 ether);
 
-        LoanRequestParams memory offer = new LoanRequestParamsBuilder()
-            .withCreditor(creditor)
-            .withDebtor(debtor)
-            .withToken(address(weth))
-            .withExpiresAt(farFutureExpiry)
-            .build();
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withExpiresAt(farFutureExpiry).build();
 
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
@@ -509,9 +435,9 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
         // Should be able to accept even after moving forward significantly
         vm.warp(block.timestamp + 365 days); // 1 year later
         _permitAcceptLoan(debtorPK);
-        
+
         vm.prank(debtor);
         uint256 claimId = bullaFrendLend.acceptLoan(loanId);
         assertTrue(claimId > 0, "Should be able to accept with far future expiry");
     }
-} 
+}

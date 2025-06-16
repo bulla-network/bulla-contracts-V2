@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.0.6...v1.1.0) (2025-06-16)
+
+
+### Features
+
+* frendlend - add offer expiry ([#58](https://github.com/bulla-network/bulla-contracts-V2/issues/58)) ([4c27e6a](https://github.com/bulla-network/bulla-contracts-V2/commit/4c27e6aa6adc5a5f444e067b2be919da204f8b91))
+
 ## [1.0.6](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.0.5...v1.0.6) (2025-06-13)
 
 
