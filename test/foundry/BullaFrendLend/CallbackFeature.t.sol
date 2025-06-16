@@ -36,7 +36,7 @@ contract MockCallbackContract {
         uint256 callCount;
     }
 
-    mapping(bytes4 => CallbackData) public callbackData;
+    mapping(uint256 => CallbackData) public callbackData;
     bool public shouldRevert;
     string public revertMessage;
 
@@ -53,14 +53,17 @@ contract MockCallbackContract {
         }
 
         bytes4 selector = this.onLoanAccepted.selector;
-        callbackData[selector] =
-            CallbackData({loanOfferId: loanOfferId, claimId: claimId, callCount: callbackData[selector].callCount + 1});
+        callbackData[loanOfferId] = CallbackData({
+            loanOfferId: loanOfferId,
+            claimId: claimId,
+            callCount: callbackData[loanOfferId].callCount + 1
+        });
 
         emit CallbackExecuted(selector, loanOfferId, claimId);
     }
 
-    function getCallbackData(bytes4 selector) external view returns (CallbackData memory) {
-        return callbackData[selector];
+    function getCallbackData(uint256 loanOfferId) external view returns (CallbackData memory) {
+        return callbackData[loanOfferId];
     }
 }
 
@@ -144,8 +147,7 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
         uint256 claimId = bullaFrendLend.acceptLoan(loanOfferId);
 
         // Verify callback was executed with correct parameters
-        MockCallbackContract.CallbackData memory data =
-            mockCallback.getCallbackData(mockCallback.onLoanAccepted.selector);
+        MockCallbackContract.CallbackData memory data = mockCallback.getCallbackData(loanOfferId);
         assertEq(data.loanOfferId, loanOfferId);
         assertEq(data.claimId, claimId);
         assertEq(data.callCount, 1);
@@ -169,9 +171,8 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
         vm.prank(debtor);
         bullaFrendLend.acceptLoan(loanOfferId);
 
-        // Verify no callback was executed
-        MockCallbackContract.CallbackData memory data =
-            mockCallback.getCallbackData(mockCallback.onLoanAccepted.selector);
+        // Verify no callback was executed (using a non-existent loanOfferId)
+        MockCallbackContract.CallbackData memory data = mockCallback.getCallbackData(loanOfferId);
         assertEq(data.callCount, 0);
     }
 
@@ -222,6 +223,8 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
             )
         );
         bullaFrendLend.acceptLoan(loanOfferId);
+
+        assertEq(bullaFrendLend.getLoanOffer(loanOfferId).params.creditor, creditor, "loan offer not accepted");
     }
 
     function testMultipleCallbackExecutions() public {
@@ -250,8 +253,7 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
         uint256 claimId1 = bullaFrendLend.acceptLoan(loanOfferId1);
 
         // Verify first callback was executed
-        MockCallbackContract.CallbackData memory data1 =
-            mockCallback.getCallbackData(mockCallback.onLoanAccepted.selector);
+        MockCallbackContract.CallbackData memory data1 = mockCallback.getCallbackData(loanOfferId1);
         assertEq(data1.loanOfferId, loanOfferId1);
         assertEq(data1.claimId, claimId1);
         assertEq(data1.callCount, 1);
@@ -260,12 +262,11 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
         vm.prank(debtor);
         uint256 claimId2 = bullaFrendLend.acceptLoan(loanOfferId2);
 
-        // Verify second callback was executed and call count increased
-        MockCallbackContract.CallbackData memory data2 =
-            mockCallback.getCallbackData(mockCallback.onLoanAccepted.selector);
+        // Verify second callback was executed
+        MockCallbackContract.CallbackData memory data2 = mockCallback.getCallbackData(loanOfferId2);
         assertEq(data2.loanOfferId, loanOfferId2);
         assertEq(data2.claimId, claimId2);
-        assertEq(data2.callCount, 2);
+        assertEq(data2.callCount, 1);
     }
 
     function testCallbackWithDebtorRequest() public {
@@ -291,35 +292,8 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
         uint256 claimId = bullaFrendLend.acceptLoan(requestId);
 
         // Verify callback was executed
-        MockCallbackContract.CallbackData memory data =
-            mockCallback.getCallbackData(mockCallback.onLoanAccepted.selector);
+        MockCallbackContract.CallbackData memory data = mockCallback.getCallbackData(requestId);
         assertEq(data.loanOfferId, requestId);
-        assertEq(data.claimId, claimId);
-        assertEq(data.callCount, 1);
-    }
-
-    function testCallbackSuccess() public {
-        // Setup approvals
-        vm.prank(creditor);
-        weth.approve(address(bullaFrendLend), 2 ether);
-
-        _permitAcceptLoan(debtorPK);
-
-        // Create loan offer with valid callback
-        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
-            .withToken(address(weth)).withCallback(address(mockCallback), mockCallback.onLoanAccepted.selector).build();
-
-        vm.prank(creditor);
-        uint256 loanOfferId = bullaFrendLend.offerLoan{value: FEE}(offer);
-
-        // Accept loan should succeed and execute callback
-        vm.prank(debtor);
-        uint256 claimId = bullaFrendLend.acceptLoan(loanOfferId);
-
-        // Verify callback was executed
-        MockCallbackContract.CallbackData memory data =
-            mockCallback.getCallbackData(mockCallback.onLoanAccepted.selector);
-        assertEq(data.loanOfferId, loanOfferId);
         assertEq(data.claimId, claimId);
         assertEq(data.callCount, 1);
     }
