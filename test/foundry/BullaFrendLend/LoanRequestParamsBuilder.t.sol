@@ -13,6 +13,7 @@ contract LoanRequestParamsBuilder {
     string private _description;
     address private _token;
     uint256 private _impairmentGracePeriod;
+    uint256 private _expiresAt;
 
     constructor() {
         // Default values
@@ -27,6 +28,7 @@ contract LoanRequestParamsBuilder {
         _description = "";
         _token = address(0x0); // Mock token address
         _impairmentGracePeriod = 7 days; // 7 days grace period by default
+        _expiresAt = 0; // No expiry by default
     }
 
     function withTermLength(uint256 termLength) public returns (LoanRequestParamsBuilder) {
@@ -88,6 +90,11 @@ contract LoanRequestParamsBuilder {
         return this;
     }
 
+    function withExpiresAt(uint256 expiresAt) public returns (LoanRequestParamsBuilder) {
+        _expiresAt = expiresAt;
+        return this;
+    }
+
     function build() public view returns (LoanRequestParams memory) {
         return LoanRequestParams({
             termLength: _termLength,
@@ -97,7 +104,8 @@ contract LoanRequestParamsBuilder {
             debtor: _debtor,
             description: _description,
             token: _token,
-            impairmentGracePeriod: _impairmentGracePeriod
+            impairmentGracePeriod: _impairmentGracePeriod,
+            expiresAt: _expiresAt
         });
     }
 }
