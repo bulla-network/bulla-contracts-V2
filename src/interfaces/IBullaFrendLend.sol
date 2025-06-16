@@ -20,6 +20,7 @@ struct LoanRequestParams {
     string description;
     address token;
     uint256 impairmentGracePeriod;
+    uint256 expiresAt; // timestamp when the offer expires (0 = no expiry)
 }
 
 struct LoanOffer {

@@ -28,6 +28,7 @@ error InvalidProtocolFee();
 error InvalidGracePeriod();
 error FrendLendBatchInvalidMsgValue();
 error FrendLendBatchInvalidCalldata();
+error LoanOfferExpired();
 
 /**
  * @title BullaFrendLend
@@ -230,6 +231,11 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
         LoanOffer memory offer = _loanOffers[offerId];
 
         if (offer.params.creditor == address(0)) revert LoanOfferNotFound();
+
+        // Check if offer has expired (only if expiresAt is set to a non-zero value)
+        if (offer.params.expiresAt > 0 && block.timestamp > offer.params.expiresAt) {
+            revert LoanOfferExpired();
+        }
 
         // Check if the correct person is accepting the loan
         if (offer.requestedByCreditor) {
@@ -456,6 +462,11 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
         if (offer.termLength == 0) revert InvalidTermLength();
         if (offer.token == address(0)) revert NativeTokenNotSupported();
         if (offer.impairmentGracePeriod > type(uint40).max) revert InvalidGracePeriod();
+        
+        // Check if offer has expired (only if expiresAt is set to a non-zero value)
+        if (offer.expiresAt > 0 && block.timestamp > offer.expiresAt) {
+            revert LoanOfferExpired();
+        }
 
         CompoundInterestLib.validateInterestConfig(offer.interestConfig);
     }
