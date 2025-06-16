@@ -29,6 +29,8 @@ error InvalidGracePeriod();
 error FrendLendBatchInvalidMsgValue();
 error FrendLendBatchInvalidCalldata();
 error LoanOfferExpired();
+error CallbackFailed(bytes data);
+error InvalidCallback();
 
 /**
  * @title BullaFrendLend
@@ -285,6 +287,11 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
         // Then transfer from this contract to debtor
         ERC20(offer.params.token).safeTransfer(offer.params.debtor, offer.params.loanAmount);
 
+        // Execute callback if configured
+        if (offer.params.callbackContract != address(0)) {
+            _executeCallback(offer.params.callbackContract, offer.params.callbackSelector, offerId, claimId);
+        }
+
         emit LoanOfferAccepted(offerId, claimId);
 
         return claimId;
@@ -468,6 +475,14 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
             revert LoanOfferExpired();
         }
 
+        // Validate callback configuration
+        if (offer.callbackContract != address(0) && offer.callbackSelector == bytes4(0)) {
+            revert InvalidCallback();
+        }
+        if (offer.callbackContract == address(0) && offer.callbackSelector != bytes4(0)) {
+            revert InvalidCallback();
+        }
+
         CompoundInterestLib.validateInterestConfig(offer.interestConfig);
     }
 
@@ -478,6 +493,24 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
      */
     function _calculateProtocolFee(uint256 grossInterestAmount) private view returns (uint256) {
         return Math.mulDiv(grossInterestAmount, protocolFeeBPS, MAX_BPS);
+    }
+
+    /**
+     * @notice Execute callback to the specified contract after loan acceptance
+     * @param callbackContract The contract to call
+     * @param callbackSelector The function selector to call
+     * @param loanOfferId The ID of the accepted loan offer
+     * @param claimId The ID of the created claim
+     */
+    function _executeCallback(address callbackContract, bytes4 callbackSelector, uint256 loanOfferId, uint256 claimId)
+        private
+    {
+        bytes memory callData = abi.encodeWithSelector(callbackSelector, loanOfferId, claimId);
+
+        (bool success, bytes memory returnData) = callbackContract.call(callData);
+        if (!success) {
+            revert CallbackFailed(returnData);
+        }
     }
 
     /**

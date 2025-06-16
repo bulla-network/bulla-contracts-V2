@@ -14,6 +14,8 @@ contract LoanRequestParamsBuilder {
     address private _token;
     uint256 private _impairmentGracePeriod;
     uint256 private _expiresAt;
+    address private _callbackContract;
+    bytes4 private _callbackSelector;
 
     constructor() {
         // Default values
@@ -29,6 +31,8 @@ contract LoanRequestParamsBuilder {
         _token = address(0x0); // Mock token address
         _impairmentGracePeriod = 7 days; // 7 days grace period by default
         _expiresAt = 0; // No expiry by default
+        _callbackContract = address(0); // No callback by default
+        _callbackSelector = bytes4(0); // No callback by default
     }
 
     function withTermLength(uint256 termLength) public returns (LoanRequestParamsBuilder) {
@@ -95,6 +99,25 @@ contract LoanRequestParamsBuilder {
         return this;
     }
 
+    function withCallback(address callbackContract, bytes4 callbackSelector)
+        public
+        returns (LoanRequestParamsBuilder)
+    {
+        _callbackContract = callbackContract;
+        _callbackSelector = callbackSelector;
+        return this;
+    }
+
+    function withCallbackContract(address callbackContract) public returns (LoanRequestParamsBuilder) {
+        _callbackContract = callbackContract;
+        return this;
+    }
+
+    function withCallbackSelector(bytes4 callbackSelector) public returns (LoanRequestParamsBuilder) {
+        _callbackSelector = callbackSelector;
+        return this;
+    }
+
     function build() public view returns (LoanRequestParams memory) {
         return LoanRequestParams({
             termLength: _termLength,
@@ -105,7 +128,9 @@ contract LoanRequestParamsBuilder {
             description: _description,
             token: _token,
             impairmentGracePeriod: _impairmentGracePeriod,
-            expiresAt: _expiresAt
+            expiresAt: _expiresAt,
+            callbackContract: _callbackContract,
+            callbackSelector: _callbackSelector
         });
     }
 }
