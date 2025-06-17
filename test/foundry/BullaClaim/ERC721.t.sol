@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity ^0.8.14;
+pragma solidity ^0.8.30;
 
 import {DSTestPlus} from "solmate/test/utils/DSTestPlus.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {Claim, Status, ClaimBinding, LockState, CreateClaimParams} from "contracts/types/Types.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
+import {BullaClaimValidationLib} from "src/libraries/BullaClaimValidationLib.sol";
 
 // run the solmate ERC721 spec against bulla claim to ensure functionality
 
@@ -111,47 +112,58 @@ contract ERC721Test is DSTestPlus {
         assertEq(token.balanceOf(from), 0);
     }
 
-    function testFailMintToZero() public {
-        token.createClaim(new CreateClaimParamsBuilder().withCreditor(address(0)).withDebtor(debtor).build());
+    function test_RevertWhen_MintToZero() public {
+        CreateClaimParams memory params = new CreateClaimParamsBuilder().withCreditor(address(0)).withDebtor(debtor).build();
+        
+        hevm.expectRevert(BullaClaimValidationLib.NotCreditorOrDebtor.selector);
+        token.createClaim(params);
     }
 
-    function testFailApproveUnMinted() public {
+    function test_RevertWhen_ApproveUnMinted() public {
+        hevm.expectRevert("NOT_AUTHORIZED");
         token.approve(address(0xBEEF), 1);
     }
 
-    function testFailApproveUnAuthorized() public {
+    function test_RevertWhen_ApproveUnAuthorized() public {
         uint256 tokenId = _mint();
 
+        hevm.expectRevert("NOT_AUTHORIZED");
         token.approve(address(0xBEEF), tokenId);
     }
 
-    function testFailTransferFromUnOwned() public {
+    function test_RevertWhen_TransferFromUnOwned() public {
+        hevm.expectRevert("WRONG_FROM");
         token.transferFrom(address(0xFEED), address(0xBEEF), 1);
     }
 
-    function testFailTransferFromWrongFrom() public {
+    function test_RevertWhen_TransferFromWrongFrom() public {
         uint256 tokenId = _mint();
 
+        hevm.expectRevert("WRONG_FROM");
         token.transferFrom(address(0xFEED), address(0xBEEF), tokenId);
     }
 
-    function testFailTransferFromToZero() public {
+    function test_RevertWhen_TransferFromToZero() public {
         uint256 tokenId = _mint();
 
+        hevm.expectRevert("WRONG_FROM");
         token.transferFrom(address(this), address(0), tokenId);
     }
 
-    function testFailTransferFromNotOwner() public {
+    function test_RevertWhen_TransferFromNotOwner() public {
         uint256 tokenId = _mint();
 
+        hevm.expectRevert("WRONG_FROM");
         token.transferFrom(address(0xFEED), address(0xBEEF), tokenId);
     }
 
-    function testFailBalanceOfZeroAddress() public view {
+    function test_RevertWhen_BalanceOfZeroAddress() public {
+        hevm.expectRevert("ZERO_ADDRESS");
         token.balanceOf(address(0));
     }
 
-    function testFailOwnerOfUnminted() public view {
+    function test_RevertWhen_OwnerOfUnminted() public {
+        hevm.expectRevert("NOT_MINTED");
         token.ownerOf(1337);
     }
 

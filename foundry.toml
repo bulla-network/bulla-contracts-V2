@@ -3,6 +3,7 @@ src = 'src'
 cache_path = 'cache/foundry'
 out = 'out/foundry'
 libs = ['lib']
+solc = '0.8.30'
 optimizer = true
 optimizer_runs = 2_000_000
 fuzz_runs = 256
