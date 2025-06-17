@@ -113,8 +113,9 @@ contract ERC721Test is DSTestPlus {
     }
 
     function test_RevertWhen_MintToZero() public {
-        CreateClaimParams memory params = new CreateClaimParamsBuilder().withCreditor(address(0)).withDebtor(debtor).build();
-        
+        CreateClaimParams memory params =
+            new CreateClaimParamsBuilder().withCreditor(address(0)).withDebtor(debtor).build();
+
         hevm.expectRevert(BullaClaimValidationLib.NotCreditorOrDebtor.selector);
         token.createClaim(params);
     }

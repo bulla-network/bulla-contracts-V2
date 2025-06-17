@@ -1,3 +1,10 @@
+## [1.2.1](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.2.0...v1.2.1) (2025-06-17)
+
+
+### Bug Fixes
+
+* upgrade foundry and solc to 0.8.30 ([#60](https://github.com/bulla-network/bulla-contracts-V2/issues/60)) ([45152f6](https://github.com/bulla-network/bulla-contracts-V2/commit/45152f6550e707822d8c3d1150ac24bdc7c01f52))
+
 # [1.2.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.1.0...v1.2.0) (2025-06-17)
 
 
