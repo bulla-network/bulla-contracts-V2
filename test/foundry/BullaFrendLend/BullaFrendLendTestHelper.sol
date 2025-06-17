@@ -121,17 +121,16 @@ contract BullaFrendLendTestHelper is BullaClaimTestHelper {
      * @param creditorPK The private key of the creditor
      * @param debtor The debtor address
      * @param token The token address for the loan
-     * @param fee The fee amount to pay for creating the offer
      * @return loanOfferId The ID of the created loan offer
      */
-    function _createSimpleLoanOffer(uint256 creditorPK, address debtor, address token, uint256 fee)
+    function _createSimpleLoanOffer(uint256 creditorPK, address debtor, address token)
         internal
         returns (uint256 loanOfferId)
     {
         address creditor = vm.addr(creditorPK);
 
         vm.prank(creditor);
-        loanOfferId = bullaFrendLend.offerLoan{value: fee}(
+        loanOfferId = bullaFrendLend.offerLoan(
             new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(token).build()
         );
     }
@@ -150,7 +149,7 @@ contract BullaFrendLendTestHelper is BullaClaimTestHelper {
         address user = vm.addr(userPK);
 
         vm.prank(user);
-        loanOfferId = bullaFrendLend.offerLoan{value: fee}(params);
+        loanOfferId = bullaFrendLend.offerLoan(params);
     }
 
     /**
@@ -159,12 +158,12 @@ contract BullaFrendLendTestHelper is BullaClaimTestHelper {
      * @param loanOfferId The ID of the loan offer to accept
      * @return claimId The ID of the created claim
      */
-    function _acceptLoanOffer(uint256 userPK, uint256 loanOfferId) internal returns (uint256 claimId) {
+    function _acceptLoanOffer(uint256 userPK, uint256 loanOfferId, uint256 fee) internal returns (uint256 claimId) {
         address user = vm.addr(userPK);
         _permitAcceptLoan(userPK);
 
         vm.prank(user);
-        claimId = bullaFrendLend.acceptLoan(loanOfferId);
+        claimId = bullaFrendLend.acceptLoan{value: fee}(loanOfferId);
     }
 
     /**
@@ -183,10 +182,10 @@ contract BullaFrendLendTestHelper is BullaClaimTestHelper {
         address debtor = vm.addr(debtorPK);
 
         // Create loan offer
-        uint256 loanOfferId = _createSimpleLoanOffer(creditorPK, debtor, token, fee);
+        uint256 loanOfferId = _createSimpleLoanOffer(creditorPK, debtor, token);
 
         // Accept loan offer
-        claimId = _acceptLoanOffer(debtorPK, loanOfferId);
+        claimId = _acceptLoanOffer(debtorPK, loanOfferId, fee);
     }
 
     /**
@@ -206,7 +205,7 @@ contract BullaFrendLendTestHelper is BullaClaimTestHelper {
         loanOfferIds = new uint256[](debtors.length);
         vm.startPrank(creditor);
         for (uint256 i = 0; i < debtors.length; i++) {
-            loanOfferIds[i] = bullaFrendLend.offerLoan{value: fee}(
+            loanOfferIds[i] = bullaFrendLend.offerLoan(
                 new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtors[i]).withToken(token).build()
             );
         }

@@ -14,14 +14,14 @@ contract BullaInvoiceERC165Test is Test {
 
     address admin = makeAddr("admin");
     uint256 constant PROTOCOL_FEE_BPS = 1000; // 10%
-    uint256 constant INVOICE_ORIGINATION_FEE = 0.01 ether;
-    uint256 constant PURCHASE_ORDER_ORIGINATION_FEE = 0.02 ether;
 
     function setUp() public {
-        bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
-        bullaInvoice = new BullaInvoice(
-            address(bullaClaim), admin, PROTOCOL_FEE_BPS, INVOICE_ORIGINATION_FEE, PURCHASE_ORDER_ORIGINATION_FEE
-        );
+        bullaClaim = (new Deployer()).deploy_test({
+            _deployer: address(this),
+            _initialLockState: LockState.Unlocked,
+            _coreProtocolFee: 0
+        });
+        bullaInvoice = new BullaInvoice(address(bullaClaim), admin, PROTOCOL_FEE_BPS);
     }
 
     function testSupportsERC165Interface() public {
@@ -57,7 +57,6 @@ contract BullaInvoiceERC165Test is Test {
             ^ IBullaInvoice.getTotalAmountNeededForPurchaseOrderDeposit.selector ^ IBullaInvoice.updateBinding.selector
             ^ IBullaInvoice.cancelInvoice.selector ^ IBullaInvoice.setProtocolFee.selector
             ^ IBullaInvoice.withdrawAllFees.selector ^ IBullaInvoice.admin.selector ^ IBullaInvoice.protocolFeeBPS.selector
-            ^ IBullaInvoice.invoiceOriginationFee.selector ^ IBullaInvoice.purchaseOrderOriginationFee.selector
             ^ IBullaInvoice.protocolFeesByToken.selector;
 
         bytes4 actualInterfaceId = type(IBullaInvoice).interfaceId;

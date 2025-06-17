@@ -8,27 +8,31 @@ import "contracts/BullaControllerRegistry.sol";
 contract Deployer is Script {
     BullaClaim bullaClaim;
     BullaControllerRegistry controllerRegistry;
+    uint256 coreProtocolFee;
 
     function run() public {
         // load fee receiver + lock state from the bash environment
         LockState initialLockState = LockState(vm.envUint("LOCK_STATE"));
 
         vm.startBroadcast();
-        _deploy(initialLockState);
+        _deploy(initialLockState, 0);
         vm.stopBroadcast();
     }
 
-    function deploy_test(address _deployer, LockState _initialLockState) public returns (BullaClaim) {
+    function deploy_test(address _deployer, LockState _initialLockState, uint256 _coreProtocolFee)
+        public
+        returns (BullaClaim)
+    {
         vm.startPrank(_deployer);
-        _deploy(_initialLockState);
+        _deploy(_initialLockState, _coreProtocolFee);
 
         vm.stopPrank();
 
         return bullaClaim;
     }
 
-    function _deploy(LockState _initialLockState) internal {
+    function _deploy(LockState _initialLockState, uint256 _coreProtocolFee) internal {
         controllerRegistry = new BullaControllerRegistry();
-        bullaClaim = new BullaClaim(address(controllerRegistry), _initialLockState);
+        bullaClaim = new BullaClaim(address(controllerRegistry), _initialLockState, _coreProtocolFee);
     }
 }

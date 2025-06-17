@@ -89,11 +89,15 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
         debtor = vm.addr(debtorPK);
 
         // Initialize the base contracts
-        bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
+        bullaClaim = (new Deployer()).deploy_test({
+            _deployer: address(this),
+            _initialLockState: LockState.Unlocked,
+            _coreProtocolFee: FEE
+        });
         sigHelper = new EIP712Helper(address(bullaClaim));
 
         // Initialize the BullaFrendLend contract
-        bullaFrendLend = new BullaFrendLend(address(bullaClaim), creditor, FEE, 1000); // 10% protocol fee
+        bullaFrendLend = new BullaFrendLend(address(bullaClaim), creditor, 1000); // 10% protocol fee
 
         mockCallback = new MockCallbackContract();
 
@@ -115,7 +119,7 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
             .withToken(address(weth)).withCallback(address(mockCallback), mockCallback.onLoanAccepted.selector).build();
 
         vm.prank(creditor);
-        uint256 loanOfferId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        uint256 loanOfferId = bullaFrendLend.offerLoan(offer);
 
         // Verify the offer was created with callback data
         LoanOffer memory loanOffer = bullaFrendLend.getLoanOffer(loanOfferId);
@@ -135,7 +139,7 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
             .withToken(address(weth)).withCallback(address(mockCallback), mockCallback.onLoanAccepted.selector).build();
 
         vm.prank(creditor);
-        uint256 loanOfferId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        uint256 loanOfferId = bullaFrendLend.offerLoan(offer);
 
         // Expect callback event to be emitted
         vm.expectEmit(true, true, true, true);
@@ -143,7 +147,7 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
 
         // Accept the loan
         vm.prank(debtor);
-        uint256 claimId = bullaFrendLend.acceptLoan(loanOfferId);
+        uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanOfferId);
 
         // Verify callback was executed with correct parameters
         MockCallbackContract.CallbackData memory data = mockCallback.getCallbackData(loanOfferId);
@@ -164,11 +168,11 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
             new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
 
         vm.prank(creditor);
-        uint256 loanOfferId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        uint256 loanOfferId = bullaFrendLend.offerLoan(offer);
 
         // Accept the loan
         vm.prank(debtor);
-        bullaFrendLend.acceptLoan(loanOfferId);
+        bullaFrendLend.acceptLoan{value: FEE}(loanOfferId);
 
         // Verify no callback was executed (using a non-existent loanOfferId)
         MockCallbackContract.CallbackData memory data = mockCallback.getCallbackData(loanOfferId);
@@ -182,7 +186,7 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
 
         vm.prank(creditor);
         vm.expectRevert(abi.encodeWithSelector(InvalidCallback.selector));
-        bullaFrendLend.offerLoan{value: FEE}(offer);
+        bullaFrendLend.offerLoan(offer);
     }
 
     function testCallbackValidation_SelectorWithoutContract() public {
@@ -194,7 +198,7 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
 
         vm.prank(creditor);
         vm.expectRevert(abi.encodeWithSelector(InvalidCallback.selector));
-        bullaFrendLend.offerLoan{value: FEE}(offer);
+        bullaFrendLend.offerLoan(offer);
     }
 
     function testCallbackFailureHandling() public {
@@ -212,7 +216,7 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
             .withToken(address(weth)).withCallback(address(mockCallback), mockCallback.onLoanAccepted.selector).build();
 
         vm.prank(creditor);
-        uint256 loanOfferId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        uint256 loanOfferId = bullaFrendLend.offerLoan(offer);
 
         // Attempt to accept loan should fail due to callback revert
         vm.prank(debtor);
@@ -221,7 +225,7 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
                 CallbackFailed.selector, abi.encodeWithSignature("Error(string)", "Callback intentionally failed")
             )
         );
-        bullaFrendLend.acceptLoan(loanOfferId);
+        bullaFrendLend.acceptLoan{value: FEE}(loanOfferId);
 
         assertEq(bullaFrendLend.getLoanOffer(loanOfferId).params.creditor, creditor, "loan offer not accepted");
     }
@@ -238,18 +242,18 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
             .withToken(address(weth)).withCallback(address(mockCallback), mockCallback.onLoanAccepted.selector).build();
 
         vm.prank(creditor);
-        uint256 loanOfferId1 = bullaFrendLend.offerLoan{value: FEE}(offer1);
+        uint256 loanOfferId1 = bullaFrendLend.offerLoan(offer1);
 
         // Create second loan offer with same callback
         LoanRequestParams memory offer2 = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
             .withToken(address(weth)).withCallback(address(mockCallback), mockCallback.onLoanAccepted.selector).build();
 
         vm.prank(creditor);
-        uint256 loanOfferId2 = bullaFrendLend.offerLoan{value: FEE}(offer2);
+        uint256 loanOfferId2 = bullaFrendLend.offerLoan(offer2);
 
         // Accept first loan
         vm.prank(debtor);
-        uint256 claimId1 = bullaFrendLend.acceptLoan(loanOfferId1);
+        uint256 claimId1 = bullaFrendLend.acceptLoan{value: FEE}(loanOfferId1);
 
         // Verify first callback was executed
         MockCallbackContract.CallbackData memory data1 = mockCallback.getCallbackData(loanOfferId1);
@@ -259,7 +263,7 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
 
         // Accept second loan
         vm.prank(debtor);
-        uint256 claimId2 = bullaFrendLend.acceptLoan(loanOfferId2);
+        uint256 claimId2 = bullaFrendLend.acceptLoan{value: FEE}(loanOfferId2);
 
         // Verify second callback was executed
         MockCallbackContract.CallbackData memory data2 = mockCallback.getCallbackData(loanOfferId2);
@@ -280,7 +284,7 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
             .withToken(address(weth)).withCallback(address(mockCallback), mockCallback.onLoanAccepted.selector).build();
 
         vm.prank(debtor);
-        uint256 requestId = bullaFrendLend.offerLoan{value: FEE}(request);
+        uint256 requestId = bullaFrendLend.offerLoan(request);
 
         // Expect callback event to be emitted when creditor accepts
         vm.expectEmit(true, true, true, true);
@@ -288,7 +292,7 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
 
         // Creditor accepts the loan request
         vm.prank(creditor);
-        uint256 claimId = bullaFrendLend.acceptLoan(requestId);
+        uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(requestId);
 
         // Verify callback was executed
         MockCallbackContract.CallbackData memory data = mockCallback.getCallbackData(requestId);

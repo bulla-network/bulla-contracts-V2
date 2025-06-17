@@ -40,7 +40,11 @@ contract TestCreateClaim is BullaClaimTestHelper {
     function setUp() public {
         weth = new WETH();
 
-        bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
+        bullaClaim = (new Deployer()).deploy_test({
+            _deployer: address(this),
+            _initialLockState: LockState.Unlocked,
+            _coreProtocolFee: 0
+        });
         _newClaim(creditor, creditor, debtor);
     }
 

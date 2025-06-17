@@ -4,6 +4,7 @@ pragma solidity ^0.8.30;
 import {EIP712Helper, privateKeyValidity, splitSig} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import "contracts/BullaClaim.sol";
+import "contracts/interfaces/IBullaClaim.sol";
 import "contracts/mocks/PenalizedClaim.sol";
 import "contracts/mocks/ERC1271Wallet.sol";
 import {console} from "forge-std/console.sol";
@@ -62,7 +63,11 @@ contract TestPermitCreateClaim is Test {
     );
 
     function setUp() public {
-        bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
+        bullaClaim = (new Deployer()).deploy_test({
+            _deployer: address(this),
+            _initialLockState: LockState.Unlocked,
+            _coreProtocolFee: 0
+        });
         sigHelper = new EIP712Helper(address(bullaClaim));
         eip1271Wallet = new ERC1271WalletMock();
     }
@@ -707,5 +712,180 @@ contract TestPermitCreateClaim is Test {
             assertTrue(approval.approvalType == approvalType, "approvalType");
             assertEq(approval.isBindingAllowed, isBindingAllowed, "isBindingAllowed");
         }
+    }
+
+    /// @notice Test that IBullaClaim.permitCreateClaim works identically to BullaClaim.permitCreateClaim
+    /// @dev This test ensures the interface version (using uint8) produces the same results as the direct implementation (using enum)
+    function testInterfaceVsImplementationEquivalence() public {
+        uint256 alicePK = uint256(0xA11c3);
+        uint256 charliePK = uint256(0xC4a11e);
+
+        address alice = vm.addr(alicePK);
+        address charlie = vm.addr(charliePK);
+        address controller1 = address(0xB0b1);
+        address controller2 = address(0xB0b2);
+
+        CreateClaimApprovalType approvalType = CreateClaimApprovalType.Approved;
+        uint64 approvalCount = 5;
+        bool isBindingAllowed = true;
+
+        // Generate signatures for both users
+        bytes memory aliceSignature = sigHelper.signCreateClaimPermit({
+            pk: alicePK,
+            user: alice,
+            controller: controller1,
+            approvalType: approvalType,
+            approvalCount: approvalCount,
+            isBindingAllowed: isBindingAllowed
+        });
+
+        bytes memory charlieSignature = sigHelper.signCreateClaimPermit({
+            pk: charliePK,
+            user: charlie,
+            controller: controller2,
+            approvalType: approvalType,
+            approvalCount: approvalCount,
+            isBindingAllowed: isBindingAllowed
+        });
+
+        // Call via direct implementation (BullaClaim.permitCreateClaim with enum)
+        bullaClaim.permitCreateClaim({
+            user: alice,
+            controller: controller1,
+            approvalType: approvalType,
+            approvalCount: approvalCount,
+            isBindingAllowed: isBindingAllowed,
+            signature: aliceSignature
+        });
+
+        // Call via interface (IBullaClaim.permitCreateClaim with uint8)
+        IBullaClaim(address(bullaClaim)).permitCreateClaim({
+            user: charlie,
+            controller: controller2,
+            approvalType: uint8(approvalType),
+            approvalCount: approvalCount,
+            isBindingAllowed: isBindingAllowed,
+            signature: charlieSignature
+        });
+
+        // Verify both calls produced identical results
+        (CreateClaimApproval memory aliceApproval,,,,,) = bullaClaim.approvals(alice, controller1);
+        (CreateClaimApproval memory charlieApproval,,,,,) = bullaClaim.approvals(charlie, controller2);
+
+        // Both should have identical state
+        assertEq(aliceApproval.nonce, charlieApproval.nonce, "nonce should be equal");
+        assertEq(aliceApproval.approvalCount, charlieApproval.approvalCount, "approvalCount should be equal");
+        assertEq(aliceApproval.isBindingAllowed, charlieApproval.isBindingAllowed, "isBindingAllowed should be equal");
+        assertTrue(aliceApproval.approvalType == charlieApproval.approvalType, "approvalType should be equal");
+
+        // Both should have the expected values
+        assertEq(aliceApproval.nonce, 1, "alice nonce");
+        assertEq(aliceApproval.approvalCount, approvalCount, "alice approvalCount");
+        assertEq(aliceApproval.isBindingAllowed, isBindingAllowed, "alice isBindingAllowed");
+        assertTrue(aliceApproval.approvalType == approvalType, "alice approvalType");
+
+        assertEq(charlieApproval.nonce, 1, "charlie nonce");
+        assertEq(charlieApproval.approvalCount, approvalCount, "charlie approvalCount");
+        assertEq(charlieApproval.isBindingAllowed, isBindingAllowed, "charlie isBindingAllowed");
+        assertTrue(charlieApproval.approvalType == approvalType, "charlie approvalType");
+    }
+
+    /// @notice Test edge cases to ensure interface and implementation handle revocations identically
+    function testInterfaceRevocationEquivalence() public {
+        uint256 alicePK = uint256(0xA11c3);
+        uint256 charliePK = uint256(0xC4a11e);
+
+        address alice = vm.addr(alicePK);
+        address charlie = vm.addr(charliePK);
+        address controller1 = address(0xB0b1);
+        address controller2 = address(0xB0b2);
+
+        // First approve both via different methods
+        bullaClaim.permitCreateClaim({
+            user: alice,
+            controller: controller1,
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 3,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: alicePK,
+                user: alice,
+                controller: controller1,
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 3,
+                isBindingAllowed: true
+            })
+        });
+
+        IBullaClaim(address(bullaClaim)).permitCreateClaim({
+            user: charlie,
+            controller: controller2,
+            approvalType: uint8(CreateClaimApprovalType.Approved),
+            approvalCount: 3,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: charliePK,
+                user: charlie,
+                controller: controller2,
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 3,
+                isBindingAllowed: true
+            })
+        });
+
+        // Now revoke both via different methods
+        bullaClaim.permitCreateClaim({
+            user: alice,
+            controller: controller1,
+            approvalType: CreateClaimApprovalType.Unapproved,
+            approvalCount: 0,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: alicePK,
+                user: alice,
+                controller: controller1,
+                approvalType: CreateClaimApprovalType.Unapproved,
+                approvalCount: 0,
+                isBindingAllowed: false
+            })
+        });
+
+        IBullaClaim(address(bullaClaim)).permitCreateClaim({
+            user: charlie,
+            controller: controller2,
+            approvalType: uint8(CreateClaimApprovalType.Unapproved),
+            approvalCount: 0,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: charliePK,
+                user: charlie,
+                controller: controller2,
+                approvalType: CreateClaimApprovalType.Unapproved,
+                approvalCount: 0,
+                isBindingAllowed: false
+            })
+        });
+
+        // Verify both revocations produced identical results
+        (CreateClaimApproval memory aliceApproval,,,,,) = bullaClaim.approvals(alice, controller1);
+        (CreateClaimApproval memory charlieApproval,,,,,) = bullaClaim.approvals(charlie, controller2);
+
+        // Both should be revoked (approvalCount = 0, approvalType = Unapproved)
+        assertEq(aliceApproval.nonce, 2, "alice nonce should be 2 after revocation");
+        assertEq(charlieApproval.nonce, 2, "charlie nonce should be 2 after revocation");
+
+        assertEq(aliceApproval.approvalCount, 0, "alice approvalCount should be 0");
+        assertEq(charlieApproval.approvalCount, 0, "charlie approvalCount should be 0");
+
+        assertEq(aliceApproval.isBindingAllowed, false, "alice isBindingAllowed should be false");
+        assertEq(charlieApproval.isBindingAllowed, false, "charlie isBindingAllowed should be false");
+
+        assertTrue(
+            aliceApproval.approvalType == CreateClaimApprovalType.Unapproved, "alice approvalType should be Unapproved"
+        );
+        assertTrue(
+            charlieApproval.approvalType == CreateClaimApprovalType.Unapproved,
+            "charlie approvalType should be Unapproved"
+        );
     }
 }

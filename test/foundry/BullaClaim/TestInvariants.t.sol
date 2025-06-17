@@ -58,7 +58,11 @@ contract TestInvariants is Test {
         vm.label(alice, "ALICE");
 
         vm.prank(contractOwner);
-        bullaClaim = (new Deployer()).deploy_test({_deployer: contractOwner, _initialLockState: LockState.Unlocked});
+        bullaClaim = (new Deployer()).deploy_test({
+            _deployer: contractOwner,
+            _initialLockState: LockState.Unlocked,
+            _coreProtocolFee: 0
+        });
 
         weth.transferFrom(address(this), creditor, type(uint136).max);
         weth.transferFrom(address(this), debtor, type(uint136).max);

@@ -45,9 +45,13 @@ contract TestBullaInvoice is Test {
     function setUp() public {
         weth = new WETH();
 
-        bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
+        bullaClaim = (new Deployer()).deploy_test({
+            _deployer: address(this),
+            _initialLockState: LockState.Unlocked,
+            _coreProtocolFee: 0
+        });
         sigHelper = new EIP712Helper(address(bullaClaim));
-        bullaInvoice = new BullaInvoice(address(bullaClaim), admin, 0, 0 ether, 0 ether);
+        bullaInvoice = new BullaInvoice(address(bullaClaim), admin, 0);
 
         vm.deal(debtor, 10 ether);
     }

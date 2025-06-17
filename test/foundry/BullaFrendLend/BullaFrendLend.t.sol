@@ -41,9 +41,7 @@ contract TestBullaFrendLend is Test {
 
     // Events for testing
     event FeeWithdrawn(address indexed admin, address indexed token, uint256 amount);
-    event LoanOffered(
-        uint256 indexed loanId, address indexed offeredBy, LoanRequestParams loanOffer, uint256 originationFee
-    );
+    event LoanOffered(uint256 indexed loanId, address indexed offeredBy, LoanRequestParams loanOffer);
 
     uint256 creditorPK = uint256(0x01);
     uint256 debtorPK = uint256(0x02);
@@ -59,9 +57,13 @@ contract TestBullaFrendLend is Test {
         usdc = new MockERC20("USD Coin", "USDC", 6);
         dai = new MockERC20("Dai Stablecoin", "DAI", 18);
 
-        bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
+        bullaClaim = (new Deployer()).deploy_test({
+            _deployer: address(this),
+            _initialLockState: LockState.Unlocked,
+            _coreProtocolFee: FEE
+        });
         sigHelper = new EIP712Helper(address(bullaClaim));
-        bullaFrendLend = new BullaFrendLend(address(bullaClaim), admin, FEE, PROTOCOL_FEE_BPS);
+        bullaFrendLend = new BullaFrendLend(address(bullaClaim), admin, PROTOCOL_FEE_BPS);
 
         vm.deal(creditor, 10 ether);
         vm.deal(debtor, 10 ether);
@@ -106,7 +108,7 @@ contract TestBullaFrendLend is Test {
             .build();
 
         vm.prank(creditor);
-        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        uint256 loanId = bullaFrendLend.offerLoan(offer);
 
         LoanOffer memory loanOffer = bullaFrendLend.getLoanOffer(loanId);
         LoanRequestParams memory params = loanOffer.params;
@@ -129,7 +131,7 @@ contract TestBullaFrendLend is Test {
         ).withDebtor(debtor).withToken(address(weth)).withDescription("Test Loan Request").build();
 
         vm.prank(debtor);
-        uint256 requestId = bullaFrendLend.offerLoan{value: FEE}(request);
+        uint256 requestId = bullaFrendLend.offerLoan(request);
 
         LoanRequestParams memory params = bullaFrendLend.getLoanOffer(requestId).params;
         bool requestedByCreditor = bullaFrendLend.getLoanOffer(requestId).requestedByCreditor;
@@ -145,18 +147,6 @@ contract TestBullaFrendLend is Test {
         assertFalse(requestedByCreditor, "Should be requested by debtor");
     }
 
-    function testOfferLoanWithIncorrectFee() public {
-        vm.prank(creditor);
-        weth.approve(address(bullaFrendLend), 1 ether);
-
-        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
-            .withDescription("Test Loan").withToken(address(weth)).build();
-
-        vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(IncorrectFee.selector));
-        bullaFrendLend.offerLoan{value: FEE + 0.1 ether}(offer);
-    }
-
     function testOfferLoanByCreditorWithWrongCreditor() public {
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 1 ether);
@@ -167,7 +157,7 @@ contract TestBullaFrendLend is Test {
 
         vm.prank(creditor);
         vm.expectRevert(abi.encodeWithSelector(NotCreditorOrDebtor.selector));
-        bullaFrendLend.offerLoan{value: FEE}(offer);
+        bullaFrendLend.offerLoan(offer);
     }
 
     function testOfferLoanByDebtorWithWrongDebtor() public {
@@ -177,7 +167,7 @@ contract TestBullaFrendLend is Test {
 
         vm.prank(debtor);
         vm.expectRevert(abi.encodeWithSelector(NotCreditorOrDebtor.selector));
-        bullaFrendLend.offerLoan{value: FEE}(request);
+        bullaFrendLend.offerLoan(request);
     }
 
     function testOfferLoanWithZeroTermLength() public {
@@ -190,7 +180,7 @@ contract TestBullaFrendLend is Test {
 
         vm.prank(creditor);
         vm.expectRevert(abi.encodeWithSelector(InvalidTermLength.selector));
-        bullaFrendLend.offerLoan{value: FEE}(offer);
+        bullaFrendLend.offerLoan(offer);
     }
 
     function testOfferLoanWithNativeToken() public {
@@ -200,7 +190,7 @@ contract TestBullaFrendLend is Test {
 
         vm.prank(creditor);
         vm.expectRevert(abi.encodeWithSelector(NativeTokenNotSupported.selector));
-        bullaFrendLend.offerLoan{value: FEE}(offer);
+        bullaFrendLend.offerLoan(offer);
     }
 
     function testOfferLoanWithZeroInterest() public {
@@ -212,7 +202,7 @@ contract TestBullaFrendLend is Test {
             .build();
 
         vm.prank(creditor);
-        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        uint256 loanId = bullaFrendLend.offerLoan(offer);
 
         LoanOffer memory loanOffer = bullaFrendLend.getLoanOffer(loanId);
         LoanRequestParams memory params = loanOffer.params;
@@ -228,10 +218,10 @@ contract TestBullaFrendLend is Test {
 
         // Expect the LoanOffered event to be emitted with the correct parameters
         vm.expectEmit(true, true, false, true);
-        emit LoanOffered(1, creditor, offer, FEE);
+        emit LoanOffered(1, creditor, offer);
 
         vm.prank(creditor);
-        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        uint256 loanId = bullaFrendLend.offerLoan(offer);
 
         assertEq(loanId, 1, "Loan ID should be 1");
     }
@@ -242,10 +232,10 @@ contract TestBullaFrendLend is Test {
 
         // Expect the LoanOffered event to be emitted with the correct parameters (by debtor)
         vm.expectEmit(true, true, false, true);
-        emit LoanOffered(1, debtor, request, FEE);
+        emit LoanOffered(1, debtor, request);
 
         vm.prank(debtor);
-        uint256 requestId = bullaFrendLend.offerLoan{value: FEE}(request);
+        uint256 requestId = bullaFrendLend.offerLoan(request);
 
         assertEq(requestId, 1, "Request ID should be 1");
     }
@@ -259,22 +249,23 @@ contract TestBullaFrendLend is Test {
             new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
 
         vm.prank(creditor);
-        uint256 offerId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        uint256 offerId = bullaFrendLend.offerLoan(offer);
 
         // Creditor cannot accept their own offer
         vm.prank(creditor);
         vm.expectRevert(abi.encodeWithSelector(NotDebtor.selector));
-        bullaFrendLend.acceptLoan(offerId);
+        bullaFrendLend.acceptLoan{value: FEE}(offerId);
 
         // Random user cannot accept offer
         address randomUser = address(0x999);
+        vm.deal(randomUser, 1 ether);
         vm.prank(randomUser);
         vm.expectRevert(abi.encodeWithSelector(NotDebtor.selector));
-        bullaFrendLend.acceptLoan(offerId);
+        bullaFrendLend.acceptLoan{value: FEE}(offerId);
 
         uint256 nonExistentOfferId = 999;
         vm.expectRevert(abi.encodeWithSelector(LoanOfferNotFound.selector));
-        bullaFrendLend.acceptLoan(nonExistentOfferId);
+        bullaFrendLend.acceptLoan{value: FEE}(nonExistentOfferId);
     }
 
     function testCannotAcceptDebtorOfferIfNotCreditor() public {
@@ -282,20 +273,21 @@ contract TestBullaFrendLend is Test {
             new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
 
         vm.prank(debtor);
-        uint256 requestId = bullaFrendLend.offerLoan{value: FEE}(request);
+        uint256 requestId = bullaFrendLend.offerLoan(request);
 
         vm.prank(debtor);
         vm.expectRevert(abi.encodeWithSelector(NotCreditor.selector));
-        bullaFrendLend.acceptLoan(requestId);
+        bullaFrendLend.acceptLoan{value: FEE}(requestId);
 
         address randomUser = address(0x999);
+        vm.deal(randomUser, 1 ether);
         vm.prank(randomUser);
         vm.expectRevert(abi.encodeWithSelector(NotCreditor.selector));
-        bullaFrendLend.acceptLoan(requestId);
+        bullaFrendLend.acceptLoan{value: FEE}(requestId);
 
         uint256 nonExistentRequestId = 999;
         vm.expectRevert(abi.encodeWithSelector(LoanOfferNotFound.selector));
-        bullaFrendLend.acceptLoan(nonExistentRequestId);
+        bullaFrendLend.acceptLoan{value: FEE}(nonExistentRequestId);
     }
 
     function testEndToEndLoanFlowCreditorOffer() public {
@@ -313,7 +305,7 @@ contract TestBullaFrendLend is Test {
         uint256 initialDebtorWeth = weth.balanceOf(debtor);
 
         vm.prank(creditor);
-        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        uint256 loanId = bullaFrendLend.offerLoan(offer);
 
         bullaClaim.permitCreateClaim({
             user: debtor,
@@ -332,7 +324,7 @@ contract TestBullaFrendLend is Test {
         });
 
         vm.prank(debtor);
-        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+        uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
 
         assertEq(
             weth.balanceOf(creditor),
@@ -415,7 +407,7 @@ contract TestBullaFrendLend is Test {
 
         // Debtor creates the loan request
         vm.prank(debtor);
-        uint256 requestId = bullaFrendLend.offerLoan{value: FEE}(request);
+        uint256 requestId = bullaFrendLend.offerLoan(request);
 
         bullaClaim.permitCreateClaim({
             user: debtor,
@@ -435,7 +427,7 @@ contract TestBullaFrendLend is Test {
 
         // Creditor accepts the loan request
         vm.prank(creditor);
-        uint256 claimId = bullaFrendLend.acceptLoan(requestId);
+        uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(requestId);
 
         assertEq(
             weth.balanceOf(creditor),
@@ -507,7 +499,7 @@ contract TestBullaFrendLend is Test {
             new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
 
         vm.prank(creditor);
-        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        uint256 loanId = bullaFrendLend.offerLoan(offer);
 
         vm.prank(creditor);
         bullaFrendLend.rejectLoanOffer(loanId);
@@ -522,7 +514,7 @@ contract TestBullaFrendLend is Test {
             new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
 
         vm.prank(debtor);
-        uint256 requestId = bullaFrendLend.offerLoan{value: FEE}(request);
+        uint256 requestId = bullaFrendLend.offerLoan(request);
 
         vm.prank(debtor);
         bullaFrendLend.rejectLoanOffer(requestId);
@@ -548,7 +540,7 @@ contract TestBullaFrendLend is Test {
         uint256 initialDebtorWeth = weth.balanceOf(debtor);
 
         vm.prank(creditor);
-        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        uint256 loanId = bullaFrendLend.offerLoan(offer);
 
         bullaClaim.permitCreateClaim({
             user: debtor,
@@ -567,7 +559,7 @@ contract TestBullaFrendLend is Test {
         });
 
         vm.prank(debtor);
-        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+        uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
 
         assertEq(
             weth.balanceOf(creditor),
@@ -670,7 +662,7 @@ contract TestBullaFrendLend is Test {
             .build();
 
         vm.prank(creditor);
-        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        uint256 loanId = bullaFrendLend.offerLoan(offer);
 
         bullaClaim.permitCreateClaim({
             user: debtor,
@@ -690,7 +682,7 @@ contract TestBullaFrendLend is Test {
 
         uint256 acceptTime = block.timestamp;
         vm.prank(debtor);
-        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+        uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
 
         bullaClaim.permitPayClaim({
             user: debtor,
@@ -738,7 +730,7 @@ contract TestBullaFrendLend is Test {
             new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
 
         vm.prank(creditor);
-        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        uint256 loanId = bullaFrendLend.offerLoan(offer);
 
         bullaClaim.permitCreateClaim({
             user: debtor,
@@ -757,7 +749,7 @@ contract TestBullaFrendLend is Test {
         });
 
         vm.prank(debtor);
-        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+        uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
 
         bullaClaim.permitPayClaim({
             user: debtor,
@@ -820,7 +812,7 @@ contract TestBullaFrendLend is Test {
             ClaimMetadata({tokenURI: "ipfs://QmTestTokenURI", attachmentURI: "ipfs://QmTestAttachmentURI"});
 
         vm.prank(creditor);
-        uint256 loanId = bullaFrendLend.offerLoanWithMetadata{value: FEE}(offer, metadata);
+        uint256 loanId = bullaFrendLend.offerLoanWithMetadata(offer, metadata);
 
         bullaClaim.permitCreateClaim({
             user: debtor,
@@ -839,7 +831,7 @@ contract TestBullaFrendLend is Test {
         });
 
         vm.prank(debtor);
-        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+        uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
 
         // Get the claim metadata directly from BullaClaim contract
         (string memory tokenURI, string memory attachmentURI) = bullaClaim.claimMetadata(claimId);
@@ -927,10 +919,10 @@ contract TestBullaFrendLend is Test {
             .withDescription("WETH Loan").withToken(address(weth)).withNumberOfPeriodsPerYear(365).build();
 
         vm.prank(creditor);
-        uint256 wethLoanId = bullaFrendLend.offerLoan{value: FEE}(wethOffer);
+        uint256 wethLoanId = bullaFrendLend.offerLoan(wethOffer);
 
         vm.prank(debtor);
-        uint256 wethClaimId = bullaFrendLend.acceptLoan(wethLoanId);
+        uint256 wethClaimId = bullaFrendLend.acceptLoan{value: FEE}(wethLoanId);
 
         LoanRequestParams memory usdcOffer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
             .withDescription("USDC Loan").withToken(address(usdc)).withLoanAmount(1000 * 10 ** 6).withNumberOfPeriodsPerYear(
@@ -938,20 +930,20 @@ contract TestBullaFrendLend is Test {
         ).build();
 
         vm.prank(creditor);
-        uint256 usdcLoanId = bullaFrendLend.offerLoan{value: FEE}(usdcOffer);
+        uint256 usdcLoanId = bullaFrendLend.offerLoan(usdcOffer);
 
         vm.prank(debtor);
-        uint256 usdcClaimId = bullaFrendLend.acceptLoan(usdcLoanId);
+        uint256 usdcClaimId = bullaFrendLend.acceptLoan{value: FEE}(usdcLoanId);
 
         LoanRequestParams memory daiOffer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
             .withDescription("DAI Loan").withToken(address(dai)).withLoanAmount(1000 ether).withNumberOfPeriodsPerYear(365)
             .build();
 
         vm.prank(creditor);
-        uint256 daiLoanId = bullaFrendLend.offerLoan{value: FEE}(daiOffer);
+        uint256 daiLoanId = bullaFrendLend.offerLoan(daiOffer);
 
         vm.prank(debtor);
-        uint256 daiClaimId = bullaFrendLend.acceptLoan(daiLoanId);
+        uint256 daiClaimId = bullaFrendLend.acceptLoan{value: FEE}(daiLoanId);
 
         vm.warp(block.timestamp + 15 days);
 
@@ -988,12 +980,10 @@ contract TestBullaFrendLend is Test {
     function testWithdrawAllFees() public {
         testProtocolFeeWithMultipleTokens();
 
-        uint256 initialAdminEthBalance = admin.balance;
         uint256 initialAdminWethBalance = weth.balanceOf(admin);
         uint256 initialAdminUsdcBalance = usdc.balanceOf(admin);
         uint256 initialAdminDaiBalance = dai.balanceOf(admin);
 
-        uint256 contractEthBalance = address(bullaFrendLend).balance;
         uint256 wethFee = bullaFrendLend.protocolFeesByToken(address(weth));
         uint256 usdcFee = bullaFrendLend.protocolFeesByToken(address(usdc));
         uint256 daiFee = bullaFrendLend.protocolFeesByToken(address(dai));
@@ -1001,10 +991,6 @@ contract TestBullaFrendLend is Test {
         // Admin withdraws fees
         vm.prank(admin);
         bullaFrendLend.withdrawAllFees();
-
-        // Verify native token fees were transferred
-        assertEq(admin.balance, initialAdminEthBalance + contractEthBalance, "ETH fees not transferred correctly");
-        assertEq(address(bullaFrendLend).balance, 0, "Contract ETH balance should be 0 after withdrawal");
 
         // Verify ERC20 token fees were transferred
         assertEq(weth.balanceOf(admin), initialAdminWethBalance + wethFee, "WETH fees not transferred correctly");
@@ -1032,28 +1018,6 @@ contract TestBullaFrendLend is Test {
     }
 
     // ==================== FEE WITHDRAWN EVENT TESTS ====================
-
-    function testFeeWithdrawnEventEmittedForETH() public {
-        // Create loan offer to accumulate ETH fees
-        vm.prank(creditor);
-        weth.approve(address(bullaFrendLend), 1 ether);
-
-        LoanRequestParams memory offer =
-            new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
-
-        vm.prank(creditor);
-        bullaFrendLend.offerLoan{value: FEE}(offer);
-
-        uint256 ethBalance = address(bullaFrendLend).balance;
-        assertTrue(ethBalance > 0, "Contract should have ETH balance");
-
-        // Expect FeeWithdrawn event for ETH (address(0))
-        vm.expectEmit(true, true, false, true);
-        emit FeeWithdrawn(admin, address(0), ethBalance);
-
-        vm.prank(admin);
-        bullaFrendLend.withdrawAllFees();
-    }
 
     function testFeeWithdrawnEventEmittedForERC20Token() public {
         // Setup loan and make payment to accumulate protocol fees
@@ -1101,10 +1065,10 @@ contract TestBullaFrendLend is Test {
             .withToken(address(weth)).withInterestRateBps(1000).withNumberOfPeriodsPerYear(12).build();
 
         vm.prank(creditor);
-        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        uint256 loanId = bullaFrendLend.offerLoan(offer);
 
         vm.prank(debtor);
-        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+        uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
 
         // Fast forward to accrue interest
         vm.warp(block.timestamp + 90 days);
@@ -1184,15 +1148,15 @@ contract TestBullaFrendLend is Test {
             .build();
 
         vm.startPrank(creditor);
-        uint256 wethLoanId = bullaFrendLend.offerLoan{value: FEE}(wethOffer);
-        uint256 usdcLoanId = bullaFrendLend.offerLoan{value: FEE}(usdcOffer);
-        uint256 daiLoanId = bullaFrendLend.offerLoan{value: FEE}(daiOffer);
+        uint256 wethLoanId = bullaFrendLend.offerLoan(wethOffer);
+        uint256 usdcLoanId = bullaFrendLend.offerLoan(usdcOffer);
+        uint256 daiLoanId = bullaFrendLend.offerLoan(daiOffer);
         vm.stopPrank();
 
         vm.startPrank(debtor);
-        uint256 wethClaimId = bullaFrendLend.acceptLoan(wethLoanId);
-        uint256 usdcClaimId = bullaFrendLend.acceptLoan(usdcLoanId);
-        uint256 daiClaimId = bullaFrendLend.acceptLoan(daiLoanId);
+        uint256 wethClaimId = bullaFrendLend.acceptLoan{value: FEE}(wethLoanId);
+        uint256 usdcClaimId = bullaFrendLend.acceptLoan{value: FEE}(usdcLoanId);
+        uint256 daiClaimId = bullaFrendLend.acceptLoan{value: FEE}(daiLoanId);
         vm.stopPrank();
 
         // Fast forward to accrue interest
@@ -1211,15 +1175,12 @@ contract TestBullaFrendLend is Test {
         vm.stopPrank();
 
         // Get fee amounts before withdrawal
-        uint256 ethBalance = address(bullaFrendLend).balance;
+        uint256 ethBalance = address(bullaClaim).balance;
         uint256 wethFees = bullaFrendLend.protocolFeesByToken(address(weth));
         uint256 usdcFees = bullaFrendLend.protocolFeesByToken(address(usdc));
         uint256 daiFees = bullaFrendLend.protocolFeesByToken(address(dai));
 
         // Expect all FeeWithdrawn events
-        vm.expectEmit(true, true, false, true);
-        emit FeeWithdrawn(admin, address(0), ethBalance);
-
         vm.expectEmit(true, true, false, true);
         emit FeeWithdrawn(admin, address(weth), wethFees);
 
@@ -1302,10 +1263,10 @@ contract TestBullaFrendLend is Test {
             .withToken(address(weth)).withInterestRateBps(1000).withNumberOfPeriodsPerYear(12).build();
 
         vm.prank(creditor);
-        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        uint256 loanId = bullaFrendLend.offerLoan(offer);
 
         vm.prank(debtor);
-        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+        uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
 
         // Fast forward to accrue interest
         vm.warp(block.timestamp + 90 days);
@@ -1390,10 +1351,10 @@ contract TestBullaFrendLend is Test {
             .build();
 
         vm.prank(creditor);
-        uint256 wethLoanId1 = bullaFrendLend.offerLoan{value: FEE}(wethOffer1);
+        uint256 wethLoanId1 = bullaFrendLend.offerLoan(wethOffer1);
 
         vm.prank(debtor);
-        uint256 wethClaimId1 = bullaFrendLend.acceptLoan(wethLoanId1);
+        uint256 wethClaimId1 = bullaFrendLend.acceptLoan{value: FEE}(wethLoanId1);
 
         // Create second WETH loan
         LoanRequestParams memory wethOffer2 = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
@@ -1402,10 +1363,10 @@ contract TestBullaFrendLend is Test {
         ).build();
 
         vm.prank(creditor);
-        uint256 wethLoanId2 = bullaFrendLend.offerLoan{value: FEE}(wethOffer2);
+        uint256 wethLoanId2 = bullaFrendLend.offerLoan(wethOffer2);
 
         vm.prank(debtor);
-        uint256 wethClaimId2 = bullaFrendLend.acceptLoan(wethLoanId2);
+        uint256 wethClaimId2 = bullaFrendLend.acceptLoan{value: FEE}(wethLoanId2);
 
         vm.warp(block.timestamp + 15 days);
 
@@ -1491,10 +1452,10 @@ contract TestBullaFrendLend is Test {
             .withToken(address(weth)).withInterestRateBps(1000).build();
 
         vm.prank(creditor);
-        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        uint256 loanId = bullaFrendLend.offerLoan(offer);
 
         vm.prank(debtor);
-        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+        uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
 
         vm.warp(block.timestamp + 15 days);
 
@@ -1532,10 +1493,10 @@ contract TestBullaFrendLend is Test {
         ).withToken(address(weth)).withInterestRateBps(1000).build();
 
         vm.prank(creditor);
-        loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        loanId = bullaFrendLend.offerLoan(offer);
 
         vm.prank(debtor);
-        claimId = bullaFrendLend.acceptLoan(loanId);
+        claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
 
         vm.warp(block.timestamp + 15 days);
 
@@ -1632,10 +1593,10 @@ contract TestBullaFrendLend is Test {
             .withToken(address(weth)).withTermLength(30 days).build();
 
         vm.prank(creditor);
-        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        uint256 loanId = bullaFrendLend.offerLoan(offer);
 
         vm.prank(debtor);
-        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+        uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
 
         // Verify loan is active
         Claim memory claimBefore = bullaClaim.getClaim(claimId);
@@ -1721,10 +1682,10 @@ contract TestBullaFrendLend is Test {
             .withToken(address(weth)).withInterestRateBps(1000).build();
 
         vm.prank(creditor);
-        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        uint256 loanId = bullaFrendLend.offerLoan(offer);
 
         vm.prank(debtor);
-        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+        uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
 
         // Make partial payment
         vm.warp(block.timestamp + 10 days);
@@ -1773,10 +1734,10 @@ contract TestBullaFrendLend is Test {
             new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
 
         vm.prank(creditor);
-        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        uint256 loanId = bullaFrendLend.offerLoan(offer);
 
         vm.prank(debtor);
-        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+        uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
 
         _permitImpairClaim(debtorPK, address(bullaFrendLend), 1);
         _permitImpairClaim(adminPK, address(bullaFrendLend), 1);
@@ -1798,7 +1759,7 @@ contract TestBullaFrendLend is Test {
             .withClaimAmount(1 ether).withToken(address(weth)).build();
 
         vm.prank(creditor);
-        uint256 claimId = bullaClaim.createClaim(params);
+        uint256 claimId = bullaClaim.createClaim{value: FEE}(params);
 
         _permitImpairClaim(creditorPK, address(bullaFrendLend), 1);
 
@@ -1858,10 +1819,10 @@ contract TestBullaFrendLend is Test {
             .build();
 
         vm.prank(creditor);
-        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        uint256 loanId = bullaFrendLend.offerLoan(offer);
 
         vm.prank(debtor);
-        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+        uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
 
         // Wait some time for interest to accrue
         vm.warp(block.timestamp + 38 days);
@@ -1949,10 +1910,10 @@ contract TestBullaFrendLend is Test {
             .withToken(address(weth)).withInterestRateBps(1000).build();
 
         vm.prank(creditor);
-        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        uint256 loanId = bullaFrendLend.offerLoan(offer);
 
         vm.prank(debtor);
-        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+        uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
 
         vm.warp(block.timestamp + 38 days);
 
@@ -2043,20 +2004,20 @@ contract TestBullaFrendLend is Test {
             .withToken(address(weth)).withDescription("First Loan").build();
 
         vm.prank(creditor);
-        uint256 loanId1 = bullaFrendLend.offerLoan{value: FEE}(offer1);
+        uint256 loanId1 = bullaFrendLend.offerLoan(offer1);
 
         vm.prank(debtor);
-        uint256 claimId1 = bullaFrendLend.acceptLoan(loanId1);
+        uint256 claimId1 = bullaFrendLend.acceptLoan{value: FEE}(loanId1);
 
         // Create second loan
         LoanRequestParams memory offer2 = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
             .withToken(address(weth)).withDescription("Second Loan").build();
 
         vm.prank(creditor);
-        uint256 loanId2 = bullaFrendLend.offerLoan{value: FEE}(offer2);
+        uint256 loanId2 = bullaFrendLend.offerLoan(offer2);
 
         vm.prank(debtor);
-        uint256 claimId2 = bullaFrendLend.acceptLoan(loanId2);
+        uint256 claimId2 = bullaFrendLend.acceptLoan{value: FEE}(loanId2);
 
         // Verify both loans are pending
         Claim memory claim1 = bullaClaim.getClaim(claimId1);
@@ -2134,20 +2095,20 @@ contract TestBullaFrendLend is Test {
             .withToken(address(weth)).withDescription("WETH Loan").build();
 
         vm.prank(creditor);
-        uint256 wethLoanId = bullaFrendLend.offerLoan{value: FEE}(wethOffer);
+        uint256 wethLoanId = bullaFrendLend.offerLoan(wethOffer);
 
         vm.prank(debtor);
-        uint256 wethClaimId = bullaFrendLend.acceptLoan(wethLoanId);
+        uint256 wethClaimId = bullaFrendLend.acceptLoan{value: FEE}(wethLoanId);
 
         // Create USDC loan
         LoanRequestParams memory usdcOffer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
             .withToken(address(usdc)).withLoanAmount(1000 * 10 ** 6).withDescription("USDC Loan").build();
 
         vm.prank(creditor);
-        uint256 usdcLoanId = bullaFrendLend.offerLoan{value: FEE}(usdcOffer);
+        uint256 usdcLoanId = bullaFrendLend.offerLoan(usdcOffer);
 
         vm.prank(debtor);
-        uint256 usdcClaimId = bullaFrendLend.acceptLoan(usdcLoanId);
+        uint256 usdcClaimId = bullaFrendLend.acceptLoan{value: FEE}(usdcLoanId);
 
         vm.warp(block.timestamp + 38 days);
 
@@ -2212,10 +2173,10 @@ contract TestBullaFrendLend is Test {
             .withToken(address(weth)).withTermLength(30 days).build();
 
         vm.prank(creditor);
-        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        uint256 loanId = bullaFrendLend.offerLoan(offer);
 
         vm.prank(debtor);
-        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+        uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
 
         // Verify loan is active
         Claim memory claimBefore = bullaClaim.getClaim(claimId);
@@ -2283,10 +2244,10 @@ contract TestBullaFrendLend is Test {
             .withToken(address(weth)).withInterestRateBps(1000).build();
 
         vm.prank(creditor);
-        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        uint256 loanId = bullaFrendLend.offerLoan(offer);
 
         vm.prank(debtor);
-        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+        uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
 
         // Make partial payment
         vm.warp(block.timestamp + 10 days);
@@ -2336,10 +2297,10 @@ contract TestBullaFrendLend is Test {
             new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
 
         vm.prank(creditor);
-        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        uint256 loanId = bullaFrendLend.offerLoan(offer);
 
         vm.prank(debtor);
-        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+        uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
 
         // Debtor cannot mark loan as paid
         vm.prank(debtor);
@@ -2358,7 +2319,7 @@ contract TestBullaFrendLend is Test {
             .withClaimAmount(1 ether).withToken(address(weth)).build();
 
         vm.prank(creditor);
-        uint256 claimId = bullaClaim.createClaim(params);
+        uint256 claimId = bullaClaim.createClaim{value: FEE}(params);
 
         _permitMarkAsPaid(creditorPK, address(bullaFrendLend), 1);
 
@@ -2406,10 +2367,10 @@ contract TestBullaFrendLend is Test {
             .withToken(address(weth)).withTermLength(30 days).build();
 
         vm.prank(creditor);
-        uint256 loanId = bullaFrendLend.offerLoan{value: FEE}(offer);
+        uint256 loanId = bullaFrendLend.offerLoan(offer);
 
         vm.prank(debtor);
-        uint256 claimId = bullaFrendLend.acceptLoan(loanId);
+        uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
 
         // First impair the loan
         vm.warp(block.timestamp + 38 days);

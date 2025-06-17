@@ -39,8 +39,7 @@ contract TestCreateSelfBillingInvoice is Test {
     BullaInvoice public bullaInvoice;
     ERC20Mock public testToken;
 
-    uint256 constant INVOICE_ORIGINATION_FEE = 0.01 ether;
-    uint256 constant PURCHASE_ORDER_ORIGINATION_FEE = 0.02 ether;
+    uint256 constant CORE_PROTOCOL_FEE = 0.01 ether;
     uint256 debtorPK = uint256(0x01);
     uint256 creditorPK = uint256(0x02);
     uint256 adminPK = uint256(0x03);
@@ -48,7 +47,7 @@ contract TestCreateSelfBillingInvoice is Test {
     address creditor = vm.addr(creditorPK);
     address admin = vm.addr(adminPK);
 
-    event InvoiceCreated(uint256 indexed claimId, InvoiceDetails invoiceDetails, uint256 originationFee);
+    event InvoiceCreated(uint256 indexed claimId, InvoiceDetails invoiceDetails);
     event ClaimCreated(
         uint256 indexed claimId,
         address from,
@@ -65,12 +64,15 @@ contract TestCreateSelfBillingInvoice is Test {
         weth = new WETH();
         testToken = new ERC20Mock("Test Token", "TEST", address(this), 1000000 ether);
 
-        bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
+        bullaClaim = (new Deployer()).deploy_test({
+            _deployer: address(this),
+            _initialLockState: LockState.Unlocked,
+            _coreProtocolFee: CORE_PROTOCOL_FEE
+        });
         sigHelper = new EIP712Helper(address(bullaClaim));
 
         // Main invoice contract with origination fees
-        bullaInvoice =
-            new BullaInvoice(address(bullaClaim), admin, 0, INVOICE_ORIGINATION_FEE, PURCHASE_ORDER_ORIGINATION_FEE);
+        bullaInvoice = new BullaInvoice(address(bullaClaim), admin, 0);
 
         // Setup balances
         vm.deal(debtor, 100 ether);
@@ -129,7 +131,7 @@ contract TestCreateSelfBillingInvoice is Test {
             .withDueBy(block.timestamp + 30 days) // ETH
             .build();
 
-        uint256 contractBalanceBefore = address(bullaInvoice).balance;
+        uint256 contractBalanceBefore = address(bullaClaim).balance;
 
         // Expected InvoiceDetails struct for self-billing invoice
         InvoiceDetails memory expectedInvoiceDetails =
@@ -151,16 +153,16 @@ contract TestCreateSelfBillingInvoice is Test {
 
         // Expect InvoiceCreated event
         vm.expectEmit(true, false, false, true);
-        emit InvoiceCreated(1, expectedInvoiceDetails, INVOICE_ORIGINATION_FEE);
+        emit InvoiceCreated(1, expectedInvoiceDetails);
 
         // Debtor creates self-billing invoice
         vm.prank(debtor);
-        uint256 invoiceId = bullaInvoice.createInvoice{value: INVOICE_ORIGINATION_FEE}(params);
+        uint256 invoiceId = bullaInvoice.createInvoice{value: CORE_PROTOCOL_FEE}(params);
 
         // Verify fee was sent to contract
         assertEq(
-            address(bullaInvoice).balance - contractBalanceBefore,
-            INVOICE_ORIGINATION_FEE,
+            address(bullaClaim).balance - contractBalanceBefore,
+            CORE_PROTOCOL_FEE,
             "Contract should hold the origination fee"
         );
 
@@ -196,7 +198,7 @@ contract TestCreateSelfBillingInvoice is Test {
 
         // Debtor creates self-billing invoice for ERC20 payment
         vm.prank(debtor);
-        uint256 invoiceId = bullaInvoice.createInvoice{value: INVOICE_ORIGINATION_FEE}(params);
+        uint256 invoiceId = bullaInvoice.createInvoice{value: CORE_PROTOCOL_FEE}(params);
 
         // Verify invoice was created successfully
         assertTrue(invoiceId > 0, "Invoice should be created");
@@ -222,7 +224,7 @@ contract TestCreateSelfBillingInvoice is Test {
 
         // Debtor creates bound self-billing invoice
         vm.prank(debtor);
-        uint256 invoiceId = bullaInvoice.createInvoice{value: INVOICE_ORIGINATION_FEE}(params);
+        uint256 invoiceId = bullaInvoice.createInvoice{value: CORE_PROTOCOL_FEE}(params);
 
         // Verify the claim is bound
         Claim memory claim = bullaClaim.getClaim(invoiceId);
@@ -245,7 +247,7 @@ contract TestCreateSelfBillingInvoice is Test {
 
         // Debtor creates self-billing invoice with interest
         vm.prank(debtor);
-        uint256 invoiceId = bullaInvoice.createInvoice{value: INVOICE_ORIGINATION_FEE}(params);
+        uint256 invoiceId = bullaInvoice.createInvoice{value: CORE_PROTOCOL_FEE}(params);
 
         // Verify invoice was created successfully
         assertTrue(invoiceId > 0, "Invoice should be created");
@@ -275,11 +277,11 @@ contract TestCreateSelfBillingInvoice is Test {
 
         // Expect InvoiceCreated event
         vm.expectEmit(true, false, false, true);
-        emit InvoiceCreated(1, expectedInvoiceDetails, PURCHASE_ORDER_ORIGINATION_FEE);
+        emit InvoiceCreated(1, expectedInvoiceDetails);
 
         // Debtor creates self-billing purchase order
         vm.prank(debtor);
-        uint256 invoiceId = bullaInvoice.createInvoice{value: PURCHASE_ORDER_ORIGINATION_FEE}(params);
+        uint256 invoiceId = bullaInvoice.createInvoice{value: CORE_PROTOCOL_FEE}(params);
 
         // Verify purchase order was created
         assertTrue(invoiceId > 0, "Purchase order should be created");
@@ -304,7 +306,7 @@ contract TestCreateSelfBillingInvoice is Test {
         // Try with wrong fee
         vm.prank(debtor);
         vm.expectRevert(IncorrectFee.selector);
-        bullaInvoice.createInvoice{value: INVOICE_ORIGINATION_FEE + 0.001 ether}(params);
+        bullaInvoice.createInvoice{value: CORE_PROTOCOL_FEE + 0.001 ether}(params);
 
         // Try with no fee
         vm.prank(debtor);
@@ -316,15 +318,10 @@ contract TestCreateSelfBillingInvoice is Test {
         CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withCreditor(creditor).withDebtor(debtor)
             .withClaimAmount(5 ether).withDeliveryDate(block.timestamp + 7 days).build();
 
-        // Try with invoice fee instead of purchase order fee
-        vm.prank(debtor);
-        vm.expectRevert(IncorrectFee.selector);
-        bullaInvoice.createInvoice{value: INVOICE_ORIGINATION_FEE}(params);
-
         // Try with wrong purchase order fee
         vm.prank(debtor);
         vm.expectRevert(IncorrectFee.selector);
-        bullaInvoice.createInvoice{value: PURCHASE_ORDER_ORIGINATION_FEE + 0.001 ether}(params);
+        bullaInvoice.createInvoice{value: CORE_PROTOCOL_FEE + 0.001 ether}(params);
     }
 
     function testSelfBillingInvalidDeliveryDate() public {
@@ -338,7 +335,7 @@ contract TestCreateSelfBillingInvoice is Test {
         // Create should revert with InvalidDeliveryDate
         vm.prank(debtor);
         vm.expectRevert(InvalidDeliveryDate.selector);
-        bullaInvoice.createInvoice{value: PURCHASE_ORDER_ORIGINATION_FEE}(params);
+        bullaInvoice.createInvoice{value: CORE_PROTOCOL_FEE}(params);
 
         // Create invoice params with future delivery date beyond uint40
         uint256 farFutureDeliveryDate = uint256(type(uint40).max) + 1;
@@ -349,7 +346,7 @@ contract TestCreateSelfBillingInvoice is Test {
         // Create should revert with InvalidDeliveryDate
         vm.prank(debtor);
         vm.expectRevert(InvalidDeliveryDate.selector);
-        bullaInvoice.createInvoice{value: PURCHASE_ORDER_ORIGINATION_FEE}(params);
+        bullaInvoice.createInvoice{value: CORE_PROTOCOL_FEE}(params);
     }
 
     function testSelfBillingInvalidDepositAmount() public {
@@ -361,7 +358,7 @@ contract TestCreateSelfBillingInvoice is Test {
 
         vm.prank(debtor);
         vm.expectRevert(abi.encodeWithSelector(InvalidDepositAmount.selector));
-        bullaInvoice.createInvoice{value: INVOICE_ORIGINATION_FEE}(params);
+        bullaInvoice.createInvoice{value: CORE_PROTOCOL_FEE}(params);
     }
 
     // ==================== PAYMENT FLOW TESTS ====================
@@ -373,7 +370,7 @@ contract TestCreateSelfBillingInvoice is Test {
             .build();
 
         vm.prank(debtor);
-        uint256 invoiceId = bullaInvoice.createInvoice{value: INVOICE_ORIGINATION_FEE}(params);
+        uint256 invoiceId = bullaInvoice.createInvoice{value: CORE_PROTOCOL_FEE}(params);
 
         // Verify initial state
         Claim memory claim = bullaClaim.getClaim(invoiceId);
@@ -408,7 +405,7 @@ contract TestCreateSelfBillingInvoice is Test {
 
         // Create a self-billing invoice
         vm.prank(debtor);
-        uint256 invoiceId = bullaInvoice.createInvoice{value: INVOICE_ORIGINATION_FEE}(params);
+        uint256 invoiceId = bullaInvoice.createInvoice{value: CORE_PROTOCOL_FEE}(params);
 
         // Verify invoice was created correctly
         Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);

@@ -50,9 +50,13 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         vm.label(charlie, "CHARLIE");
         vm.label(admin, "ADMIN");
 
-        bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
+        bullaClaim = (new Deployer()).deploy_test({
+            _deployer: address(this),
+            _initialLockState: LockState.Unlocked,
+            _coreProtocolFee: FEE
+        });
         sigHelper = new EIP712Helper(address(bullaClaim));
-        bullaFrendLend = new BullaFrendLend(address(bullaClaim), admin, FEE, PROTOCOL_FEE_BPS);
+        bullaFrendLend = new BullaFrendLend(address(bullaClaim), admin, PROTOCOL_FEE_BPS);
 
         // Setup ETH balances for fees and WETH deposits
         vm.deal(creditor, 10000 ether);
@@ -105,7 +109,7 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         );
 
         vm.prank(creditor);
-        bullaFrendLend.batch{value: FEE}(calls, true);
+        bullaFrendLend.batch(calls, true);
 
         // Verify loan offer was created
         LoanOffer memory loanOffer = bullaFrendLend.getLoanOffer(1);
@@ -144,10 +148,10 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
     function testBatch_RevertOnFail_False() public {
         // Create multiple valid loan offers first using individual calls
         vm.startPrank(creditor);
-        uint256 validOfferId1 = bullaFrendLend.offerLoan{value: FEE}(
+        uint256 validOfferId1 = bullaFrendLend.offerLoan(
             new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build()
         );
-        uint256 validOfferId2 = bullaFrendLend.offerLoan{value: FEE}(
+        uint256 validOfferId2 = bullaFrendLend.offerLoan(
             new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(charlie).withToken(address(weth)).build()
         );
         vm.stopPrank();
@@ -190,10 +194,10 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
     function testBatch_RejectMultipleLoanOffers() public {
         // Create multiple loan offers first
         vm.startPrank(creditor);
-        uint256 loanId1 = bullaFrendLend.offerLoan{value: FEE}(
+        uint256 loanId1 = bullaFrendLend.offerLoan(
             new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build()
         );
-        uint256 loanId2 = bullaFrendLend.offerLoan{value: FEE}(
+        uint256 loanId2 = bullaFrendLend.offerLoan(
             new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(charlie).withToken(address(weth)).build()
         );
         vm.stopPrank();
@@ -308,7 +312,7 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
 
         vm.startPrank(creditor);
         for (uint256 i = 0; i < numRejects; i++) {
-            offerIds[i] = bullaFrendLend.offerLoan{value: FEE}(
+            offerIds[i] = bullaFrendLend.offerLoan(
                 new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(address(uint160(0x1000 + i))).withToken(
                     address(weth)
                 ).build()
@@ -351,15 +355,15 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         vm.startPrank(creditor);
         weth.approve(address(bullaFrendLend), 3 ether);
 
-        offerIds[0] = bullaFrendLend.offerLoan{value: FEE}(
+        offerIds[0] = bullaFrendLend.offerLoan(
             new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth))
                 .withLoanAmount(1 ether).build()
         );
-        offerIds[1] = bullaFrendLend.offerLoan{value: FEE}(
+        offerIds[1] = bullaFrendLend.offerLoan(
             new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(charlie).withToken(address(weth))
                 .withLoanAmount(1 ether).build()
         );
-        offerIds[2] = bullaFrendLend.offerLoan{value: FEE}(
+        offerIds[2] = bullaFrendLend.offerLoan(
             new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth))
                 .withLoanAmount(1 ether).build()
         );
@@ -398,18 +402,16 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
             })
         });
 
-        // Batch accept loans (no fees required for acceptance)
-        bytes[] memory calls = new bytes[](2);
-
-        calls[0] = abi.encodeCall(BullaFrendLend.acceptLoan, (offerIds[0]));
-        calls[1] = abi.encodeCall(BullaFrendLend.acceptLoan, (offerIds[2]));
+        uint256[] memory offerIdsToAccept = new uint256[](2);
+        offerIdsToAccept[0] = offerIds[0];
+        offerIdsToAccept[1] = offerIds[2];
 
         vm.prank(debtor);
-        bullaFrendLend.batch(calls, true);
+        bullaFrendLend.batchAcceptLoans{value: 2 * FEE}(offerIdsToAccept);
 
         // Accept third loan individually
         vm.prank(charlie);
-        bullaFrendLend.acceptLoan(offerIds[1]);
+        bullaFrendLend.acceptLoan{value: FEE}(offerIds[1]);
 
         // Verify all loans were accepted and claims created
         assertEq(bullaClaim.currentClaimId(), 3);
@@ -433,15 +435,15 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         vm.startPrank(creditor);
         weth.approve(address(bullaFrendLend), 3 ether);
 
-        uint256 loanId1 = bullaFrendLend.offerLoan{value: FEE}(
+        uint256 loanId1 = bullaFrendLend.offerLoan(
             new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth))
                 .withLoanAmount(1 ether).build()
         );
-        uint256 loanId2 = bullaFrendLend.offerLoan{value: FEE}(
+        uint256 loanId2 = bullaFrendLend.offerLoan(
             new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth))
                 .withLoanAmount(1 ether).build()
         );
-        uint256 loanId3 = bullaFrendLend.offerLoan{value: FEE}(
+        uint256 loanId3 = bullaFrendLend.offerLoan(
             new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth))
                 .withLoanAmount(1 ether).build()
         );
@@ -466,9 +468,9 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
 
         // Accept loans individually
         vm.startPrank(debtor);
-        uint256 claimId1 = bullaFrendLend.acceptLoan(loanId1);
-        uint256 claimId2 = bullaFrendLend.acceptLoan(loanId2);
-        uint256 claimId3 = bullaFrendLend.acceptLoan(loanId3);
+        uint256 claimId1 = bullaFrendLend.acceptLoan{value: FEE}(loanId1);
+        uint256 claimId2 = bullaFrendLend.acceptLoan{value: FEE}(loanId2);
+        uint256 claimId3 = bullaFrendLend.acceptLoan{value: FEE}(loanId3);
         vm.stopPrank();
 
         // Setup payment permissions
@@ -520,11 +522,11 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         vm.startPrank(creditor);
         weth.approve(address(bullaFrendLend), 2 ether);
 
-        uint256 loanId1 = bullaFrendLend.offerLoan{value: FEE}(
+        uint256 loanId1 = bullaFrendLend.offerLoan(
             new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth))
                 .withTermLength(1 days).withImpairmentGracePeriod(1 hours).build()
         );
-        uint256 loanId2 = bullaFrendLend.offerLoan{value: FEE}(
+        uint256 loanId2 = bullaFrendLend.offerLoan(
             new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(charlie).withToken(address(weth))
                 .withTermLength(1 days).withImpairmentGracePeriod(1 hours).build()
         );
@@ -565,10 +567,10 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
 
         // Accept loans individually
         vm.prank(debtor);
-        uint256 claimId1 = bullaFrendLend.acceptLoan(loanId1);
+        uint256 claimId1 = bullaFrendLend.acceptLoan{value: FEE}(loanId1);
 
         vm.prank(charlie);
-        uint256 claimId2 = bullaFrendLend.acceptLoan(loanId2);
+        uint256 claimId2 = bullaFrendLend.acceptLoan{value: FEE}(loanId2);
 
         // Move time forward past due date and grace period
         vm.warp(block.timestamp + 2 days + 2 hours);
@@ -607,10 +609,10 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         vm.startPrank(creditor);
         weth.approve(address(bullaFrendLend), 2 ether);
 
-        uint256 loanId1 = bullaFrendLend.offerLoan{value: FEE}(
+        uint256 loanId1 = bullaFrendLend.offerLoan(
             new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build()
         );
-        uint256 loanId2 = bullaFrendLend.offerLoan{value: FEE}(
+        uint256 loanId2 = bullaFrendLend.offerLoan(
             new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(charlie).withToken(address(weth)).build()
         );
         vm.stopPrank();
@@ -650,10 +652,10 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
 
         // Accept loans individually
         vm.prank(debtor);
-        uint256 claimId1 = bullaFrendLend.acceptLoan(loanId1);
+        uint256 claimId1 = bullaFrendLend.acceptLoan{value: FEE}(loanId1);
 
         vm.prank(charlie);
-        uint256 claimId2 = bullaFrendLend.acceptLoan(loanId2);
+        uint256 claimId2 = bullaFrendLend.acceptLoan{value: FEE}(loanId2);
 
         // Setup mark as paid permissions
         bullaClaim.permitMarkAsPaid({
@@ -722,7 +724,7 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
 
         vm.startPrank(creditor);
         for (uint256 i = 0; i < numOffers; i++) {
-            offerIds[i] = bullaFrendLend.offerLoan{value: FEE}(
+            offerIds[i] = bullaFrendLend.offerLoan(
                 new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(address(uint160(0x1000 + i))).withToken(
                     address(weth)
                 ).build()
@@ -758,7 +760,7 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
 
         vm.startPrank(creditor);
         for (uint256 i = 0; i < numOffers; i++) {
-            offerIds[i] = bullaFrendLend.offerLoan{value: FEE}(
+            offerIds[i] = bullaFrendLend.offerLoan(
                 new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(address(uint160(0x1000 + i))).withToken(
                     address(weth)
                 ).build()
@@ -791,7 +793,7 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         bytes[] memory calls = new bytes[](0);
 
         // Should not revert with empty array and no value
-        bullaFrendLend.batchOfferLoans(calls);
+        bullaFrendLend.batch(calls, true);
     }
 
     function testBatchOfferLoans_MultipleOffers() public {
@@ -821,7 +823,7 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         );
 
         vm.prank(creditor);
-        bullaFrendLend.batchOfferLoans{value: 3 * FEE}(calls);
+        bullaFrendLend.batch(calls, true);
 
         // Verify all loan offers were created
         assertEq(bullaFrendLend.loanOfferCount(), 3);
@@ -841,113 +843,5 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         ClaimMetadata memory metadata = bullaFrendLend.getLoanOfferMetadata(3);
         assertEq(metadata.tokenURI, "test-uri");
         assertEq(metadata.attachmentURI, "test-attachment");
-    }
-
-    function testBatchOfferLoans_InvalidMsgValue_TooLow() public {
-        bytes[] memory calls = new bytes[](2);
-
-        calls[0] = abi.encodeCall(
-            BullaFrendLend.offerLoan,
-            (new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build())
-        );
-        calls[1] = abi.encodeCall(
-            BullaFrendLend.offerLoan,
-            (new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(charlie).withToken(address(weth)).build())
-        );
-
-        vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSignature("FrendLendBatchInvalidMsgValue()"));
-        bullaFrendLend.batchOfferLoans{value: FEE}(calls); // Should be 2 * FEE
-    }
-
-    function testBatchOfferLoans_InvalidMsgValue_TooHigh() public {
-        bytes[] memory calls = new bytes[](2);
-
-        calls[0] = abi.encodeCall(
-            BullaFrendLend.offerLoan,
-            (new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build())
-        );
-        calls[1] = abi.encodeCall(
-            BullaFrendLend.offerLoan,
-            (new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(charlie).withToken(address(weth)).build())
-        );
-
-        vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSignature("FrendLendBatchInvalidMsgValue()"));
-        bullaFrendLend.batchOfferLoans{value: 3 * FEE}(calls); // Should be 2 * FEE
-    }
-
-    function testBatchOfferLoans_InvalidCalldata() public {
-        bytes[] memory calls = new bytes[](2);
-
-        calls[0] = abi.encodeCall(
-            BullaFrendLend.offerLoan,
-            (new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build())
-        );
-        // Invalid call - not a loan offer function
-        calls[1] = abi.encodeCall(BullaFrendLend.rejectLoanOffer, (1));
-
-        vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSignature("FrendLendBatchInvalidCalldata()"));
-        bullaFrendLend.batchOfferLoans{value: 2 * FEE}(calls);
-    }
-
-    function testBatchOfferLoans_FailureInMiddle() public {
-        bytes[] memory calls = new bytes[](3);
-
-        calls[0] = abi.encodeCall(
-            BullaFrendLend.offerLoan,
-            (new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build())
-        );
-        // This call will fail due to invalid term length
-        calls[1] = abi.encodeCall(
-            BullaFrendLend.offerLoan,
-            (
-                new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(charlie).withToken(address(weth))
-                    .withTermLength(0).build()
-            )
-        );
-        calls[2] = abi.encodeCall(
-            BullaFrendLend.offerLoan,
-            (
-                new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(permitToken))
-                    .build()
-            )
-        );
-
-        vm.prank(creditor);
-        vm.expectRevert("Transaction reverted silently");
-        bullaFrendLend.batchOfferLoans{value: 3 * FEE}(calls);
-
-        // Verify no loan offers were created due to revert
-        assertEq(bullaFrendLend.loanOfferCount(), 0);
-    }
-
-    function testBatchOfferLoans_DebtorRequests() public {
-        bytes[] memory calls = new bytes[](2);
-
-        // Debtor making loan requests (creditor will accept)
-        calls[0] = abi.encodeCall(
-            BullaFrendLend.offerLoan,
-            (new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build())
-        );
-        calls[1] = abi.encodeCall(
-            BullaFrendLend.offerLoan,
-            (new LoanRequestParamsBuilder().withCreditor(charlie).withDebtor(debtor).withToken(address(weth)).build())
-        );
-
-        vm.prank(debtor);
-        bullaFrendLend.batchOfferLoans{value: 2 * FEE}(calls);
-
-        // Verify loan requests were created
-        assertEq(bullaFrendLend.loanOfferCount(), 2);
-
-        LoanOffer memory offer1 = bullaFrendLend.getLoanOffer(1);
-        LoanOffer memory offer2 = bullaFrendLend.getLoanOffer(2);
-
-        assertFalse(offer1.requestedByCreditor); // Requested by debtor
-        assertFalse(offer2.requestedByCreditor); // Requested by debtor
-        assertEq(offer1.params.creditor, creditor);
-        assertEq(offer2.params.creditor, charlie);
     }
 }

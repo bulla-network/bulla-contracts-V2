@@ -22,7 +22,11 @@ contract TestTokenURI is Test {
         vm.label(debtor, "DEBTOR");
         vm.label(alice, "ALICE");
 
-        bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
+        bullaClaim = (new Deployer()).deploy_test({
+            _deployer: address(this),
+            _initialLockState: LockState.Unlocked,
+            _coreProtocolFee: 0
+        });
     }
 
     function testTokenURIReturnsSetMetadata() public {
@@ -69,6 +73,7 @@ contract TestTokenURI is Test {
     }
 
     function testOnlyOwnerCanSetTokenURI(address caller) public {
+        vm.assume(caller != address(this));
         vm.startPrank(caller);
         address metadataGenerator = address(new ClaimMetadataGenerator());
         vm.expectRevert("Ownable: caller is not the owner");

@@ -6,6 +6,7 @@ import "contracts/types/Types.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
+import {IBullaClaim} from "contracts/interfaces/IBullaClaim.sol";
 import {
     BullaInvoice,
     CreateInvoiceParams,
@@ -35,12 +36,13 @@ import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/ERC20Mock.sol";
 contract TestBullaInvoiceOrigination is Test {
     WETH public weth;
     BullaClaim public bullaClaim;
+    BullaClaim public zeroFeeBullaClaim;
     EIP712Helper public sigHelper;
+    EIP712Helper public zeroFeeSigHelper;
     BullaInvoice public bullaInvoice;
     BullaInvoice public zeroFeeInvoice;
 
-    uint256 constant INVOICE_ORIGINATION_FEE = 0.01 ether;
-    uint256 constant PURCHASE_ORDER_ORIGINATION_FEE = 0.02 ether;
+    uint256 constant CORE_PROTOCOL_FEE = 0.01 ether;
     uint256 creditorPK = uint256(0x01);
     uint256 debtorPK = uint256(0x02);
     uint256 adminPK = uint256(0x03);
@@ -49,21 +51,30 @@ contract TestBullaInvoiceOrigination is Test {
     address admin = vm.addr(adminPK);
 
     // Events for testing
-    event InvoiceCreated(uint256 indexed claimId, InvoiceDetails invoiceDetails, uint256 originationFee);
+    event InvoiceCreated(uint256 indexed claimId, InvoiceDetails invoiceDetails);
     event FeeWithdrawn(address indexed admin, address indexed token, uint256 amount);
 
     function setUp() public {
         weth = new WETH();
 
-        bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
+        bullaClaim = (new Deployer()).deploy_test({
+            _deployer: address(this),
+            _initialLockState: LockState.Unlocked,
+            _coreProtocolFee: CORE_PROTOCOL_FEE
+        });
+        zeroFeeBullaClaim = (new Deployer()).deploy_test({
+            _deployer: address(this),
+            _initialLockState: LockState.Unlocked,
+            _coreProtocolFee: 0
+        });
         sigHelper = new EIP712Helper(address(bullaClaim));
+        zeroFeeSigHelper = new EIP712Helper(address(zeroFeeBullaClaim));
 
         // Main invoice contract with origination fees
-        bullaInvoice =
-            new BullaInvoice(address(bullaClaim), admin, 0, INVOICE_ORIGINATION_FEE, PURCHASE_ORDER_ORIGINATION_FEE);
+        bullaInvoice = new BullaInvoice(address(bullaClaim), admin, 0);
 
         // Zero fee invoice contract for testing
-        zeroFeeInvoice = new BullaInvoice(address(bullaClaim), admin, 0, 0 ether, 0 ether);
+        zeroFeeInvoice = new BullaInvoice(address(zeroFeeBullaClaim), admin, 0);
 
         // Setup balances
         vm.deal(debtor, 100 ether);
@@ -71,19 +82,20 @@ contract TestBullaInvoiceOrigination is Test {
         vm.deal(admin, 100 ether);
 
         // Setup permissions for both contracts
-        _setupPermissions(address(bullaInvoice));
-        _setupPermissions(address(zeroFeeInvoice));
+        _setupPermissions(sigHelper, address(bullaInvoice));
+        _setupPermissions(zeroFeeSigHelper, address(zeroFeeInvoice));
     }
 
-    function _setupPermissions(address invoiceContract) internal {
+    function _setupPermissions(EIP712Helper _sigHelper, address invoiceContract) internal {
+        IBullaClaim _bullaClaim = IBullaClaim(BullaInvoice(invoiceContract)._bullaClaim());
         // Setup create claim permissions
-        bullaClaim.permitCreateClaim({
+        _bullaClaim.permitCreateClaim({
             user: creditor,
             controller: invoiceContract,
-            approvalType: CreateClaimApprovalType.Approved,
+            approvalType: uint8(CreateClaimApprovalType.Approved),
             approvalCount: type(uint64).max,
             isBindingAllowed: false,
-            signature: sigHelper.signCreateClaimPermit({
+            signature: _sigHelper.signCreateClaimPermit({
                 pk: creditorPK,
                 user: creditor,
                 controller: invoiceContract,
@@ -94,13 +106,13 @@ contract TestBullaInvoiceOrigination is Test {
         });
 
         // Setup pay claim permissions
-        bullaClaim.permitPayClaim({
+        _bullaClaim.permitPayClaim({
             user: debtor,
             controller: invoiceContract,
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalType: uint8(PayClaimApprovalType.IsApprovedForAll),
             approvalDeadline: 0,
             paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
+            signature: _sigHelper.signPayClaimPermit({
                 pk: debtorPK,
                 user: debtor,
                 controller: invoiceContract,
@@ -119,24 +131,22 @@ contract TestBullaInvoiceOrigination is Test {
             .withDeliveryDate(0) // No delivery date = invoice
             .build();
 
-        uint256 expectedFee = bullaInvoice.invoiceOriginationFee();
-        uint256 contractBalanceBefore = address(bullaInvoice).balance;
+        uint256 expectedFee = bullaClaim.CORE_PROTOCOL_FEE();
+        uint256 contractBalanceBefore = address(bullaClaim).balance;
 
         // Expected InvoiceDetails struct
         InvoiceDetails memory expectedInvoiceDetails = new InvoiceDetailsBuilder().build();
 
         // Expect InvoiceCreated event
         vm.expectEmit(true, false, false, true);
-        emit InvoiceCreated(1, expectedInvoiceDetails, expectedFee);
+        emit InvoiceCreated(1, expectedInvoiceDetails);
 
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice{value: expectedFee}(params);
 
         // Verify fee was sent to contract (not admin directly)
         assertEq(
-            address(bullaInvoice).balance - contractBalanceBefore,
-            expectedFee,
-            "Contract should hold the origination fee"
+            address(bullaClaim).balance - contractBalanceBefore, expectedFee, "Contract should hold the origination fee"
         );
 
         // Verify invoice was created successfully
@@ -149,7 +159,7 @@ contract TestBullaInvoiceOrigination is Test {
             .withDeliveryDate(block.timestamp + 1 days) // Has delivery date = purchase order
             .build();
 
-        uint256 expectedFee = bullaInvoice.purchaseOrderOriginationFee();
+        uint256 expectedFee = bullaClaim.CORE_PROTOCOL_FEE();
         uint256 contractBalanceBefore = address(bullaInvoice).balance;
 
         // Expected InvoiceDetails struct
@@ -158,14 +168,14 @@ contract TestBullaInvoiceOrigination is Test {
 
         // Expect InvoiceCreated event
         vm.expectEmit(true, false, false, true);
-        emit InvoiceCreated(1, expectedInvoiceDetails, expectedFee);
+        emit InvoiceCreated(1, expectedInvoiceDetails);
 
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice{value: expectedFee}(params);
 
         // Verify fee was sent to contract
         assertEq(
-            address(bullaInvoice).balance - contractBalanceBefore,
+            address(bullaClaim).balance - contractBalanceBefore,
             expectedFee,
             "Contract should hold the purchase order fee"
         );
@@ -179,7 +189,7 @@ contract TestBullaInvoiceOrigination is Test {
             .withDeliveryDate(0) // No delivery date = invoice
             .build();
 
-        uint256 incorrectFee = bullaInvoice.invoiceOriginationFee() + 0.001 ether;
+        uint256 incorrectFee = bullaClaim.CORE_PROTOCOL_FEE() + 0.001 ether;
 
         vm.prank(creditor);
         vm.expectRevert(abi.encodeWithSelector(IncorrectFee.selector));
@@ -191,7 +201,7 @@ contract TestBullaInvoiceOrigination is Test {
             .withDeliveryDate(block.timestamp + 1 days) // Has delivery date = purchase order
             .build();
 
-        uint256 incorrectFee = bullaInvoice.purchaseOrderOriginationFee() + 0.001 ether;
+        uint256 incorrectFee = bullaClaim.CORE_PROTOCOL_FEE() + 0.001 ether;
 
         vm.prank(creditor);
         vm.expectRevert(abi.encodeWithSelector(IncorrectFee.selector));
@@ -216,7 +226,7 @@ contract TestBullaInvoiceOrigination is Test {
             .withDeliveryDate(block.timestamp) // Exact timestamp = purchase order
             .build();
 
-        uint256 expectedFee = bullaInvoice.purchaseOrderOriginationFee();
+        uint256 expectedFee = bullaClaim.CORE_PROTOCOL_FEE();
 
         // Expected InvoiceDetails struct
         InvoiceDetails memory expectedInvoiceDetails =
@@ -224,7 +234,7 @@ contract TestBullaInvoiceOrigination is Test {
 
         // Expect InvoiceCreated event
         vm.expectEmit(true, false, false, true);
-        emit InvoiceCreated(1, expectedInvoiceDetails, expectedFee);
+        emit InvoiceCreated(1, expectedInvoiceDetails);
 
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice{value: expectedFee}(params);
@@ -243,7 +253,7 @@ contract TestBullaInvoiceOrigination is Test {
 
         // Expect InvoiceCreated event with zero fee
         vm.expectEmit(true, false, false, true);
-        emit InvoiceCreated(1, expectedInvoiceDetails, 0);
+        emit InvoiceCreated(1, expectedInvoiceDetails);
 
         vm.prank(creditor);
         uint256 invoiceId = zeroFeeInvoice.createInvoice{value: 0}(params);
@@ -254,74 +264,20 @@ contract TestBullaInvoiceOrigination is Test {
 
     // ==================== FEE WITHDRAWAL ====================
 
-    function testAdminCanWithdrawOriginationFees() public {
-        CreateInvoiceParams memory invoiceParams = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(
-            creditor
-        ).withDeliveryDate(0) // No delivery date = invoice
-            .build();
-
-        CreateInvoiceParams memory purchaseOrderParams = new CreateInvoiceParamsBuilder().withDebtor(debtor)
-            .withCreditor(creditor).withDeliveryDate(block.timestamp + 1 days) // Has delivery date = purchase order
-            .build();
-
-        uint256 invoiceFee = bullaInvoice.invoiceOriginationFee();
-        uint256 purchaseOrderFee = bullaInvoice.purchaseOrderOriginationFee();
-
-        // Expected InvoiceDetails for invoice
-        InvoiceDetails memory expectedInvoiceDetails = new InvoiceDetailsBuilder().build();
-
-        // Expected InvoiceDetails for purchase order
-        InvoiceDetails memory expectedPurchaseOrderDetails =
-            new InvoiceDetailsBuilder().withDeliveryDate(block.timestamp + 1 days).build();
-
-        // Create invoice
-        vm.expectEmit(true, false, false, true);
-        emit InvoiceCreated(1, expectedInvoiceDetails, invoiceFee);
-
-        vm.prank(creditor);
-        bullaInvoice.createInvoice{value: invoiceFee}(invoiceParams);
-
-        // Create purchase order
-        vm.expectEmit(true, false, false, true);
-        emit InvoiceCreated(2, expectedPurchaseOrderDetails, purchaseOrderFee);
-
-        vm.prank(creditor);
-        bullaInvoice.createInvoice{value: purchaseOrderFee}(purchaseOrderParams);
-
-        // Verify fees are held in contract
-        uint256 expectedTotal = invoiceFee + purchaseOrderFee;
-        assertEq(address(bullaInvoice).balance, expectedTotal, "Contract should hold all origination fees");
-
-        // Admin withdraws fees
-        uint256 adminBalanceBefore = admin.balance;
-
-        vm.expectEmit(true, true, false, true);
-        emit FeeWithdrawn(admin, address(0), expectedTotal);
-
-        vm.prank(admin);
-        bullaInvoice.withdrawAllFees();
-
-        // Verify admin received the fees
-        assertEq(admin.balance - adminBalanceBefore, expectedTotal, "Admin should receive all origination fees");
-
-        // Verify contract has no remaining fees
-        assertEq(address(bullaInvoice).balance, 0, "No ETH should remain in contract after withdrawal");
-    }
-
     function testNonAdminCannotWithdrawFees() public {
         // Create an invoice with fee
         CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
             .withDeliveryDate(0) // No delivery date = invoice
             .build();
 
-        uint256 fee = bullaInvoice.invoiceOriginationFee();
+        uint256 fee = bullaClaim.CORE_PROTOCOL_FEE();
 
         // Expected InvoiceDetails struct
         InvoiceDetails memory expectedInvoiceDetails = new InvoiceDetailsBuilder().build();
 
         // Expect InvoiceCreated event
         vm.expectEmit(true, false, false, true);
-        emit InvoiceCreated(1, expectedInvoiceDetails, fee);
+        emit InvoiceCreated(1, expectedInvoiceDetails);
 
         vm.prank(creditor);
         bullaInvoice.createInvoice{value: fee}(params);

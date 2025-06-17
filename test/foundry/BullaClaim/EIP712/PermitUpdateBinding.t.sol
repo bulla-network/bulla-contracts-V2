@@ -36,7 +36,11 @@ contract TestPermitUpdateBinding is Test {
     event UpdateBindingApproved(address indexed user, address indexed controller, uint256 approvalCount);
 
     function setUp() public {
-        bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
+        bullaClaim = (new Deployer()).deploy_test({
+            _deployer: address(this),
+            _initialLockState: LockState.Unlocked,
+            _coreProtocolFee: 0
+        });
         sigHelper = new EIP712Helper(address(bullaClaim));
         eip1271Wallet = new ERC1271WalletMock();
     }

@@ -42,7 +42,6 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
     using SafeTransferLib for address;
 
     address public admin;
-    uint256 public fee;
     uint256 public loanOfferCount;
     uint256 public protocolFeeBPS;
 
@@ -57,9 +56,7 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
     // Track if we're currently in a batch operation to skip individual fee validation
     bool private _inBatchOperation;
 
-    event LoanOffered(
-        uint256 indexed loanId, address indexed offeredBy, LoanRequestParams loanOffer, uint256 originationFee
-    );
+    event LoanOffered(uint256 indexed loanId, address indexed offeredBy, LoanRequestParams loanOffer);
     event LoanOfferAccepted(uint256 indexed loanId, uint256 indexed claimId);
     event LoanOfferRejected(uint256 indexed loanId, address indexed rejectedBy);
     /// @notice grossInterestPaid = interest received by creditor + protocolFee
@@ -72,14 +69,10 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
     /**
      * @param bullaClaim Address of the IBullaClaim contract to delegate calls to
      * @param _admin Address of the contract administrator
-     * @param _fee Fee required to create a loan offer
      * @param _protocolFeeBPS Protocol fee in basis points taken from interest payments
      */
-    constructor(address bullaClaim, address _admin, uint256 _fee, uint256 _protocolFeeBPS)
-        BullaClaimControllerBase(bullaClaim)
-    {
+    constructor(address bullaClaim, address _admin, uint256 _protocolFeeBPS) BullaClaimControllerBase(bullaClaim) {
         admin = _admin;
-        fee = _fee;
         if (_protocolFeeBPS > MAX_BPS) revert InvalidProtocolFee();
         protocolFeeBPS = _protocolFeeBPS;
         _emptyMetadata = ClaimMetadata({tokenURI: "", attachmentURI: ""});
@@ -168,7 +161,6 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
      */
     function offerLoanWithMetadata(LoanRequestParams calldata offer, ClaimMetadata calldata metadata)
         external
-        payable
         returns (uint256)
     {
         return _offerLoan(offer, metadata);
@@ -181,7 +173,7 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
      * @param offer The loan offer parameters
      * @return The ID of the created loan offer
      */
-    function offerLoan(LoanRequestParams calldata offer) external payable returns (uint256) {
+    function offerLoan(LoanRequestParams calldata offer) external returns (uint256) {
         return _offerLoan(offer, _emptyMetadata);
     }
 
@@ -197,7 +189,7 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
             _loanOfferMetadata[offerId] = metadata;
         }
 
-        emit LoanOffered(offerId, msg.sender, offer, msg.value);
+        emit LoanOffered(offerId, msg.sender, offer);
 
         return offerId;
     }
@@ -229,7 +221,18 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
      * @param offerId The ID of the loan offer to accept
      * @return The ID of the created claim
      */
-    function acceptLoan(uint256 offerId) external returns (uint256) {
+    function acceptLoan(uint256 offerId) external payable returns (uint256) {
+        return _acceptLoan(msg.sender, offerId);
+    }
+
+    function _acceptLoan(address from, uint256 offerId) private returns (uint256) {
+        uint256 fee = _bullaClaim.CORE_PROTOCOL_FEE();
+
+        // Skip fee validation when in batch operation (fees are validated at batch level)
+        if (!_inBatchOperation) {
+            if (msg.value != fee) revert IncorrectFee();
+        }
+
         LoanOffer memory offer = _loanOffers[offerId];
 
         if (offer.params.creditor == address(0)) revert LoanOfferNotFound();
@@ -242,10 +245,10 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
         // Check if the correct person is accepting the loan
         if (offer.requestedByCreditor) {
             // Creditor made offer, debtor should accept
-            if (msg.sender != offer.params.debtor) revert NotDebtor();
+            if (from != offer.params.debtor) revert NotDebtor();
         } else {
             // Debtor made request, creditor should accept
-            if (msg.sender != offer.params.creditor) revert NotCreditor();
+            if (from != offer.params.creditor) revert NotCreditor();
         }
 
         ClaimMetadata memory metadata = _loanOfferMetadata[offerId];
@@ -269,9 +272,9 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
         // Create the claim via BullaClaim - always use the debtor as the originator
         uint256 claimId;
         if (bytes(metadata.tokenURI).length > 0 || bytes(metadata.attachmentURI).length > 0) {
-            claimId = _bullaClaim.createClaimWithMetadataFrom(offer.params.debtor, claimParams, metadata);
+            claimId = _bullaClaim.createClaimWithMetadataFrom{value: fee}(offer.params.debtor, claimParams, metadata);
         } else {
-            claimId = _bullaClaim.createClaimFrom(offer.params.debtor, claimParams);
+            claimId = _bullaClaim.createClaimFrom{value: fee}(offer.params.debtor, claimParams);
         }
 
         _loanDetailsByClaimId[claimId] = LoanDetails({
@@ -373,17 +376,10 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
     ////////////////////////////////
 
     /**
-     * @notice Allows admin to withdraw accumulated protocol fees and loanOffer fees
+     * @notice Allows admin to withdraw accumulated protocol fees
      */
     function withdrawAllFees() external {
         if (msg.sender != admin) revert NotAdmin();
-
-        uint256 ethBalance = address(this).balance;
-        // Withdraw fees related to loan offers in native token
-        if (ethBalance > 0) {
-            admin.safeTransferETH(ethBalance);
-            emit FeeWithdrawn(admin, address(0), ethBalance);
-        }
 
         // Withdraw protocol fees in all tracked tokens
         for (uint256 i = 0; i < protocolFeeTokens.length; i++) {
@@ -414,22 +410,17 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
 
     /**
      * @notice Batch create multiple loan offers with proper msg.value handling
-     * @param calls Array of encoded offerLoan or offerLoanWithMetadata calls
+     * @param offerIds Array of offer IDs to accept
      */
-    function batchOfferLoans(bytes[] calldata calls) external payable {
-        if (calls.length == 0) return;
+    function batchAcceptLoans(uint256[] calldata offerIds) external payable {
+        if (offerIds.length == 0) return;
 
         uint256 totalRequiredFee = 0;
+        uint256 requiredFee = _bullaClaim.CORE_PROTOCOL_FEE();
 
         // Calculate total required fees by decoding each call
-        for (uint256 i = 0; i < calls.length; i++) {
-            bytes4 selector = bytes4(calls[i][:4]);
-
-            if (selector == this.offerLoan.selector || selector == this.offerLoanWithMetadata.selector) {
-                totalRequiredFee += fee;
-            } else {
-                revert FrendLendBatchInvalidCalldata();
-            }
+        for (uint256 i = 0; i < offerIds.length; i++) {
+            totalRequiredFee += requiredFee;
         }
 
         // Validate total msg.value matches required fees
@@ -441,12 +432,8 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
         _inBatchOperation = true;
 
         // Execute each call
-        for (uint256 i = 0; i < calls.length; i++) {
-            (bool success, bytes memory result) = address(this).delegatecall(calls[i]);
-            if (!success) {
-                _inBatchOperation = false; // Reset flag before reverting
-                revert(_getRevertMsg(result));
-            }
+        for (uint256 i = 0; i < offerIds.length; i++) {
+            _acceptLoan(msg.sender, offerIds[i]);
         }
 
         // Reset batch operation flag after successful execution
@@ -458,11 +445,6 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
     ////////////////////////////////
 
     function _validateLoanOffer(LoanRequestParams calldata offer, bool requestedByCreditor) private view {
-        // Skip fee validation when in batch operation (fees are validated at batch level)
-        if (!_inBatchOperation) {
-            if (msg.value != fee) revert IncorrectFee();
-        }
-
         if (!requestedByCreditor && msg.sender != offer.debtor) {
             revert NotCreditorOrDebtor();
         }

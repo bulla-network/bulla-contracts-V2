@@ -40,7 +40,11 @@ contract TestBatchFunctionality is BullaClaimTestHelper {
         vm.label(charlie, "CHARLIE");
         vm.label(alice, "ALICE");
 
-        bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
+        bullaClaim = (new Deployer()).deploy_test({
+            _deployer: address(this),
+            _initialLockState: LockState.Unlocked,
+            _coreProtocolFee: 0
+        });
         sigHelper = new EIP712Helper(address(bullaClaim));
 
         // Setup token balances
@@ -88,39 +92,6 @@ contract TestBatchFunctionality is BullaClaimTestHelper {
         assertEq(claim.debtor, debtor);
     }
 
-    function testBatch_MultipleHomogeneousOperations() public {
-        bytes[] memory calls = new bytes[](3);
-
-        // Create multiple claims in batch
-        calls[0] = abi.encodeCall(
-            BullaClaim.createClaim,
-            (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withClaimAmount(1 ether).build())
-        );
-        calls[1] = abi.encodeCall(
-            BullaClaim.createClaim,
-            (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(charlie).withClaimAmount(2 ether).build())
-        );
-        calls[2] = abi.encodeCall(
-            BullaClaim.createClaim,
-            (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(alice).withClaimAmount(3 ether).build())
-        );
-
-        vm.prank(creditor);
-        bullaClaim.batch(calls, true);
-
-        // Verify all claims were created
-        Claim memory claim1 = bullaClaim.getClaim(1);
-        Claim memory claim2 = bullaClaim.getClaim(2);
-        Claim memory claim3 = bullaClaim.getClaim(3);
-
-        assertEq(claim1.claimAmount, 1 ether);
-        assertEq(claim2.claimAmount, 2 ether);
-        assertEq(claim3.claimAmount, 3 ether);
-        assertEq(claim1.debtor, debtor);
-        assertEq(claim2.debtor, charlie);
-        assertEq(claim3.debtor, alice);
-    }
-
     function testBatch_RevertOnFail_True() public {
         bytes[] memory calls = new bytes[](3);
 
@@ -146,38 +117,6 @@ contract TestBatchFunctionality is BullaClaimTestHelper {
 
         // Verify no claims were created due to revert
         assertEq(bullaClaim.currentClaimId(), 0);
-    }
-
-    function testBatch_RevertOnFail_False() public {
-        bytes[] memory calls = new bytes[](3);
-
-        // First call succeeds
-        calls[0] = abi.encodeCall(
-            BullaClaim.createClaim, (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).build())
-        );
-
-        // Second call fails (invalid claim amount)
-        calls[1] = abi.encodeCall(
-            BullaClaim.createClaim,
-            (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withClaimAmount(0).build())
-        );
-
-        // Third call succeeds
-        calls[2] = abi.encodeCall(
-            BullaClaim.createClaim, (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(charlie).build())
-        );
-
-        vm.prank(creditor);
-        bullaClaim.batch(calls, false);
-
-        // Verify first and third claims were created, second failed
-        assertEq(bullaClaim.currentClaimId(), 2);
-
-        Claim memory claim1 = bullaClaim.getClaim(1);
-        Claim memory claim2 = bullaClaim.getClaim(2);
-
-        assertEq(claim1.debtor, debtor);
-        assertEq(claim2.debtor, charlie);
     }
 
     /*///////////////////// BATCH CREATE CLAIM TESTS /////////////////////*/

@@ -40,6 +40,8 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     BullaControllerRegistry public controllerRegistry;
     /// a contract to generate an on-chain SVG with a claim's status
     ClaimMetadataGenerator public claimMetadataGenerator;
+    /// Core protocol fee for creating claims
+    uint256 public CORE_PROTOCOL_FEE;
 
     /*///////////////////////////////////////////////////////////////
                             ERRORS / MODIFIERS
@@ -54,6 +56,8 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     error ClaimPending();
     error NotMinted();
     error PaymentUnderApproved();
+    error IncorrectFee();
+    error WithdrawalFailed();
 
     function _notLocked() internal view {
         if (lockState == LockState.Locked) revert Locked();
@@ -113,12 +117,15 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
 
     event MarkAsPaidApproved(address indexed user, address indexed controller, uint256 approvalCount);
 
-    constructor(address _controllerRegistry, LockState _lockState)
+    event FeeWithdrawn(address indexed owner, uint256 amount);
+
+    constructor(address _controllerRegistry, LockState _lockState, uint256 _coreProtocolFee)
         ERC721("BullaClaim", "CLAIM")
         EIP712("BullaClaim", "1")
     {
         controllerRegistry = BullaControllerRegistry(_controllerRegistry);
         lockState = _lockState;
+        CORE_PROTOCOL_FEE = _coreProtocolFee;
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -132,7 +139,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     /// @notice allows a user to create a claim
     /// @notice SPEC:
     ///     1. create a claim from the msg.sender
-    function createClaim(CreateClaimParams calldata params) external returns (uint256) {
+    function createClaim(CreateClaimParams calldata params) external payable returns (uint256) {
         return _createClaim(msg.sender, params);
     }
 
@@ -140,7 +147,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     /// @notice SPEC:
     ///     1. verify and spend msg.sender's approval to create claims
     ///     2. create a claim on `from`'s behalf
-    function createClaimFrom(address from, CreateClaimParams calldata params) external returns (uint256) {
+    function createClaimFrom(address from, CreateClaimParams calldata params) external payable returns (uint256) {
         _spendCreateClaimApproval(from, msg.sender, params.creditor, params.debtor, params.binding);
 
         return _createClaim(from, params);
@@ -151,6 +158,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     ///     1. create a claim with metadata from the msg.sender
     function createClaimWithMetadata(CreateClaimParams calldata params, ClaimMetadata calldata metadata)
         external
+        payable
         returns (uint256)
     {
         return _createClaimWithMetadata(msg.sender, params, metadata);
@@ -164,7 +172,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
         address from,
         CreateClaimParams calldata params,
         ClaimMetadata calldata metadata
-    ) external returns (uint256) {
+    ) external payable returns (uint256) {
         _spendCreateClaimApproval(from, msg.sender, params.creditor, params.debtor, params.binding);
 
         return _createClaimWithMetadata(from, params, metadata);
@@ -229,6 +237,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     /// @return The newly created tokenId
     function _createClaim(address from, CreateClaimParams calldata params) internal returns (uint256) {
         if (lockState != LockState.Unlocked) revert Locked();
+        if (msg.value != CORE_PROTOCOL_FEE) revert IncorrectFee();
 
         // Use validation library for parameter validation
         BullaClaimValidationLib.validateCreateClaimParams(from, params);
@@ -820,5 +829,21 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
 
     function setLockState(LockState _lockState) external onlyOwner {
         lockState = _lockState;
+    }
+
+    function setCoreProtocolFee(uint256 _coreProtocolFee) external onlyOwner {
+        CORE_PROTOCOL_FEE = _coreProtocolFee;
+    }
+
+    /**
+     * @notice Allows owner to withdraw accumulated core protocol fees
+     */
+    function withdrawAllFees() external onlyOwner {
+        uint256 ethBalance = address(this).balance;
+        if (ethBalance > 0) {
+            (bool success,) = payable(owner()).call{value: ethBalance}("");
+            if (!success) revert WithdrawalFailed();
+            emit FeeWithdrawn(owner(), ethBalance);
+        }
     }
 }
