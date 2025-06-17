@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.1.0...v1.2.0) (2025-06-17)
+
+
+### Features
+
+* implement callback functionality ([#59](https://github.com/bulla-network/bulla-contracts-V2/issues/59)) ([ca6f995](https://github.com/bulla-network/bulla-contracts-V2/commit/ca6f995a4f198f74129f823f837684954c084709))
+
 # [1.1.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.0.6...v1.1.0) (2025-06-16)
 
 
