@@ -21,6 +21,8 @@ struct LoanRequestParams {
     address token;
     uint256 impairmentGracePeriod;
     uint256 expiresAt; // timestamp when the offer expires (0 = no expiry)
+    address callbackContract; // contract to call when loan is accepted (0 = no callback)
+    bytes4 callbackSelector; // function selector to call on callback contract
 }
 
 struct LoanOffer {
