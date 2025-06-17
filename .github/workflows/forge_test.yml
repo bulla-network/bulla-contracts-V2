@@ -14,9 +14,9 @@ jobs:
           submodules: recursive
 
       - name: Install Foundry
-        uses: onbjerg/foundry-toolchain@v1
+        uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: v0.3.0
+          version: v1.2.3
 
       - name: Install dependencies
         run: forge install
