@@ -1,5 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity ^0.8.14;
+pragma solidity ^0.8.30;
 
 import {LoanRequestParams} from "contracts/BullaFrendLend.sol";
 import {InterestConfig} from "contracts/libraries/CompoundInterestLib.sol";

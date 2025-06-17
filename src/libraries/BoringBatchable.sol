@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.15; // <--- @note: updated by Bulla
+pragma solidity ^0.8.30; //
 
 pragma experimental ABIEncoderV2;
 

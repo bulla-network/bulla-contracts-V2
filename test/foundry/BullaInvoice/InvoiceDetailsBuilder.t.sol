@@ -1,5 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity ^0.8.14;
+pragma solidity ^0.8.30;
 
 import {InvoiceDetails, PurchaseOrderState} from "contracts/BullaInvoice.sol";
 import {InterestConfig, InterestComputationState} from "contracts/libraries/CompoundInterestLib.sol";

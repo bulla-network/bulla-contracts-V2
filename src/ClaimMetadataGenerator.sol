@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.15;
+pragma solidity ^0.8.30;
 
 import {Claim, Status} from "contracts/types/Types.sol";
 import {Base64} from "contracts/libraries/Base64.sol";
