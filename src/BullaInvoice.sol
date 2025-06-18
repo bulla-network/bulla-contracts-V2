@@ -201,7 +201,9 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
         private
         returns (uint256)
     {
-        bool isProtocolFeeExempt = _bullaClaim.feeExemptions().isAllowed(msg.sender);
+        bool isProtocolFeeExempt = _bullaClaim.feeExemptions().isAllowed(params.debtor)
+            || _bullaClaim.feeExemptions().isAllowed(params.creditor);
+
         uint256 fee = isProtocolFeeExempt ? 0 : _bullaClaim.CORE_PROTOCOL_FEE();
         _validateCreateInvoiceParams(params, fee);
 
@@ -528,18 +530,29 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
         if (calls.length == 0) return;
 
         uint256 totalRequiredFee = 0;
-        uint256 requiredFee = _bullaClaim.feeExemptions().isAllowed(msg.sender) ? 0 : _bullaClaim.CORE_PROTOCOL_FEE();
+        uint256 baseFee = _bullaClaim.CORE_PROTOCOL_FEE();
+        CreateInvoiceParams memory params;
 
-        if (requiredFee > 0) {
-            // Calculate total required fees by decoding each call
-            for (uint256 i = 0; i < calls.length; i++) {
-                bytes4 selector = bytes4(calls[i][:4]);
+        // Calculate total required fees by decoding each call and checking exemptions
+        for (uint256 i = 0; i < calls.length; i++) {
+            bytes4 selector = bytes4(calls[i][:4]);
 
-                if (selector == this.createInvoice.selector || selector == this.createInvoiceWithMetadata.selector) {
-                    totalRequiredFee += requiredFee;
-                } else {
-                    revert InvoiceBatchInvalidCalldata();
-                }
+            if (selector == this.createInvoice.selector) {
+                // Decode CreateInvoiceParams from the call
+                (params) = abi.decode(calls[i][4:], (CreateInvoiceParams));
+            } else if (selector == this.createInvoiceWithMetadata.selector) {
+                // Decode CreateInvoiceParams and ClaimMetadata from the call
+                (params,) = abi.decode(calls[i][4:], (CreateInvoiceParams, ClaimMetadata));
+            } else {
+                revert InvoiceBatchInvalidCalldata();
+            }
+
+            // Check if either creditor or debtor is exempt
+            bool isExempt = _bullaClaim.feeExemptions().isAllowed(params.creditor)
+                || _bullaClaim.feeExemptions().isAllowed(params.debtor);
+
+            if (!isExempt) {
+                totalRequiredFee += baseFee;
             }
         }
 

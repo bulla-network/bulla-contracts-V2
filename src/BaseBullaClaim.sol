@@ -22,9 +22,9 @@ abstract contract BaseBullaClaim {
     error ClaimPending();
     error NotMinted();
     error PaymentUnderApproved();
-    error IncorrectFee();
     error WithdrawalFailed();
     error InvalidInterface();
+    error IncorrectFee();
 
     /*///////////////////////////////////////////////////////////////
                                  EVENTS

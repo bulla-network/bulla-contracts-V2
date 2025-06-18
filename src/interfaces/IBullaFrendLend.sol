@@ -9,6 +9,7 @@ struct LoanDetails {
     uint256 acceptedAt;
     InterestConfig interestConfig;
     InterestComputationState interestComputationState;
+    bool isProtocolFeeExempt;
 }
 
 struct LoanRequestParams {

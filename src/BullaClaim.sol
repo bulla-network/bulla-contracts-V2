@@ -174,10 +174,9 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable, BaseBullaClaim 
     /// @return The newly created tokenId
     function _createClaim(address from, CreateClaimParams calldata params) internal returns (uint256) {
         if (lockState != LockState.Unlocked) revert Locked();
-        if (!feeExemptions.isAllowed(from) && msg.value != CORE_PROTOCOL_FEE) revert IncorrectFee();
 
         // Use validation library for parameter validation
-        BullaClaimValidationLib.validateCreateClaimParams(from, params);
+        BullaClaimValidationLib.validateCreateClaimParams(from, params, feeExemptions, CORE_PROTOCOL_FEE, msg.value);
 
         uint256 claimId;
         // from is only != to msg.sender if the claim is delegated

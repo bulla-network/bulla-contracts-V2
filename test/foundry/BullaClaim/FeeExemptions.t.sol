@@ -158,6 +158,39 @@ contract TestFeeExemptions is Test {
         assertEq(address(bullaClaim).balance, initialBalance + _STANDARD_FEE, "Fee should still be collected if sent");
     }
 
+    function testExemptDebtorAllowsClaimCreationWithoutFee() public {
+        // Add debtor to exemption list
+        vm.prank(_admin);
+        feeExemptions.allow(_debtor);
+
+        // Non-exempt creditor creates claim for exempt debtor
+        CreateClaimParams memory params = new CreateClaimParamsBuilder().withCreditor(_nonExemptUser).withDebtor(
+            _debtor
+        ).withClaimAmount(1 ether).build();
+
+        uint256 initialBalance = address(bullaClaim).balance;
+
+        vm.expectEmit(true, true, true, true);
+        emit ClaimCreated(
+            1,
+            _nonExemptUser,
+            _nonExemptUser,
+            _debtor,
+            1 ether,
+            "Test Claim",
+            address(0),
+            address(0),
+            ClaimBinding.Unbound
+        );
+
+        // Should work without fee because debtor is exempt
+        vm.prank(_nonExemptUser);
+        uint256 claimId = bullaClaim.createClaim{value: 0}(params);
+
+        assertEq(claimId, 1, "Claim should be created successfully");
+        assertEq(address(bullaClaim).balance, initialBalance, "No fee should be collected when debtor is exempt");
+    }
+
     // ==================== NON-EXEMPT USER TESTS ====================
 
     function testNonExemptUserMustPayFee() public {

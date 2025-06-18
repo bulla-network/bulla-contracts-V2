@@ -226,16 +226,20 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
     }
 
     function _acceptLoan(address from, uint256 offerId) private returns (uint256) {
-        uint256 fee = _bullaClaim.CORE_PROTOCOL_FEE();
+        LoanOffer memory offer = _loanOffers[offerId];
+
+        if (offer.params.creditor == address(0)) revert LoanOfferNotFound();
+
+        // Check exemption based on the debtor (the person getting indebted)
+        bool isProtocolFeeExempt = _bullaClaim.feeExemptions().isAllowed(offer.params.debtor)
+            || _bullaClaim.feeExemptions().isAllowed(offer.params.creditor);
+
+        uint256 fee = isProtocolFeeExempt ? 0 : _bullaClaim.CORE_PROTOCOL_FEE();
 
         // Skip fee validation when in batch operation (fees are validated at batch level)
         if (!_inBatchOperation) {
             if (msg.value != fee) revert IncorrectFee();
         }
-
-        LoanOffer memory offer = _loanOffers[offerId];
-
-        if (offer.params.creditor == address(0)) revert LoanOfferNotFound();
 
         // Check if offer has expired (only if expiresAt is set to a non-zero value)
         if (offer.params.expiresAt > 0 && block.timestamp > offer.params.expiresAt) {
@@ -280,7 +284,8 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
         _loanDetailsByClaimId[claimId] = LoanDetails({
             acceptedAt: block.timestamp,
             interestConfig: offer.params.interestConfig,
-            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0})
+            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0}),
+            isProtocolFeeExempt: isProtocolFeeExempt
         });
 
         // Transfer token from creditor to debtor via the contract
@@ -318,7 +323,9 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
         // Calculate total actual payment (interest + principal)
         paymentAmount = grossInterestBeingPaid + principalPayment;
 
-        uint256 protocolFee = _calculateProtocolFee(grossInterestBeingPaid);
+        // Check exemption status for this loan
+        LoanDetails memory loanDetails = _loanDetailsByClaimId[claimId];
+        uint256 protocolFee = loanDetails.isProtocolFeeExempt ? 0 : _calculateProtocolFee(grossInterestBeingPaid);
         uint256 creditorInterest = grossInterestBeingPaid - protocolFee;
         uint256 creditorTotal = creditorInterest + principalPayment;
 
@@ -416,10 +423,17 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
         if (offerIds.length == 0) return;
 
         uint256 totalRequiredFee = 0;
-        uint256 requiredFee = _bullaClaim.CORE_PROTOCOL_FEE();
+        uint256 baseFee = _bullaClaim.CORE_PROTOCOL_FEE();
 
-        // Calculate total required fees by decoding each call
+        // Calculate total required fees by checking each offer's debtor exemption status
         for (uint256 i = 0; i < offerIds.length; i++) {
+            LoanOffer memory offer = _loanOffers[offerIds[i]];
+            if (offer.params.creditor == address(0)) revert LoanOfferNotFound();
+
+            bool isProtocolFeeExempt = _bullaClaim.feeExemptions().isAllowed(offer.params.debtor)
+                || _bullaClaim.feeExemptions().isAllowed(offer.params.creditor);
+
+            uint256 requiredFee = isProtocolFeeExempt ? 0 : baseFee;
             totalRequiredFee += requiredFee;
         }
 
