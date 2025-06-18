@@ -5,6 +5,7 @@ import "contracts/types/Types.sol";
 import "contracts/BullaControllerRegistry.sol";
 import {IERC721} from "openzeppelin-contracts/contracts/interfaces/IERC721.sol";
 import {IERC20Permit} from "openzeppelin-contracts/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
+import {IPermissions} from "contracts/interfaces/IPermissions.sol";
 
 interface IBullaClaim {
     //// ERRORS / MODIFIERS ////
@@ -211,6 +212,10 @@ interface IBullaClaim {
     function setLockState(uint8 _lockState) external;
 
     function setCoreProtocolFee(uint256 _coreProtocolFee) external;
+
+    function setFeeExemptions(address _feeExemptions) external;
+
+    function feeExemptions() external view returns (IPermissions);
 
     function withdrawAllFees() external;
 
