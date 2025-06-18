@@ -516,9 +516,6 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
     /*///////////////////// BATCH LOAN MANAGEMENT TESTS /////////////////////*/
 
     function testBatch_ImpairMultipleLoans() public {
-        // Create and accept loans with past due dates individually
-        uint256 pastDueBy = block.timestamp + 1 days;
-
         vm.startPrank(creditor);
         weth.approve(address(bullaFrendLend), 2 ether);
 

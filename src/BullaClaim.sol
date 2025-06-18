@@ -7,6 +7,7 @@ import {BullaControllerRegistry} from "contracts/BullaControllerRegistry.sol";
 import {EIP712} from "openzeppelin-contracts/contracts/utils/cryptography/EIP712.sol";
 import {ECDSA} from "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
 import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
+import {IERC165} from "openzeppelin-contracts/contracts/utils/introspection/IERC165.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {SafeCastLib} from "solmate/utils/SafeCastLib.sol";
 import {BoringBatchable} from "contracts/libraries/BoringBatchable.sol";
@@ -15,6 +16,7 @@ import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationL
 import {ERC721} from "solmate/tokens/ERC721.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {ClaimMetadataGenerator} from "contracts/ClaimMetadataGenerator.sol";
+import {IPermissions} from "contracts/interfaces/IPermissions.sol";
 import "forge-std/console.sol";
 
 contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
@@ -42,6 +44,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     ClaimMetadataGenerator public claimMetadataGenerator;
     /// Core protocol fee for creating claims
     uint256 public CORE_PROTOCOL_FEE;
+    IPermissions public feeExemptions;
 
     /*///////////////////////////////////////////////////////////////
                             ERRORS / MODIFIERS
@@ -58,6 +61,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     error PaymentUnderApproved();
     error IncorrectFee();
     error WithdrawalFailed();
+    error InvalidInterface();
 
     function _notLocked() internal view {
         if (lockState == LockState.Locked) revert Locked();
@@ -119,13 +123,14 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
 
     event FeeWithdrawn(address indexed owner, uint256 amount);
 
-    constructor(address _controllerRegistry, LockState _lockState, uint256 _coreProtocolFee)
+    constructor(address _controllerRegistry, LockState _lockState, uint256 _coreProtocolFee, address _feeExemptions)
         ERC721("BullaClaim", "CLAIM")
         EIP712("BullaClaim", "1")
     {
         controllerRegistry = BullaControllerRegistry(_controllerRegistry);
         lockState = _lockState;
         CORE_PROTOCOL_FEE = _coreProtocolFee;
+        feeExemptions = IPermissions(_feeExemptions);
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -237,7 +242,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     /// @return The newly created tokenId
     function _createClaim(address from, CreateClaimParams calldata params) internal returns (uint256) {
         if (lockState != LockState.Unlocked) revert Locked();
-        if (msg.value != CORE_PROTOCOL_FEE) revert IncorrectFee();
+        if (!feeExemptions.isAllowed(from) && msg.value != CORE_PROTOCOL_FEE) revert IncorrectFee();
 
         // Use validation library for parameter validation
         BullaClaimValidationLib.validateCreateClaimParams(from, params);
@@ -833,6 +838,14 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
 
     function setCoreProtocolFee(uint256 _coreProtocolFee) external onlyOwner {
         CORE_PROTOCOL_FEE = _coreProtocolFee;
+    }
+
+    function setFeeExemptions(address _feeExemptions) external onlyOwner {
+        // Check that the contract supports the IPermissions interface via ERC165
+        if (!IERC165(_feeExemptions).supportsInterface(type(IPermissions).interfaceId)) {
+            revert InvalidInterface();
+        }
+        feeExemptions = IPermissions(_feeExemptions);
     }
 
     /**

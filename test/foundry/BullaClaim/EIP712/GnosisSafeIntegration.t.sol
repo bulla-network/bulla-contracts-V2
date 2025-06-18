@@ -6,11 +6,10 @@ import {Deployer} from "script/Deployment.s.sol";
 import "contracts/BullaClaim.sol";
 import "contracts/mocks/PenalizedClaim.sol";
 import "contracts/mocks/ERC1271Wallet.sol";
-import "safe-contracts/GnosisSafe.sol";
+import {GnosisSafe, Enum} from "safe-contracts/GnosisSafe.sol";
 import "safe-contracts/proxies/GnosisSafeProxyFactory.sol";
-import "safe-contracts/proxies/GnosisSafeProxyFactory.sol";
-import "safe-contracts/libraries/SignMessageLib.sol";
-import "test/foundry/BullaClaim/EIP712/Utils.sol";
+import {SignMessageLib} from "safe-contracts/libraries/SignMessageLib.sol";
+import {EIP712Helper, CompatibilityFallbackHandler_patch} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {console} from "forge-std/console.sol";
 import {Test} from "forge-std/Test.sol";
 

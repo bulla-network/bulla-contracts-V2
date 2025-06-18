@@ -95,17 +95,17 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
     }
 
     function testCreateDelegatedClaim() public {
-        PenalizedClaim controller = new PenalizedClaim(address(bullaClaim));
+        PenalizedClaim penalizedClaim = new PenalizedClaim(address(bullaClaim));
         bullaClaim.permitCreateClaim({
             user: creditor,
-            controller: address(controller),
+            controller: address(penalizedClaim),
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 1,
             isBindingAllowed: true,
             signature: sigHelper.signCreateClaimPermit({
                 pk: creditorPK,
                 user: creditor,
-                controller: address(controller),
+                controller: address(penalizedClaim),
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
                 isBindingAllowed: true
@@ -113,13 +113,13 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
         });
 
         vm.startPrank(creditor);
-        uint256 claimId = controller.createClaim(
+        uint256 claimId = penalizedClaim.createClaim(
             new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build()
         );
         vm.stopPrank();
 
         Claim memory claim = bullaClaim.getClaim(claimId);
-        assertEq(claim.controller, address(controller));
+        assertEq(claim.controller, address(penalizedClaim));
     }
 
     /// @notice SPEC.S1

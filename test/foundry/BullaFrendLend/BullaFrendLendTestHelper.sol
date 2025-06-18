@@ -139,10 +139,9 @@ contract BullaFrendLendTestHelper is BullaClaimTestHelper {
      * @notice Create a loan offer with custom parameters
      * @param userPK The private key of the user creating the offer
      * @param params The loan request parameters
-     * @param fee The fee amount to pay for creating the offer
      * @return loanOfferId The ID of the created loan offer
      */
-    function _createLoanOfferWithParams(uint256 userPK, LoanRequestParams memory params, uint256 fee)
+    function _createLoanOfferWithParams(uint256 userPK, LoanRequestParams memory params)
         internal
         returns (uint256 loanOfferId)
     {
@@ -178,7 +177,6 @@ contract BullaFrendLendTestHelper is BullaClaimTestHelper {
         internal
         returns (uint256 claimId)
     {
-        address creditor = vm.addr(creditorPK);
         address debtor = vm.addr(debtorPK);
 
         // Create loan offer
@@ -193,10 +191,9 @@ contract BullaFrendLendTestHelper is BullaClaimTestHelper {
      * @param creditorPK The private key of the creditor
      * @param debtors Array of debtor addresses
      * @param token The token address for all loans
-     * @param fee The fee amount per loan offer
      * @return loanOfferIds Array of created loan offer IDs
      */
-    function _createMultipleLoanOffers(uint256 creditorPK, address[] memory debtors, address token, uint256 fee)
+    function _createMultipleLoanOffers(uint256 creditorPK, address[] memory debtors, address token)
         internal
         returns (uint256[] memory loanOfferIds)
     {

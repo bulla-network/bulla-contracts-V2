@@ -142,13 +142,13 @@ contract TestImpairClaim is BullaClaimTestHelper {
     }
 
     function testImpairClaimFrom_WithController() public {
-        PenalizedClaim controller = new PenalizedClaim(address(bullaClaim));
+        PenalizedClaim penalizedClaim = new PenalizedClaim(address(bullaClaim));
 
-        // Setup approval for controller to create claims
-        _permitCreateClaim(creditorPK, address(controller), 1);
+        // Setup approval for penalizedClaim to create claims
+        _permitCreateClaim(creditorPK, address(penalizedClaim), 1);
 
         vm.startPrank(creditor);
-        uint256 claimId = controller.createClaim(
+        uint256 claimId = penalizedClaim.createClaim(
             new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).withDueBy(
                 block.timestamp + 30 days
             ).build()
@@ -156,17 +156,17 @@ contract TestImpairClaim is BullaClaimTestHelper {
         vm.stopPrank();
 
         Claim memory claimBefore = bullaClaim.getClaim(claimId);
-        assertEq(claimBefore.controller, address(controller), "Controller should be set");
+        assertEq(claimBefore.controller, address(penalizedClaim), "Controller should be set");
 
         // Setup approval for controller to impair claims
-        _permitImpairClaim(creditorPK, address(controller), 1);
+        _permitImpairClaim(creditorPK, address(penalizedClaim), 1);
 
         vm.warp(block.timestamp + 38 days);
 
         vm.expectEmit(true, true, false, true);
         emit ClaimImpaired(claimId);
 
-        vm.prank(address(controller));
+        vm.prank(address(penalizedClaim));
         bullaClaim.impairClaimFrom(creditor, claimId);
 
         Claim memory claimAfter = bullaClaim.getClaim(claimId);
@@ -192,13 +192,13 @@ contract TestImpairClaim is BullaClaimTestHelper {
     }
 
     function testCannotImpairClaim_WrongController() public {
-        PenalizedClaim controller = new PenalizedClaim(address(bullaClaim));
+        PenalizedClaim penalizedClaim = new PenalizedClaim(address(bullaClaim));
 
-        // Setup approval for controller to create claims
-        _permitCreateClaim(creditorPK, address(controller), 1);
+        // Setup approval for penalizedClaim to create claims
+        _permitCreateClaim(creditorPK, address(penalizedClaim), 1);
 
         vm.startPrank(creditor);
-        uint256 claimId = controller.createClaim(
+        uint256 claimId = penalizedClaim.createClaim(
             new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build()
         );
         vm.stopPrank();

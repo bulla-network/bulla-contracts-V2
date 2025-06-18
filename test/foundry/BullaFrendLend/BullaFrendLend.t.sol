@@ -1175,7 +1175,6 @@ contract TestBullaFrendLend is Test {
         vm.stopPrank();
 
         // Get fee amounts before withdrawal
-        uint256 ethBalance = address(bullaClaim).balance;
         uint256 wethFees = bullaFrendLend.protocolFeesByToken(address(weth));
         uint256 usdcFees = bullaFrendLend.protocolFeesByToken(address(usdc));
         uint256 daiFees = bullaFrendLend.protocolFeesByToken(address(dai));
@@ -2413,7 +2412,7 @@ contract TestBullaFrendLend is Test {
         CompoundInterestLib.validateInterestConfig(config);
     }
 
-    function testCompoundInterestLib_ValidateInterestConfig_BoundaryTest() public {
+    function testCompoundInterestLib_ValidateInterestConfig_BoundaryTest() public pure {
         InterestConfig memory config = InterestConfig({
             interestRateBps: 1000,
             numberOfPeriodsPerYear: 365 // Valid - exactly at the limit
@@ -2423,7 +2422,7 @@ contract TestBullaFrendLend is Test {
         CompoundInterestLib.validateInterestConfig(config);
     }
 
-    function testCompoundInterestLib_ValidateInterestConfig_ZeroInterestRate() public {
+    function testCompoundInterestLib_ValidateInterestConfig_ZeroInterestRate() public pure {
         InterestConfig memory config = InterestConfig({
             interestRateBps: 0, // Zero interest rate - should skip validation
             numberOfPeriodsPerYear: 0 // This would normally be invalid, but should be ignored

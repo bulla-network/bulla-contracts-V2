@@ -5,9 +5,9 @@ import "forge-std/Test.sol";
 import "contracts/types/Types.sol";
 import "safe-contracts/handler/DefaultCallbackHandler.sol";
 import "safe-contracts/interfaces/ISignatureValidator.sol";
-import "safe-contracts/GnosisSafe.sol";
+import {GnosisSafe} from "safe-contracts/GnosisSafe.sol";
 import "openzeppelin-contracts/contracts/utils/Strings.sol";
-import "contracts/BullaClaim.sol";
+import {BullaClaim, BullaClaimPermitLib} from "contracts/BullaClaim.sol";
 
 address constant HEVM_ADDRESS = 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D;
 
