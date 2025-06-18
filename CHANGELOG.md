@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.2.1...v1.3.0) (2025-06-18)
+
+
+### Features
+
+* move protocol fee to BullaClaim, remove from invoice and frendlend ([#61](https://github.com/bulla-network/bulla-contracts-V2/issues/61)) ([80df68f](https://github.com/bulla-network/bulla-contracts-V2/commit/80df68f8d23f9e865047963d0c4e285127bda8f6))
+
 ## [1.2.1](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.2.0...v1.2.1) (2025-06-17)
 
 
