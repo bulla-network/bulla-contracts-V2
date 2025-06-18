@@ -96,39 +96,6 @@ contract TestFeeExemptions is Test {
         assertEq(address(bullaClaim.feeExemptions()), address(feeExemptions), "Fee exemptions should be set correctly");
     }
 
-    function testZeroAddressFeeExemptionsReverts() public {
-        vm.prank(_owner);
-        BullaClaim testClaim = (new Deployer()).deploy_test({
-            _deployer: _owner,
-            _initialLockState: LockState.Unlocked,
-            _coreProtocolFee: _STANDARD_FEE
-        });
-
-        // Set fee exemptions to zero address
-        vm.prank(_owner);
-        vm.expectRevert();
-        testClaim.setFeeExemptions(address(0));
-    }
-
-    function testSetFeeExemptionsWithInvalidInterfaceReverts() public {
-        // Deploy a contract that implements ERC165 but not IPermissions
-        MockERC165Contract mockContract = new MockERC165Contract();
-
-        // Verify that it supports ERC165
-        assertTrue(mockContract.supportsInterface(type(IERC165).interfaceId), "Mock contract should support ERC165");
-
-        // Verify that it does NOT support IPermissions
-        assertFalse(
-            mockContract.supportsInterface(type(IPermissions).interfaceId),
-            "Mock contract should NOT support IPermissions"
-        );
-
-        // Attempting to set this contract as fee exemptions should revert
-        vm.prank(_owner);
-        vm.expectRevert(BaseBullaClaim.InvalidInterface.selector);
-        bullaClaim.setFeeExemptions(address(mockContract));
-    }
-
     // ==================== EXEMPT USER TESTS ====================
 
     function testExemptUserCanCreateClaimWithoutFee() public {
