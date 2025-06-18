@@ -14,7 +14,11 @@ contract TestTokenURI is Test {
     address charlie = address(0xC44511E);
 
     function setUp() public {
-        bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
+        bullaClaim = (new Deployer()).deploy_test({
+            _deployer: address(this),
+            _initialLockState: LockState.Unlocked,
+            _coreProtocolFee: 0
+        });
     }
 
     function testDomainSeparator() public {

@@ -48,8 +48,6 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
 
     address public admin;
     uint256 public protocolFeeBPS;
-    uint256 public invoiceOriginationFee;
-    uint256 public purchaseOrderOriginationFee;
 
     ClaimMetadata public EMPTY_METADATA = ClaimMetadata({attachmentURI: "", tokenURI: ""});
 
@@ -62,7 +60,7 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
     // Track if we're currently in a batch operation to skip individual fee validation
     bool private _inBatchOperation;
 
-    event InvoiceCreated(uint256 indexed claimId, InvoiceDetails invoiceDetails, uint256 originationFee);
+    event InvoiceCreated(uint256 indexed claimId, InvoiceDetails invoiceDetails);
     event InvoicePaid(uint256 indexed claimId, uint256 grossInterestPaid, uint256 principalPaid, uint256 protocolFee);
     event ProtocolFeeUpdated(uint256 oldFee, uint256 newFee);
     event PurchaseOrderDelivered(uint256 indexed claimId);
@@ -72,22 +70,12 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
      * @param bullaClaim Address of the IBullaClaim contract to delegate calls to
      * @param _admin Address of the contract administrator
      * @param _protocolFeeBPS Protocol fee in basis points taken from interest payments
-     * @param _invoiceOriginationFee Fee required to create an invoice
-     * @param _purchaseOrderOriginationFee Fee required to create a purchase order
      */
 
-    constructor(
-        address bullaClaim,
-        address _admin,
-        uint256 _protocolFeeBPS,
-        uint256 _invoiceOriginationFee,
-        uint256 _purchaseOrderOriginationFee
-    ) BullaClaimControllerBase(bullaClaim) {
+    constructor(address bullaClaim, address _admin, uint256 _protocolFeeBPS) BullaClaimControllerBase(bullaClaim) {
         admin = _admin;
         if (_protocolFeeBPS > MAX_BPS) revert InvalidProtocolFee();
         protocolFeeBPS = _protocolFeeBPS;
-        invoiceOriginationFee = _invoiceOriginationFee;
-        purchaseOrderOriginationFee = _purchaseOrderOriginationFee;
     }
 
     /**
@@ -212,7 +200,8 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
         private
         returns (uint256)
     {
-        _validateCreateInvoiceParams(params);
+        uint256 fee = _bullaClaim.CORE_PROTOCOL_FEE();
+        _validateCreateInvoiceParams(params, fee);
 
         CreateClaimParams memory createClaimParams = CreateClaimParams({
             creditor: params.creditor,
@@ -227,8 +216,8 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
         });
 
         uint256 claimId = bytes(metadata.attachmentURI).length > 0 && bytes(metadata.tokenURI).length > 0
-            ? _bullaClaim.createClaimWithMetadataFrom(msg.sender, createClaimParams, metadata)
-            : _bullaClaim.createClaimFrom(msg.sender, createClaimParams);
+            ? _bullaClaim.createClaimWithMetadataFrom{value: fee}(msg.sender, createClaimParams, metadata)
+            : _bullaClaim.createClaimFrom{value: fee}(msg.sender, createClaimParams);
 
         InvoiceDetails memory invoiceDetails = InvoiceDetails({
             purchaseOrder: PurchaseOrderState({
@@ -243,7 +232,7 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
 
         _invoiceDetailsByClaimId[claimId] = invoiceDetails;
 
-        emit InvoiceCreated(claimId, invoiceDetails, msg.value);
+        emit InvoiceCreated(claimId, invoiceDetails);
 
         return claimId;
     }
@@ -536,18 +525,13 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
         if (calls.length == 0) return;
 
         uint256 totalRequiredFee = 0;
+        uint256 requiredFee = _bullaClaim.CORE_PROTOCOL_FEE();
 
         // Calculate total required fees by decoding each call
         for (uint256 i = 0; i < calls.length; i++) {
             bytes4 selector = bytes4(calls[i][:4]);
 
-            if (selector == this.createInvoice.selector) {
-                CreateInvoiceParams memory params = abi.decode(calls[i][4:], (CreateInvoiceParams));
-                uint256 requiredFee = params.deliveryDate != 0 ? purchaseOrderOriginationFee : invoiceOriginationFee;
-                totalRequiredFee += requiredFee;
-            } else if (selector == this.createInvoiceWithMetadata.selector) {
-                (CreateInvoiceParams memory params,) = abi.decode(calls[i][4:], (CreateInvoiceParams, ClaimMetadata));
-                uint256 requiredFee = params.deliveryDate != 0 ? purchaseOrderOriginationFee : invoiceOriginationFee;
+            if (selector == this.createInvoice.selector || selector == this.createInvoiceWithMetadata.selector) {
                 totalRequiredFee += requiredFee;
             } else {
                 revert InvoiceBatchInvalidCalldata();
@@ -581,7 +565,7 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
      * @notice Validates the parameters for creating an invoice
      * @param params The parameters for creating an invoice
      */
-    function _validateCreateInvoiceParams(CreateInvoiceParams memory params) private view {
+    function _validateCreateInvoiceParams(CreateInvoiceParams memory params, uint256 fee) private view {
         if (msg.sender != params.debtor && msg.sender != params.creditor) {
             revert NotCreditorOrDebtor();
         }
@@ -599,9 +583,7 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
 
         // Skip fee validation when in batch operation (fees are validated at batch level)
         if (!_inBatchOperation) {
-            // Check origination fee based on invoice type
-            uint256 requiredFee = params.deliveryDate != 0 ? purchaseOrderOriginationFee : invoiceOriginationFee;
-            if (msg.value != requiredFee) {
+            if (msg.value != fee) {
                 revert IncorrectFee();
             }
         }

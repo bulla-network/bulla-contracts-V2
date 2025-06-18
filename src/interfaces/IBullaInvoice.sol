@@ -72,7 +72,5 @@ interface IBullaInvoice {
     // View functions
     function admin() external view returns (address);
     function protocolFeeBPS() external view returns (uint256);
-    function invoiceOriginationFee() external view returns (uint256);
-    function purchaseOrderOriginationFee() external view returns (uint256);
     function protocolFeesByToken(address token) external view returns (uint256);
 }

@@ -25,7 +25,7 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
         vm.label(debtor, "DEBTOR");
         vm.label(charlie, "CHARLIE");
 
-        bullaClaim = (new Deployer()).deploy_test(address(this), LockState.Unlocked);
+        bullaClaim = (new Deployer()).deploy_test(address(this), LockState.Unlocked, 0);
         sigHelper = new EIP712Helper(address(bullaClaim));
 
         weth.transferFrom(address(this), creditor, 1000 ether);

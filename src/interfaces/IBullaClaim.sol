@@ -133,16 +133,18 @@ interface IBullaClaim {
             CancelClaimApproval memory cancelClaim
         );
 
-    function createClaim(CreateClaimParams memory params) external returns (uint256);
+    function createClaim(CreateClaimParams memory params) external payable returns (uint256);
 
-    function createClaimFrom(address from, CreateClaimParams memory params) external returns (uint256);
+    function createClaimFrom(address from, CreateClaimParams memory params) external payable returns (uint256);
 
     function createClaimWithMetadata(CreateClaimParams memory params, ClaimMetadata memory metadata)
         external
+        payable
         returns (uint256);
 
     function createClaimWithMetadataFrom(address from, CreateClaimParams memory params, ClaimMetadata memory metadata)
         external
+        payable
         returns (uint256);
 
     function payClaim(uint256 claimId, uint256 amount) external payable;
@@ -207,6 +209,13 @@ interface IBullaClaim {
     function setControllerRegistry(address _controllerRegistry) external;
 
     function setLockState(uint8 _lockState) external;
+
+    function setCoreProtocolFee(uint256 _coreProtocolFee) external;
+
+    function withdrawAllFees() external;
+
+    // VIEW FUNCTIONS //
+    function CORE_PROTOCOL_FEE() external view returns (uint256);
 
     // UTILITY FUNCTIONS //
     function permitToken(

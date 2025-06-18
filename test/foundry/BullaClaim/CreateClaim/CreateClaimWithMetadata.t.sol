@@ -25,7 +25,11 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
     event MetadataAdded(uint256 indexed claimId, string tokenURI, string attachmentURI);
 
     function setUp() public {
-        bullaClaim = (new Deployer()).deploy_test({_deployer: address(this), _initialLockState: LockState.Unlocked});
+        bullaClaim = (new Deployer()).deploy_test({
+            _deployer: address(this),
+            _initialLockState: LockState.Unlocked,
+            _coreProtocolFee: 0
+        });
         sigHelper = new EIP712Helper(address(bullaClaim));
     }
 

@@ -34,7 +34,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         vm.label(creditor, "CREDITOR");
         vm.label(debtor, "DEBTOR");
 
-        bullaClaim = (new Deployer()).deploy_test(address(0xB0b), LockState.Unlocked);
+        bullaClaim = (new Deployer()).deploy_test(address(0xB0b), LockState.Unlocked, 0);
         sigHelper = new EIP712Helper(address(bullaClaim));
     }
 

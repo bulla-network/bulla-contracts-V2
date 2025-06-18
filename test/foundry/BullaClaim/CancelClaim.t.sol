@@ -36,7 +36,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
         vm.label(creditor, "CREDITOR");
         vm.label(debtor, "DEBTOR");
 
-        bullaClaim = (new Deployer()).deploy_test(deployer, LockState.Unlocked);
+        bullaClaim = (new Deployer()).deploy_test(deployer, LockState.Unlocked, 0);
         sigHelper = new EIP712Helper(address(bullaClaim));
     }
 

@@ -48,7 +48,7 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
         vm.label(controller, "controller");
         vm.label(user2, "USER2");
 
-        bullaClaim = (new Deployer()).deploy_test(address(this), LockState.Unlocked);
+        bullaClaim = (new Deployer()).deploy_test(address(this), LockState.Unlocked, 0);
         sigHelper = new EIP712Helper(address(bullaClaim));
 
         weth.transferFrom(address(this), user, 1000 ether);
