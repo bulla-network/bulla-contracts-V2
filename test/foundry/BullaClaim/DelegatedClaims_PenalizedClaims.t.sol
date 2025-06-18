@@ -11,6 +11,7 @@ import {BullaClaim} from "contracts/BullaClaim.sol";
 import {PenalizedClaim} from "contracts/mocks/PenalizedClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
+import {BaseBullaClaim} from "contracts/BaseBullaClaim.sol";
 
 contract TestPenalizedClaim is Test {
     WETH public weth;
@@ -129,13 +130,13 @@ contract TestPenalizedClaim is Test {
 
         vm.startPrank(debtor);
 
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, debtor));
+        vm.expectRevert(abi.encodeWithSelector(BaseBullaClaim.NotController.selector, debtor));
         bullaClaim.updateBinding(claimId, ClaimBinding.Bound);
 
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, debtor));
+        vm.expectRevert(abi.encodeWithSelector(BaseBullaClaim.NotController.selector, debtor));
         bullaClaim.payClaim{value: 0.5 ether}(claimId, 0.5 ether);
 
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, debtor));
+        vm.expectRevert(abi.encodeWithSelector(BaseBullaClaim.NotController.selector, debtor));
         bullaClaim.cancelClaim(claimId, "Nahhhh");
     }
 }

@@ -22,6 +22,7 @@ import {Deployer} from "script/Deployment.s.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {IERC165} from "openzeppelin-contracts/contracts/utils/introspection/IERC165.sol";
 import {ERC165} from "openzeppelin-contracts/contracts/utils/introspection/ERC165.sol";
+import {BaseBullaClaim} from "contracts/BaseBullaClaim.sol";
 
 // Mock contract that implements ERC165 but NOT IPermissions
 contract MockERC165Contract is ERC165 {
@@ -124,7 +125,7 @@ contract TestFeeExemptions is Test {
 
         // Attempting to set this contract as fee exemptions should revert
         vm.prank(_owner);
-        vm.expectRevert(BullaClaim.InvalidInterface.selector);
+        vm.expectRevert(BaseBullaClaim.InvalidInterface.selector);
         bullaClaim.setFeeExemptions(address(mockContract));
     }
 
@@ -199,7 +200,7 @@ contract TestFeeExemptions is Test {
 
         // Should fail without fee
         vm.prank(_nonExemptUser);
-        vm.expectRevert(BullaClaim.IncorrectFee.selector);
+        vm.expectRevert(BaseBullaClaim.IncorrectFee.selector);
         bullaClaim.createClaim{value: 0}(params);
 
         // Should succeed with fee
@@ -219,12 +220,12 @@ contract TestFeeExemptions is Test {
 
         // Too little fee
         vm.prank(_nonExemptUser);
-        vm.expectRevert(BullaClaim.IncorrectFee.selector);
+        vm.expectRevert(BaseBullaClaim.IncorrectFee.selector);
         bullaClaim.createClaim{value: _STANDARD_FEE - 1}(params);
 
         // Too much fee
         vm.prank(_nonExemptUser);
-        vm.expectRevert(BullaClaim.IncorrectFee.selector);
+        vm.expectRevert(BaseBullaClaim.IncorrectFee.selector);
         bullaClaim.createClaim{value: _STANDARD_FEE + 1}(params);
     }
 
@@ -237,7 +238,7 @@ contract TestFeeExemptions is Test {
 
         // Initially not exempt - should fail without fee
         vm.prank(_nonExemptUser);
-        vm.expectRevert(BullaClaim.IncorrectFee.selector);
+        vm.expectRevert(BaseBullaClaim.IncorrectFee.selector);
         bullaClaim.createClaim{value: 0}(params);
 
         // Add exemption
@@ -261,7 +262,7 @@ contract TestFeeExemptions is Test {
 
         // No longer exempt - should fail without fee
         vm.prank(_nonExemptUser);
-        vm.expectRevert(BullaClaim.IncorrectFee.selector);
+        vm.expectRevert(BaseBullaClaim.IncorrectFee.selector);
         bullaClaim.createClaim{value: 0}(params);
 
         // Should work with fee
@@ -304,7 +305,7 @@ contract TestFeeExemptions is Test {
         // User3 (not exempt) - should fail without fee
         params.creditor = user3;
         vm.prank(user3);
-        vm.expectRevert(BullaClaim.IncorrectFee.selector);
+        vm.expectRevert(BaseBullaClaim.IncorrectFee.selector);
         bullaClaim.createClaim{value: 0}(params);
 
         // User3 with fee - should work
@@ -358,7 +359,7 @@ contract TestFeeExemptions is Test {
         // _exemptUser should no longer be exempt (not in new contract)
         params.creditor = _exemptUser;
         vm.prank(_exemptUser);
-        vm.expectRevert(BullaClaim.IncorrectFee.selector);
+        vm.expectRevert(BaseBullaClaim.IncorrectFee.selector);
         bullaClaim.createClaim{value: 0}(params);
     }
 
@@ -378,7 +379,7 @@ contract TestFeeExemptions is Test {
 
         // Should fail due to lock, not fee
         vm.prank(_exemptUser);
-        vm.expectRevert(BullaClaim.Locked.selector);
+        vm.expectRevert(BaseBullaClaim.Locked.selector);
         bullaClaim.createClaim{value: 0}(params);
     }
 
@@ -471,7 +472,7 @@ contract TestFeeExemptions is Test {
 
         // 5. User no longer exempt - fee required again
         vm.prank(_nonExemptUser);
-        vm.expectRevert(BullaClaim.IncorrectFee.selector);
+        vm.expectRevert(BaseBullaClaim.IncorrectFee.selector);
         bullaClaim.createClaim{value: 0}(params);
 
         vm.prank(_nonExemptUser);
@@ -491,7 +492,7 @@ contract TestFeeExemptions is Test {
 
         // Should fail without exemption and fee
         vm.prank(randomUser);
-        vm.expectRevert(BullaClaim.IncorrectFee.selector);
+        vm.expectRevert(BaseBullaClaim.IncorrectFee.selector);
         bullaClaim.createClaim{value: 0}(params);
 
         // Add to exemptions

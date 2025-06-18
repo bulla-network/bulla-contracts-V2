@@ -12,6 +12,7 @@ import {Deployer} from "script/Deployment.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
+import {BaseBullaClaim} from "contracts/BaseBullaClaim.sol";
 
 /// @notice SPEC:
 /// A function can call this function to verify and "spend" `from`'s approval of `controller` to create a claim given the following:
@@ -65,17 +66,17 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
 
         _permitCreateClaim({_userPK: userPK, _controller: address(this), _approvalCount: type(uint64).max});
 
-        vm.expectRevert(BullaClaim.Locked.selector);
+        vm.expectRevert(BaseBullaClaim.Locked.selector);
         _newClaim(creditor, creditor, debtor);
 
-        vm.expectRevert(BullaClaim.Locked.selector);
+        vm.expectRevert(BaseBullaClaim.Locked.selector);
         _newClaimFrom(user, creditor, debtor);
 
         bullaClaim.setLockState(LockState.NoNewClaims);
-        vm.expectRevert(BullaClaim.Locked.selector);
+        vm.expectRevert(BaseBullaClaim.Locked.selector);
         _newClaim(creditor, creditor, debtor);
 
-        vm.expectRevert(BullaClaim.Locked.selector);
+        vm.expectRevert(BaseBullaClaim.Locked.selector);
         _newClaimFrom(user, creditor, debtor);
     }
 

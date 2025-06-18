@@ -11,6 +11,7 @@ import {Deployer} from "script/Deployment.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
+import {BaseBullaClaim} from "contracts/BaseBullaClaim.sol";
 
 /// @notice covers test cases for cancelClaim() and cancelClaimFrom()
 /// @notice SPEC: canceClaim() TODO
@@ -157,11 +158,11 @@ contract TestCancelClaim is BullaClaimTestHelper {
 
         _setLockState(LockState.Locked);
 
-        vm.expectRevert(BullaClaim.Locked.selector);
+        vm.expectRevert(BaseBullaClaim.Locked.selector);
         vm.prank(debtor);
         bullaClaim.cancelClaim(claimId, "No thanks");
 
-        vm.expectRevert(BullaClaim.Locked.selector);
+        vm.expectRevert(BaseBullaClaim.Locked.selector);
         vm.prank(creditor);
         bullaClaim.cancelClaim(claimId, "No thanks");
 
@@ -169,11 +170,11 @@ contract TestCancelClaim is BullaClaimTestHelper {
         _permitCancelClaim({_userPK: debtorPK, _controller: controller, _approvalCount: type(uint64).max});
         _permitCancelClaim({_userPK: creditorPK, _controller: controller, _approvalCount: type(uint64).max});
 
-        vm.expectRevert(BullaClaim.Locked.selector);
+        vm.expectRevert(BaseBullaClaim.Locked.selector);
         vm.prank(controller);
         bullaClaim.cancelClaimFrom(debtor, claimId, "nah");
 
-        vm.expectRevert(BullaClaim.Locked.selector);
+        vm.expectRevert(BaseBullaClaim.Locked.selector);
         vm.prank(controller);
         bullaClaim.cancelClaimFrom(creditor, claimId, "nah");
     }
@@ -306,7 +307,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
 
     function testCannotCancelIfNotMinted() public {
         vm.prank(debtor);
-        vm.expectRevert(BullaClaim.NotMinted.selector);
+        vm.expectRevert(BaseBullaClaim.NotMinted.selector);
         bullaClaim.cancelClaim(1, "Reject");
     }
 
@@ -372,7 +373,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
         uint256 claimId = bullaClaim.createClaimFrom(creditor, params);
 
         vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, debtor));
+        vm.expectRevert(abi.encodeWithSelector(BaseBullaClaim.NotController.selector, debtor));
         bullaClaim.cancelClaim(claimId, "No thanks");
     }
 

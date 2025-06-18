@@ -129,7 +129,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(charliePK, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
 
-        vm.expectRevert(BullaClaim.InvalidSignature.selector);
+        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
         bullaClaim.permitPayClaim({
             user: user,
             controller: bob,
@@ -163,7 +163,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
             signature: signature
         });
 
-        vm.expectRevert(BullaClaim.InvalidSignature.selector);
+        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
         bullaClaim.permitPayClaim({
             user: alice,
             controller: bob,
@@ -192,7 +192,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
         (v, r, s) = splitSig(signature);
         assertEq(ecrecover(digest, v, r, s), address(0), "ecrecover sanity check");
 
-        vm.expectRevert(BullaClaim.InvalidSignature.selector);
+        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
         bullaClaim.permitPayClaim({
             user: user,
             controller: bob,
@@ -242,7 +242,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
             paymentApprovals: paymentApprovals
         });
 
-        vm.expectRevert(BullaClaim.InvalidApproval.selector);
+        vm.expectRevert(BaseBullaClaim.InvalidApproval.selector);
         bullaClaim.permitPayClaim({
             user: alice,
             controller: bob,
@@ -268,7 +268,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
             paymentApprovals: paymentApprovals
         });
 
-        vm.expectRevert(BullaClaim.InvalidApproval.selector);
+        vm.expectRevert(BaseBullaClaim.InvalidApproval.selector);
         bullaClaim.permitPayClaim({
             user: alice,
             controller: bob,
@@ -375,7 +375,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
             paymentApprovals: paymentApprovals
         });
 
-        vm.expectRevert(BullaClaim.InvalidApproval.selector);
+        vm.expectRevert(BaseBullaClaim.InvalidApproval.selector);
         bullaClaim.permitPayClaim({
             user: alice,
             controller: bob,

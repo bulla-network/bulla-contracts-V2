@@ -11,6 +11,7 @@ import {Deployer} from "script/Deployment.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
+import {BaseBullaClaim} from "contracts/BaseBullaClaim.sol";
 
 /// @notice covers test cases for updateBinding() and updateBindingFrom()
 /// @notice SPEC: updateBinding() TODO
@@ -204,7 +205,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
 
     function testCannotUpdateBindingIfNotMinted() public {
         vm.prank(debtor);
-        vm.expectRevert(BullaClaim.NotMinted.selector);
+        vm.expectRevert(BaseBullaClaim.NotMinted.selector);
         bullaClaim.updateBinding(1, ClaimBinding.Unbound);
     }
 
@@ -390,12 +391,12 @@ contract TestUpdateBinding is BullaClaimTestHelper {
 
         // creditor can't update the binding directly
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, creditor));
+        vm.expectRevert(abi.encodeWithSelector(BaseBullaClaim.NotController.selector, creditor));
         bullaClaim.updateBinding(claimId, ClaimBinding.Unbound);
 
         // neither can the debtor
         vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, debtor));
+        vm.expectRevert(abi.encodeWithSelector(BaseBullaClaim.NotController.selector, debtor));
         bullaClaim.updateBinding(claimId, ClaimBinding.Bound);
 
         // the controller must be approved
