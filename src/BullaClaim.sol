@@ -42,6 +42,8 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     ClaimMetadataGenerator public claimMetadataGenerator;
     /// Core protocol fee for creating claims
     uint256 public CORE_PROTOCOL_FEE;
+    /// Flag to track if we're in a batch operation to skip individual fee validation
+    bool private _inBatchOperation;
 
     /*///////////////////////////////////////////////////////////////
                             ERRORS / MODIFIERS
@@ -237,7 +239,11 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     /// @return The newly created tokenId
     function _createClaim(address from, CreateClaimParams calldata params) internal returns (uint256) {
         if (lockState != LockState.Unlocked) revert Locked();
-        if (msg.value != CORE_PROTOCOL_FEE) revert IncorrectFee();
+
+        // Skip fee validation when in batch operation (fees are validated at batch level)
+        if (!_inBatchOperation) {
+            if (msg.value != CORE_PROTOCOL_FEE) revert IncorrectFee();
+        }
 
         // Use validation library for parameter validation
         BullaClaimValidationLib.validateCreateClaimParams(from, params);
@@ -665,6 +671,52 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     /*///////////////////////////////////////////////////////////////
                              PERMIT FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Batch create multiple claims with proper msg.value handling
+     * @param calls Array of encoded createClaim or createClaimWithMetadata calls
+     */
+    function batchCreateClaims(bytes[] calldata calls) external payable {
+        if (calls.length == 0) return;
+
+        uint256 totalRequiredFee = 0;
+        uint256 requiredFee = CORE_PROTOCOL_FEE;
+
+        // Calculate total required fees by decoding each call
+        for (uint256 i = 0; i < calls.length; i++) {
+            bytes4 selector = bytes4(calls[i][:4]);
+
+            if (
+                selector == this.createClaim.selector || selector == this.createClaimFrom.selector
+                    || selector == this.createClaimWithMetadata.selector
+                    || selector == this.createClaimWithMetadataFrom.selector
+            ) {
+                totalRequiredFee += requiredFee;
+            } else {
+                revert("Invalid batch call selector");
+            }
+        }
+
+        // Validate total msg.value matches required fees
+        if (msg.value != totalRequiredFee) {
+            revert IncorrectFee();
+        }
+
+        // Set batch operation flag before executing calls
+        _inBatchOperation = true;
+
+        // Execute each call
+        for (uint256 i = 0; i < calls.length; i++) {
+            (bool success, bytes memory result) = address(this).delegatecall(calls[i]);
+            if (!success) {
+                _inBatchOperation = false; // Reset flag before reverting
+                revert(_getRevertMsg(result));
+            }
+        }
+
+        // Reset batch operation flag after successful execution
+        _inBatchOperation = false;
+    }
 
     /// @notice permits a controller to create claims on user's behalf
     /// @dev see BullaClaimPermitLib.permitCreateClaim for spec

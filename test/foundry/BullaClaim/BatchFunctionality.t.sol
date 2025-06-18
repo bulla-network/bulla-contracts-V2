@@ -471,4 +471,388 @@ contract TestBatchFunctionality is BullaClaimTestHelper {
 
         assertEq(bullaClaim.currentClaimId(), numClaims);
     }
+
+    /*///////////////////// BATCH CREATE CLAIMS TESTS /////////////////////*/
+
+    function testBatchCreateClaims_MultipleClaims() public {
+        uint256 numClaims = 3;
+        uint256 FEE = bullaClaim.CORE_PROTOCOL_FEE();
+
+        bytes[] memory calls = new bytes[](numClaims);
+
+        calls[0] = abi.encodeCall(
+            BullaClaim.createClaim,
+            (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withClaimAmount(1 ether).build())
+        );
+        calls[1] = abi.encodeCall(
+            BullaClaim.createClaim,
+            (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(charlie).withClaimAmount(2 ether).build())
+        );
+        calls[2] = abi.encodeCall(
+            BullaClaim.createClaim,
+            (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(alice).withClaimAmount(3 ether).build())
+        );
+
+        vm.prank(creditor);
+        bullaClaim.batchCreateClaims{value: numClaims * FEE}(calls);
+
+        // Verify all claims were created
+        assertEq(bullaClaim.currentClaimId(), numClaims);
+
+        Claim memory claim1 = bullaClaim.getClaim(1);
+        Claim memory claim2 = bullaClaim.getClaim(2);
+        Claim memory claim3 = bullaClaim.getClaim(3);
+
+        assertEq(claim1.originalCreditor, creditor);
+        assertEq(claim1.debtor, debtor);
+        assertEq(claim1.claimAmount, 1 ether);
+        assertEq(bullaClaim.ownerOf(1), creditor);
+
+        assertEq(claim2.originalCreditor, creditor);
+        assertEq(claim2.debtor, charlie);
+        assertEq(claim2.claimAmount, 2 ether);
+        assertEq(bullaClaim.ownerOf(2), creditor);
+
+        assertEq(claim3.originalCreditor, creditor);
+        assertEq(claim3.debtor, alice);
+        assertEq(claim3.claimAmount, 3 ether);
+        assertEq(bullaClaim.ownerOf(3), creditor);
+    }
+
+    function testBatchCreateClaims_WithMetadata() public {
+        uint256 FEE = bullaClaim.CORE_PROTOCOL_FEE();
+
+        ClaimMetadata memory metadata1 =
+            ClaimMetadata({tokenURI: "https://example.com/token/1", attachmentURI: "https://example.com/attachment/1"});
+
+        ClaimMetadata memory metadata2 =
+            ClaimMetadata({tokenURI: "https://example.com/token/2", attachmentURI: "https://example.com/attachment/2"});
+
+        bytes[] memory calls = new bytes[](2);
+
+        calls[0] = abi.encodeCall(
+            BullaClaim.createClaimWithMetadata,
+            (
+                new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withClaimAmount(1 ether).build(
+                ),
+                metadata1
+            )
+        );
+        calls[1] = abi.encodeCall(
+            BullaClaim.createClaimWithMetadata,
+            (
+                new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(charlie).withClaimAmount(2 ether).build(
+                ),
+                metadata2
+            )
+        );
+
+        vm.prank(creditor);
+        bullaClaim.batchCreateClaims{value: 2 * FEE}(calls);
+
+        // Verify claims and metadata
+        assertEq(bullaClaim.currentClaimId(), 2);
+
+        (string memory tokenURI1, string memory attachmentURI1) = bullaClaim.claimMetadata(1);
+        (string memory tokenURI2, string memory attachmentURI2) = bullaClaim.claimMetadata(2);
+
+        assertEq(tokenURI1, "https://example.com/token/1");
+        assertEq(attachmentURI1, "https://example.com/attachment/1");
+        assertEq(tokenURI2, "https://example.com/token/2");
+        assertEq(attachmentURI2, "https://example.com/attachment/2");
+    }
+
+    function testBatchCreateClaims_MixedFunctionCalls() public {
+        uint256 FEE = bullaClaim.CORE_PROTOCOL_FEE();
+
+        ClaimMetadata memory metadata = ClaimMetadata({
+            tokenURI: "https://example.com/token/metadata",
+            attachmentURI: "https://example.com/attachment/metadata"
+        });
+
+        bytes[] memory calls = new bytes[](2);
+
+        // Regular createClaim
+        calls[0] = abi.encodeCall(
+            BullaClaim.createClaim, (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).build())
+        );
+
+        // createClaimWithMetadata
+        calls[1] = abi.encodeCall(
+            BullaClaim.createClaimWithMetadata,
+            (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(charlie).build(), metadata)
+        );
+
+        vm.prank(creditor);
+        bullaClaim.batchCreateClaims{value: 2 * FEE}(calls);
+
+        // Verify all claims were created correctly
+        assertEq(bullaClaim.currentClaimId(), 2);
+
+        Claim memory claim1 = bullaClaim.getClaim(1);
+        Claim memory claim2 = bullaClaim.getClaim(2);
+
+        // Verify claim 1 (regular createClaim)
+        assertEq(claim1.originalCreditor, creditor);
+        assertEq(claim1.debtor, debtor);
+        assertEq(bullaClaim.ownerOf(1), creditor);
+
+        // Verify claim 2 (createClaimWithMetadata)
+        assertEq(claim2.originalCreditor, creditor);
+        assertEq(claim2.debtor, charlie);
+        assertEq(bullaClaim.ownerOf(2), creditor);
+        (string memory tokenURI2, string memory attachmentURI2) = bullaClaim.claimMetadata(2);
+        assertEq(tokenURI2, "https://example.com/token/metadata");
+        assertEq(attachmentURI2, "https://example.com/attachment/metadata");
+    }
+
+    function testBatchCreateClaims_EmptyArray() public {
+        bytes[] memory calls = new bytes[](0);
+
+        vm.prank(creditor);
+        bullaClaim.batchCreateClaims{value: 0}(calls);
+
+        // Should succeed without creating any claims
+        assertEq(bullaClaim.currentClaimId(), 0);
+    }
+
+    function testBatchCreateClaims_InvalidMsgValue_TooLow() public {
+        uint256 FEE = bullaClaim.CORE_PROTOCOL_FEE();
+        uint256 numClaims = 3;
+
+        // Set fee to non-zero for this test if needed
+        if (FEE == 0) {
+            bullaClaim.setCoreProtocolFee(1000);
+            FEE = 1000;
+        }
+
+        uint256 insufficientFee = (numClaims * FEE) - 1;
+
+        bytes[] memory calls = new bytes[](numClaims);
+
+        for (uint256 i = 0; i < numClaims; i++) {
+            calls[i] = abi.encodeCall(
+                BullaClaim.createClaim,
+                (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(address(uint160(0x1000 + i))).build())
+            );
+        }
+
+        vm.prank(creditor);
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.IncorrectFee.selector));
+        bullaClaim.batchCreateClaims{value: insufficientFee}(calls);
+    }
+
+    function testBatchCreateClaims_InvalidMsgValue_TooHigh() public {
+        uint256 FEE = bullaClaim.CORE_PROTOCOL_FEE();
+        uint256 numClaims = 2;
+
+        // Set fee to non-zero for this test if needed
+        if (FEE == 0) {
+            bullaClaim.setCoreProtocolFee(1000);
+            FEE = 1000;
+        }
+
+        uint256 excessiveFee = (numClaims * FEE) + 1;
+
+        bytes[] memory calls = new bytes[](numClaims);
+
+        calls[0] = abi.encodeCall(
+            BullaClaim.createClaim, (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).build())
+        );
+        calls[1] = abi.encodeCall(
+            BullaClaim.createClaim, (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(charlie).build())
+        );
+
+        vm.prank(creditor);
+        vm.expectRevert(abi.encodeWithSelector(BullaClaim.IncorrectFee.selector));
+        bullaClaim.batchCreateClaims{value: excessiveFee}(calls);
+    }
+
+    function testBatchCreateClaims_InvalidCalldata() public {
+        uint256 FEE = bullaClaim.CORE_PROTOCOL_FEE();
+
+        bytes[] memory calls = new bytes[](2);
+
+        calls[0] = abi.encodeCall(
+            BullaClaim.createClaim, (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).build())
+        );
+        // Invalid call - trying to call payClaim instead of create function
+        calls[1] = abi.encodeCall(BullaClaim.payClaim, (1, 1 ether));
+
+        vm.prank(creditor);
+        vm.expectRevert("Invalid batch call selector");
+        bullaClaim.batchCreateClaims{value: 2 * FEE}(calls);
+    }
+
+    function testBatchCreateClaims_OneCallFails() public {
+        uint256 FEE = bullaClaim.CORE_PROTOCOL_FEE();
+
+        bytes[] memory calls = new bytes[](3);
+
+        // First call succeeds
+        calls[0] = abi.encodeCall(
+            BullaClaim.createClaim, (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).build())
+        );
+
+        // Second call fails (invalid claim amount of 0)
+        calls[1] = abi.encodeCall(
+            BullaClaim.createClaim,
+            (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(charlie).withClaimAmount(0).build())
+        );
+
+        // Third call would succeed but won't be reached
+        calls[2] = abi.encodeCall(
+            BullaClaim.createClaim, (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(alice).build())
+        );
+
+        vm.prank(creditor);
+        vm.expectRevert("Transaction reverted silently");
+        bullaClaim.batchCreateClaims{value: 3 * FEE}(calls);
+
+        // Verify no claims were created due to revert
+        assertEq(bullaClaim.currentClaimId(), 0);
+    }
+
+    function testBatchCreateClaims_ZeroProtocolFee() public {
+        // Deploy a new contract with zero protocol fee
+        BullaClaim zeroFeeClaim = (new Deployer()).deploy_test({
+            _deployer: address(this),
+            _initialLockState: LockState.Unlocked,
+            _coreProtocolFee: 0
+        });
+
+        bytes[] memory calls = new bytes[](2);
+
+        calls[0] = abi.encodeCall(
+            BullaClaim.createClaim, (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).build())
+        );
+        calls[1] = abi.encodeCall(
+            BullaClaim.createClaim, (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(charlie).build())
+        );
+
+        vm.prank(creditor);
+        zeroFeeClaim.batchCreateClaims{value: 0}(calls);
+
+        // Should succeed with zero fee
+        assertEq(zeroFeeClaim.currentClaimId(), 2);
+    }
+
+    function testBatchCreateClaims_LargeNumberOfClaims() public {
+        uint256 FEE = bullaClaim.CORE_PROTOCOL_FEE();
+        uint256 numClaims = 10;
+
+        bytes[] memory calls = new bytes[](numClaims);
+
+        for (uint256 i = 0; i < numClaims; i++) {
+            calls[i] = abi.encodeCall(
+                BullaClaim.createClaim,
+                (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(address(uint160(0x2000 + i))).build())
+            );
+        }
+
+        vm.prank(creditor);
+        bullaClaim.batchCreateClaims{value: numClaims * FEE}(calls);
+
+        assertEq(bullaClaim.currentClaimId(), numClaims);
+
+        // Verify a few random claims
+        Claim memory claim1 = bullaClaim.getClaim(1);
+        Claim memory claim5 = bullaClaim.getClaim(5);
+        Claim memory claim10 = bullaClaim.getClaim(10);
+
+        assertEq(claim1.originalCreditor, creditor);
+        assertEq(claim1.debtor, address(0x2000));
+        assertEq(claim5.originalCreditor, creditor);
+        assertEq(claim5.debtor, address(0x2004));
+        assertEq(claim10.originalCreditor, creditor);
+        assertEq(claim10.debtor, address(0x2009));
+    }
+
+    function testBatchCreateClaims_ContractLocked() public {
+        uint256 FEE = bullaClaim.CORE_PROTOCOL_FEE();
+
+        // Lock the contract
+        bullaClaim.setLockState(LockState.Locked);
+
+        bytes[] memory calls = new bytes[](1);
+        calls[0] = abi.encodeCall(
+            BullaClaim.createClaim, (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).build())
+        );
+
+        vm.prank(creditor);
+        vm.expectRevert("Transaction reverted silently");
+        bullaClaim.batchCreateClaims{value: FEE}(calls);
+    }
+
+    function testBatchCreateClaims_DelegatedCalls() public {
+        uint256 FEE = bullaClaim.CORE_PROTOCOL_FEE();
+        uint256 userPK = 54321;
+        address user = vm.addr(userPK);
+
+        // Give sufficient permission for delegated calls
+        _permitCreateClaim(userPK, address(this), 3);
+
+        ClaimMetadata memory metadata = ClaimMetadata({
+            tokenURI: "https://example.com/token/delegated",
+            attachmentURI: "https://example.com/attachment/delegated"
+        });
+
+        bytes[] memory calls = new bytes[](2);
+
+        calls[0] = abi.encodeCall(
+            BullaClaim.createClaimFrom,
+            (user, new CreateClaimParamsBuilder().withCreditor(user).withDebtor(debtor).build())
+        );
+        calls[1] = abi.encodeCall(
+            BullaClaim.createClaimWithMetadataFrom,
+            (user, new CreateClaimParamsBuilder().withCreditor(user).withDebtor(charlie).build(), metadata)
+        );
+
+        bullaClaim.batchCreateClaims{value: 2 * FEE}(calls);
+
+        // Verify claims were created
+        assertEq(bullaClaim.currentClaimId(), 2);
+
+        Claim memory claim1 = bullaClaim.getClaim(1);
+        Claim memory claim2 = bullaClaim.getClaim(2);
+
+        // Verify claim 1 (createClaimFrom)
+        assertEq(claim1.originalCreditor, user);
+        assertEq(claim1.debtor, debtor);
+        assertEq(bullaClaim.ownerOf(1), user);
+
+        // Verify claim 2 (createClaimWithMetadataFrom)
+        assertEq(claim2.originalCreditor, user);
+        assertEq(claim2.debtor, charlie);
+        assertEq(bullaClaim.ownerOf(2), user);
+        (string memory tokenURI2, string memory attachmentURI2) = bullaClaim.claimMetadata(2);
+        assertEq(tokenURI2, "https://example.com/token/delegated");
+        assertEq(attachmentURI2, "https://example.com/attachment/delegated");
+    }
+
+    function testBatchCreateClaims_RespectsApprovals() public {
+        uint256 FEE = bullaClaim.CORE_PROTOCOL_FEE();
+        uint256 userPK = 54321;
+        address user = vm.addr(userPK);
+
+        // Give limited permission (only 1 approval)
+        _permitCreateClaim(userPK, address(this), 1);
+
+        bytes[] memory calls = new bytes[](2);
+
+        calls[0] = abi.encodeCall(
+            BullaClaim.createClaimFrom,
+            (user, new CreateClaimParamsBuilder().withCreditor(user).withDebtor(debtor).build())
+        );
+        calls[1] = abi.encodeCall(
+            BullaClaim.createClaimFrom,
+            (user, new CreateClaimParamsBuilder().withCreditor(user).withDebtor(charlie).build())
+        );
+
+        vm.expectRevert(); // Should fail on second call due to insufficient approvals
+        bullaClaim.batchCreateClaims{value: 2 * FEE}(calls);
+
+        // Verify no claims were created
+        assertEq(bullaClaim.currentClaimId(), 0);
+    }
 }
