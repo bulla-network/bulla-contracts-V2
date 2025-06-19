@@ -2,7 +2,6 @@
 pragma solidity ^0.8.30;
 
 import "openzeppelin-contracts/contracts/utils/math/Math.sol";
-import "openzeppelin-contracts/contracts/utils/math/SafeMath.sol";
 
 struct InterestConfig {
     uint16 interestRateBps;
@@ -20,8 +19,6 @@ uint256 constant MAX_BPS = 10_000;
 uint256 constant ONE = 10 ** 18;
 
 library CompoundInterestLib {
-    using SafeMath for uint256;
-
     error InvalidPeriodsPerYear();
 
     /**
