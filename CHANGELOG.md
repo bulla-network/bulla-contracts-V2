@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.3.0...v1.4.0) (2025-06-19)
+
+
+### Features
+
+* add protocol fee exemption whitelist in BullaClaim ([#63](https://github.com/bulla-network/bulla-contracts-V2/issues/63)) ([5f5f890](https://github.com/bulla-network/bulla-contracts-V2/commit/5f5f89031cb1b3388b792aa25f66f3f183d179e6))
+
 # [1.3.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.2.1...v1.3.0) (2025-06-18)
 
 
