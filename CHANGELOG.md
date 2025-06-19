@@ -1,3 +1,10 @@
+## [1.4.2](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.4.1...v1.4.2) (2025-06-19)
+
+
+### Bug Fixes
+
+* remove unused import ([2aa0832](https://github.com/bulla-network/bulla-contracts-V2/commit/2aa083231a1355e3d1c74d954895db5201e3b8bc))
+
 ## [1.4.1](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.4.0...v1.4.1) (2025-06-19)
 
 
