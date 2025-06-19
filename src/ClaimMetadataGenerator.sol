@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.30;
 
-import {Claim, Status} from "contracts/types/Types.sol";
-import {Base64} from "contracts/libraries/Base64.sol";
+import {Claim, Status} from "./types/Types.sol";
+import {Base64} from "./libraries/Base64.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 
 /// @notice a barebones on-chain svg generator showing a claim's status

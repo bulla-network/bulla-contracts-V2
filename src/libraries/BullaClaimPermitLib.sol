@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.30;
 
-import "contracts/types/Types.sol";
-import "contracts/interfaces/IERC1271.sol";
-import "contracts/BullaClaim.sol";
-import "contracts/interfaces/IBullaClaim.sol";
-import {BullaControllerRegistry} from "contracts/BullaControllerRegistry.sol";
+import "../types/Types.sol";
+import "../interfaces/IERC1271.sol";
+import "../BullaClaim.sol";
+import "../interfaces/IBullaClaim.sol";
+import "../BullaControllerRegistry.sol";
 import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import {SignatureChecker} from "openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol";
-import {BaseBullaClaim} from "contracts/BaseBullaClaim.sol";
+import "../BaseBullaClaim.sol";
 
 library BullaClaimPermitLib {
     using Strings for uint256;

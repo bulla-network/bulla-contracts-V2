@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
-import "contracts/interfaces/IERC1271.sol";
+import "../interfaces/IERC1271.sol";
 
 contract ERC1271WalletMock is IERC1271 {
     mapping(bytes32 => bool) public signatures;
