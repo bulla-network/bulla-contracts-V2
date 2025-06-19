@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.30;
 
-import "contracts/types/Types.sol";
-import "contracts/BullaControllerRegistry.sol";
+import "../types/Types.sol";
+import "../BullaControllerRegistry.sol";
 import {IERC721} from "openzeppelin-contracts/contracts/interfaces/IERC721.sol";
-import {IPermissions} from "contracts/interfaces/IPermissions.sol";
+import {IPermissions} from "./IPermissions.sol";
 
 interface IBullaClaim {
     //// ERRORS / MODIFIERS ////

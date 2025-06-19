@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.30;
 
-import "contracts/interfaces/IBullaClaim.sol";
-import "contracts/types/Types.sol";
+import "./interfaces/IBullaClaim.sol";
+import "./types/Types.sol";
 
 abstract contract BullaClaimControllerBase {
     IBullaClaim public immutable _bullaClaim;

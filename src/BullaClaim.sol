@@ -1,24 +1,23 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.30;
 
-import "contracts/types/Types.sol";
-import {IERC1271} from "contracts/interfaces/IERC1271.sol";
-import {BullaControllerRegistry} from "contracts/BullaControllerRegistry.sol";
+import "./types/Types.sol";
+import {IERC1271} from "./interfaces/IERC1271.sol";
+import {BullaControllerRegistry} from "./BullaControllerRegistry.sol";
 import {EIP712} from "openzeppelin-contracts/contracts/utils/cryptography/EIP712.sol";
 import {ECDSA} from "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
 import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 import {IERC165} from "openzeppelin-contracts/contracts/utils/introspection/IERC165.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {SafeCastLib} from "solmate/utils/SafeCastLib.sol";
-import {BoringBatchable} from "contracts/libraries/BoringBatchable.sol";
-import {BullaClaimPermitLib} from "contracts/libraries/BullaClaimPermitLib.sol";
-import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
+import {BoringBatchable} from "./libraries/BoringBatchable.sol";
+import {BullaClaimPermitLib} from "./libraries/BullaClaimPermitLib.sol";
+import {BullaClaimValidationLib} from "./libraries/BullaClaimValidationLib.sol";
 import {ERC721} from "solmate/tokens/ERC721.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
-import {ClaimMetadataGenerator} from "contracts/ClaimMetadataGenerator.sol";
-import {IPermissions} from "contracts/interfaces/IPermissions.sol";
-import "forge-std/console.sol";
-import {BaseBullaClaim} from "contracts/BaseBullaClaim.sol";
+import {ClaimMetadataGenerator} from "./ClaimMetadataGenerator.sol";
+import {IPermissions} from "./interfaces/IPermissions.sol";
+import {BaseBullaClaim} from "./BaseBullaClaim.sol";
 
 contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable, BaseBullaClaim {
     using SafeTransferLib for ERC20;

@@ -9,14 +9,12 @@ optimizer_runs = 2_000_000
 fuzz_runs = 256
 gas_reports = ['BullaClaim']
 remappings = [
-    'contracts=src',
-    'test=test',
-    'script=script',
+    'contracts/=src/',
+    'scripts/=scripts/',
     'ds-test=lib/ds-test/src',
     'forge-std=lib/forge-std/src',
     'openzeppelin-contracts=lib/openzeppelin-contracts',
     'safe-contracts=lib/safe-contracts/contracts',
-    'script=script',
     'solmate=lib/solmate/src',
 ]
 

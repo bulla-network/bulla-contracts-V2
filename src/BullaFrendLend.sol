@@ -1,18 +1,16 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.30;
 
-import "contracts/interfaces/IBullaClaim.sol";
-import "contracts/interfaces/IBullaFrendLend.sol";
-import "contracts/BullaClaimControllerBase.sol";
-import "contracts/types/Types.sol";
+import "./interfaces/IBullaClaim.sol";
+import "./interfaces/IBullaFrendLend.sol";
+import "./BullaClaimControllerBase.sol";
+import "./types/Types.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import {ERC165} from "openzeppelin-contracts/contracts/utils/introspection/ERC165.sol";
-import {
-    InterestConfig, InterestComputationState, CompoundInterestLib
-} from "contracts/libraries/CompoundInterestLib.sol";
-import {BoringBatchable} from "contracts/libraries/BoringBatchable.sol";
+import {InterestConfig, InterestComputationState, CompoundInterestLib} from "./libraries/CompoundInterestLib.sol";
+import {BoringBatchable} from "./libraries/BoringBatchable.sol";
 
 error IncorrectFee();
 error NotCreditor();
