@@ -1,3 +1,10 @@
+## [1.4.1](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.4.0...v1.4.1) (2025-06-19)
+
+
+### Bug Fixes
+
+* remove unrequired SafeMath ([#64](https://github.com/bulla-network/bulla-contracts-V2/issues/64)) ([25a1e4d](https://github.com/bulla-network/bulla-contracts-V2/commit/25a1e4d442977fe90086e2d8dfc6bd43174d3459))
+
 # [1.4.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.3.0...v1.4.0) (2025-06-19)
 
 
