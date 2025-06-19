@@ -7,6 +7,7 @@ import {BullaControllerRegistry} from "contracts/BullaControllerRegistry.sol";
 import {EIP712} from "openzeppelin-contracts/contracts/utils/cryptography/EIP712.sol";
 import {ECDSA} from "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
 import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
+import {IERC165} from "openzeppelin-contracts/contracts/utils/introspection/IERC165.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {SafeCastLib} from "solmate/utils/SafeCastLib.sol";
 import {BoringBatchable} from "contracts/libraries/BoringBatchable.sol";
@@ -15,9 +16,11 @@ import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationL
 import {ERC721} from "solmate/tokens/ERC721.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {ClaimMetadataGenerator} from "contracts/ClaimMetadataGenerator.sol";
+import {IPermissions} from "contracts/interfaces/IPermissions.sol";
 import "forge-std/console.sol";
+import {BaseBullaClaim} from "contracts/BaseBullaClaim.sol";
 
-contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
+contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable, BaseBullaClaim {
     using SafeTransferLib for ERC20;
     using SafeTransferLib for address;
     using SafeCastLib for uint256;
@@ -42,90 +45,24 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     ClaimMetadataGenerator public claimMetadataGenerator;
     /// Core protocol fee for creating claims
     uint256 public CORE_PROTOCOL_FEE;
+    IPermissions public feeExemptions;
 
     /*///////////////////////////////////////////////////////////////
-                            ERRORS / MODIFIERS
+                            MODIFIERS
     //////////////////////////////////////////////////////////////*/
-
-    error Locked();
-    error InvalidApproval();
-    error InvalidSignature();
-    error PastApprovalDeadline();
-    error NotOwner();
-    error NotController(address sender);
-    error ClaimPending();
-    error NotMinted();
-    error PaymentUnderApproved();
-    error IncorrectFee();
-    error WithdrawalFailed();
 
     function _notLocked() internal view {
         if (lockState == LockState.Locked) revert Locked();
     }
 
-    /*///////////////////////////////////////////////////////////////
-                                 EVENTS
-    //////////////////////////////////////////////////////////////*/
-
-    event ClaimCreated(
-        uint256 indexed claimId,
-        address from,
-        address indexed creditor,
-        address indexed debtor,
-        uint256 claimAmount,
-        string description,
-        address token,
-        address controller,
-        ClaimBinding binding
-    );
-
-    event MetadataAdded(uint256 indexed claimId, string tokenURI, string attachmentURI);
-
-    event ClaimPayment(uint256 indexed claimId, address indexed paidBy, uint256 paymentAmount, uint256 totalPaidAmount);
-
-    event BindingUpdated(uint256 indexed claimId, address indexed from, ClaimBinding indexed binding);
-
-    event ClaimRejected(uint256 indexed claimId, address indexed from, string note);
-
-    event ClaimRescinded(uint256 indexed claimId, address indexed from, string note);
-
-    event ClaimImpaired(uint256 indexed claimId);
-
-    event ClaimMarkedAsPaid(uint256 indexed claimId);
-
-    event CreateClaimApproved(
-        address indexed user,
-        address indexed controller,
-        CreateClaimApprovalType indexed approvalType,
-        uint256 approvalCount,
-        bool isBindingAllowed
-    );
-
-    event PayClaimApproved(
-        address indexed user,
-        address indexed controller,
-        PayClaimApprovalType indexed approvalType,
-        uint256 approvalDeadline,
-        ClaimPaymentApprovalParam[] paymentApprovals
-    );
-
-    event UpdateBindingApproved(address indexed user, address indexed controller, uint256 approvalCount);
-
-    event CancelClaimApproved(address indexed user, address indexed controller, uint256 approvalCount);
-
-    event ImpairClaimApproved(address indexed user, address indexed controller, uint256 approvalCount);
-
-    event MarkAsPaidApproved(address indexed user, address indexed controller, uint256 approvalCount);
-
-    event FeeWithdrawn(address indexed owner, uint256 amount);
-
-    constructor(address _controllerRegistry, LockState _lockState, uint256 _coreProtocolFee)
+    constructor(address _controllerRegistry, LockState _lockState, uint256 _coreProtocolFee, address _feeExemptions)
         ERC721("BullaClaim", "CLAIM")
         EIP712("BullaClaim", "1")
     {
         controllerRegistry = BullaControllerRegistry(_controllerRegistry);
         lockState = _lockState;
         CORE_PROTOCOL_FEE = _coreProtocolFee;
+        feeExemptions = IPermissions(_feeExemptions);
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -237,10 +174,9 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
     /// @return The newly created tokenId
     function _createClaim(address from, CreateClaimParams calldata params) internal returns (uint256) {
         if (lockState != LockState.Unlocked) revert Locked();
-        if (msg.value != CORE_PROTOCOL_FEE) revert IncorrectFee();
 
         // Use validation library for parameter validation
-        BullaClaimValidationLib.validateCreateClaimParams(from, params);
+        BullaClaimValidationLib.validateCreateClaimParams(from, params, feeExemptions, CORE_PROTOCOL_FEE, msg.value);
 
         uint256 claimId;
         // from is only != to msg.sender if the claim is delegated
@@ -833,6 +769,10 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable {
 
     function setCoreProtocolFee(uint256 _coreProtocolFee) external onlyOwner {
         CORE_PROTOCOL_FEE = _coreProtocolFee;
+    }
+
+    function setFeeExemptions(address _feeExemptions) external onlyOwner {
+        feeExemptions = IPermissions(_feeExemptions);
     }
 
     /**

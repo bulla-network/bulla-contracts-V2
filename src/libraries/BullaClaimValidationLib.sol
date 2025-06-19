@@ -2,6 +2,7 @@
 pragma solidity ^0.8.30;
 
 import "../types/Types.sol";
+import "../interfaces/IPermissions.sol";
 
 /// @title BullaClaimValidationLib
 /// @notice Library containing validation logic for BullaClaim operations
@@ -21,11 +22,22 @@ library BullaClaimValidationLib {
     error NotApproved();
     error PastApprovalDeadline();
     error PaymentUnderApproved();
+    error IncorrectFee();
 
     /// @notice Validates parameters for creating a new claim
     /// @param from The address creating the claim
     /// @param params The claim creation parameters
-    function validateCreateClaimParams(address from, CreateClaimParams calldata params) external view {
+    function validateCreateClaimParams(
+        address from,
+        CreateClaimParams calldata params,
+        IPermissions feeExemptions,
+        uint256 CORE_PROTOCOL_FEE,
+        uint256 _msgValue
+    ) external view {
+        if (
+            !feeExemptions.isAllowed(params.debtor) && !feeExemptions.isAllowed(params.creditor)
+                && _msgValue != CORE_PROTOCOL_FEE
+        ) revert IncorrectFee();
         // Validate the caller is either creditor or debtor
         if (from != params.debtor && from != params.creditor) revert NotCreditorOrDebtor();
 

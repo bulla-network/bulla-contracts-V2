@@ -20,6 +20,7 @@ import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper
 import {ClaimMetadataGenerator} from "contracts/ClaimMetadataGenerator.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
+import {BaseBullaClaim} from "contracts/BaseBullaClaim.sol";
 
 contract TestCreateClaim is BullaClaimTestHelper {
     address creditor = address(0x01);
@@ -69,11 +70,11 @@ contract TestCreateClaim is BullaClaimTestHelper {
     function testCannotCreateClaimWhenContractIsLocked() public {
         bullaClaim.setLockState(LockState.Locked);
 
-        vm.expectRevert(BullaClaim.Locked.selector);
+        vm.expectRevert(BaseBullaClaim.Locked.selector);
         _newClaim(creditor, creditor, debtor);
 
         bullaClaim.setLockState(LockState.NoNewClaims);
-        vm.expectRevert(BullaClaim.Locked.selector);
+        vm.expectRevert(BaseBullaClaim.Locked.selector);
         _newClaim(creditor, creditor, debtor);
     }
 

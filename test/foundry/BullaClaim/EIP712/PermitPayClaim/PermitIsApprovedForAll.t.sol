@@ -106,7 +106,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
             paymentApprovals: paymentApprovals
         });
 
-        vm.expectRevert(BullaClaim.InvalidSignature.selector);
+        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
         bullaClaim.permitPayClaim({
             user: user,
             controller: bob,
@@ -139,7 +139,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
             signature: signature
         });
 
-        vm.expectRevert(BullaClaim.InvalidSignature.selector);
+        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
         bullaClaim.permitPayClaim({
             user: alice,
             controller: bob,
@@ -167,7 +167,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         (v, r, s) = splitSig(signature);
         assertEq(ecrecover(digest, v, r, s), address(0), "ecrecover sanity check");
 
-        vm.expectRevert(BullaClaim.InvalidSignature.selector);
+        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
         bullaClaim.permitPayClaim({
             user: user,
             controller: bob,
@@ -265,7 +265,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
             paymentApprovals: paymentApprovals
         });
 
-        vm.expectRevert(BullaClaim.InvalidApproval.selector);
+        vm.expectRevert(BaseBullaClaim.InvalidApproval.selector);
         bullaClaim.permitPayClaim({
             user: alice,
             controller: bob,

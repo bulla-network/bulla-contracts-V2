@@ -8,6 +8,7 @@ contract InvoiceDetailsBuilder {
     PurchaseOrderState private _purchaseOrder;
     InterestConfig private _lateFeeConfig;
     InterestComputationState private _interestComputationState;
+    bool private _isProtocolFeeExempt;
 
     constructor() {
         // Default values
@@ -15,6 +16,7 @@ contract InvoiceDetailsBuilder {
         _purchaseOrder = PurchaseOrderState({deliveryDate: 0, isDelivered: false, depositAmount: 0});
         _lateFeeConfig = InterestConfig({interestRateBps: 0, numberOfPeriodsPerYear: 0});
         _interestComputationState = InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0});
+        _isProtocolFeeExempt = false;
     }
 
     function withRequestedByCreditor(bool requestedByCreditor) public returns (InvoiceDetailsBuilder) {
@@ -75,9 +77,15 @@ contract InvoiceDetailsBuilder {
         return this;
     }
 
+    function withIsProtocolFeeExempt(bool isProtocolFeeExempt) public returns (InvoiceDetailsBuilder) {
+        _isProtocolFeeExempt = isProtocolFeeExempt;
+        return this;
+    }
+
     function build() public view returns (InvoiceDetails memory) {
         return InvoiceDetails({
             requestedByCreditor: _requestedByCreditor,
+            isProtocolFeeExempt: _isProtocolFeeExempt,
             purchaseOrder: _purchaseOrder,
             lateFeeConfig: _lateFeeConfig,
             interestComputationState: _interestComputationState

@@ -10,6 +10,7 @@ import {Deployer} from "script/Deployment.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
+import {BaseBullaClaim} from "contracts/BaseBullaClaim.sol";
 
 /// @notice SPEC:
 /// A function can call this internal function to verify and "spend" `from`'s approval of `controller` to pay a claim under the following circumstances:
@@ -326,7 +327,7 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
         weth.approve(address(bullaClaim), 1 ether);
 
         vm.prank(controller);
-        vm.expectRevert(BullaClaim.Locked.selector);
+        vm.expectRevert(BaseBullaClaim.Locked.selector);
         bullaClaim.payClaimFrom(user, claimId, 1 ether);
     }
 

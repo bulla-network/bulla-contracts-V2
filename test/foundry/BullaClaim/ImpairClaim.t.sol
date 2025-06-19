@@ -21,6 +21,7 @@ import {Deployer} from "script/Deployment.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
+import {BaseBullaClaim} from "contracts/BaseBullaClaim.sol";
 
 contract TestImpairClaim is BullaClaimTestHelper {
     uint256 creditorPK = uint256(0x01);
@@ -142,13 +143,13 @@ contract TestImpairClaim is BullaClaimTestHelper {
     }
 
     function testImpairClaimFrom_WithController() public {
-        PenalizedClaim controller = new PenalizedClaim(address(bullaClaim));
+        PenalizedClaim penalizedClaim = new PenalizedClaim(address(bullaClaim));
 
-        // Setup approval for controller to create claims
-        _permitCreateClaim(creditorPK, address(controller), 1);
+        // Setup approval for penalizedClaim to create claims
+        _permitCreateClaim(creditorPK, address(penalizedClaim), 1);
 
         vm.startPrank(creditor);
-        uint256 claimId = controller.createClaim(
+        uint256 claimId = penalizedClaim.createClaim(
             new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).withDueBy(
                 block.timestamp + 30 days
             ).build()
@@ -156,17 +157,17 @@ contract TestImpairClaim is BullaClaimTestHelper {
         vm.stopPrank();
 
         Claim memory claimBefore = bullaClaim.getClaim(claimId);
-        assertEq(claimBefore.controller, address(controller), "Controller should be set");
+        assertEq(claimBefore.controller, address(penalizedClaim), "Controller should be set");
 
         // Setup approval for controller to impair claims
-        _permitImpairClaim(creditorPK, address(controller), 1);
+        _permitImpairClaim(creditorPK, address(penalizedClaim), 1);
 
         vm.warp(block.timestamp + 38 days);
 
         vm.expectEmit(true, true, false, true);
         emit ClaimImpaired(claimId);
 
-        vm.prank(address(controller));
+        vm.prank(address(penalizedClaim));
         bullaClaim.impairClaimFrom(creditor, claimId);
 
         Claim memory claimAfter = bullaClaim.getClaim(claimId);
@@ -192,20 +193,20 @@ contract TestImpairClaim is BullaClaimTestHelper {
     }
 
     function testCannotImpairClaim_WrongController() public {
-        PenalizedClaim controller = new PenalizedClaim(address(bullaClaim));
+        PenalizedClaim penalizedClaim = new PenalizedClaim(address(bullaClaim));
 
-        // Setup approval for controller to create claims
-        _permitCreateClaim(creditorPK, address(controller), 1);
+        // Setup approval for penalizedClaim to create claims
+        _permitCreateClaim(creditorPK, address(penalizedClaim), 1);
 
         vm.startPrank(creditor);
-        uint256 claimId = controller.createClaim(
+        uint256 claimId = penalizedClaim.createClaim(
             new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build()
         );
         vm.stopPrank();
 
         // Direct call should fail when controller is set
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, creditor));
+        vm.expectRevert(abi.encodeWithSelector(BaseBullaClaim.NotController.selector, creditor));
         bullaClaim.impairClaim(claimId);
     }
 
@@ -302,7 +303,7 @@ contract TestImpairClaim is BullaClaimTestHelper {
         bullaClaim.setLockState(LockState.Locked);
 
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.Locked.selector));
+        vm.expectRevert(abi.encodeWithSelector(BaseBullaClaim.Locked.selector));
         bullaClaim.impairClaim(claimId);
     }
 
@@ -310,7 +311,7 @@ contract TestImpairClaim is BullaClaimTestHelper {
         uint256 nonExistentClaimId = 999;
 
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotMinted.selector));
+        vm.expectRevert(abi.encodeWithSelector(BaseBullaClaim.NotMinted.selector));
         bullaClaim.impairClaim(nonExistentClaimId);
     }
 

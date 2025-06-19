@@ -12,6 +12,7 @@ import {Deployer} from "script/Deployment.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
+import {BaseBullaClaim} from "contracts/BaseBullaClaim.sol";
 
 /// @notice SPEC:
 /// A function can call this function to verify and "spend" `from`'s approval of `controller` to create a claim given the following:
@@ -65,17 +66,17 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
 
         _permitCreateClaim({_userPK: userPK, _controller: address(this), _approvalCount: type(uint64).max});
 
-        vm.expectRevert(BullaClaim.Locked.selector);
+        vm.expectRevert(BaseBullaClaim.Locked.selector);
         _newClaim(creditor, creditor, debtor);
 
-        vm.expectRevert(BullaClaim.Locked.selector);
+        vm.expectRevert(BaseBullaClaim.Locked.selector);
         _newClaimFrom(user, creditor, debtor);
 
         bullaClaim.setLockState(LockState.NoNewClaims);
-        vm.expectRevert(BullaClaim.Locked.selector);
+        vm.expectRevert(BaseBullaClaim.Locked.selector);
         _newClaim(creditor, creditor, debtor);
 
-        vm.expectRevert(BullaClaim.Locked.selector);
+        vm.expectRevert(BaseBullaClaim.Locked.selector);
         _newClaimFrom(user, creditor, debtor);
     }
 
@@ -95,17 +96,17 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
     }
 
     function testCreateDelegatedClaim() public {
-        PenalizedClaim controller = new PenalizedClaim(address(bullaClaim));
+        PenalizedClaim penalizedClaim = new PenalizedClaim(address(bullaClaim));
         bullaClaim.permitCreateClaim({
             user: creditor,
-            controller: address(controller),
+            controller: address(penalizedClaim),
             approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 1,
             isBindingAllowed: true,
             signature: sigHelper.signCreateClaimPermit({
                 pk: creditorPK,
                 user: creditor,
-                controller: address(controller),
+                controller: address(penalizedClaim),
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
                 isBindingAllowed: true
@@ -113,13 +114,13 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
         });
 
         vm.startPrank(creditor);
-        uint256 claimId = controller.createClaim(
+        uint256 claimId = penalizedClaim.createClaim(
             new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build()
         );
         vm.stopPrank();
 
         Claim memory claim = bullaClaim.getClaim(claimId);
-        assertEq(claim.controller, address(controller));
+        assertEq(claim.controller, address(penalizedClaim));
     }
 
     /// @notice SPEC.S1

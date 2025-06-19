@@ -17,6 +17,7 @@ import {
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
+import {BaseBullaClaim} from "contracts/BaseBullaClaim.sol";
 
 contract TestCoreProtocolFee is Test {
     BullaClaim public bullaClaim;
@@ -113,17 +114,17 @@ contract TestCoreProtocolFee is Test {
 
         // Test with too little fee
         vm.prank(_creditor);
-        vm.expectRevert(BullaClaim.IncorrectFee.selector);
+        vm.expectRevert(BaseBullaClaim.IncorrectFee.selector);
         bullaClaim.createClaim{value: _STANDARD_FEE - 1}(params);
 
         // Test with too much fee
         vm.prank(_creditor);
-        vm.expectRevert(BullaClaim.IncorrectFee.selector);
+        vm.expectRevert(BaseBullaClaim.IncorrectFee.selector);
         bullaClaim.createClaim{value: _STANDARD_FEE + 1}(params);
 
         // Test with zero fee when fee is required
         vm.prank(_creditor);
-        vm.expectRevert(BullaClaim.IncorrectFee.selector);
+        vm.expectRevert(BaseBullaClaim.IncorrectFee.selector);
         bullaClaim.createClaim{value: 0}(params);
     }
 
@@ -151,7 +152,7 @@ contract TestCoreProtocolFee is Test {
             ClaimMetadata({tokenURI: "https://example.com/token", attachmentURI: "https://example.com/attachment"});
 
         vm.prank(_creditor);
-        vm.expectRevert(BullaClaim.IncorrectFee.selector);
+        vm.expectRevert(BaseBullaClaim.IncorrectFee.selector);
         bullaClaim.createClaimWithMetadata{value: _STANDARD_FEE - 1}(params, metadata);
     }
 
@@ -314,7 +315,7 @@ contract TestCoreProtocolFee is Test {
             new CreateClaimParamsBuilder().withCreditor(_creditor).withDebtor(_debtor).withClaimAmount(1 ether).build();
 
         vm.prank(_creditor);
-        vm.expectRevert(BullaClaim.Locked.selector);
+        vm.expectRevert(BaseBullaClaim.Locked.selector);
         bullaClaim.createClaim{value: _STANDARD_FEE}(params);
     }
 
@@ -326,7 +327,7 @@ contract TestCoreProtocolFee is Test {
             new CreateClaimParamsBuilder().withCreditor(_creditor).withDebtor(_debtor).withClaimAmount(1 ether).build();
 
         vm.prank(_creditor);
-        vm.expectRevert(BullaClaim.Locked.selector);
+        vm.expectRevert(BaseBullaClaim.Locked.selector);
         bullaClaim.createClaim{value: _STANDARD_FEE}(params);
     }
 

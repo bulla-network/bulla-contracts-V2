@@ -293,7 +293,7 @@ contract TestPermitCreateClaim is Test {
             isBindingAllowed: false
         });
 
-        vm.expectRevert(BullaClaim.InvalidApproval.selector);
+        vm.expectRevert(BaseBullaClaim.InvalidApproval.selector);
         bullaClaim.permitCreateClaim({
             user: alice,
             controller: bob,
@@ -336,7 +336,7 @@ contract TestPermitCreateClaim is Test {
             isBindingAllowed: true
         });
 
-        vm.expectRevert(BullaClaim.InvalidApproval.selector);
+        vm.expectRevert(BaseBullaClaim.InvalidApproval.selector);
         bullaClaim.permitCreateClaim({
             user: alice,
             controller: bob,
@@ -363,7 +363,7 @@ contract TestPermitCreateClaim is Test {
             isBindingAllowed: true
         });
 
-        vm.expectRevert(BullaClaim.InvalidApproval.selector);
+        vm.expectRevert(BaseBullaClaim.InvalidApproval.selector);
         bullaClaim.permitCreateClaim({
             user: alice,
             controller: bob,
@@ -382,7 +382,7 @@ contract TestPermitCreateClaim is Test {
             isBindingAllowed: true
         });
 
-        vm.expectRevert(BullaClaim.InvalidApproval.selector);
+        vm.expectRevert(BaseBullaClaim.InvalidApproval.selector);
         bullaClaim.permitCreateClaim({
             user: alice,
             controller: bob,
@@ -401,7 +401,7 @@ contract TestPermitCreateClaim is Test {
             isBindingAllowed: true
         });
 
-        vm.expectRevert(BullaClaim.InvalidApproval.selector);
+        vm.expectRevert(BaseBullaClaim.InvalidApproval.selector);
         bullaClaim.permitCreateClaim({
             user: alice,
             controller: bob,
@@ -491,7 +491,7 @@ contract TestPermitCreateClaim is Test {
         });
         signature[64] = bytes1(uint8(signature[64]) + 1);
 
-        vm.expectRevert(BullaClaim.InvalidSignature.selector);
+        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
 
         bullaClaim.permitCreateClaim({
             user: alice,
@@ -525,7 +525,7 @@ contract TestPermitCreateClaim is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(badGuyPK, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
 
-        vm.expectRevert(BullaClaim.InvalidSignature.selector);
+        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
         bullaClaim.permitCreateClaim({
             user: alice,
             controller: bob,
@@ -581,7 +581,7 @@ contract TestPermitCreateClaim is Test {
         });
 
         // the initial signature can not be used to re-permit
-        vm.expectRevert(BullaClaim.InvalidSignature.selector);
+        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
         bullaClaim.permitCreateClaim({
             user: alice,
             controller: bob,
@@ -620,7 +620,7 @@ contract TestPermitCreateClaim is Test {
             "ecrecover sanity check"
         );
 
-        vm.expectRevert(BullaClaim.InvalidSignature.selector);
+        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
 
         bullaClaim.permitCreateClaim({
             user: user,

@@ -177,7 +177,7 @@ contract TestPermitCancelClaim is Test {
             sigHelper.signCancelClaimPermit({pk: alicePK, user: alice, controller: bob, approvalCount: 1});
         signature[64] = bytes1(uint8(signature[64]) + 1);
 
-        vm.expectRevert(BullaClaim.InvalidSignature.selector);
+        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
         bullaClaim.permitCancelClaim({user: alice, controller: bob, approvalCount: 1, signature: signature});
     }
 
@@ -197,7 +197,7 @@ contract TestPermitCancelClaim is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(badGuyPK, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
 
-        vm.expectRevert(BullaClaim.InvalidSignature.selector);
+        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
         bullaClaim.permitCancelClaim({user: alice, controller: bob, approvalCount: approvalCount, signature: signature});
     }
 
@@ -223,7 +223,7 @@ contract TestPermitCancelClaim is Test {
         });
 
         // the initial signature can not be used to re-permit
-        vm.expectRevert(BullaClaim.InvalidSignature.selector);
+        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
         bullaClaim.permitCancelClaim({user: alice, controller: bob, approvalCount: approvalCount, signature: signature});
     }
 
@@ -249,7 +249,7 @@ contract TestPermitCancelClaim is Test {
             "ecrecover sanity check"
         );
 
-        vm.expectRevert(BullaClaim.InvalidSignature.selector);
+        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
         bullaClaim.permitCancelClaim({
             user: user,
             controller: controller,

@@ -28,6 +28,7 @@ import {Deployer} from "script/Deployment.s.sol";
 import {CreateInvoiceParamsBuilder} from "test/foundry/BullaInvoice/CreateInvoiceParamsBuilder.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
+import {BaseBullaClaim} from "contracts/BaseBullaClaim.sol";
 
 contract TestBullaInvoice is Test {
     WETH public weth;
@@ -947,7 +948,7 @@ contract TestBullaInvoice is Test {
 
         // Try to pay via BullaInvoice
         vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, debtor)); // Should revert as the claim's controller is not BullaInvoice
+        vm.expectRevert(abi.encodeWithSelector(BaseBullaClaim.NotController.selector, debtor)); // Should revert as the claim's controller is not BullaInvoice
         bullaInvoice.payInvoice{value: 1 ether}(claimId, 1 ether);
     }
 
@@ -975,7 +976,7 @@ contract TestBullaInvoice is Test {
 
         // Try to update binding via BullaInvoice
         vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, debtor)); // Should revert as the claim's controller is not BullaInvoice
+        vm.expectRevert(abi.encodeWithSelector(BaseBullaClaim.NotController.selector, debtor)); // Should revert as the claim's controller is not BullaInvoice
         bullaInvoice.updateBinding(claimId, ClaimBinding.Bound);
     }
 
@@ -990,7 +991,7 @@ contract TestBullaInvoice is Test {
 
         // Try to cancel via BullaInvoice
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, creditor)); // Should revert as the claim's controller is not BullaInvoice
+        vm.expectRevert(abi.encodeWithSelector(BaseBullaClaim.NotController.selector, creditor)); // Should revert as the claim's controller is not BullaInvoice
         bullaInvoice.cancelInvoice(claimId, "Trying to cancel direct claim");
     }
 
@@ -1022,7 +1023,7 @@ contract TestBullaInvoice is Test {
 
         // Try to pay directly via BullaClaim
         vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, debtor));
+        vm.expectRevert(abi.encodeWithSelector(BaseBullaClaim.NotController.selector, debtor));
         bullaClaim.payClaim{value: 1 ether}(invoiceId, 1 ether);
     }
 
@@ -1054,7 +1055,7 @@ contract TestBullaInvoice is Test {
 
         // Try to cancel directly via BullaClaim
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, creditor));
+        vm.expectRevert(abi.encodeWithSelector(BaseBullaClaim.NotController.selector, creditor));
         bullaClaim.cancelClaim(invoiceId, "Trying to directly cancel");
     }
 
@@ -1891,7 +1892,7 @@ contract TestBullaInvoice is Test {
 
         // Try to mark as paid via BullaInvoice - should fail since it's not the controller
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, address(creditor)));
+        vm.expectRevert(abi.encodeWithSelector(BaseBullaClaim.NotController.selector, address(creditor)));
         bullaInvoice.markInvoiceAsPaid(claimId);
     }
 
@@ -2821,7 +2822,7 @@ contract TestBullaInvoice is Test {
 
         // Try to accept via BullaInvoice - should fail since it's not the controller
         vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, address(debtor)));
+        vm.expectRevert(abi.encodeWithSelector(BaseBullaClaim.NotController.selector, address(debtor)));
         bullaInvoice.acceptPurchaseOrder{value: 0}(claimId, 0);
     }
 

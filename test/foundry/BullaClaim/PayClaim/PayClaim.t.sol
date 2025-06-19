@@ -10,6 +10,7 @@ import {BullaClaimTestHelper, EIP712Helper} from "test/foundry/BullaClaim/BullaC
 import {Deployer} from "script/Deployment.s.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
+import {BaseBullaClaim} from "contracts/BaseBullaClaim.sol";
 
 contract TestPayClaimWithFee is BullaClaimTestHelper {
     address creditor = address(0xA11c3);
@@ -125,7 +126,7 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
 
     function testCannotPayAClaimThatDoesntExist() public {
         vm.prank(debtor);
-        vm.expectRevert(BullaClaim.NotMinted.selector);
+        vm.expectRevert(BaseBullaClaim.NotMinted.selector);
         bullaClaim.payClaim{value: 1 ether}(1, 1 ether);
     }
 
@@ -146,7 +147,7 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
         vm.stopPrank();
 
         vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaim.NotController.selector, debtor));
+        vm.expectRevert(abi.encodeWithSelector(BaseBullaClaim.NotController.selector, debtor));
         bullaClaim.payClaim{value: 1 ether}(1, 1 ether);
     }
 
@@ -165,7 +166,7 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
         bullaClaim.setLockState(LockState.Locked);
 
         vm.prank(debtor);
-        vm.expectRevert(BullaClaim.Locked.selector);
+        vm.expectRevert(BaseBullaClaim.Locked.selector);
         bullaClaim.payClaim{value: CLAIM_AMOUNT}(claimId, CLAIM_AMOUNT);
     }
 
