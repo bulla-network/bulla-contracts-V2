@@ -1,3 +1,10 @@
+## [1.4.3](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.4.2...v1.4.3) (2025-06-19)
+
+
+### Bug Fixes
+
+* avoid remappings locally to be easily import in other repos ([#66](https://github.com/bulla-network/bulla-contracts-V2/issues/66)) ([841af98](https://github.com/bulla-network/bulla-contracts-V2/commit/841af982010a4ddc8fc70def316f5d8f976b9115))
+
 ## [1.4.2](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.4.1...v1.4.2) (2025-06-19)
 
 
