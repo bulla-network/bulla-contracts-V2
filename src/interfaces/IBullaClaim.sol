@@ -4,7 +4,6 @@ pragma solidity ^0.8.30;
 import "contracts/types/Types.sol";
 import "contracts/BullaControllerRegistry.sol";
 import {IERC721} from "openzeppelin-contracts/contracts/interfaces/IERC721.sol";
-import {IERC20Permit} from "openzeppelin-contracts/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
 import {IPermissions} from "contracts/interfaces/IPermissions.sol";
 
 interface IBullaClaim {
