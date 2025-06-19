@@ -222,10 +222,21 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
      * @return The ID of the created claim
      */
     function acceptLoan(uint256 offerId) external payable returns (uint256) {
-        return _acceptLoan(msg.sender, offerId);
+        return _acceptLoan(msg.sender, offerId, address(0));
     }
 
-    function _acceptLoan(address from, uint256 offerId) private returns (uint256) {
+    /**
+     * @notice Allows a debtor to accept a loan offer with a custom receiver address
+     * @dev Only works when debtor is accepting a creditor's offer
+     * @param offerId The ID of the loan offer to accept
+     * @param receiver The address that should receive the loan funds
+     * @return The ID of the created claim
+     */
+    function acceptLoanWithReceiver(uint256 offerId, address receiver) external payable returns (uint256) {
+        return _acceptLoan(msg.sender, offerId, receiver);
+    }
+
+    function _acceptLoan(address from, uint256 offerId, address receiver) private returns (uint256) {
         LoanOffer memory offer = _loanOffers[offerId];
 
         if (offer.params.creditor == address(0)) revert LoanOfferNotFound();
@@ -253,7 +264,12 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
         } else {
             // Debtor made request, creditor should accept
             if (from != offer.params.creditor) revert NotCreditor();
+            // Receiver override is only allowed when debtor accepts creditor's offer
+            if (receiver != address(0)) revert NotDebtor();
         }
+
+        // Determine the final receiver address
+        address finalReceiver = receiver != address(0) ? receiver : offer.params.debtor;
 
         ClaimMetadata memory metadata = _loanOfferMetadata[offerId];
 
@@ -292,8 +308,8 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
         // First, transfer from creditor to this contract
         ERC20(offer.params.token).safeTransferFrom(offer.params.creditor, address(this), offer.params.loanAmount);
 
-        // Then transfer from this contract to debtor
-        ERC20(offer.params.token).safeTransfer(offer.params.debtor, offer.params.loanAmount);
+        // Then transfer from this contract to the final receiver
+        ERC20(offer.params.token).safeTransfer(finalReceiver, offer.params.loanAmount);
 
         // Execute callback if configured
         if (offer.params.callbackContract != address(0)) {
@@ -447,7 +463,7 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
 
         // Execute each call
         for (uint256 i = 0; i < offerIds.length; i++) {
-            _acceptLoan(msg.sender, offerIds[i]);
+            _acceptLoan(msg.sender, offerIds[i], address(0));
         }
 
         // Reset batch operation flag after successful execution
