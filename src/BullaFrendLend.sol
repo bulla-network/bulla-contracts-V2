@@ -13,7 +13,6 @@ import {
     InterestConfig, InterestComputationState, CompoundInterestLib
 } from "contracts/libraries/CompoundInterestLib.sol";
 import {BoringBatchable} from "contracts/libraries/BoringBatchable.sol";
-import "forge-std/console.sol";
 
 error IncorrectFee();
 error NotCreditor();
