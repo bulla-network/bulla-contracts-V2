@@ -841,4 +841,144 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         assertEq(metadata.tokenURI, "test-uri");
         assertEq(metadata.attachmentURI, "test-attachment");
     }
+
+    /*///////////////////// BATCH LOAN ACCEPTANCE WITH RECEIVERS TESTS /////////////////////*/
+
+    function testBatchAcceptLoans_WithCustomReceivers() public {
+        // Setup: Creditor creates multiple loan offers
+        vm.startPrank(creditor);
+        weth.approve(address(bullaFrendLend), 10 ether);
+
+        uint256 loanId1 = bullaFrendLend.offerLoan(
+            new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth))
+                .withLoanAmount(1 ether).build()
+        );
+        uint256 loanId2 = bullaFrendLend.offerLoan(
+            new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth))
+                .withLoanAmount(2 ether).build()
+        );
+        vm.stopPrank();
+
+        // Setup permissions for loan acceptance
+        _permitAcceptLoan(debtorPK, 2);
+
+        // Setup receiver addresses (different from debtor)
+        address receiver1 = charlie;
+        address receiver2 = address(0x999);
+        vm.deal(receiver2, 1 ether); // Give receiver2 some ETH for gas
+
+        uint256[] memory offerIds = new uint256[](2);
+        offerIds[0] = loanId1;
+        offerIds[1] = loanId2;
+
+        address[] memory receivers = new address[](2);
+        receivers[0] = receiver1;
+        receivers[1] = receiver2;
+
+        // Record initial balances
+        uint256 receiver1InitialBalance = weth.balanceOf(receiver1);
+        uint256 receiver2InitialBalance = weth.balanceOf(receiver2);
+
+        // Debtor accepts both loans with custom receivers
+        vm.prank(debtor);
+        bullaFrendLend.batchAcceptLoans{value: FEE * 2}(offerIds, receivers);
+
+        // Verify loans were created and tokens went to custom receivers
+        assertEq(weth.balanceOf(receiver1), receiver1InitialBalance + 1 ether);
+        assertEq(weth.balanceOf(receiver2), receiver2InitialBalance + 2 ether);
+
+        // Verify claims were created with debtor as the actual debtor
+        Claim memory claim1 = bullaClaim.getClaim(1);
+        Claim memory claim2 = bullaClaim.getClaim(2);
+        assertEq(claim1.debtor, debtor);
+        assertEq(claim2.debtor, debtor);
+    }
+
+    function testBatchAcceptLoans_WithMixedReceivers() public {
+        // Setup: Creditor creates multiple loan offers
+        vm.startPrank(creditor);
+        weth.approve(address(bullaFrendLend), 10 ether);
+
+        uint256 loanId1 = bullaFrendLend.offerLoan(
+            new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth))
+                .withLoanAmount(1 ether).build()
+        );
+        uint256 loanId2 = bullaFrendLend.offerLoan(
+            new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth))
+                .withLoanAmount(2 ether).build()
+        );
+        vm.stopPrank();
+
+        // Setup permissions for loan acceptance
+        _permitAcceptLoan(debtorPK, 2);
+
+        uint256[] memory offerIds = new uint256[](2);
+        offerIds[0] = loanId1;
+        offerIds[1] = loanId2;
+
+        address[] memory receivers = new address[](2);
+        receivers[0] = charlie; // Custom receiver
+        receivers[1] = address(0); // Default receiver (debtor)
+
+        // Record initial balances
+        uint256 charlieInitialBalance = weth.balanceOf(charlie);
+        uint256 debtorInitialBalance = weth.balanceOf(debtor);
+
+        // Debtor accepts both loans with mixed receivers
+        vm.prank(debtor);
+        bullaFrendLend.batchAcceptLoans{value: FEE * 2}(offerIds, receivers);
+
+        // Verify tokens went to correct receivers
+        assertEq(weth.balanceOf(charlie), charlieInitialBalance + 1 ether); // Custom receiver got first loan
+        assertEq(weth.balanceOf(debtor), debtorInitialBalance + 2 ether); // Debtor got second loan (default)
+    }
+
+    function testBatchAcceptLoans_InvalidCalldata_MismatchedArrays() public {
+        // Setup: Creditor creates loan offers
+        vm.startPrank(creditor);
+        weth.approve(address(bullaFrendLend), 10 ether);
+
+        uint256 loanId1 = bullaFrendLend.offerLoan(
+            new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build()
+        );
+        uint256 loanId2 = bullaFrendLend.offerLoan(
+            new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build()
+        );
+        vm.stopPrank();
+
+        uint256[] memory offerIds = new uint256[](2);
+        offerIds[0] = loanId1;
+        offerIds[1] = loanId2;
+
+        // Mismatched receivers array (only 1 receiver for 2 offers)
+        address[] memory receivers = new address[](1);
+        receivers[0] = charlie;
+
+        // Should revert with FrendLendBatchInvalidCalldata
+        vm.prank(debtor);
+        vm.expectRevert(abi.encodeWithSignature("FrendLendBatchInvalidCalldata()"));
+        bullaFrendLend.batchAcceptLoans{value: FEE * 2}(offerIds, receivers);
+    }
+
+    function testBatchAcceptLoans_InvalidCalldata_EmptyReceivers() public {
+        // Setup: Creditor creates loan offers
+        vm.startPrank(creditor);
+        weth.approve(address(bullaFrendLend), 10 ether);
+
+        uint256 loanId1 = bullaFrendLend.offerLoan(
+            new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build()
+        );
+        vm.stopPrank();
+
+        uint256[] memory offerIds = new uint256[](1);
+        offerIds[0] = loanId1;
+
+        // Empty receivers array for non-empty offers
+        address[] memory receivers = new address[](0);
+
+        // Should revert with FrendLendBatchInvalidCalldata
+        vm.prank(debtor);
+        vm.expectRevert(abi.encodeWithSignature("FrendLendBatchInvalidCalldata()"));
+        bullaFrendLend.batchAcceptLoans{value: FEE}(offerIds, receivers);
+    }
 }

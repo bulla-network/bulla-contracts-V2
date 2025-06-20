@@ -64,6 +64,8 @@ interface IBullaFrendLend {
     // Core functions
     function rejectLoanOffer(uint256 offerId) external;
     function acceptLoan(uint256 offerId) external payable returns (uint256);
+    function acceptLoanWithReceiver(uint256 offerId, address receiver) external payable returns (uint256);
+    function batchAcceptLoans(uint256[] calldata offerIds) external payable;
     function payLoan(uint256 claimId, uint256 paymentAmount) external;
     function impairLoan(uint256 claimId) external;
     function markLoanAsPaid(uint256 claimId) external;

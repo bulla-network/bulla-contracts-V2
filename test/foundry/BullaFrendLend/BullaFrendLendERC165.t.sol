@@ -17,11 +17,11 @@ contract BullaFrendLendERC165Test is Test {
     uint256 constant PROTOCOL_FEE_BPS = 1000; // 10%
 
     function setUp() public {
-        bullaClaim = (new Deployer()).deploy_test({
-            _deployer: address(this),
-            _initialLockState: LockState.Unlocked,
-            _coreProtocolFee: FEE
-        });
+        bullaClaim = (new Deployer()).deploy_test(
+            address(this),
+            LockState.Unlocked,
+            FEE
+        );
         bullaFrendLend = new BullaFrendLend(address(bullaClaim), admin, PROTOCOL_FEE_BPS);
     }
 
@@ -54,6 +54,7 @@ contract BullaFrendLendERC165Test is Test {
         bytes4 expectedInterfaceId = IBullaFrendLend.getTotalAmountDue.selector ^ IBullaFrendLend.getLoan.selector
             ^ IBullaFrendLend.offerLoanWithMetadata.selector ^ IBullaFrendLend.offerLoan.selector
             ^ IBullaFrendLend.rejectLoanOffer.selector ^ IBullaFrendLend.acceptLoan.selector
+            ^ IBullaFrendLend.acceptLoanWithReceiver.selector ^ IBullaFrendLend.batchAcceptLoans.selector
             ^ IBullaFrendLend.payLoan.selector ^ IBullaFrendLend.impairLoan.selector
             ^ IBullaFrendLend.markLoanAsPaid.selector ^ IBullaFrendLend.withdrawAllFees.selector
             ^ IBullaFrendLend.setProtocolFee.selector ^ IBullaFrendLend.admin.selector

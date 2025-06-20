@@ -148,6 +148,111 @@ contract TestBullaFrendLend is Test {
         assertFalse(requestedByCreditor, "Should be requested by debtor");
     }
 
+    function testAcceptLoanWithReceiver() public {
+        // Create a custom receiver address
+        address customReceiver = address(0x1234567);
+        
+        // Setup: Creditor makes an offer
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 1 ether);
+
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withToken(address(weth))
+            .withDescription("Test Loan with Custom Receiver")
+            .build();
+
+        vm.prank(creditor);
+        uint256 offerId = bullaFrendLend.offerLoan(offer);
+
+        // Setup permits for debtor
+        bullaClaim.permitCreateClaim({
+            user: debtor,
+            controller: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
+        });
+
+        uint256 initialCustomReceiverBalance = weth.balanceOf(customReceiver);
+        uint256 initialDebtorBalance = weth.balanceOf(debtor);
+        uint256 initialCreditorBalance = weth.balanceOf(creditor);
+
+        // Debtor accepts the offer with custom receiver
+        vm.prank(debtor);
+        uint256 claimId = bullaFrendLend.acceptLoanWithReceiver{value: FEE}(offerId, customReceiver);
+
+        // Verify the custom receiver got the loan funds, not the debtor
+        assertEq(
+            weth.balanceOf(customReceiver),
+            initialCustomReceiverBalance + 1 ether,
+            "Custom receiver should receive the loan funds"
+        );
+        assertEq(
+            weth.balanceOf(debtor),
+            initialDebtorBalance,
+            "Debtor balance should remain unchanged"
+        );
+        assertEq(
+            weth.balanceOf(creditor),
+            initialCreditorBalance - 1 ether,
+            "Creditor should have transferred the loan amount"
+        );
+
+        // Verify the claim was created properly with debtor as the debtor
+        Claim memory claim = bullaClaim.getClaim(claimId);
+        assertEq(claim.debtor, debtor, "Claim debtor should be the original debtor");
+        assertEq(claim.claimAmount, 1 ether, "Claim amount should be correct");
+    }
+
+    function testCannotUseReceiverWhenCreditorAcceptsDebtorRequest() public {
+        // Setup: Debtor makes a request
+        LoanRequestParams memory request = new LoanRequestParamsBuilder()
+            .withCreditor(creditor)
+            .withDebtor(debtor)
+            .withToken(address(weth))
+            .withDescription("Test Debtor Request")
+            .build();
+
+        vm.prank(debtor);
+        uint256 requestId = bullaFrendLend.offerLoan(request);
+
+        // Creditor tries to accept with a custom receiver - should fail
+        address customReceiver = address(0x1234567);
+        
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 1 ether);
+
+        bullaClaim.permitCreateClaim({
+            user: debtor,
+            controller: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
+        });
+
+        vm.prank(creditor);
+        vm.expectRevert(abi.encodeWithSelector(NotDebtor.selector));
+        bullaFrendLend.acceptLoanWithReceiver{value: FEE}(requestId, customReceiver);
+    }
+
     function testOfferLoanByCreditorWithWrongCreditor() public {
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 1 ether);
