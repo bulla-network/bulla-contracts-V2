@@ -13,6 +13,7 @@ import {
     InterestConfig, InterestComputationState, CompoundInterestLib
 } from "contracts/libraries/CompoundInterestLib.sol";
 import {BoringBatchable} from "contracts/libraries/BoringBatchable.sol";
+import "forge-std/console.sol";
 
 error IncorrectFee();
 error NotCreditor();
@@ -434,10 +435,46 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
     /**
      * @notice Batch create multiple loan offers with proper msg.value handling
      * @param offerIds Array of offer IDs to accept
+     * @param receivers Array of receiver addresses for each loan (use address(0) for default behavior)
+     */
+    function batchAcceptLoans(uint256[] calldata offerIds, address[] calldata receivers) external payable {
+        if (offerIds.length == 0) return;
+        if (receivers.length != offerIds.length) revert FrendLendBatchInvalidCalldata();
+
+        _validateAndExecuteBatch(offerIds);
+
+        // Execute each call with custom receivers
+        for (uint256 i = 0; i < offerIds.length; i++) {
+            _acceptLoan(msg.sender, offerIds[i], receivers[i]);
+        }
+
+        // Reset batch operation flag after successful execution
+        _inBatchOperation = false;
+    }
+
+    /**
+     * @notice Batch create multiple loan offers with proper msg.value handling (legacy version)
+     * @param offerIds Array of offer IDs to accept
      */
     function batchAcceptLoans(uint256[] calldata offerIds) external payable {
         if (offerIds.length == 0) return;
 
+        _validateAndExecuteBatch(offerIds);
+
+        // Execute each call with address(0) as receiver
+        for (uint256 i = 0; i < offerIds.length; i++) {
+            _acceptLoan(msg.sender, offerIds[i], address(0));
+        }
+
+        // Reset batch operation flag after successful execution
+        _inBatchOperation = false;
+    }
+
+    /**
+     * @notice Validates batch operation and sets up the batch state
+     * @param offerIds Array of offer IDs to validate
+     */
+    function _validateAndExecuteBatch(uint256[] calldata offerIds) private {
         uint256 totalRequiredFee = 0;
         uint256 baseFee = _bullaClaim.CORE_PROTOCOL_FEE();
 
@@ -460,14 +497,6 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
 
         // Set batch operation flag before executing calls
         _inBatchOperation = true;
-
-        // Execute each call
-        for (uint256 i = 0; i < offerIds.length; i++) {
-            _acceptLoan(msg.sender, offerIds[i], address(0));
-        }
-
-        // Reset batch operation flag after successful execution
-        _inBatchOperation = false;
     }
 
     ////////////////////////////////
