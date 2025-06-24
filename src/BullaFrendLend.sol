@@ -220,10 +220,21 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
      * @return The ID of the created claim
      */
     function acceptLoan(uint256 offerId) external payable returns (uint256) {
-        return _acceptLoan(msg.sender, offerId);
+        return _acceptLoan(msg.sender, offerId, address(0));
     }
 
-    function _acceptLoan(address from, uint256 offerId) private returns (uint256) {
+    /**
+     * @notice Allows a debtor to accept a loan offer with a custom receiver address
+     * @dev Only works when debtor is accepting a creditor's offer
+     * @param offerId The ID of the loan offer to accept
+     * @param receiver The address that should receive the loan funds
+     * @return The ID of the created claim
+     */
+    function acceptLoanWithReceiver(uint256 offerId, address receiver) external payable returns (uint256) {
+        return _acceptLoan(msg.sender, offerId, receiver);
+    }
+
+    function _acceptLoan(address from, uint256 offerId, address receiver) private returns (uint256) {
         LoanOffer memory offer = _loanOffers[offerId];
 
         if (offer.params.creditor == address(0)) revert LoanOfferNotFound();
@@ -251,7 +262,12 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
         } else {
             // Debtor made request, creditor should accept
             if (from != offer.params.creditor) revert NotCreditor();
+            // Receiver override is only allowed when debtor accepts creditor's offer
+            if (receiver != address(0)) revert NotDebtor();
         }
+
+        // Determine the final receiver address
+        address finalReceiver = receiver != address(0) ? receiver : offer.params.debtor;
 
         ClaimMetadata memory metadata = _loanOfferMetadata[offerId];
 
@@ -290,8 +306,8 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
         // First, transfer from creditor to this contract
         ERC20(offer.params.token).safeTransferFrom(offer.params.creditor, address(this), offer.params.loanAmount);
 
-        // Then transfer from this contract to debtor
-        ERC20(offer.params.token).safeTransfer(offer.params.debtor, offer.params.loanAmount);
+        // Then transfer from this contract to the final receiver
+        ERC20(offer.params.token).safeTransfer(finalReceiver, offer.params.loanAmount);
 
         // Execute callback if configured
         if (offer.params.callbackContract != address(0)) {
@@ -416,10 +432,50 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
     /**
      * @notice Batch create multiple loan offers with proper msg.value handling
      * @param offerIds Array of offer IDs to accept
+     * @param receivers Array of receiver addresses for each loan (use address(0) for default behavior)
+     */
+    function batchAcceptLoans(uint256[] calldata offerIds, address[] calldata receivers) external payable {
+        if (offerIds.length == 0) return;
+        if (receivers.length != offerIds.length) revert FrendLendBatchInvalidCalldata();
+
+        _validateBatch(offerIds);
+
+        _inBatchOperation = true;
+
+        // Execute each call with custom receivers
+        for (uint256 i = 0; i < offerIds.length; i++) {
+            _acceptLoan(msg.sender, offerIds[i], receivers[i]);
+        }
+
+        // Reset batch operation flag after successful execution
+        _inBatchOperation = false;
+    }
+
+    /**
+     * @notice Batch create multiple loan offers with proper msg.value handling (legacy version)
+     * @param offerIds Array of offer IDs to accept
      */
     function batchAcceptLoans(uint256[] calldata offerIds) external payable {
         if (offerIds.length == 0) return;
 
+        _validateBatch(offerIds);
+
+        _inBatchOperation = true;
+
+        // Execute each call with address(0) as receiver
+        for (uint256 i = 0; i < offerIds.length; i++) {
+            _acceptLoan(msg.sender, offerIds[i], address(0));
+        }
+
+        // Reset batch operation flag after successful execution
+        _inBatchOperation = false;
+    }
+
+    /**
+     * @notice Validates batch operation
+     * @param offerIds Array of offer IDs to validate
+     */
+    function _validateBatch(uint256[] calldata offerIds) private view {
         uint256 totalRequiredFee = 0;
         uint256 baseFee = _bullaClaim.CORE_PROTOCOL_FEE();
 
@@ -439,17 +495,6 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
         if (msg.value != totalRequiredFee) {
             revert FrendLendBatchInvalidMsgValue();
         }
-
-        // Set batch operation flag before executing calls
-        _inBatchOperation = true;
-
-        // Execute each call
-        for (uint256 i = 0; i < offerIds.length; i++) {
-            _acceptLoan(msg.sender, offerIds[i]);
-        }
-
-        // Reset batch operation flag after successful execution
-        _inBatchOperation = false;
     }
 
     ////////////////////////////////
