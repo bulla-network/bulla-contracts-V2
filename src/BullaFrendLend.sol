@@ -440,7 +440,9 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
         if (offerIds.length == 0) return;
         if (receivers.length != offerIds.length) revert FrendLendBatchInvalidCalldata();
 
-        _validateAndExecuteBatch(offerIds);
+        _validateBatch(offerIds);
+
+        _inBatchOperation = true;
 
         // Execute each call with custom receivers
         for (uint256 i = 0; i < offerIds.length; i++) {
@@ -458,7 +460,9 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
     function batchAcceptLoans(uint256[] calldata offerIds) external payable {
         if (offerIds.length == 0) return;
 
-        _validateAndExecuteBatch(offerIds);
+        _validateBatch(offerIds);
+
+        _inBatchOperation = true;
 
         // Execute each call with address(0) as receiver
         for (uint256 i = 0; i < offerIds.length; i++) {
@@ -470,10 +474,10 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
     }
 
     /**
-     * @notice Validates batch operation and sets up the batch state
+     * @notice Validates batch operation
      * @param offerIds Array of offer IDs to validate
      */
-    function _validateAndExecuteBatch(uint256[] calldata offerIds) private {
+    function _validateBatch(uint256[] calldata offerIds) private view {
         uint256 totalRequiredFee = 0;
         uint256 baseFee = _bullaClaim.CORE_PROTOCOL_FEE();
 
@@ -493,9 +497,6 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
         if (msg.value != totalRequiredFee) {
             revert FrendLendBatchInvalidMsgValue();
         }
-
-        // Set batch operation flag before executing calls
-        _inBatchOperation = true;
     }
 
     ////////////////////////////////
