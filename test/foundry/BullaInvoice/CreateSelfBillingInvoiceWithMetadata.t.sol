@@ -30,7 +30,7 @@ import {Deployer} from "script/Deployment.s.sol";
 import {CreateInvoiceParamsBuilder} from "test/foundry/BullaInvoice/CreateInvoiceParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
 import {InterestConfig, InterestComputationState} from "contracts/libraries/CompoundInterestLib.sol";
-import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/ERC20Mock.sol";
+import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
 
 contract TestCreateSelfBillingInvoiceWithMetadata is Test {
     WETH public weth;
@@ -62,7 +62,8 @@ contract TestCreateSelfBillingInvoiceWithMetadata is Test {
 
     function setUp() public {
         weth = new WETH();
-        testToken = new ERC20Mock("Test Token", "TEST", address(this), 1000000 ether);
+        testToken = new ERC20Mock();
+        testToken.mint(address(this), 1000000 ether);
 
         bullaClaim = (new Deployer()).deploy_test({
             _deployer: address(this),

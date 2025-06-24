@@ -2,7 +2,7 @@
 pragma solidity ^0.8.30; //
 pragma experimental ABIEncoderV2;
 
-import "openzeppelin-contracts/contracts/token/ERC20/extensions/draft-ERC20Permit.sol"; // <--- @note: updated by Bulla
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol"; // <--- @note: updated by Bulla
 
 contract BaseBoringBatchable {
     /// @dev Helper function to extract a useful revert message from a failed call.

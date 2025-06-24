@@ -7,6 +7,7 @@ import {BullaClaim} from "contracts/BullaClaim.sol";
 import {ClaimMetadataGenerator} from "contracts/ClaimMetadataGenerator.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
+import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 
 contract TestTokenURI is Test {
     BullaClaim public bullaClaim;
@@ -76,7 +77,7 @@ contract TestTokenURI is Test {
         vm.assume(caller != address(this));
         vm.startPrank(caller);
         address metadataGenerator = address(new ClaimMetadataGenerator());
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, caller));
         bullaClaim.setClaimMetadataGenerator(metadataGenerator);
         vm.stopPrank();
     }

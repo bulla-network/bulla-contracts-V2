@@ -23,6 +23,7 @@ import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParam
 import {IERC165} from "openzeppelin-contracts/contracts/utils/introspection/IERC165.sol";
 import {ERC165} from "openzeppelin-contracts/contracts/utils/introspection/ERC165.sol";
 import {BaseBullaClaim} from "contracts/BaseBullaClaim.sol";
+import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 
 // Mock contract that implements ERC165 but NOT IPermissions
 contract MockERC165Contract is ERC165 {
@@ -332,7 +333,7 @@ contract TestFeeExemptions is Test {
         WhitelistPermissions newFeeExemptions = new WhitelistPermissions();
 
         vm.prank(_creditor);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, _creditor));
         bullaClaim.setFeeExemptions(address(newFeeExemptions));
     }
 

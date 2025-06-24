@@ -31,7 +31,7 @@ import {CreateInvoiceParamsBuilder} from "test/foundry/BullaInvoice/CreateInvoic
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
 import {InterestConfig, InterestComputationState} from "contracts/libraries/CompoundInterestLib.sol";
-import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/ERC20Mock.sol";
+import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
 
 contract TestBullaInvoiceOrigination is Test {
     WETH public weth;

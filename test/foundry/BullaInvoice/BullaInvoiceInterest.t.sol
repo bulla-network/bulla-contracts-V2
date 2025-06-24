@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 import "forge-std/Vm.sol";
 import "contracts/types/Types.sol";
 import {WETH} from "contracts/mocks/weth.sol";
-import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/ERC20Mock.sol";
+import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {
@@ -47,7 +47,8 @@ contract TestBullaInvoiceInterest is Test {
 
     function setUp() public {
         weth = new WETH();
-        token = new ERC20Mock("Test Token", "TST", debtor, 10 ether);
+        token = new ERC20Mock();
+        token.mint(debtor, 10 ether);
 
         bullaClaim = (new Deployer()).deploy_test({
             _deployer: address(this),

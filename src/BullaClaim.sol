@@ -57,6 +57,7 @@ contract BullaClaim is ERC721, EIP712, Ownable, BoringBatchable, BaseBullaClaim 
     constructor(address _controllerRegistry, LockState _lockState, uint256 _coreProtocolFee, address _feeExemptions)
         ERC721("BullaClaim", "CLAIM")
         EIP712("BullaClaim", "1")
+        Ownable(msg.sender)
     {
         controllerRegistry = BullaControllerRegistry(_controllerRegistry);
         lockState = _lockState;

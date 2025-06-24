@@ -29,7 +29,7 @@ import {CreateInvoiceParamsBuilder} from "test/foundry/BullaInvoice/CreateInvoic
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
 import {InterestConfig} from "contracts/libraries/CompoundInterestLib.sol";
-import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/ERC20Mock.sol";
+import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
 
 contract TestBullaInvoiceProtocolFee is Test {
     WETH public weth;
@@ -59,8 +59,10 @@ contract TestBullaInvoiceProtocolFee is Test {
 
     function setUp() public {
         weth = new WETH();
-        token1 = new ERC20Mock("Token1", "TK1", debtor, 1000 ether);
-        token2 = new ERC20Mock("Token2", "TK2", debtor, 1000 ether);
+        token1 = new ERC20Mock();
+        token1.mint(debtor, 1000 ether);
+        token2 = new ERC20Mock();
+        token2.mint(debtor, 1000 ether);
 
         bullaClaim = (new Deployer()).deploy_test({
             _deployer: address(this),

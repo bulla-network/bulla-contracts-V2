@@ -6,6 +6,7 @@ import {Claim, Status, ClaimBinding, LockState, CreateClaimParams, ClaimMetadata
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {ClaimMetadataGenerator} from "contracts/ClaimMetadataGenerator.sol";
 import {Deployer} from "script/Deployment.s.sol";
+import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 
 contract TestTokenURI is Test {
     BullaClaim public bullaClaim;
@@ -41,7 +42,7 @@ contract TestTokenURI is Test {
         assertEq(address(bullaClaim.controllerRegistry()), _controllerRegistry);
 
         vm.prank(charlie);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, charlie));
         bullaClaim.setControllerRegistry(_controllerRegistry);
     }
 
@@ -56,7 +57,7 @@ contract TestTokenURI is Test {
         assertEq(address(bullaClaim.claimMetadataGenerator()), _metadataGenerator);
 
         vm.prank(charlie);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, charlie));
         bullaClaim.setClaimMetadataGenerator(_metadataGenerator);
     }
 
@@ -72,7 +73,7 @@ contract TestTokenURI is Test {
         assertTrue(bullaClaim.lockState() == _lockState);
 
         vm.prank(charlie);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, charlie));
         bullaClaim.setLockState(_lockState);
     }
 
