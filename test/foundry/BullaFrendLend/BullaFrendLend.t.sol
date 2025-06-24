@@ -151,17 +151,13 @@ contract TestBullaFrendLend is Test {
     function testAcceptLoanWithReceiver() public {
         // Create a custom receiver address
         address customReceiver = address(0x1234567);
-        
+
         // Setup: Creditor makes an offer
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 1 ether);
 
-        LoanRequestParams memory offer = new LoanRequestParamsBuilder()
-            .withCreditor(creditor)
-            .withDebtor(debtor)
-            .withToken(address(weth))
-            .withDescription("Test Loan with Custom Receiver")
-            .build();
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withDescription("Test Loan with Custom Receiver").build();
 
         vm.prank(creditor);
         uint256 offerId = bullaFrendLend.offerLoan(offer);
@@ -197,11 +193,7 @@ contract TestBullaFrendLend is Test {
             initialCustomReceiverBalance + 1 ether,
             "Custom receiver should receive the loan funds"
         );
-        assertEq(
-            weth.balanceOf(debtor),
-            initialDebtorBalance,
-            "Debtor balance should remain unchanged"
-        );
+        assertEq(weth.balanceOf(debtor), initialDebtorBalance, "Debtor balance should remain unchanged");
         assertEq(
             weth.balanceOf(creditor),
             initialCreditorBalance - 1 ether,
@@ -216,19 +208,15 @@ contract TestBullaFrendLend is Test {
 
     function testCannotUseReceiverWhenCreditorAcceptsDebtorRequest() public {
         // Setup: Debtor makes a request
-        LoanRequestParams memory request = new LoanRequestParamsBuilder()
-            .withCreditor(creditor)
-            .withDebtor(debtor)
-            .withToken(address(weth))
-            .withDescription("Test Debtor Request")
-            .build();
+        LoanRequestParams memory request = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withDescription("Test Debtor Request").build();
 
         vm.prank(debtor);
         uint256 requestId = bullaFrendLend.offerLoan(request);
 
         // Creditor tries to accept with a custom receiver - should fail
         address customReceiver = address(0x1234567);
-        
+
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 1 ether);
 

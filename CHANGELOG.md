@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.4.3...v1.5.0) (2025-06-24)
+
+
+### Features
+
+* allow debtor to override receiver address ([#65](https://github.com/bulla-network/bulla-contracts-V2/issues/65)) ([6725985](https://github.com/bulla-network/bulla-contracts-V2/commit/672598501cd9bd74a84bf9e6230e184074c025e9))
+
 ## [1.4.3](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.4.2...v1.4.3) (2025-06-19)
 
 

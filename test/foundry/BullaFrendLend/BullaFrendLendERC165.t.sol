@@ -17,11 +17,7 @@ contract BullaFrendLendERC165Test is Test {
     uint256 constant PROTOCOL_FEE_BPS = 1000; // 10%
 
     function setUp() public {
-        bullaClaim = (new Deployer()).deploy_test(
-            address(this),
-            LockState.Unlocked,
-            FEE
-        );
+        bullaClaim = (new Deployer()).deploy_test(address(this), LockState.Unlocked, FEE);
         bullaFrendLend = new BullaFrendLend(address(bullaClaim), admin, PROTOCOL_FEE_BPS);
     }
 
