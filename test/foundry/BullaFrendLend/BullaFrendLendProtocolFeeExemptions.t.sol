@@ -107,7 +107,7 @@ contract TestBullaFrendLendProtocolFeeExemptions is Test {
     }
 
     function _setupPermissions(address user, uint256 userPK) internal {
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: user,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -123,7 +123,7 @@ contract TestBullaFrendLendProtocolFeeExemptions is Test {
             })
         });
 
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: user,
             controller: address(bullaFrendLend),
             approvalType: PayClaimApprovalType.IsApprovedForAll,

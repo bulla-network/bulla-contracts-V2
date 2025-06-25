@@ -54,6 +54,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
             _coreProtocolFee: FEE
         });
         sigHelper = new EIP712Helper(address(bullaClaim));
+        approvalRegistry = bullaClaim.approvalRegistry();
         bullaInvoice = new BullaInvoice(address(bullaClaim), address(this), 0);
 
         // Setup token balances

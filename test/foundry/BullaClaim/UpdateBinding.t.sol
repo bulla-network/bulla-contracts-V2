@@ -37,6 +37,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
 
         bullaClaim = (new Deployer()).deploy_test(address(0xB0b), LockState.Unlocked, 0);
         sigHelper = new EIP712Helper(address(bullaClaim));
+        approvalRegistry = bullaClaim.approvalRegistry();
     }
 
     event BindingUpdated(uint256 indexed claimId, address indexed from, ClaimBinding indexed binding);
@@ -415,7 +416,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         vm.prank(controller);
         bullaClaim.updateBindingFrom(creditor, claimId, ClaimBinding.BindingPending);
 
-        (,, UpdateBindingApproval memory approval,,,) = bullaClaim.approvals(creditor, controller);
+        (,, UpdateBindingApproval memory approval,,,) = bullaClaim.approvalRegistry().getApprovals(creditor, controller);
 
         assertEq(approval.approvalCount, 11, "Should have 11 approvals");
 
@@ -429,7 +430,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         vm.prank(controller);
         bullaClaim.updateBindingFrom(creditor, claimId, ClaimBinding.BindingPending);
 
-        (,, approval,,,) = bullaClaim.approvals(creditor, controller);
+        (,, approval,,,) = bullaClaim.approvalRegistry().getApprovals(creditor, controller);
 
         assertEq(approval.approvalCount, type(uint64).max);
         Claim memory claim = bullaClaim.getClaim(claimId);
@@ -447,7 +448,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         vm.prank(controller);
         bullaClaim.updateBindingFrom(creditor, claimId, ClaimBinding.BindingPending);
 
-        (,, UpdateBindingApproval memory approval,,,) = bullaClaim.approvals(creditor, controller);
+        (,, UpdateBindingApproval memory approval,,,) = bullaClaim.approvalRegistry().getApprovals(creditor, controller);
 
         assertEq(approval.approvalCount, 0, "Should have 0 approvals");
 

@@ -39,6 +39,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
 
         bullaClaim = (new Deployer()).deploy_test(deployer, LockState.Unlocked, 0);
         sigHelper = new EIP712Helper(address(bullaClaim));
+        approvalRegistry = bullaClaim.approvalRegistry();
     }
 
     event ClaimRejected(uint256 indexed claimId, address indexed from, string note);
@@ -349,7 +350,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
 
     function testCannotCancelIfClaimIsDelegatedAndCallerIsNotController() public {
         // allow the controller to create a claim for the creditor
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: controller,
             approvalType: CreateClaimApprovalType.Approved,
@@ -379,7 +380,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
 
     function testCanCallIfDelegatedAndCallerIsController() public {
         // allow the controller to create a claim for the creditor
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: controller,
             approvalType: CreateClaimApprovalType.Approved,
@@ -511,7 +512,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
         vm.prank(controller);
         bullaClaim.cancelClaimFrom(debtor, claimId, note);
 
-        (,,, CancelClaimApproval memory approval,,) = bullaClaim.approvals(debtor, controller);
+        (,,, CancelClaimApproval memory approval,,) = bullaClaim.approvalRegistry().getApprovals(debtor, controller);
         assertEq(approval.approvalCount, approvalCount - 1);
 
         // test for rescind
@@ -529,7 +530,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
         vm.prank(controller);
         bullaClaim.cancelClaimFrom(creditor, claimId, note);
 
-        (,,, approval,,) = bullaClaim.approvals(creditor, controller);
+        (,,, approval,,) = bullaClaim.approvalRegistry().getApprovals(creditor, controller);
         assertEq(approval.approvalCount, approvalCount - 1);
     }
 
@@ -564,7 +565,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
         vm.prank(controller);
         bullaClaim.cancelClaimFrom(debtor, claimId, "Nope");
 
-        (,,, CancelClaimApproval memory approval,,) = bullaClaim.approvals(debtor, controller);
+        (,,, CancelClaimApproval memory approval,,) = bullaClaim.approvalRegistry().getApprovals(debtor, controller);
         assertEq(approval.approvalCount, type(uint64).max);
     }
 }

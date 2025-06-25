@@ -86,7 +86,7 @@ contract TestBullaFrendLend is Test {
     }
 
     function _permitImpairClaim(uint256 pk, address controller, uint64 approvalCount) internal {
-        bullaClaim.permitImpairClaim({
+        bullaClaim.approvalRegistry().permitImpairClaim({
             user: vm.addr(pk),
             controller: controller,
             approvalCount: approvalCount,
@@ -163,7 +163,7 @@ contract TestBullaFrendLend is Test {
         uint256 offerId = bullaFrendLend.offerLoan(offer);
 
         // Setup permits for debtor
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -220,7 +220,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 1 ether);
 
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -401,7 +401,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan(offer);
 
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -430,7 +430,7 @@ contract TestBullaFrendLend is Test {
         );
         assertEq(weth.balanceOf(address(bullaFrendLend)), 0, "BullaFrendLend WETH balance should be 0 after transfer");
 
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -503,7 +503,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(debtor);
         uint256 requestId = bullaFrendLend.offerLoan(request);
 
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -533,7 +533,7 @@ contract TestBullaFrendLend is Test {
         );
         assertEq(weth.balanceOf(address(bullaFrendLend)), 0, "BullaFrendLend WETH balance should be 0 after transfer");
 
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -636,7 +636,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan(offer);
 
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -664,7 +664,7 @@ contract TestBullaFrendLend is Test {
             weth.balanceOf(debtor), initialDebtorWeth + 1 ether, "Debtor WETH balance after loan acceptance incorrect"
         );
 
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -758,7 +758,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan(offer);
 
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -778,7 +778,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(debtor);
         uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
 
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -826,7 +826,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan(offer);
 
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -845,7 +845,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(debtor);
         uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
 
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -908,7 +908,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoanWithMetadata(offer, metadata);
 
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -977,7 +977,7 @@ contract TestBullaFrendLend is Test {
         dai.approve(address(bullaFrendLend), 10_000 ether);
         vm.stopPrank();
 
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -993,7 +993,7 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -1123,7 +1123,7 @@ contract TestBullaFrendLend is Test {
         weth.approve(address(bullaFrendLend), 2 ether);
         vm.stopPrank();
 
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -1139,7 +1139,7 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -1197,7 +1197,7 @@ contract TestBullaFrendLend is Test {
         dai.approve(address(bullaFrendLend), 10000 ether);
         vm.stopPrank();
 
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -1213,7 +1213,7 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -1320,7 +1320,7 @@ contract TestBullaFrendLend is Test {
         weth.approve(address(bullaFrendLend), 2 ether);
         vm.stopPrank();
 
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -1336,7 +1336,7 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -1406,7 +1406,7 @@ contract TestBullaFrendLend is Test {
         weth.approve(address(bullaFrendLend), 10 ether);
         vm.stopPrank();
 
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -1422,7 +1422,7 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -1504,7 +1504,7 @@ contract TestBullaFrendLend is Test {
         weth.approve(address(bullaFrendLend), 10 ether);
         vm.stopPrank();
 
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -1520,7 +1520,7 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -1642,7 +1642,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 2 ether);
 
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -1658,7 +1658,7 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.permitCancelClaim({
+        bullaClaim.approvalRegistry().permitCancelClaim({
             user: creditor,
             controller: address(bullaFrendLend),
             approvalCount: 1,
@@ -1670,7 +1670,7 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.permitImpairClaim({
+        bullaClaim.approvalRegistry().permitImpairClaim({
             user: creditor,
             controller: address(bullaFrendLend),
             approvalCount: 1,
@@ -1715,7 +1715,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(debtor);
         weth.approve(address(bullaFrendLend), 2 ether);
 
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -1731,7 +1731,7 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -1747,7 +1747,7 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.permitCancelClaim({
+        bullaClaim.approvalRegistry().permitCancelClaim({
             user: creditor,
             controller: address(bullaFrendLend),
             approvalCount: 1,
@@ -1759,7 +1759,7 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.permitImpairClaim({
+        bullaClaim.approvalRegistry().permitImpairClaim({
             user: creditor,
             controller: address(bullaFrendLend),
             approvalCount: 1,
@@ -1807,7 +1807,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 2 ether);
 
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -1867,7 +1867,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 2 ether);
 
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -1883,7 +1883,7 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.permitCancelClaim({
+        bullaClaim.approvalRegistry().permitCancelClaim({
             user: creditor,
             controller: address(bullaFrendLend),
             approvalCount: 1,
@@ -1895,7 +1895,7 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.permitImpairClaim({
+        bullaClaim.approvalRegistry().permitImpairClaim({
             user: creditor,
             controller: address(bullaFrendLend),
             approvalCount: 1,
@@ -1943,7 +1943,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(debtor);
         weth.approve(address(bullaFrendLend), 2 ether);
 
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -1959,7 +1959,7 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -1975,7 +1975,7 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.permitCancelClaim({
+        bullaClaim.approvalRegistry().permitCancelClaim({
             user: creditor,
             controller: address(bullaFrendLend),
             approvalCount: 1,
@@ -1987,7 +1987,7 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.permitImpairClaim({
+        bullaClaim.approvalRegistry().permitImpairClaim({
             user: creditor,
             controller: address(bullaFrendLend),
             approvalCount: 1,
@@ -2052,7 +2052,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 2 ether);
 
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -2068,7 +2068,7 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.permitCancelClaim({
+        bullaClaim.approvalRegistry().permitCancelClaim({
             user: creditor,
             controller: address(bullaFrendLend),
             approvalCount: 2,
@@ -2080,7 +2080,7 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.permitImpairClaim({
+        bullaClaim.approvalRegistry().permitImpairClaim({
             user: creditor,
             controller: address(bullaFrendLend),
             approvalCount: 2,
@@ -2143,7 +2143,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         usdc.approve(address(bullaFrendLend), 1000 * 10 ** 6);
 
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -2159,7 +2159,7 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.permitCancelClaim({
+        bullaClaim.approvalRegistry().permitCancelClaim({
             user: creditor,
             controller: address(bullaFrendLend),
             approvalCount: 2,
@@ -2171,7 +2171,7 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.permitImpairClaim({
+        bullaClaim.approvalRegistry().permitImpairClaim({
             user: creditor,
             controller: address(bullaFrendLend),
             approvalCount: 2,
@@ -2227,7 +2227,7 @@ contract TestBullaFrendLend is Test {
     //////////////////////////////////////////////////////////////*/
 
     function _permitMarkAsPaid(uint256 pk, address controller, uint64 approvalCount) internal {
-        bullaClaim.permitMarkAsPaid({
+        bullaClaim.approvalRegistry().permitMarkAsPaid({
             user: vm.addr(pk),
             controller: controller,
             approvalCount: approvalCount,
@@ -2244,7 +2244,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 2 ether);
 
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -2299,7 +2299,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(debtor);
         weth.approve(address(bullaFrendLend), 2 ether);
 
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -2315,7 +2315,7 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -2366,7 +2366,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 2 ether);
 
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -2426,7 +2426,7 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 2 ether);
 
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -2442,7 +2442,7 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.permitImpairClaim({
+        bullaClaim.approvalRegistry().permitImpairClaim({
             user: creditor,
             controller: address(bullaFrendLend),
             approvalCount: 1,

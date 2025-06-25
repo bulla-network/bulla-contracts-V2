@@ -44,6 +44,7 @@ contract TestImpairClaim is BullaClaimTestHelper {
             _coreProtocolFee: 0
         });
         sigHelper = new EIP712Helper(address(bullaClaim));
+        approvalRegistry = bullaClaim.approvalRegistry();
 
         vm.deal(creditor, 10 ether);
         vm.deal(debtor, 10 ether);
@@ -123,7 +124,7 @@ contract TestImpairClaim is BullaClaimTestHelper {
         // Setup approval for controller to cancel claims (reuses same approval)
         _permitImpairClaim(creditorPK, controller, 1);
 
-        (,,,, ImpairClaimApproval memory approval,) = bullaClaim.approvals(creditor, controller);
+        (,,,, ImpairClaimApproval memory approval,) = bullaClaim.approvalRegistry().getApprovals(creditor, controller);
         uint256 approvalCountBefore = approval.approvalCount;
 
         // Move past due date + grace period
@@ -138,7 +139,7 @@ contract TestImpairClaim is BullaClaimTestHelper {
         Claim memory claim = bullaClaim.getClaim(claimId);
         assertEq(uint256(claim.status), uint256(Status.Impaired), "Claim should be impaired");
 
-        (,,,, approval,) = bullaClaim.approvals(creditor, controller);
+        (,,,, approval,) = bullaClaim.approvalRegistry().getApprovals(creditor, controller);
         assertEq(approval.approvalCount, approvalCountBefore - 1, "Approval count should decrement");
     }
 
@@ -455,14 +456,16 @@ contract TestImpairClaim is BullaClaimTestHelper {
         // Setup limited approvals
         _permitImpairClaim(creditorPK, controller, 2);
 
-        (,,,, ImpairClaimApproval memory approvalBefore,) = bullaClaim.approvals(creditor, controller);
+        (,,,, ImpairClaimApproval memory approvalBefore,) =
+            bullaClaim.approvalRegistry().getApprovals(creditor, controller);
         assertEq(approvalBefore.approvalCount, 2, "Should have 2 approvals");
 
         // Use first approval
         vm.prank(controller);
         bullaClaim.impairClaimFrom(creditor, claimId);
 
-        (,,,, ImpairClaimApproval memory approvalAfter,) = bullaClaim.approvals(creditor, controller);
+        (,,,, ImpairClaimApproval memory approvalAfter,) =
+            bullaClaim.approvalRegistry().getApprovals(creditor, controller);
         assertEq(approvalAfter.approvalCount, 1, "Should have 1 approval remaining");
     }
 
@@ -480,14 +483,16 @@ contract TestImpairClaim is BullaClaimTestHelper {
         // Setup unlimited approvals
         _permitImpairClaim(creditorPK, controller, type(uint64).max);
 
-        (,,,, ImpairClaimApproval memory approvalBefore,) = bullaClaim.approvals(creditor, controller);
+        (,,,, ImpairClaimApproval memory approvalBefore,) =
+            bullaClaim.approvalRegistry().getApprovals(creditor, controller);
         assertEq(approvalBefore.approvalCount, type(uint64).max, "Should have unlimited approvals");
 
         // Use approval
         vm.prank(controller);
         bullaClaim.impairClaimFrom(creditor, claimId);
 
-        (,,,, ImpairClaimApproval memory approvalAfter,) = bullaClaim.approvals(creditor, controller);
+        (,,,, ImpairClaimApproval memory approvalAfter,) =
+            bullaClaim.approvalRegistry().getApprovals(creditor, controller);
         assertEq(approvalAfter.approvalCount, type(uint64).max, "Should still have unlimited approvals");
     }
 

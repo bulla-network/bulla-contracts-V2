@@ -59,7 +59,7 @@ contract TestBullaInvoice is Test {
 
     function testCreateInvoice() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -94,7 +94,7 @@ contract TestBullaInvoice is Test {
 
     function testUpdateBinding() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -119,7 +119,7 @@ contract TestBullaInvoice is Test {
         uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Setup binding permit
-        bullaClaim.permitUpdateBinding({
+        bullaClaim.approvalRegistry().permitUpdateBinding({
             user: debtor,
             controller: address(bullaInvoice),
             approvalCount: 1,
@@ -142,7 +142,7 @@ contract TestBullaInvoice is Test {
 
     function testPayInvoice() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -167,7 +167,7 @@ contract TestBullaInvoice is Test {
         uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Setup payment permit
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaInvoice),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -195,7 +195,7 @@ contract TestBullaInvoice is Test {
 
     function testRescindInvoice() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -220,7 +220,7 @@ contract TestBullaInvoice is Test {
         uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Setup cancel permit
-        bullaClaim.permitCancelClaim({
+        bullaClaim.approvalRegistry().permitCancelClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalCount: 1,
@@ -243,7 +243,7 @@ contract TestBullaInvoice is Test {
 
     function testRejectInvoice() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -268,7 +268,7 @@ contract TestBullaInvoice is Test {
         uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Setup reject permit
-        bullaClaim.permitCancelClaim({
+        bullaClaim.approvalRegistry().permitCancelClaim({
             user: debtor,
             controller: address(bullaInvoice),
             approvalCount: 1,
@@ -292,7 +292,7 @@ contract TestBullaInvoice is Test {
     // 1. Partial Payment Testing
     function testPartialPayment() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -317,7 +317,7 @@ contract TestBullaInvoice is Test {
         uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Setup payment permit
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaInvoice),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -363,7 +363,7 @@ contract TestBullaInvoice is Test {
         weth.approve(address(bullaInvoice), 2 ether);
 
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -388,7 +388,7 @@ contract TestBullaInvoice is Test {
         uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Setup payment permit
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaInvoice),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -425,7 +425,7 @@ contract TestBullaInvoice is Test {
     // 3. Invoice Metadata
     function testCreateInvoiceWithMetadata() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -468,7 +468,7 @@ contract TestBullaInvoice is Test {
     // 4. Invalid Parameter Tests
     function testInvalidDueByDate() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -512,7 +512,7 @@ contract TestBullaInvoice is Test {
     // 5. Edge Cases
     function testPaymentAtDueDate() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -538,7 +538,7 @@ contract TestBullaInvoice is Test {
         uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Setup payment permit
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaInvoice),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -568,7 +568,7 @@ contract TestBullaInvoice is Test {
 
     function testPaymentAfterDueDate() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -594,7 +594,7 @@ contract TestBullaInvoice is Test {
         uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Setup payment permit
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaInvoice),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -625,7 +625,7 @@ contract TestBullaInvoice is Test {
     // 7. Permission and Security Tests
     function testUnauthorizedCancellation() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -658,7 +658,7 @@ contract TestBullaInvoice is Test {
 
     function testUnauthorizedPayment() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -698,7 +698,7 @@ contract TestBullaInvoice is Test {
         uint256 dueBy = block.timestamp + dueByOffset;
 
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -736,7 +736,7 @@ contract TestBullaInvoice is Test {
         uint256 remainingAmount = amount - partialAmount;
 
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -764,7 +764,7 @@ contract TestBullaInvoice is Test {
         vm.deal(debtor, amount + 1 ether);
 
         // Setup payment permit
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaInvoice),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -801,7 +801,7 @@ contract TestBullaInvoice is Test {
 
     function testPaymentValueMismatch() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -826,7 +826,7 @@ contract TestBullaInvoice is Test {
         uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Setup payment permit
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaInvoice),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -850,7 +850,7 @@ contract TestBullaInvoice is Test {
 
     function testPayAlreadyPaidInvoice() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -875,7 +875,7 @@ contract TestBullaInvoice is Test {
         uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Setup payment permit
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaInvoice),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -906,7 +906,7 @@ contract TestBullaInvoice is Test {
     // Test creating invoice with dueBy = 0
     function testCreateInvoiceWithZeroDueBy() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -962,7 +962,7 @@ contract TestBullaInvoice is Test {
         uint256 claimId = bullaClaim.createClaim(params);
 
         // Setup binding permit
-        bullaClaim.permitUpdateBinding({
+        bullaClaim.approvalRegistry().permitUpdateBinding({
             user: debtor,
             controller: address(bullaInvoice),
             approvalCount: 1,
@@ -998,7 +998,7 @@ contract TestBullaInvoice is Test {
     // Test cannot directly pay claim created via BullaInvoice
     function testCannotDirectlyPayInvoiceClaim() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -1030,7 +1030,7 @@ contract TestBullaInvoice is Test {
     // Test cannot directly cancel claim created via BullaInvoice
     function testCannotDirectlyCancelInvoiceClaim() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -1062,7 +1062,7 @@ contract TestBullaInvoice is Test {
     // Test creating invoice with metadata and dueBy = 0
     function testCreateInvoiceWithMetadataZeroDueBy() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -1103,7 +1103,7 @@ contract TestBullaInvoice is Test {
     // Test creating invoice with metadata and past due date (should fail)
     function testCreateInvoiceWithMetadataPastDueBy() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -1142,7 +1142,7 @@ contract TestBullaInvoice is Test {
     // Test creating invoice with metadata and too far future due date (should fail)
     function testCreateInvoiceWithMetadataFarFutureDueBy() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -1178,7 +1178,7 @@ contract TestBullaInvoice is Test {
 
     function testCreateInvoiceWithPurchaseOrder() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -1214,7 +1214,7 @@ contract TestBullaInvoice is Test {
 
     function testInvalidDeliveryDate() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -1256,7 +1256,7 @@ contract TestBullaInvoice is Test {
 
     function testDeliverPurchaseOrder() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -1303,7 +1303,7 @@ contract TestBullaInvoice is Test {
 
     function testUnauthorizedDeliveryPurchaseOrder() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -1342,7 +1342,7 @@ contract TestBullaInvoice is Test {
 
     function testDeliverNonPendingPurchaseOrder() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -1368,7 +1368,7 @@ contract TestBullaInvoice is Test {
         uint256 invoiceId = bullaInvoice.createInvoice(params);
 
         // Setup cancel permit
-        bullaClaim.permitCancelClaim({
+        bullaClaim.approvalRegistry().permitCancelClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalCount: 1,
@@ -1392,7 +1392,7 @@ contract TestBullaInvoice is Test {
 
     function testCantDeliverInvoiceWithZeroDeliveryDate() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -1430,7 +1430,7 @@ contract TestBullaInvoice is Test {
 
     function testCreateInvoiceWithMetadataAndPurchaseOrder() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -1490,7 +1490,7 @@ contract TestBullaInvoice is Test {
 
     function testPaymentOfDeliveredPurchaseOrder() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -1533,7 +1533,7 @@ contract TestBullaInvoice is Test {
         assertTrue(invoice.status == Status.Pending, "Invoice status should still be Pending after delivery");
 
         // Setup payment permit
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaInvoice),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -1567,7 +1567,7 @@ contract TestBullaInvoice is Test {
 
     function testPartialPaymentOfPurchaseOrder() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -1605,7 +1605,7 @@ contract TestBullaInvoice is Test {
         assertTrue(invoice.status == Status.Pending, "Invoice status should be Pending");
 
         // Setup payment permit
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaInvoice),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -1651,7 +1651,7 @@ contract TestBullaInvoice is Test {
 
     function testOnlyOriginalCreditorCanDeliverAfterTransfer() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -1720,7 +1720,7 @@ contract TestBullaInvoice is Test {
     //////////////////////////////////////////////////////////////*/
 
     function _permitMarkAsPaid(uint256 pk, address controller, uint64 approvalCount) internal {
-        bullaClaim.permitMarkAsPaid({
+        bullaClaim.approvalRegistry().permitMarkAsPaid({
             user: vm.addr(pk),
             controller: controller,
             approvalCount: approvalCount,
@@ -1734,7 +1734,7 @@ contract TestBullaInvoice is Test {
     }
 
     function testMarkInvoiceAsPaid_Success() public {
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -1780,7 +1780,7 @@ contract TestBullaInvoice is Test {
     }
 
     function testMarkInvoiceAsPaid_WithPartialPayment() public {
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -1802,7 +1802,7 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
 
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaInvoice),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -1841,7 +1841,7 @@ contract TestBullaInvoice is Test {
     }
 
     function testCannotMarkInvoiceAsPaid_NotCreditor() public {
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -1897,7 +1897,7 @@ contract TestBullaInvoice is Test {
     }
 
     function testMarkInvoiceAsPaid_FromImpairedStatus() public {
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -1913,7 +1913,7 @@ contract TestBullaInvoice is Test {
             })
         });
 
-        bullaClaim.permitImpairClaim({
+        bullaClaim.approvalRegistry().permitImpairClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalCount: 1,
@@ -1953,7 +1953,7 @@ contract TestBullaInvoice is Test {
     }
 
     function testMarkInvoiceAsPaid_WithPurchaseOrder() public {
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -2019,7 +2019,7 @@ contract TestBullaInvoice is Test {
     }
 
     function testMarkInvoiceAsPaid_WithMetadata() public {
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -2064,7 +2064,7 @@ contract TestBullaInvoice is Test {
     }
 
     function testMarkInvoiceAsPaid_AfterOwnershipTransfer() public {
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -2098,7 +2098,7 @@ contract TestBullaInvoice is Test {
         assertEq(bullaClaim.ownerOf(invoiceId), newCreditor, "New creditor should own the invoice");
 
         // Set up mark as paid permission for new creditor
-        bullaClaim.permitMarkAsPaid({
+        bullaClaim.approvalRegistry().permitMarkAsPaid({
             user: newCreditor,
             controller: address(bullaInvoice),
             approvalCount: 1,
@@ -2125,7 +2125,7 @@ contract TestBullaInvoice is Test {
 
     function testAcceptPurchaseOrder_Success_ETH() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -2141,7 +2141,7 @@ contract TestBullaInvoice is Test {
             })
         });
 
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaInvoice),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -2157,7 +2157,7 @@ contract TestBullaInvoice is Test {
             })
         });
 
-        bullaClaim.permitUpdateBinding({
+        bullaClaim.approvalRegistry().permitUpdateBinding({
             user: debtor,
             controller: address(bullaInvoice),
             approvalCount: 1,
@@ -2221,7 +2221,7 @@ contract TestBullaInvoice is Test {
         weth.approve(address(bullaInvoice), 2 ether);
 
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -2237,7 +2237,7 @@ contract TestBullaInvoice is Test {
             })
         });
 
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaInvoice),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -2253,7 +2253,7 @@ contract TestBullaInvoice is Test {
             })
         });
 
-        bullaClaim.permitUpdateBinding({
+        bullaClaim.approvalRegistry().permitUpdateBinding({
             user: debtor,
             controller: address(bullaInvoice),
             approvalCount: 1,
@@ -2298,7 +2298,7 @@ contract TestBullaInvoice is Test {
 
     function testAcceptPurchaseOrder_PartialDeposit() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -2314,7 +2314,7 @@ contract TestBullaInvoice is Test {
             })
         });
 
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaInvoice),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -2330,7 +2330,7 @@ contract TestBullaInvoice is Test {
             })
         });
 
-        bullaClaim.permitUpdateBinding({
+        bullaClaim.approvalRegistry().permitUpdateBinding({
             user: debtor,
             controller: address(bullaInvoice),
             approvalCount: 1,
@@ -2393,7 +2393,7 @@ contract TestBullaInvoice is Test {
 
     function testAcceptPurchaseOrder_ZeroDeposit() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -2409,7 +2409,7 @@ contract TestBullaInvoice is Test {
             })
         });
 
-        bullaClaim.permitUpdateBinding({
+        bullaClaim.approvalRegistry().permitUpdateBinding({
             user: debtor,
             controller: address(bullaInvoice),
             approvalCount: 1,
@@ -2441,7 +2441,7 @@ contract TestBullaInvoice is Test {
 
     function testAcceptPurchaseOrder_NotAuthorized() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -2482,7 +2482,7 @@ contract TestBullaInvoice is Test {
 
     function testAcceptPurchaseOrder_ExceedsRemainingDeposit() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -2498,7 +2498,7 @@ contract TestBullaInvoice is Test {
             })
         });
 
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaInvoice),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -2514,7 +2514,7 @@ contract TestBullaInvoice is Test {
             })
         });
 
-        bullaClaim.permitUpdateBinding({
+        bullaClaim.approvalRegistry().permitUpdateBinding({
             user: debtor,
             controller: address(bullaInvoice),
             approvalCount: 1,
@@ -2548,7 +2548,7 @@ contract TestBullaInvoice is Test {
 
     function testAcceptPurchaseOrder_ExceedsClaimAmount() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -2583,7 +2583,7 @@ contract TestBullaInvoice is Test {
 
     function testAcceptPurchaseOrder_InvalidMsgValue_ETH() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -2628,7 +2628,7 @@ contract TestBullaInvoice is Test {
         weth.approve(address(bullaClaim), 2 ether);
 
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -2664,7 +2664,7 @@ contract TestBullaInvoice is Test {
 
     function testAcceptPurchaseOrder_ZeroDepositInvalidMsgValue() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -2696,7 +2696,7 @@ contract TestBullaInvoice is Test {
 
     function testAcceptPurchaseOrder_NotPurchaseOrder() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -2732,7 +2732,7 @@ contract TestBullaInvoice is Test {
 
     function testAcceptPurchaseOrder_AfterPartialPayment() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -2748,7 +2748,7 @@ contract TestBullaInvoice is Test {
             })
         });
 
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaInvoice),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -2764,7 +2764,7 @@ contract TestBullaInvoice is Test {
             })
         });
 
-        bullaClaim.permitUpdateBinding({
+        bullaClaim.approvalRegistry().permitUpdateBinding({
             user: debtor,
             controller: address(bullaInvoice),
             approvalCount: 1,
@@ -2832,7 +2832,7 @@ contract TestBullaInvoice is Test {
 
     function testCreateInvoice_DepositAmountExceedsClaimAmount() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -2861,7 +2861,7 @@ contract TestBullaInvoice is Test {
 
     function testCreateInvoiceWithMetadata_DepositAmountExceedsClaimAmount() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -2894,7 +2894,7 @@ contract TestBullaInvoice is Test {
 
     function testAcceptPurchaseOrder_InsufficientPayment_WithAccruedInterest() public {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -2910,7 +2910,7 @@ contract TestBullaInvoice is Test {
             })
         });
 
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaInvoice),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -2926,7 +2926,7 @@ contract TestBullaInvoice is Test {
             })
         });
 
-        bullaClaim.permitUpdateBinding({
+        bullaClaim.approvalRegistry().permitUpdateBinding({
             user: debtor,
             controller: address(bullaInvoice),
             approvalCount: 1,

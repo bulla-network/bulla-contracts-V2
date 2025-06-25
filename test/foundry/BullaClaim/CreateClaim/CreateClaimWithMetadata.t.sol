@@ -32,6 +32,7 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
             _coreProtocolFee: 0
         });
         sigHelper = new EIP712Helper(address(bullaClaim));
+        approvalRegistry = bullaClaim.approvalRegistry();
     }
 
     function testCannotCreateClaimWhenContractIsLocked() public {

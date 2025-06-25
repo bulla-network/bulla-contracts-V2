@@ -56,6 +56,7 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
             _coreProtocolFee: FEE
         });
         sigHelper = new EIP712Helper(address(bullaClaim));
+        approvalRegistry = bullaClaim.approvalRegistry();
         bullaFrendLend = new BullaFrendLend(address(bullaClaim), admin, PROTOCOL_FEE_BPS);
 
         // Setup ETH balances for fees and WETH deposits
@@ -370,7 +371,7 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         vm.stopPrank();
 
         // Setup permissions for multiple loan acceptances
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -386,7 +387,7 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
             })
         });
 
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: charlie,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -450,7 +451,7 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         vm.stopPrank();
 
         // Setup permissions for loan acceptance
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -474,7 +475,7 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         vm.stopPrank();
 
         // Setup payment permissions
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -530,7 +531,7 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         vm.stopPrank();
 
         // Setup permissions for loan acceptance
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -546,7 +547,7 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
             })
         });
 
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: charlie,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -573,7 +574,7 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         vm.warp(block.timestamp + 2 days + 2 hours);
 
         // Setup impair permissions
-        bullaClaim.permitImpairClaim({
+        bullaClaim.approvalRegistry().permitImpairClaim({
             user: creditor,
             controller: address(bullaFrendLend),
             approvalCount: 2,
@@ -615,7 +616,7 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         vm.stopPrank();
 
         // Setup permissions for loan acceptance
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -631,7 +632,7 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
             })
         });
 
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: charlie,
             controller: address(bullaFrendLend),
             approvalType: CreateClaimApprovalType.Approved,
@@ -655,7 +656,7 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         uint256 claimId2 = bullaFrendLend.acceptLoan{value: FEE}(loanId2);
 
         // Setup mark as paid permissions
-        bullaClaim.permitMarkAsPaid({
+        bullaClaim.approvalRegistry().permitMarkAsPaid({
             user: creditor,
             controller: address(bullaFrendLend),
             approvalCount: 2,

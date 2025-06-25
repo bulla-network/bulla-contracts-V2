@@ -2,31 +2,40 @@
 pragma solidity ^0.8.30;
 
 import "../types/Types.sol";
-import "../BullaControllerRegistry.sol";
 import {IERC721} from "openzeppelin-contracts/contracts/interfaces/IERC721.sol";
 import {IPermissions} from "./IPermissions.sol";
+import {IERC20Permit} from "openzeppelin-contracts/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
+import {IBullaControllerRegistry} from "./IBullaControllerRegistry.sol";
+import {IBullaApprovalRegistry} from "./IBullaApprovalRegistry.sol";
 
 interface IBullaClaim {
     //// ERRORS / MODIFIERS ////
 
+    /*///////////////////////////////////////////////////////////////
+                            ERRORS
+    //////////////////////////////////////////////////////////////*/
+
     error Locked();
-    error CannotBindClaim();
     error InvalidApproval();
     error InvalidSignature();
-    error ApprovalExpired();
     error PastApprovalDeadline();
     error NotOwner();
-    error NotCreditorOrDebtor();
-    error NotCreditor();
     error NotController(address sender);
-    error ClaimBound();
-    error ClaimNotPending();
     error ClaimPending();
     error NotMinted();
+    error PaymentUnderApproved();
+    error WithdrawalFailed();
+    error InvalidInterface();
+    error IncorrectFee();
+    error CannotBindClaim();
+    error NotCreditorOrDebtor();
+    error NotCreditor();
+    error ClaimBound();
+    error ClaimNotPending();
     error NotApproved();
     error PayingZero();
-    error PaymentUnderApproved();
     error OverPaying(uint256 paymentAmount);
+    error ApprovalExpired();
 
     //// EVENTS ////
 
@@ -53,11 +62,11 @@ interface IBullaClaim {
 
     event ClaimRescinded(uint256 indexed claimId, address indexed from, string note);
 
-    event ClaimImpaired(uint256 indexed claimId, address indexed from, string note);
+    event ClaimImpaired(uint256 indexed claimId);
 
     event ClaimMarkedAsPaid(uint256 indexed claimId);
 
-    event MarkAsPaidApproved(address indexed user, address indexed controller, uint256 approvalCount);
+    event FeeWithdrawn(address indexed owner, uint256 amount);
 
     event CreateClaimApproved(
         address indexed user,
@@ -74,10 +83,6 @@ interface IBullaClaim {
         uint256 approvalDeadline,
         ClaimPaymentApprovalParam[] paymentApprovals
     );
-
-    event UpdateBindingApproved(address indexed user, address indexed controller, uint256 approvalCount);
-
-    event CancelClaimApproved(address indexed user, address indexed controller, uint256 approvalCount);
 
     //// ERC721 ////
 
@@ -109,9 +114,9 @@ interface IBullaClaim {
 
     //// BULLA CLAIM ////
 
-    function DOMAIN_SEPARATOR() external view returns (bytes32);
+    function controllerRegistry() external view returns (IBullaControllerRegistry);
 
-    function controllerRegistry() external view returns (address);
+    function approvalRegistry() external view returns (IBullaApprovalRegistry);
 
     function owner() external view returns (address);
 
@@ -169,12 +174,10 @@ interface IBullaClaim {
 
     function markClaimAsPaidFrom(address from, uint256 claimId) external;
 
-    function burn(uint256 tokenId) external;
-
     function permitCreateClaim(
         address user,
         address controller,
-        uint8 approvalType,
+        CreateClaimApprovalType approvalType,
         uint64 approvalCount,
         bool isBindingAllowed,
         bytes memory signature
@@ -183,7 +186,7 @@ interface IBullaClaim {
     function permitPayClaim(
         address user,
         address controller,
-        uint8 approvalType,
+        PayClaimApprovalType approvalType,
         uint256 approvalDeadline,
         ClaimPaymentApprovalParam[] memory paymentApprovals,
         bytes memory signature
@@ -202,13 +205,10 @@ interface IBullaClaim {
         external;
 
     // ADMIN FUNCTIONS //
-    function transferOwnership(address newOwner) external;
-
-    function renounceOwnership() external;
 
     function setControllerRegistry(address _controllerRegistry) external;
 
-    function setLockState(uint8 _lockState) external;
+    function setLockState(LockState _lockState) external;
 
     function setCoreProtocolFee(uint256 _coreProtocolFee) external;
 
@@ -223,7 +223,7 @@ interface IBullaClaim {
 
     // UTILITY FUNCTIONS //
     function permitToken(
-        address token,
+        IERC20Permit token,
         address from,
         address to,
         uint256 amount,

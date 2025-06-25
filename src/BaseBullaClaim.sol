@@ -56,29 +56,5 @@ abstract contract BaseBullaClaim {
 
     event ClaimMarkedAsPaid(uint256 indexed claimId);
 
-    event CreateClaimApproved(
-        address indexed user,
-        address indexed controller,
-        CreateClaimApprovalType indexed approvalType,
-        uint256 approvalCount,
-        bool isBindingAllowed
-    );
-
-    event PayClaimApproved(
-        address indexed user,
-        address indexed controller,
-        PayClaimApprovalType indexed approvalType,
-        uint256 approvalDeadline,
-        ClaimPaymentApprovalParam[] paymentApprovals
-    );
-
-    event UpdateBindingApproved(address indexed user, address indexed controller, uint256 approvalCount);
-
-    event CancelClaimApproved(address indexed user, address indexed controller, uint256 approvalCount);
-
-    event ImpairClaimApproved(address indexed user, address indexed controller, uint256 approvalCount);
-
-    event MarkAsPaidApproved(address indexed user, address indexed controller, uint256 approvalCount);
-
     event FeeWithdrawn(address indexed owner, uint256 amount);
 }

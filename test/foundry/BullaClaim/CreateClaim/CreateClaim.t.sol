@@ -46,6 +46,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
             _initialLockState: LockState.Unlocked,
             _coreProtocolFee: 0
         });
+        approvalRegistry = bullaClaim.approvalRegistry();
         _newClaim(creditor, creditor, debtor);
     }
 

@@ -3,6 +3,7 @@ pragma solidity ^0.8.30;
 
 import "test/foundry/BullaClaim/EIP712/PermitPayClaim/Common.t.sol";
 import "contracts/interfaces/IBullaClaim.sol";
+import "contracts/libraries/BullaClaimPermitLib.sol";
 
 /// @notice SPEC
 /// permitPayClaim() can approve a controller to pay _all_ claims given the following conditions listed below as AA - (Approve All 1-5):
@@ -37,7 +38,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         vm.expectEmit(true, true, true, true);
         emit PayClaimApproved(alice, bob, approvalType, approvalDeadline, paymentApprovals);
 
-        bullaClaim.permitPayClaim({
+        approvalRegistry.permitPayClaim({
             user: alice,
             controller: bob,
             approvalType: approvalType,
@@ -46,7 +47,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
             signature: signature
         });
 
-        (, PayClaimApproval memory approval,,,,) = bullaClaim.approvals(alice, bob);
+        (, PayClaimApproval memory approval,,,,) = approvalRegistry.getApprovals(alice, bob);
 
         // SPEC.AA.RES1-4
         assertTrue(approval.approvalType == PayClaimApprovalType.IsApprovedForAll, "approvalType");
@@ -73,7 +74,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         vm.expectEmit(true, true, true, true);
         emit PayClaimApproved(alice, bob, approvalType, approvalDeadline, paymentApprovals);
 
-        bullaClaim.permitPayClaim({
+        approvalRegistry.permitPayClaim({
             user: alice,
             controller: bob,
             approvalType: approvalType,
@@ -82,7 +83,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
             signature: bytes("")
         });
 
-        (, PayClaimApproval memory approval,,,,) = bullaClaim.approvals(alice, bob);
+        (, PayClaimApproval memory approval,,,,) = approvalRegistry.getApprovals(alice, bob);
 
         // SPEC.AA.RES1-4
         assertTrue(approval.approvalType == PayClaimApprovalType.IsApprovedForAll, "approvalType");
@@ -107,7 +108,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         });
 
         vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
-        bullaClaim.permitPayClaim({
+        approvalRegistry.permitPayClaim({
             user: user,
             controller: bob,
             approvalType: approvalType,
@@ -130,7 +131,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
             paymentApprovals: paymentApprovals
         });
 
-        bullaClaim.permitPayClaim({
+        approvalRegistry.permitPayClaim({
             user: alice,
             controller: bob,
             approvalType: approvalType,
@@ -140,7 +141,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         });
 
         vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
-        bullaClaim.permitPayClaim({
+        approvalRegistry.permitPayClaim({
             user: alice,
             controller: bob,
             approvalType: approvalType,
@@ -156,7 +157,11 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](0);
 
         bytes32 digest = keccak256(
-            bytes(BullaClaimPermitLib.getPermitPayClaimMessage(bullaClaim.controllerRegistry(), bob, approvalType, 0))
+            bytes(
+                BullaClaimPermitLib.getPermitPayClaimMessage(
+                    approvalRegistry.controllerRegistry(), bob, approvalType, 0
+                )
+            )
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePK, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
@@ -168,7 +173,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         assertEq(ecrecover(digest, v, r, s), address(0), "ecrecover sanity check");
 
         vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
-        bullaClaim.permitPayClaim({
+        approvalRegistry.permitPayClaim({
             user: user,
             controller: bob,
             approvalType: approvalType,
@@ -193,7 +198,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         });
 
         vm.expectRevert(IBullaClaim.ApprovalExpired.selector);
-        bullaClaim.permitPayClaim({
+        approvalRegistry.permitPayClaim({
             user: alice,
             controller: bob,
             approvalType: approvalType,
@@ -215,7 +220,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         });
 
         vm.expectRevert(IBullaClaim.ApprovalExpired.selector);
-        bullaClaim.permitPayClaim({
+        approvalRegistry.permitPayClaim({
             user: alice,
             controller: bob,
             approvalType: approvalType,
@@ -240,7 +245,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         });
 
         vm.expectRevert(IBullaClaim.ApprovalExpired.selector);
-        bullaClaim.permitPayClaim({
+        approvalRegistry.permitPayClaim({
             user: alice,
             controller: bob,
             approvalType: approvalType,
@@ -266,7 +271,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
         });
 
         vm.expectRevert(BaseBullaClaim.InvalidApproval.selector);
-        bullaClaim.permitPayClaim({
+        approvalRegistry.permitPayClaim({
             user: alice,
             controller: bob,
             approvalType: approvalType,
@@ -298,7 +303,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
             paymentApprovals: paymentApprovals
         });
 
-        bullaClaim.permitPayClaim({
+        approvalRegistry.permitPayClaim({
             user: alice,
             controller: bob,
             approvalType: approvalType,
@@ -307,7 +312,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
             signature: signature
         });
 
-        (, PayClaimApproval memory approval,,,,) = bullaClaim.approvals(alice, bob);
+        (, PayClaimApproval memory approval,,,,) = approvalRegistry.getApprovals(alice, bob);
 
         assertEq(approval.approvalDeadline, 0, "approvalDeadline");
         assertEq(approval.claimApprovals.length, approvalsCount, "specific approvals");
@@ -324,7 +329,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
             paymentApprovals: paymentApprovals
         });
 
-        bullaClaim.permitPayClaim({
+        approvalRegistry.permitPayClaim({
             user: alice,
             controller: bob,
             approvalType: newApprovalType,
@@ -333,7 +338,7 @@ contract TestPermitPayClaim_IsApprovedForAll is PermitPayClaimTest {
             signature: signature
         });
 
-        (, approval,,,,) = bullaClaim.approvals(alice, bob);
+        (, approval,,,,) = approvalRegistry.getApprovals(alice, bob);
 
         assertEq(approval.claimApprovals.length, 0, "specific approvals");
         assertEq(approval.approvalDeadline, 0, "approvalDeadline");

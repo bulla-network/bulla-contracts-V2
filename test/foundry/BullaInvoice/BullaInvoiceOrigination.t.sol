@@ -89,10 +89,10 @@ contract TestBullaInvoiceOrigination is Test {
     function _setupPermissions(EIP712Helper _sigHelper, address invoiceContract) internal {
         IBullaClaim _bullaClaim = IBullaClaim(BullaInvoice(invoiceContract)._bullaClaim());
         // Setup create claim permissions
-        _bullaClaim.permitCreateClaim({
+        _bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: invoiceContract,
-            approvalType: uint8(CreateClaimApprovalType.Approved),
+            approvalType: CreateClaimApprovalType.Approved,
             approvalCount: type(uint64).max,
             isBindingAllowed: false,
             signature: _sigHelper.signCreateClaimPermit({
@@ -106,10 +106,10 @@ contract TestBullaInvoiceOrigination is Test {
         });
 
         // Setup pay claim permissions
-        _bullaClaim.permitPayClaim({
+        _bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: invoiceContract,
-            approvalType: uint8(PayClaimApprovalType.IsApprovedForAll),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
             approvalDeadline: 0,
             paymentApprovals: new ClaimPaymentApprovalParam[](0),
             signature: _sigHelper.signPayClaimPermit({

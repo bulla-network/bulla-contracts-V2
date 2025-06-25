@@ -46,6 +46,7 @@ contract TestBatchFunctionality is BullaClaimTestHelper {
             _coreProtocolFee: 0
         });
         sigHelper = new EIP712Helper(address(bullaClaim));
+        approvalRegistry = bullaClaim.approvalRegistry();
 
         // Setup token balances
         weth.transferFrom(address(this), creditor, 10000 ether);

@@ -61,7 +61,7 @@ contract TestBullaInvoiceInterest is Test {
         token.approve(address(bullaInvoice), type(uint256).max);
 
         // Setup create claim permission for creditor
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -78,7 +78,7 @@ contract TestBullaInvoiceInterest is Test {
         });
 
         // Setup payment permission for debtor
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaInvoice),
             approvalType: PayClaimApprovalType.IsApprovedForAll,

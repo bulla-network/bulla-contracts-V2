@@ -139,7 +139,7 @@ contract TestBullaInvoiceProtocolFee is Test {
         InterestConfig memory interestConfig
     ) internal returns (uint256) {
         // Setup permissions
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(invoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -155,7 +155,7 @@ contract TestBullaInvoiceProtocolFee is Test {
             })
         });
 
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(invoice),
             approvalType: PayClaimApprovalType.IsApprovedForAll,

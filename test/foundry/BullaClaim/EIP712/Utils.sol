@@ -7,7 +7,10 @@ import "safe-contracts/handler/DefaultCallbackHandler.sol";
 import "safe-contracts/interfaces/ISignatureValidator.sol";
 import {GnosisSafe} from "safe-contracts/GnosisSafe.sol";
 import "openzeppelin-contracts/contracts/utils/Strings.sol";
-import {BullaClaim, BullaClaimPermitLib} from "contracts/BullaClaim.sol";
+import {BullaClaimPermitLib} from "contracts/libraries/BullaClaimPermitLib.sol";
+import {IBullaApprovalRegistry} from "contracts/interfaces/IBullaApprovalRegistry.sol";
+import {IBullaControllerRegistry} from "contracts/interfaces/IBullaControllerRegistry.sol";
+import {BullaClaim} from "contracts/BullaClaim.sol";
 
 address constant HEVM_ADDRESS = 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D;
 
@@ -28,15 +31,19 @@ contract EIP712Helper {
 
     Vm constant vm = Vm(HEVM_ADDRESS);
 
-    BullaClaim public bullaClaim;
+    IBullaApprovalRegistry public approvalRegistry;
+    IBullaControllerRegistry public controllerRegistry;
+
     string public EIP712_NAME;
     bytes32 public DOMAIN_SEPARATOR;
     bytes32 public CREATE_CLAIM_TYPEHASH;
 
     constructor(address _bullaClaim) {
-        bullaClaim = BullaClaim(_bullaClaim);
+        BullaClaim bullaClaim = BullaClaim(_bullaClaim);
+        approvalRegistry = IBullaApprovalRegistry(bullaClaim.approvalRegistry());
+        controllerRegistry = IBullaControllerRegistry(approvalRegistry.controllerRegistry());
 
-        DOMAIN_SEPARATOR = bullaClaim.DOMAIN_SEPARATOR();
+        DOMAIN_SEPARATOR = approvalRegistry.DOMAIN_SEPARATOR();
         CREATE_CLAIM_TYPEHASH = BullaClaimPermitLib.CREATE_CLAIM_TYPEHASH;
     }
 
@@ -47,7 +54,7 @@ contract EIP712Helper {
         uint64 approvalCount,
         bool isBindingAllowed
     ) internal view returns (bytes32) {
-        (CreateClaimApproval memory approvals,,,,,) = bullaClaim.approvals(user, controller);
+        (CreateClaimApproval memory approvals,,,,,) = approvalRegistry.getApprovals(user, controller);
 
         return keccak256(
             abi.encode(
@@ -57,7 +64,7 @@ contract EIP712Helper {
                 keccak256(
                     bytes(
                         BullaClaimPermitLib.getPermitCreateClaimMessage(
-                            bullaClaim.controllerRegistry(), controller, approvalType, approvalCount, isBindingAllowed
+                            controllerRegistry, controller, approvalType, approvalCount, isBindingAllowed
                         )
                     )
                 ),
@@ -94,13 +101,13 @@ contract EIP712Helper {
         uint256 approvalDeadline,
         ClaimPaymentApprovalParam[] calldata paymentApprovals
     ) public view returns (bytes32) {
-        (, PayClaimApproval memory approval,,,,) = bullaClaim.approvals(user, controller);
+        (, PayClaimApproval memory approval,,,,) = approvalRegistry.getApprovals(user, controller);
         return keccak256(
             abi.encodePacked(
                 "\x19\x01",
                 DOMAIN_SEPARATOR,
                 BullaClaimPermitLib.getPermitPayClaimDigest(
-                    bullaClaim.controllerRegistry(),
+                    controllerRegistry,
                     user,
                     controller,
                     approvalType,
@@ -117,13 +124,13 @@ contract EIP712Helper {
         view
         returns (bytes32)
     {
-        (,, UpdateBindingApproval memory approval,,,) = bullaClaim.approvals(user, controller);
+        (,, UpdateBindingApproval memory approval,,,) = approvalRegistry.getApprovals(user, controller);
         return keccak256(
             abi.encodePacked(
                 "\x19\x01",
                 DOMAIN_SEPARATOR,
                 BullaClaimPermitLib.getPermitUpdateBindingDigest(
-                    bullaClaim.controllerRegistry(), user, controller, approvalCount, approval.nonce
+                    controllerRegistry, user, controller, approvalCount, approval.nonce
                 )
             )
         );
@@ -134,13 +141,13 @@ contract EIP712Helper {
         view
         returns (bytes32)
     {
-        (,,, CancelClaimApproval memory approval,,) = bullaClaim.approvals(user, controller);
+        (,,, CancelClaimApproval memory approval,,) = approvalRegistry.getApprovals(user, controller);
         return keccak256(
             abi.encodePacked(
                 "\x19\x01",
                 DOMAIN_SEPARATOR,
                 BullaClaimPermitLib.getPermitCancelClaimDigest(
-                    bullaClaim.controllerRegistry(), user, controller, approvalCount, approval.nonce
+                    controllerRegistry, user, controller, approvalCount, approval.nonce
                 )
             )
         );
@@ -151,13 +158,13 @@ contract EIP712Helper {
         view
         returns (bytes32)
     {
-        (,,,, ImpairClaimApproval memory approval,) = bullaClaim.approvals(user, controller);
+        (,,,, ImpairClaimApproval memory approval,) = approvalRegistry.getApprovals(user, controller);
         return keccak256(
             abi.encodePacked(
                 "\x19\x01",
                 DOMAIN_SEPARATOR,
                 BullaClaimPermitLib.getPermitImpairClaimDigest(
-                    bullaClaim.controllerRegistry(), user, controller, approvalCount, approval.nonce
+                    controllerRegistry, user, controller, approvalCount, approval.nonce
                 )
             )
         );
@@ -168,13 +175,13 @@ contract EIP712Helper {
         view
         returns (bytes32)
     {
-        (,,,,, MarkAsPaidApproval memory approval) = bullaClaim.approvals(user, controller);
+        (,,,,, MarkAsPaidApproval memory approval) = approvalRegistry.getApprovals(user, controller);
         return keccak256(
             abi.encodePacked(
                 "\x19\x01",
                 DOMAIN_SEPARATOR,
                 BullaClaimPermitLib.getPermitMarkAsPaidDigest(
-                    bullaClaim.controllerRegistry(), user, controller, approvalCount, approval.nonce
+                    controllerRegistry, user, controller, approvalCount, approval.nonce
                 )
             )
         );

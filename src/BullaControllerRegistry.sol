@@ -2,8 +2,9 @@
 pragma solidity ^0.8.30;
 
 import "solmate/auth/Owned.sol";
+import "./interfaces/IBullaControllerRegistry.sol";
 
-contract BullaControllerRegistry is Owned {
+contract BullaControllerRegistry is IBullaControllerRegistry, Owned {
     mapping(address => string) private _controllers;
 
     string public constant DEFAULT_CONTROLLER_NAME = "WARNING: CONTRACT UNKNOWN";

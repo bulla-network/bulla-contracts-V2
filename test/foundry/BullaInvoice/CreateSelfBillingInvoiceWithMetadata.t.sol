@@ -89,7 +89,7 @@ contract TestCreateSelfBillingInvoiceWithMetadata is Test {
 
     function _setupDebtorPermissions() internal {
         // Setup create claim permissions for debtor (self-billing)
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -106,7 +106,7 @@ contract TestCreateSelfBillingInvoiceWithMetadata is Test {
         });
 
         // Setup pay claim permissions for debtor (to pay debtor-created invoices)
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaInvoice),
             approvalType: PayClaimApprovalType.IsApprovedForAll,

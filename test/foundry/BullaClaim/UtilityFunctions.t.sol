@@ -6,9 +6,11 @@ import {Claim, Status, ClaimBinding, LockState, CreateClaimParams, ClaimMetadata
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {ClaimMetadataGenerator} from "contracts/ClaimMetadataGenerator.sol";
 import {Deployer} from "script/Deployment.s.sol";
+import {IBullaApprovalRegistry} from "contracts/interfaces/IBullaApprovalRegistry.sol";
 
 contract TestTokenURI is Test {
     BullaClaim public bullaClaim;
+    IBullaApprovalRegistry public approvalRegistry;
 
     address alice = address(0xA11cE);
     address charlie = address(0xC44511E);
@@ -19,10 +21,11 @@ contract TestTokenURI is Test {
             _initialLockState: LockState.Unlocked,
             _coreProtocolFee: 0
         });
+        approvalRegistry = bullaClaim.approvalRegistry();
     }
 
     function testDomainSeparator() public {
-        assertTrue(bullaClaim.DOMAIN_SEPARATOR() != bytes32(0));
+        assertTrue(approvalRegistry.DOMAIN_SEPARATOR() != bytes32(0));
     }
 
     function testOwner() public {
@@ -36,18 +39,18 @@ contract TestTokenURI is Test {
     ////// OWNER FUNCTIONS //////
 
     function testSetControllerRegistryOnlyOwner(address _controllerRegistry) public {
-        bullaClaim.setControllerRegistry(_controllerRegistry);
+        approvalRegistry.setControllerRegistry(_controllerRegistry);
 
-        assertEq(address(bullaClaim.controllerRegistry()), _controllerRegistry);
+        assertEq(address(approvalRegistry.controllerRegistry()), _controllerRegistry);
 
         vm.prank(charlie);
         vm.expectRevert("Ownable: caller is not the owner");
-        bullaClaim.setControllerRegistry(_controllerRegistry);
+        approvalRegistry.setControllerRegistry(_controllerRegistry);
     }
 
     function testSetControllerRegistryWhileLocked() public {
         bullaClaim.setLockState(LockState.Locked);
-        bullaClaim.setControllerRegistry(address(0x12345));
+        approvalRegistry.setControllerRegistry(address(0x12345));
     }
 
     function testSetClaimMetadataGeneratorOnlyOwner(address _metadataGenerator) public {
