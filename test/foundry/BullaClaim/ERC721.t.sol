@@ -7,6 +7,7 @@ import {Claim, Status, ClaimBinding, LockState, CreateClaimParams} from "contrac
 import {Deployer} from "script/Deployment.s.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "src/libraries/BullaClaimValidationLib.sol";
+import {IERC721Errors} from "openzeppelin-contracts/contracts/interfaces/draft-IERC6093.sol";
 
 // run the solmate ERC721 spec against bulla claim to ensure functionality
 
@@ -47,8 +48,10 @@ contract ERC721Test is DSTestPlus {
         uint256 tokenId = _mint();
 
         hevm.prank(creditor);
-        hevm.expectRevert("ERC721: approval to current owner");
+        // OpenZeppelin v5 allows self-approval and stores it
         token.approve(creditor, tokenId);
+        // Check that the approval was actually set to the owner
+        assertEq(token.getApproved(tokenId), creditor);
     }
 
     function testApproveAll() public {
@@ -124,45 +127,49 @@ contract ERC721Test is DSTestPlus {
     }
 
     function test_RevertWhen_ApproveUnMinted() public {
-        hevm.expectRevert("ERC721: invalid token ID");
+        hevm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721NonexistentToken.selector, 1));
         token.approve(address(0xBEEF), 1);
     }
 
     function test_RevertWhen_ApproveUnAuthorized() public {
         uint256 tokenId = _mint();
 
-        hevm.expectRevert("ERC721: approve caller is not token owner or approved for all");
+        hevm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721InvalidApprover.selector, address(this)));
         token.approve(address(0xBEEF), tokenId);
     }
 
     function test_RevertWhen_TransferFromUnOwned() public {
-        hevm.expectRevert("ERC721: invalid token ID");
+        hevm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721NonexistentToken.selector, 1));
         token.transferFrom(address(0xFEED), address(0xBEEF), 1);
     }
 
     function test_RevertWhen_TransferFromWrongFrom() public {
         uint256 tokenId = _mint();
 
-        hevm.expectRevert("ERC721: caller is not token owner or approved");
+        hevm.expectRevert(
+            abi.encodeWithSelector(IERC721Errors.ERC721InsufficientApproval.selector, address(this), tokenId)
+        );
         token.transferFrom(address(0xFEED), address(0xBEEF), tokenId);
     }
 
     function test_RevertWhen_TransferFromToZero() public {
         uint256 tokenId = _mint();
 
-        hevm.expectRevert("ERC721: caller is not token owner or approved");
+        hevm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721InvalidReceiver.selector, address(0)));
         token.transferFrom(address(this), address(0), tokenId);
     }
 
     function test_RevertWhen_TransferFromNotOwner() public {
         uint256 tokenId = _mint();
 
-        hevm.expectRevert("ERC721: caller is not token owner or approved");
+        hevm.expectRevert(
+            abi.encodeWithSelector(IERC721Errors.ERC721InsufficientApproval.selector, address(this), tokenId)
+        );
         token.transferFrom(address(0xFEED), address(0xBEEF), tokenId);
     }
 
     function test_RevertWhen_BalanceOfZeroAddress() public {
-        hevm.expectRevert("ERC721: address zero is not a valid owner");
+        hevm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721InvalidOwner.selector, address(0)));
         token.balanceOf(address(0));
     }
 
@@ -189,13 +196,21 @@ contract ERC721Test is DSTestPlus {
         uint256 tokenId = _mint(to, to);
 
         hevm.prank(to);
-        hevm.expectRevert("ERC721: approval to current owner");
+        // OpenZeppelin v5 allows self-approval and stores it
         token.approve(to, tokenId);
+        // Check that the approval was actually set to the owner
+        assertEq(token.getApproved(tokenId), to);
     }
 
     function testApproveAll(address to, bool approved) public {
-        token.setApprovalForAll(to, approved);
+        // Skip zero address as it causes ERC721InvalidOperator error in OpenZeppelin v5
+        if (to == address(0)) {
+            hevm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721InvalidOperator.selector, address(0)));
+            token.setApprovalForAll(to, approved);
+            return;
+        }
 
+        token.setApprovalForAll(to, approved);
         assertBoolEq(token.isApprovedForAll(address(this), to), approved);
     }
 

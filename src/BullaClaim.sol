@@ -18,7 +18,7 @@ import {ERC20} from "solmate/tokens/ERC20.sol";
 import {ClaimMetadataGenerator} from "./ClaimMetadataGenerator.sol";
 import {IPermissions} from "./interfaces/IPermissions.sol";
 import {IBullaClaim} from "./interfaces/IBullaClaim.sol";
-import {IERC20Permit} from "openzeppelin-contracts/contracts/token/ERC20/extensions/draft-IERC20Permit.sol";
+import {IERC20Permit} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import {IBullaClaimAdmin} from "./interfaces/IBullaClaimAdmin.sol";
 
 contract BullaClaim is ERC721, Ownable, BoringBatchable, IBullaClaim {
@@ -56,6 +56,7 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, IBullaClaim {
 
     constructor(address _approvalRegistry, LockState _lockState, uint256 _coreProtocolFee, address _feeExemptions)
         ERC721("BullaClaim", "CLAIM")
+        Ownable(msg.sender)
     {
         approvalRegistry = IBullaApprovalRegistry(_approvalRegistry);
         lockState = _lockState;
@@ -495,17 +496,6 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, IBullaClaim {
 
     function transferFrom(address from, address to, uint256 claimId) public override(ERC721, IERC721) {
         super.transferFrom(from, to, claimId);
-    }
-
-    function safeTransferFrom(address from, address to, uint256 claimId) public override(ERC721, IERC721) {
-        super.safeTransferFrom(from, to, claimId);
-    }
-
-    function safeTransferFrom(address from, address to, uint256 claimId, bytes memory data)
-        public
-        override(ERC721, IERC721)
-    {
-        super.safeTransferFrom(from, to, claimId, data);
     }
 
     function approve(address to, uint256 claimId) public override(ERC721, IERC721) {

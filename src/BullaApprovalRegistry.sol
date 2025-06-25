@@ -36,7 +36,7 @@ contract BullaApprovalRegistry is IBullaApprovalRegistry, Ownable, EIP712 {
                                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    constructor(address _controllerRegistry) EIP712("BullaApprovalRegistry", "1") {
+    constructor(address _controllerRegistry) EIP712("BullaApprovalRegistry", "1") Ownable(msg.sender) {
         controllerRegistry = IBullaControllerRegistry(_controllerRegistry);
     }
 

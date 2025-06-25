@@ -18,6 +18,7 @@ import {BullaClaim} from "contracts/BullaClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {IBullaClaim} from "contracts/interfaces/IBullaClaim.sol";
+import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 
 contract TestCoreProtocolFee is Test {
     BullaClaim public bullaClaim;
@@ -236,7 +237,7 @@ contract TestCoreProtocolFee is Test {
         bullaClaim.createClaim{value: _STANDARD_FEE}(params);
 
         vm.prank(_nonOwner);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, _nonOwner));
         bullaClaim.withdrawAllFees();
     }
 
@@ -280,7 +281,7 @@ contract TestCoreProtocolFee is Test {
         uint256 newFee = 0.05 ether;
 
         vm.prank(_nonOwner);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, _nonOwner));
         bullaClaim.setCoreProtocolFee(newFee);
     }
 
