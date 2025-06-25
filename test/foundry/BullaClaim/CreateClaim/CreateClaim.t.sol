@@ -20,7 +20,7 @@ import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper
 import {ClaimMetadataGenerator} from "contracts/ClaimMetadataGenerator.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
-import {BaseBullaClaim} from "contracts/BaseBullaClaim.sol";
+import {IBullaClaim} from "contracts/interfaces/IBullaClaim.sol";
 
 contract TestCreateClaim is BullaClaimTestHelper {
     address creditor = address(0x01);
@@ -32,6 +32,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
         address indexed creditor,
         address indexed debtor,
         uint256 claimAmount,
+        uint256 dueBy,
         string description,
         address token,
         address controller,
@@ -71,11 +72,11 @@ contract TestCreateClaim is BullaClaimTestHelper {
     function testCannotCreateClaimWhenContractIsLocked() public {
         bullaClaim.setLockState(LockState.Locked);
 
-        vm.expectRevert(BaseBullaClaim.Locked.selector);
+        vm.expectRevert(IBullaClaim.Locked.selector);
         _newClaim(creditor, creditor, debtor);
 
         bullaClaim.setLockState(LockState.NoNewClaims);
-        vm.expectRevert(BaseBullaClaim.Locked.selector);
+        vm.expectRevert(IBullaClaim.Locked.selector);
         _newClaim(creditor, creditor, debtor);
     }
 
@@ -254,6 +255,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
             _creditor,
             _debtor,
             uint256(claimAmount),
+            uint256(0),
             "test description",
             token,
             address(0),

@@ -189,7 +189,7 @@ contract TestPermitImpairClaim is Test {
             sigHelper.signImpairClaimPermit({pk: alicePK, user: alice, controller: bob, approvalCount: 1});
         signature[64] = bytes1(uint8(signature[64]) + 1);
 
-        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
+        vm.expectRevert(IBullaApprovalRegistry.InvalidSignature.selector);
         approvalRegistry.permitImpairClaim({user: alice, controller: bob, approvalCount: 1, signature: signature});
     }
 
@@ -209,7 +209,7 @@ contract TestPermitImpairClaim is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(badGuyPK, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
 
-        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
+        vm.expectRevert(IBullaApprovalRegistry.InvalidSignature.selector);
         approvalRegistry.permitImpairClaim({
             user: alice,
             controller: bob,
@@ -245,7 +245,7 @@ contract TestPermitImpairClaim is Test {
         });
 
         // the initial signature can not be used to re-permit
-        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
+        vm.expectRevert(IBullaApprovalRegistry.InvalidSignature.selector);
         approvalRegistry.permitImpairClaim({
             user: alice,
             controller: bob,
@@ -276,7 +276,7 @@ contract TestPermitImpairClaim is Test {
             "ecrecover sanity check"
         );
 
-        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
+        vm.expectRevert(IBullaApprovalRegistry.InvalidSignature.selector);
         approvalRegistry.permitImpairClaim({
             user: user,
             controller: controller,

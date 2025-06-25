@@ -134,7 +134,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(charliePK, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
 
-        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
+        vm.expectRevert(IBullaApprovalRegistry.InvalidSignature.selector);
         approvalRegistry.permitPayClaim({
             user: user,
             controller: bob,
@@ -168,7 +168,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
             signature: signature
         });
 
-        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
+        vm.expectRevert(IBullaApprovalRegistry.InvalidSignature.selector);
         approvalRegistry.permitPayClaim({
             user: alice,
             controller: bob,
@@ -201,7 +201,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
         (v, r, s) = splitSig(signature);
         assertEq(ecrecover(digest, v, r, s), address(0), "ecrecover sanity check");
 
-        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
+        vm.expectRevert(IBullaApprovalRegistry.InvalidSignature.selector);
         approvalRegistry.permitPayClaim({
             user: user,
             controller: bob,
@@ -251,7 +251,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
             paymentApprovals: paymentApprovals
         });
 
-        vm.expectRevert(BaseBullaClaim.InvalidApproval.selector);
+        vm.expectRevert(IBullaApprovalRegistry.InvalidApproval.selector);
         approvalRegistry.permitPayClaim({
             user: alice,
             controller: bob,
@@ -277,7 +277,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
             paymentApprovals: paymentApprovals
         });
 
-        vm.expectRevert(BaseBullaClaim.InvalidApproval.selector);
+        vm.expectRevert(IBullaApprovalRegistry.InvalidApproval.selector);
         approvalRegistry.permitPayClaim({
             user: alice,
             controller: bob,
@@ -384,7 +384,7 @@ contract TestPermitPayClaim_IsApprovedForSpecific is PermitPayClaimTest {
             paymentApprovals: paymentApprovals
         });
 
-        vm.expectRevert(BaseBullaClaim.InvalidApproval.selector);
+        vm.expectRevert(IBullaApprovalRegistry.InvalidApproval.selector);
         approvalRegistry.permitPayClaim({
             user: alice,
             controller: bob,

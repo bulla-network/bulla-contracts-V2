@@ -12,7 +12,7 @@ import {Deployer} from "script/Deployment.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
-import {BaseBullaClaim} from "contracts/BaseBullaClaim.sol";
+import {IBullaClaim} from "contracts/interfaces/IBullaClaim.sol";
 
 /// @notice SPEC:
 /// A function can call this function to verify and "spend" `from`'s approval of `controller` to create a claim given the following:
@@ -41,6 +41,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
         address indexed creditor,
         address indexed debtor,
         uint256 claimAmount,
+        uint256 dueBy,
         string description,
         address token,
         address controller,
@@ -67,17 +68,17 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
 
         _permitCreateClaim({_userPK: userPK, _controller: address(this), _approvalCount: type(uint64).max});
 
-        vm.expectRevert(BaseBullaClaim.Locked.selector);
+        vm.expectRevert(IBullaClaim.Locked.selector);
         _newClaim(creditor, creditor, debtor);
 
-        vm.expectRevert(BaseBullaClaim.Locked.selector);
+        vm.expectRevert(IBullaClaim.Locked.selector);
         _newClaimFrom(user, creditor, debtor);
 
         bullaClaim.setLockState(LockState.NoNewClaims);
-        vm.expectRevert(BaseBullaClaim.Locked.selector);
+        vm.expectRevert(IBullaClaim.Locked.selector);
         _newClaim(creditor, creditor, debtor);
 
-        vm.expectRevert(BaseBullaClaim.Locked.selector);
+        vm.expectRevert(IBullaClaim.Locked.selector);
         _newClaimFrom(user, creditor, debtor);
     }
 
@@ -263,6 +264,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
                 isInvoice ? _user : debtor,
                 isInvoice ? debtor : _user,
                 1 ether,
+                uint256(0),
                 "fuzzzin",
                 address(0),
                 _controller,

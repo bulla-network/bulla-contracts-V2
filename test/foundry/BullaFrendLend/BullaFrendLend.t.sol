@@ -30,7 +30,7 @@ import {
 import "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
 import "contracts/interfaces/IBullaFrendLend.sol";
-import {BaseBullaClaim} from "contracts/BaseBullaClaim.sol";
+import {IBullaClaim} from "contracts/interfaces/IBullaClaim.sol";
 
 contract TestBullaFrendLend is Test {
     WETH public weth;
@@ -888,7 +888,7 @@ contract TestBullaFrendLend is Test {
 
         // Attempt to pay a non-existent loan
         vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSelector(BaseBullaClaim.NotMinted.selector));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.NotMinted.selector));
         bullaFrendLend.payLoan(nonExistentClaimId, 1 ether);
     }
 
@@ -1858,7 +1858,7 @@ contract TestBullaFrendLend is Test {
 
         // Try to impair via BullaFrendLend - should fail since it's not the controller
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BaseBullaClaim.NotController.selector, address(creditor)));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.NotController.selector, address(creditor)));
         bullaFrendLend.impairLoan(claimId);
     }
 
@@ -2418,7 +2418,7 @@ contract TestBullaFrendLend is Test {
 
         // Try to mark as paid via BullaFrendLend - should fail since it's not the controller
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BaseBullaClaim.NotController.selector, address(creditor)));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.NotController.selector, address(creditor)));
         bullaFrendLend.markLoanAsPaid(claimId);
     }
 

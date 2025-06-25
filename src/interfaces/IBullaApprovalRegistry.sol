@@ -14,6 +14,7 @@ interface IBullaApprovalRegistry {
     error PaymentUnderApproved();
     error ApprovalExpired();
     error PastApprovalDeadline();
+    error InvalidSignature();
 
     /*///////////////////////////////////////////////////////////////
                             EVENTS

@@ -47,9 +47,8 @@ contract ERC721Test is DSTestPlus {
         uint256 tokenId = _mint();
 
         hevm.prank(creditor);
+        hevm.expectRevert("ERC721: approval to current owner");
         token.approve(creditor, tokenId);
-
-        assertEq(token.getApproved(tokenId), creditor);
     }
 
     function testApproveAll() public {
@@ -125,51 +124,51 @@ contract ERC721Test is DSTestPlus {
     }
 
     function test_RevertWhen_ApproveUnMinted() public {
-        hevm.expectRevert("NOT_AUTHORIZED");
+        hevm.expectRevert("ERC721: invalid token ID");
         token.approve(address(0xBEEF), 1);
     }
 
     function test_RevertWhen_ApproveUnAuthorized() public {
         uint256 tokenId = _mint();
 
-        hevm.expectRevert("NOT_AUTHORIZED");
+        hevm.expectRevert("ERC721: approve caller is not token owner or approved for all");
         token.approve(address(0xBEEF), tokenId);
     }
 
     function test_RevertWhen_TransferFromUnOwned() public {
-        hevm.expectRevert("WRONG_FROM");
+        hevm.expectRevert("ERC721: invalid token ID");
         token.transferFrom(address(0xFEED), address(0xBEEF), 1);
     }
 
     function test_RevertWhen_TransferFromWrongFrom() public {
         uint256 tokenId = _mint();
 
-        hevm.expectRevert("WRONG_FROM");
+        hevm.expectRevert("ERC721: caller is not token owner or approved");
         token.transferFrom(address(0xFEED), address(0xBEEF), tokenId);
     }
 
     function test_RevertWhen_TransferFromToZero() public {
         uint256 tokenId = _mint();
 
-        hevm.expectRevert("WRONG_FROM");
+        hevm.expectRevert("ERC721: caller is not token owner or approved");
         token.transferFrom(address(this), address(0), tokenId);
     }
 
     function test_RevertWhen_TransferFromNotOwner() public {
         uint256 tokenId = _mint();
 
-        hevm.expectRevert("WRONG_FROM");
+        hevm.expectRevert("ERC721: caller is not token owner or approved");
         token.transferFrom(address(0xFEED), address(0xBEEF), tokenId);
     }
 
     function test_RevertWhen_BalanceOfZeroAddress() public {
-        hevm.expectRevert("ZERO_ADDRESS");
+        hevm.expectRevert("ERC721: address zero is not a valid owner");
         token.balanceOf(address(0));
     }
 
     function test_RevertWhen_OwnerOfUnminted() public {
-        hevm.expectRevert("NOT_MINTED");
-        token.ownerOf(1337);
+        // BullaClaim returns address(0) for unminted tokens instead of reverting
+        assertEq(token.ownerOf(1337), address(0));
     }
 
     function testMint(address to) public {
@@ -190,9 +189,8 @@ contract ERC721Test is DSTestPlus {
         uint256 tokenId = _mint(to, to);
 
         hevm.prank(to);
+        hevm.expectRevert("ERC721: approval to current owner");
         token.approve(to, tokenId);
-
-        assertEq(token.getApproved(tokenId), to);
     }
 
     function testApproveAll(address to, bool approved) public {

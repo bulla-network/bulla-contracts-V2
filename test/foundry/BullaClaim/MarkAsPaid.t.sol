@@ -21,7 +21,7 @@ import {Deployer} from "script/Deployment.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
-import {BaseBullaClaim} from "contracts/BaseBullaClaim.sol";
+import {IBullaClaim} from "contracts/interfaces/IBullaClaim.sol";
 
 contract TestMarkAsPaid is BullaClaimTestHelper {
     uint256 creditorPK = uint256(0x01);
@@ -229,7 +229,7 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
 
         // Direct call should fail when controller is set
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BaseBullaClaim.NotController.selector, creditor));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.NotController.selector, creditor));
         bullaClaim.markClaimAsPaid(claimId);
     }
 
@@ -318,7 +318,7 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
         bullaClaim.setLockState(LockState.Locked);
 
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BaseBullaClaim.Locked.selector));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.Locked.selector));
         bullaClaim.markClaimAsPaid(claimId);
     }
 
@@ -326,7 +326,7 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
         uint256 nonExistentClaimId = 999;
 
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BaseBullaClaim.NotMinted.selector));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.NotMinted.selector));
         bullaClaim.markClaimAsPaid(nonExistentClaimId);
     }
 

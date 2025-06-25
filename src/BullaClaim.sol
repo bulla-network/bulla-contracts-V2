@@ -8,17 +8,20 @@ import {IBullaApprovalRegistry} from "./interfaces/IBullaApprovalRegistry.sol";
 import {ECDSA} from "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
 import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 import {IERC165} from "openzeppelin-contracts/contracts/utils/introspection/IERC165.sol";
+import {IERC721} from "openzeppelin-contracts/contracts/token/ERC721/IERC721.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {SafeCastLib} from "solmate/utils/SafeCastLib.sol";
 import {BoringBatchable} from "./libraries/BoringBatchable.sol";
 import {BullaClaimValidationLib} from "./libraries/BullaClaimValidationLib.sol";
-import {ERC721} from "solmate/tokens/ERC721.sol";
+import {ERC721} from "openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {ClaimMetadataGenerator} from "./ClaimMetadataGenerator.sol";
 import {IPermissions} from "./interfaces/IPermissions.sol";
-import {BaseBullaClaim} from "./BaseBullaClaim.sol";
+import {IBullaClaim} from "./interfaces/IBullaClaim.sol";
+import {IERC20Permit} from "openzeppelin-contracts/contracts/token/ERC20/extensions/draft-IERC20Permit.sol";
+import {IBullaClaimAdmin} from "./interfaces/IBullaClaimAdmin.sol";
 
-contract BullaClaim is ERC721, Ownable, BoringBatchable, BaseBullaClaim {
+contract BullaClaim is ERC721, Ownable, BoringBatchable, IBullaClaim {
     using SafeTransferLib for ERC20;
     using SafeTransferLib for address;
     using SafeCastLib for uint256;
@@ -165,6 +168,7 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, BaseBullaClaim {
             params.creditor,
             params.debtor,
             params.claimAmount,
+            params.dueBy,
             params.description,
             params.token,
             controller,
@@ -224,7 +228,7 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, BaseBullaClaim {
     ///         ... TODO
     function _payClaim(address from, uint256 claimId, uint256 paymentAmount) internal {
         Claim memory claim = getClaim(claimId);
-        address creditor = _ownerOf[claimId];
+        address creditor = _ownerOf(claimId);
 
         // We allow for claims to be "controlled". Meaning, it is another smart contract's responsibility to implement
         //      custom logic, then call these functions. We check the msg.sender against the controller to make sure a user
@@ -247,7 +251,7 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, BaseBullaClaim {
     function _updateClaimPaymentState(address from, uint256 claimId, uint256 paymentAmount) internal {
         _notLocked();
         Claim memory claim = getClaim(claimId);
-        address creditor = _ownerOf[claimId];
+        address creditor = _ownerOf(claimId);
 
         // Use validation library for payment validation and calculation
         (uint256 totalPaidAmount, bool claimPaid) =
@@ -263,7 +267,7 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, BaseBullaClaim {
         emit ClaimPayment(claimId, from, paymentAmount, totalPaidAmount);
 
         // transfer the ownership of the claim NFT to the payee as a receipt of their completed payment
-        if (claim.payerReceivesClaimOnPayment && claimPaid) _transferFrom(creditor, from, claimId);
+        if (claim.payerReceivesClaimOnPayment && claimPaid) _transfer(creditor, from, claimId);
     }
 
     /**
@@ -296,7 +300,7 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, BaseBullaClaim {
     function _updateBinding(address from, uint256 claimId, ClaimBinding binding) internal {
         _notLocked();
         Claim memory claim = getClaim(claimId);
-        address creditor = _ownerOf[claimId];
+        address creditor = _ownerOf(claimId);
 
         // check if the claim is controlled
         if (claim.controller != address(0) && msg.sender != claim.controller) revert NotController(msg.sender);
@@ -340,7 +344,7 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, BaseBullaClaim {
         _notLocked();
         // load the claim from storage
         Claim memory claim = getClaim(claimId);
-        address creditor = _ownerOf[claimId];
+        address creditor = _ownerOf(claimId);
 
         if (claim.controller != address(0) && msg.sender != claim.controller) revert NotController(msg.sender);
 
@@ -390,7 +394,7 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, BaseBullaClaim {
         _notLocked();
         // load the claim from storage
         Claim memory claim = getClaim(claimId);
-        address creditor = _ownerOf[claimId];
+        address creditor = _ownerOf(claimId);
 
         if (claim.controller != address(0) && msg.sender != claim.controller) revert NotController(msg.sender);
 
@@ -433,7 +437,7 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, BaseBullaClaim {
         _notLocked();
         // load the claim from storage
         Claim memory claim = getClaim(claimId);
-        address creditor = _ownerOf[claimId];
+        address creditor = _ownerOf(claimId);
 
         if (claim.controller != address(0) && msg.sender != claim.controller) revert NotController(msg.sender);
 
@@ -460,7 +464,7 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, BaseBullaClaim {
             binding: claimStorage.binding,
             payerReceivesClaimOnPayment: claimStorage.payerReceivesClaimOnPayment,
             debtor: claimStorage.debtor,
-            creditor: _ownerOf[claimId],
+            creditor: _ownerOf(claimId),
             token: claimStorage.token,
             controller: claimStorage.controller,
             originalCreditor: claimStorage.originalCreditor,
@@ -469,20 +473,60 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, BaseBullaClaim {
         });
     }
 
+    /*///////////////////////////////////////////////////////////////
+                            ERC721 FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
     /// @notice get the tokenURI generated for this claim
-    function tokenURI(uint256 claimId) public view override returns (string memory) {
+    function tokenURI(uint256 claimId) public view override(ERC721) returns (string memory) {
         string memory uri = claimMetadata[claimId].tokenURI;
         if (bytes(uri).length > 0) {
             return uri;
         } else {
             Claim memory claim = getClaim(claimId);
-            address owner = _ownerOf[claimId];
-            return claimMetadataGenerator.tokenURI(claim, claimId, owner);
+            address _owner = _ownerOf(claimId);
+            return claimMetadataGenerator.tokenURI(claim, claimId, _owner);
         }
     }
+
+    function ownerOf(uint256 claimId) public view override(ERC721, IERC721) returns (address) {
+        return _ownerOf(claimId);
+    }
+
+    function transferFrom(address from, address to, uint256 claimId) public override(ERC721, IERC721) {
+        super.transferFrom(from, to, claimId);
+    }
+
+    function safeTransferFrom(address from, address to, uint256 claimId) public override(ERC721, IERC721) {
+        super.safeTransferFrom(from, to, claimId);
+    }
+
+    function safeTransferFrom(address from, address to, uint256 claimId, bytes memory data)
+        public
+        override(ERC721, IERC721)
+    {
+        super.safeTransferFrom(from, to, claimId, data);
+    }
+
+    function approve(address to, uint256 claimId) public override(ERC721, IERC721) {
+        super.approve(to, claimId);
+    }
+
+    function setApprovalForAll(address operator, bool approved) public override(ERC721, IERC721) {
+        super.setApprovalForAll(operator, approved);
+    }
+
+    function supportsInterface(bytes4 interfaceId) public view override(ERC721, IERC165) returns (bool) {
+        return super.supportsInterface(interfaceId);
+    }
+
     /*///////////////////////////////////////////////////////////////
                             OWNER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    function owner() public view override(Ownable, IBullaClaimAdmin) returns (address) {
+        return super.owner();
+    }
 
     function setClaimMetadataGenerator(address _metadataGenerator) external onlyOwner {
         claimMetadataGenerator = ClaimMetadataGenerator(_metadataGenerator);

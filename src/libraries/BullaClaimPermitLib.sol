@@ -6,7 +6,6 @@ import "../interfaces/IBullaControllerRegistry.sol";
 import "../interfaces/IBullaApprovalRegistry.sol";
 import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import {SignatureChecker} from "openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol";
-import {BaseBullaClaim} from "../BaseBullaClaim.sol";
 
 library BullaClaimPermitLib {
     using Strings for uint256;
@@ -434,10 +433,10 @@ library BullaClaimPermitLib {
 
         if (
             !SignatureChecker.isValidSignatureNow(user, digest, signature) // spec.SIG1, spec.SIG2
-        ) revert BaseBullaClaim.InvalidSignature();
+        ) revert IBullaApprovalRegistry.InvalidSignature();
 
         if (approvalType == CreateClaimApprovalType.Unapproved) {
-            if (approvalCount > 0 || isBindingAllowed) revert BaseBullaClaim.InvalidApproval(); // spec.R2, spec.R3
+            if (approvalCount > 0 || isBindingAllowed) revert IBullaApprovalRegistry.InvalidApproval(); // spec.R2, spec.R3
 
             approvals.createClaim.nonce++; // spec.R.RES1
             delete approvals.createClaim.isBindingAllowed; // spec.R.RES2
@@ -445,7 +444,7 @@ library BullaClaimPermitLib {
             delete approvals.createClaim.approvalCount; // spec.R.RES4
         } else {
             // spec.A1
-            if (approvalCount == 0) revert BaseBullaClaim.InvalidApproval(); // spec.A2
+            if (approvalCount == 0) revert IBullaApprovalRegistry.InvalidApproval(); // spec.A2
 
             approvals.createClaim.nonce++; // spec.A.RES1
             approvals.createClaim.isBindingAllowed = isBindingAllowed; // spec.A.RES2
@@ -533,25 +532,27 @@ library BullaClaimPermitLib {
             )
         );
 
-        if (!SignatureChecker.isValidSignatureNow(user, digest, signature)) revert BaseBullaClaim.InvalidSignature();
+        if (!SignatureChecker.isValidSignatureNow(user, digest, signature)) {
+            revert IBullaApprovalRegistry.InvalidSignature();
+        }
         if (approvalDeadline != 0 && (approvalDeadline < block.timestamp || approvalDeadline > type(uint40).max)) {
             revert IBullaApprovalRegistry.ApprovalExpired();
         }
 
         if (approvalType == PayClaimApprovalType.IsApprovedForAll) {
-            if (paymentApprovals.length > 0) revert BaseBullaClaim.InvalidApproval();
+            if (paymentApprovals.length > 0) revert IBullaApprovalRegistry.InvalidApproval();
 
             approvals.payClaim.approvalType = PayClaimApprovalType.IsApprovedForAll;
             approvals.payClaim.approvalDeadline = uint40(approvalDeadline); // cast is safe because we check it above
             delete approvals.payClaim.claimApprovals;
         } else if (approvalType == PayClaimApprovalType.IsApprovedForSpecific) {
-            if (paymentApprovals.length == 0) revert BaseBullaClaim.InvalidApproval();
+            if (paymentApprovals.length == 0) revert IBullaApprovalRegistry.InvalidApproval();
 
             for (uint256 i; i < paymentApprovals.length; ++i) {
                 if (
                     paymentApprovals[i].claimId > type(uint88).max
                         || paymentApprovals[i].approvedAmount > type(uint128).max
-                ) revert BaseBullaClaim.InvalidApproval();
+                ) revert IBullaApprovalRegistry.InvalidApproval();
                 if (
                     paymentApprovals[i].approvalDeadline != 0
                         && (
@@ -575,7 +576,7 @@ library BullaClaimPermitLib {
             approvals.payClaim.approvalDeadline = uint40(approvalDeadline);
         } else {
             if (approvalDeadline != 0 || paymentApprovals.length > 0) {
-                revert BaseBullaClaim.InvalidApproval();
+                revert IBullaApprovalRegistry.InvalidApproval();
             }
 
             delete approvals.payClaim.approvalType; // will reset back to 0, which is unapproved
@@ -621,7 +622,9 @@ library BullaClaimPermitLib {
             )
         );
 
-        if (!SignatureChecker.isValidSignatureNow(user, digest, signature)) revert BaseBullaClaim.InvalidSignature();
+        if (!SignatureChecker.isValidSignatureNow(user, digest, signature)) {
+            revert IBullaApprovalRegistry.InvalidSignature();
+        }
 
         approvals.updateBinding.approvalCount = approvalCount;
         approvals.updateBinding.nonce++;
@@ -662,7 +665,9 @@ library BullaClaimPermitLib {
             )
         );
 
-        if (!SignatureChecker.isValidSignatureNow(user, digest, signature)) revert BaseBullaClaim.InvalidSignature();
+        if (!SignatureChecker.isValidSignatureNow(user, digest, signature)) {
+            revert IBullaApprovalRegistry.InvalidSignature();
+        }
 
         approvals.cancelClaim.approvalCount = approvalCount;
         approvals.cancelClaim.nonce++;
@@ -703,7 +708,9 @@ library BullaClaimPermitLib {
             )
         );
 
-        if (!SignatureChecker.isValidSignatureNow(user, digest, signature)) revert BaseBullaClaim.InvalidSignature();
+        if (!SignatureChecker.isValidSignatureNow(user, digest, signature)) {
+            revert IBullaApprovalRegistry.InvalidSignature();
+        }
 
         approvals.impairClaim.approvalCount = approvalCount;
         approvals.impairClaim.nonce++;
@@ -744,7 +751,9 @@ library BullaClaimPermitLib {
             )
         );
 
-        if (!SignatureChecker.isValidSignatureNow(user, digest, signature)) revert BaseBullaClaim.InvalidSignature();
+        if (!SignatureChecker.isValidSignatureNow(user, digest, signature)) {
+            revert IBullaApprovalRegistry.InvalidSignature();
+        }
 
         approvals.markAsPaid.approvalCount = approvalCount;
         approvals.markAsPaid.nonce++;

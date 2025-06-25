@@ -54,6 +54,7 @@ contract TestCreateSelfBillingInvoiceWithMetadata is Test {
         address indexed creditor,
         address indexed debtor,
         uint256 claimAmount,
+        uint256 dueBy,
         string description,
         address token,
         address controller,
@@ -153,6 +154,7 @@ contract TestCreateSelfBillingInvoiceWithMetadata is Test {
             creditor, // creditor (who will receive the NFT)
             debtor, // debtor (who owes the payment)
             5 ether, // claimAmount
+            block.timestamp + 30 days, // dueBy
             "Self-billing invoice with metadata", // description
             address(0), // token (ETH)
             address(bullaInvoice), // controller
