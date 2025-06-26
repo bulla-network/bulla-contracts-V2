@@ -1,3 +1,10 @@
+# [1.6.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.5.0...v1.6.0) (2025-06-26)
+
+
+### Features
+
+* move approvals to its own contract to save space ([#68](https://github.com/bulla-network/bulla-contracts-V2/issues/68)) ([2e8e9c3](https://github.com/bulla-network/bulla-contracts-V2/commit/2e8e9c3e885d2229bb57a0f759038486cf4f2984))
+
 # [1.5.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.4.3...v1.5.0) (2025-06-24)
 
 
