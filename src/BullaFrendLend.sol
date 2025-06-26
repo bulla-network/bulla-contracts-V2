@@ -320,7 +320,8 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
             interestComputationState: InterestComputationState({
                 accruedInterest: 0,
                 latestPeriodNumber: 0,
-                protocolFeeBps: isProtocolFeeExempt ? 0 : protocolFeeBPS
+                protocolFeeBps: isProtocolFeeExempt ? 0 : protocolFeeBPS,
+                totalGrossInterestPaid: 0
             }),
             isProtocolFeeExempt: isProtocolFeeExempt
         });
@@ -358,7 +359,8 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
         _loanDetailsByClaimId[claimId].interestComputationState = InterestComputationState({
             accruedInterest: loan.interestComputationState.accruedInterest - grossInterestBeingPaid,
             latestPeriodNumber: loan.interestComputationState.latestPeriodNumber,
-            protocolFeeBps: loan.interestComputationState.protocolFeeBps
+            protocolFeeBps: loan.interestComputationState.protocolFeeBps,
+            totalGrossInterestPaid: loan.interestComputationState.totalGrossInterestPaid + grossInterestBeingPaid
         });
 
         // Calculate total actual payment (interest + principal)

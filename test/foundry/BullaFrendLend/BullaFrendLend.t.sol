@@ -2540,7 +2540,8 @@ contract TestBullaFrendLend is Test {
         InterestComputationState memory state = InterestComputationState({
             accruedInterest: 0.1 ether, // Some existing accrued interest
             latestPeriodNumber: 5, // Already at period 5
-            protocolFeeBps: 0
+            protocolFeeBps: 0,
+            totalGrossInterestPaid: 0
         });
 
         uint256 remainingPrincipal = 1 ether;
@@ -2569,8 +2570,12 @@ contract TestBullaFrendLend is Test {
             numberOfPeriodsPerYear: 12 // Monthly compounding
         });
 
-        InterestComputationState memory state =
-            InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0, protocolFeeBps: 0});
+        InterestComputationState memory state = InterestComputationState({
+            accruedInterest: 0,
+            latestPeriodNumber: 0,
+            protocolFeeBps: 0,
+            totalGrossInterestPaid: 0
+        });
 
         uint256 remainingPrincipal = 0; // Zero principal - no interest should accrue
 
@@ -2594,8 +2599,12 @@ contract TestBullaFrendLend is Test {
             numberOfPeriodsPerYear: 12 // Monthly compounding
         });
 
-        InterestComputationState memory state =
-            InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0, protocolFeeBps: 0});
+        InterestComputationState memory state = InterestComputationState({
+            accruedInterest: 0,
+            latestPeriodNumber: 0,
+            protocolFeeBps: 0,
+            totalGrossInterestPaid: 0
+        });
 
         uint256 dueBy = block.timestamp + 30 days; // Future due date
         uint256 remainingPrincipal = 1 ether;
@@ -2839,5 +2848,343 @@ contract TestBullaFrendLend is Test {
         );
         assertEq(loanAfter.paidAmount, halfPrincipal, "Half of principal should be paid");
         assertEq(loanAfter.claimAmount - loanAfter.paidAmount, 0.5 ether, "Remaining principal should be 0.5 ether");
+    }
+
+    // ========================================
+    // Total Gross Interest Paid Test Cases
+    // ========================================
+
+    function testTotalGrossInterestPaid_SingleFullPayment() public {
+        // Setup loan with interest
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 1 ether);
+
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withLoanAmount(1 ether).withTermLength(30 days).withInterestRate(1200, 12) // 12% annual, monthly compounding
+            .build();
+
+        vm.prank(creditor);
+        uint256 loanId = bullaFrendLend.offerLoan(offer);
+
+        bullaClaim.approvalRegistry().permitCreateClaim({
+            user: debtor,
+            controller: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
+        });
+
+        bullaClaim.approvalRegistry().permitPayClaim({
+            user: debtor,
+            controller: address(bullaFrendLend),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaFrendLend),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        vm.prank(debtor);
+        uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
+
+        // Initially, no interest should be paid
+        Loan memory initialLoan = bullaFrendLend.getLoan(claimId);
+        assertEq(
+            initialLoan.interestComputationState.totalGrossInterestPaid,
+            0,
+            "Initial total gross interest paid should be zero"
+        );
+
+        // Fast forward to accrue interest
+        vm.warp(block.timestamp + 60 days); // 2 months overdue
+
+        (uint256 remainingPrincipal, uint256 currentInterest) = bullaFrendLend.getTotalAmountDue(claimId);
+        uint256 totalPayment = remainingPrincipal + currentInterest;
+
+        vm.prank(debtor);
+        weth.approve(address(bullaFrendLend), totalPayment);
+        vm.prank(debtor);
+        bullaFrendLend.payLoan(claimId, totalPayment);
+
+        // Check total gross interest paid
+        Loan memory finalLoan = bullaFrendLend.getLoan(claimId);
+        assertEq(
+            finalLoan.interestComputationState.totalGrossInterestPaid,
+            currentInterest,
+            "Total gross interest paid should equal current interest"
+        );
+    }
+
+    function testTotalGrossInterestPaid_MultiplePartialPayments() public {
+        // Setup loan with interest
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 1 ether);
+
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withLoanAmount(1 ether).withTermLength(30 days).withInterestRate(1200, 12) // 12% annual, monthly compounding
+            .build();
+
+        vm.prank(creditor);
+        uint256 loanId = bullaFrendLend.offerLoan(offer);
+
+        bullaClaim.approvalRegistry().permitCreateClaim({
+            user: debtor,
+            controller: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
+        });
+
+        bullaClaim.approvalRegistry().permitPayClaim({
+            user: debtor,
+            controller: address(bullaFrendLend),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaFrendLend),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        vm.prank(debtor);
+        uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
+
+        uint256 totalInterestPaid = 0;
+
+        // First payment - interest only
+        vm.warp(block.timestamp + 30 days);
+        (, uint256 interest1) = bullaFrendLend.getTotalAmountDue(claimId);
+
+        vm.prank(debtor);
+        weth.approve(address(bullaFrendLend), interest1);
+        vm.prank(debtor);
+        bullaFrendLend.payLoan(claimId, interest1);
+
+        totalInterestPaid += interest1;
+        Loan memory loanAfterPayment1 = bullaFrendLend.getLoan(claimId);
+        assertEq(
+            loanAfterPayment1.interestComputationState.totalGrossInterestPaid,
+            totalInterestPaid,
+            "Total gross interest paid should equal first interest payment"
+        );
+
+        // Second payment - more interest accrued
+        vm.warp(block.timestamp + 30 days);
+        (, uint256 interest2) = bullaFrendLend.getTotalAmountDue(claimId);
+
+        vm.prank(debtor);
+        weth.approve(address(bullaFrendLend), interest2);
+        vm.prank(debtor);
+        bullaFrendLend.payLoan(claimId, interest2);
+
+        totalInterestPaid += interest2;
+        Loan memory loanAfterPayment2 = bullaFrendLend.getLoan(claimId);
+        assertEq(
+            loanAfterPayment2.interestComputationState.totalGrossInterestPaid,
+            totalInterestPaid,
+            "Total gross interest paid should equal sum of both interest payments"
+        );
+
+        // Final payment - remaining principal plus any new interest
+        (, uint256 interest3) = bullaFrendLend.getTotalAmountDue(claimId);
+        (uint256 remainingPrincipal,) = bullaFrendLend.getTotalAmountDue(claimId);
+        uint256 finalPayment = remainingPrincipal + interest3;
+
+        vm.prank(debtor);
+        weth.approve(address(bullaFrendLend), finalPayment);
+        vm.prank(debtor);
+        bullaFrendLend.payLoan(claimId, finalPayment);
+
+        totalInterestPaid += interest3;
+        Loan memory loanAfterFinalPayment = bullaFrendLend.getLoan(claimId);
+        assertEq(
+            loanAfterFinalPayment.interestComputationState.totalGrossInterestPaid,
+            totalInterestPaid,
+            "Total gross interest paid should equal sum of all interest payments"
+        );
+    }
+
+    function testTotalGrossInterestPaid_PrincipalOnlyPayment() public {
+        // Setup loan without interest
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 1 ether);
+
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withLoanAmount(1 ether).withTermLength(365 days).withInterestRate(0, 1) // 0% interest
+            .build();
+
+        vm.prank(creditor);
+        uint256 loanId = bullaFrendLend.offerLoan(offer);
+
+        bullaClaim.approvalRegistry().permitCreateClaim({
+            user: debtor,
+            controller: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
+        });
+
+        bullaClaim.approvalRegistry().permitPayClaim({
+            user: debtor,
+            controller: address(bullaFrendLend),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaFrendLend),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        vm.prank(debtor);
+        uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
+
+        // Pay principal only (should be no interest)
+        vm.prank(debtor);
+        weth.approve(address(bullaFrendLend), 1 ether);
+        vm.prank(debtor);
+        bullaFrendLend.payLoan(claimId, 1 ether);
+
+        // Total gross interest paid should remain zero
+        Loan memory paidLoan = bullaFrendLend.getLoan(claimId);
+        assertEq(
+            paidLoan.interestComputationState.totalGrossInterestPaid,
+            0,
+            "Total gross interest paid should be zero for principal-only payment"
+        );
+    }
+
+    function testTotalGrossInterestPaid_MultipleDifferentLoans() public {
+        // Setup two different loans
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 3 ether);
+
+        LoanRequestParams memory offer1 = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withLoanAmount(1 ether).withTermLength(30 days).withInterestRate(1000, 12)
+            .withDescription("Loan 1") // 10% annual
+            .build();
+
+        LoanRequestParams memory offer2 = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withLoanAmount(2 ether).withTermLength(30 days).withInterestRate(1500, 12)
+            .withDescription("Loan 2") // 15% annual
+            .build();
+
+        vm.prank(creditor);
+        uint256 loanId1 = bullaFrendLend.offerLoan(offer1);
+
+        vm.prank(creditor);
+        uint256 loanId2 = bullaFrendLend.offerLoan(offer2);
+
+        bullaClaim.approvalRegistry().permitCreateClaim({
+            user: debtor,
+            controller: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 2,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 2,
+                isBindingAllowed: true
+            })
+        });
+
+        bullaClaim.approvalRegistry().permitPayClaim({
+            user: debtor,
+            controller: address(bullaFrendLend),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaFrendLend),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        vm.prank(debtor);
+        uint256 claimId1 = bullaFrendLend.acceptLoan{value: FEE}(loanId1);
+
+        vm.prank(debtor);
+        uint256 claimId2 = bullaFrendLend.acceptLoan{value: FEE}(loanId2);
+
+        // Fast forward to accrue interest
+        vm.warp(block.timestamp + 60 days);
+
+        // Pay interest on loan 1
+        (, uint256 interest1) = bullaFrendLend.getTotalAmountDue(claimId1);
+        vm.prank(debtor);
+        weth.approve(address(bullaFrendLend), interest1);
+        vm.prank(debtor);
+        bullaFrendLend.payLoan(claimId1, interest1);
+
+        // Pay interest on loan 2
+        (, uint256 interest2) = bullaFrendLend.getTotalAmountDue(claimId2);
+        vm.prank(debtor);
+        weth.approve(address(bullaFrendLend), interest2);
+        vm.prank(debtor);
+        bullaFrendLend.payLoan(claimId2, interest2);
+
+        // Verify both loans track interest independently
+        Loan memory loan1 = bullaFrendLend.getLoan(claimId1);
+        Loan memory loan2 = bullaFrendLend.getLoan(claimId2);
+
+        assertEq(
+            loan1.interestComputationState.totalGrossInterestPaid,
+            interest1,
+            "Loan 1 total gross interest should be tracked independently"
+        );
+
+        assertEq(
+            loan2.interestComputationState.totalGrossInterestPaid,
+            interest2,
+            "Loan 2 total gross interest should be tracked independently"
+        );
+
+        assertGt(interest2, interest1, "Loan 2 should have higher interest due to higher rate and amount");
     }
 }

@@ -233,7 +233,8 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
             interestComputationState: InterestComputationState({
                 accruedInterest: 0,
                 latestPeriodNumber: 0,
-                protocolFeeBps: isProtocolFeeExempt ? 0 : protocolFeeBPS
+                protocolFeeBps: isProtocolFeeExempt ? 0 : protocolFeeBPS,
+                totalGrossInterestPaid: 0
             }),
             requestedByCreditor: msg.sender == params.creditor,
             isProtocolFeeExempt: isProtocolFeeExempt
@@ -324,7 +325,9 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
             _invoiceDetailsByClaimId[claimId].interestComputationState = InterestComputationState({
                 accruedInterest: interestComputationState.accruedInterest - grossInterestBeingPaid,
                 latestPeriodNumber: interestComputationState.latestPeriodNumber,
-                protocolFeeBps: invoiceDetails.interestComputationState.protocolFeeBps
+                protocolFeeBps: invoiceDetails.interestComputationState.protocolFeeBps,
+                totalGrossInterestPaid: invoiceDetails.interestComputationState.totalGrossInterestPaid
+                    + grossInterestBeingPaid
             });
         }
 

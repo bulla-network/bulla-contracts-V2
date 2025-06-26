@@ -12,6 +12,7 @@ struct InterestComputationState {
     uint256 accruedInterest;
     uint256 latestPeriodNumber;
     uint16 protocolFeeBps;
+    uint256 totalGrossInterestPaid;
 }
 
 uint16 constant MAX_DAYS_PER_YEAR = 365;
@@ -93,7 +94,8 @@ library CompoundInterestLib {
         return InterestComputationState({
             accruedInterest: totalAccruedInterest,
             latestPeriodNumber: currentPeriodNumber,
-            protocolFeeBps: state.protocolFeeBps
+            protocolFeeBps: state.protocolFeeBps,
+            totalGrossInterestPaid: state.totalGrossInterestPaid
         });
     }
 
