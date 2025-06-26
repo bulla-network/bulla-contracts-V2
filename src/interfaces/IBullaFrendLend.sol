@@ -15,7 +15,7 @@ struct LoanDetails {
 struct LoanRequestParams {
     uint256 termLength;
     InterestConfig interestConfig;
-    uint128 loanAmount;
+    uint256 loanAmount;
     address creditor;
     address debtor;
     string description;

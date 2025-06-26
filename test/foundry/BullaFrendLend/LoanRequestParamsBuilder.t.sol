@@ -6,7 +6,7 @@ import {InterestConfig} from "contracts/libraries/CompoundInterestLib.sol";
 contract LoanRequestParamsBuilder {
     uint256 private _termLength;
     InterestConfig private _interestConfig;
-    uint128 private _loanAmount;
+    uint256 private _loanAmount;
     address private _creditor;
     address private _debtor;
     string private _description;
@@ -63,7 +63,7 @@ contract LoanRequestParamsBuilder {
         return this;
     }
 
-    function withLoanAmount(uint128 loanAmount) public returns (LoanRequestParamsBuilder) {
+    function withLoanAmount(uint256 loanAmount) public returns (LoanRequestParamsBuilder) {
         _loanAmount = loanAmount;
         return this;
     }
