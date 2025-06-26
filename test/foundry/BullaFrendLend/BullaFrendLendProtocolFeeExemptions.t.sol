@@ -142,8 +142,9 @@ contract TestBullaFrendLendProtocolFeeExemptions is Test {
 
     function _createLoanOffer(address creditor, address debtor, uint256 loanAmount) internal returns (uint256) {
         LoanRequestParams memory loanParams = new LoanRequestParamsBuilder().withTermLength(_TERM_LENGTH)
-            .withInterestRate(1200, 12).withLoanAmount(uint128(loanAmount)).withCreditor(creditor).withDebtor(debtor)
-            .withToken(address(token)).withImpairmentGracePeriod(30 days).build();
+            .withInterestRate(1200, 12).withLoanAmount(loanAmount).withCreditor(creditor).withDebtor(debtor).withToken(
+            address(token)
+        ).withImpairmentGracePeriod(30 days).build();
 
         vm.prank(creditor);
         return bullaFrendLend.offerLoan(loanParams);
@@ -435,9 +436,8 @@ contract TestBullaFrendLendProtocolFeeExemptions is Test {
     function testDebtorOfferedLoanAcceptedByCreditor() public {
         // Create loan request as debtor (non-exempt user creates request)
         LoanRequestParams memory loanParams = new LoanRequestParamsBuilder().withTermLength(_TERM_LENGTH)
-            .withInterestRate(1200, 12).withLoanAmount(uint128(_LOAN_AMOUNT)).withCreditor(_creditor).withDebtor(
-            _nonExemptUser
-        ).withDescription("Test loan request").withToken(address(token)).withImpairmentGracePeriod(30 days) // Regular creditor
+            .withInterestRate(1200, 12).withLoanAmount(_LOAN_AMOUNT).withCreditor(_creditor).withDebtor(_nonExemptUser)
+            .withDescription("Test loan request").withToken(address(token)).withImpairmentGracePeriod(30 days) // Regular creditor
                 // Non-exempt user is debtor making request
             .build();
 
