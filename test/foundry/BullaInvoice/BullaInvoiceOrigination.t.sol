@@ -31,7 +31,7 @@ import {CreateInvoiceParamsBuilder} from "test/foundry/BullaInvoice/CreateInvoic
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
 import {InterestConfig, InterestComputationState} from "contracts/libraries/CompoundInterestLib.sol";
-import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/ERC20Mock.sol";
+import {ERC20MockLegacy as ERC20Mock} from "contracts/mocks/ERC20MockLegacy.sol";
 
 contract TestBullaInvoiceOrigination is Test {
     WETH public weth;
@@ -89,10 +89,10 @@ contract TestBullaInvoiceOrigination is Test {
     function _setupPermissions(EIP712Helper _sigHelper, address invoiceContract) internal {
         IBullaClaim _bullaClaim = IBullaClaim(BullaInvoice(invoiceContract)._bullaClaim());
         // Setup create claim permissions
-        _bullaClaim.permitCreateClaim({
+        _bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: invoiceContract,
-            approvalType: uint8(CreateClaimApprovalType.Approved),
+            approvalType: CreateClaimApprovalType.Approved,
             approvalCount: type(uint64).max,
             isBindingAllowed: false,
             signature: _sigHelper.signCreateClaimPermit({
@@ -106,10 +106,10 @@ contract TestBullaInvoiceOrigination is Test {
         });
 
         // Setup pay claim permissions
-        _bullaClaim.permitPayClaim({
+        _bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: invoiceContract,
-            approvalType: uint8(PayClaimApprovalType.IsApprovedForAll),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
             approvalDeadline: 0,
             paymentApprovals: new ClaimPaymentApprovalParam[](0),
             signature: _sigHelper.signPayClaimPermit({

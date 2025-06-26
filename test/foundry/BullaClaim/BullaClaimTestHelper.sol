@@ -9,8 +9,9 @@ import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParam
 
 contract BullaClaimTestHelper is Test {
     WETH public weth;
-    BullaClaim public bullaClaim;
-    EIP712Helper public sigHelper;
+    BullaClaim internal bullaClaim;
+    IBullaApprovalRegistry internal approvalRegistry;
+    EIP712Helper internal sigHelper;
 
     string tokenURI = "https://mytokenURI.com/1234";
     string attachmentURI = "https://coolcatpics.com/1234";
@@ -81,7 +82,7 @@ contract BullaClaimTestHelper is Test {
         bytes memory sig = sigHelper.signCreateClaimPermit(
             _userPK, vm.addr(_userPK), _controller, _approvalType, _approvalCount, _isBindingAllowed
         );
-        bullaClaim.permitCreateClaim(
+        approvalRegistry.permitCreateClaim(
             vm.addr(_userPK), _controller, _approvalType, _approvalCount, _isBindingAllowed, sig
         );
     }
@@ -95,7 +96,7 @@ contract BullaClaimTestHelper is Test {
     ) internal {
         address user = vm.addr(_userPK);
 
-        bullaClaim.permitPayClaim({
+        approvalRegistry.permitPayClaim({
             user: user,
             controller: _controller,
             approvalType: _approvalType,
@@ -131,22 +132,22 @@ contract BullaClaimTestHelper is Test {
 
     function _permitUpdateBinding(uint256 _userPK, address _controller, uint64 _approvalCount) internal {
         bytes memory sig = sigHelper.signUpdateBindingPermit(_userPK, vm.addr(_userPK), _controller, _approvalCount);
-        bullaClaim.permitUpdateBinding(vm.addr(_userPK), _controller, _approvalCount, sig);
+        approvalRegistry.permitUpdateBinding(vm.addr(_userPK), _controller, _approvalCount, sig);
     }
 
     function _permitCancelClaim(uint256 _userPK, address _controller, uint64 _approvalCount) internal {
         bytes memory sig = sigHelper.signCancelClaimPermit(_userPK, vm.addr(_userPK), _controller, _approvalCount);
-        bullaClaim.permitCancelClaim(vm.addr(_userPK), _controller, _approvalCount, sig);
+        approvalRegistry.permitCancelClaim(vm.addr(_userPK), _controller, _approvalCount, sig);
     }
 
     function _permitImpairClaim(uint256 _userPK, address _controller, uint64 _approvalCount) internal {
         bytes memory sig = sigHelper.signImpairClaimPermit(_userPK, vm.addr(_userPK), _controller, _approvalCount);
-        bullaClaim.permitImpairClaim(vm.addr(_userPK), _controller, _approvalCount, sig);
+        approvalRegistry.permitImpairClaim(vm.addr(_userPK), _controller, _approvalCount, sig);
     }
 
     function _permitMarkAsPaid(uint256 _userPK, address _controller, uint64 _approvalCount) internal {
         bytes memory sig = sigHelper.signMarkAsPaidPermit(_userPK, vm.addr(_userPK), _controller, _approvalCount);
-        bullaClaim.permitMarkAsPaid(vm.addr(_userPK), _controller, _approvalCount, sig);
+        approvalRegistry.permitMarkAsPaid(vm.addr(_userPK), _controller, _approvalCount, sig);
     }
 
     function _permitERC20Token(uint256 _ownerPK, address _token, address _spender, uint256 _amount, uint256 _deadline)

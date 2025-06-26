@@ -95,6 +95,7 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
             _coreProtocolFee: FEE
         });
         sigHelper = new EIP712Helper(address(bullaClaim));
+        approvalRegistry = bullaClaim.approvalRegistry();
 
         // Initialize the BullaFrendLend contract
         bullaFrendLend = new BullaFrendLend(address(bullaClaim), creditor, 1000); // 10% protocol fee

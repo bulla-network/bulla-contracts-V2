@@ -2,41 +2,14 @@
 pragma solidity ^0.8.30;
 
 import "../types/Types.sol";
-import "../interfaces/IERC1271.sol";
-import "../BullaClaim.sol";
-import "../interfaces/IBullaClaim.sol";
-import "../BullaControllerRegistry.sol";
+import "../interfaces/IBullaControllerRegistry.sol";
+import "../interfaces/IBullaApprovalRegistry.sol";
 import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import {SignatureChecker} from "openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol";
-import "../BaseBullaClaim.sol";
 
 library BullaClaimPermitLib {
     using Strings for uint256;
     using Strings for address;
-
-    event CreateClaimApproved(
-        address indexed user,
-        address indexed controller,
-        CreateClaimApprovalType indexed approvalType,
-        uint256 approvalCount,
-        bool isBindingAllowed
-    );
-
-    event PayClaimApproved(
-        address indexed user,
-        address indexed controller,
-        PayClaimApprovalType indexed approvalType,
-        uint256 approvalDeadline,
-        ClaimPaymentApprovalParam[] paymentApprovals
-    );
-
-    event UpdateBindingApproved(address indexed user, address indexed controller, uint256 approvalCount);
-
-    event CancelClaimApproved(address indexed user, address indexed controller, uint256 approvalCount);
-
-    event ImpairClaimApproved(address indexed user, address indexed controller, uint256 approvalCount);
-
-    event MarkAsPaidApproved(address indexed user, address indexed controller, uint256 approvalCount);
 
     bytes32 constant CREATE_CLAIM_TYPEHASH = keccak256(
         bytes(
@@ -82,7 +55,7 @@ library BullaClaimPermitLib {
     */
 
     function getPermitCreateClaimMessage(
-        BullaControllerRegistry controllerRegistry,
+        IBullaControllerRegistry controllerRegistry,
         address controller,
         CreateClaimApprovalType approvalType,
         uint64 approvalCount,
@@ -116,7 +89,7 @@ library BullaClaimPermitLib {
     }
 
     function getPermitPayClaimMessage(
-        BullaControllerRegistry controllerRegistry,
+        IBullaControllerRegistry controllerRegistry,
         address controller,
         PayClaimApprovalType approvalType,
         uint256 approvalDeadline
@@ -145,7 +118,7 @@ library BullaClaimPermitLib {
     }
 
     function getPermitCancelClaimMessage(
-        BullaControllerRegistry controllerRegistry,
+        IBullaControllerRegistry controllerRegistry,
         address controller,
         uint64 approvalCount
     ) public view returns (string memory) {
@@ -170,7 +143,7 @@ library BullaClaimPermitLib {
     }
 
     function getPermitUpdateBindingMessage(
-        BullaControllerRegistry controllerRegistry,
+        IBullaControllerRegistry controllerRegistry,
         address controller,
         uint64 approvalCount
     ) public view returns (string memory) {
@@ -195,7 +168,7 @@ library BullaClaimPermitLib {
     }
 
     function getPermitImpairClaimMessage(
-        BullaControllerRegistry controllerRegistry,
+        IBullaControllerRegistry controllerRegistry,
         address controller,
         uint64 approvalCount
     ) public view returns (string memory) {
@@ -220,7 +193,7 @@ library BullaClaimPermitLib {
     }
 
     function getPermitMarkAsPaidMessage(
-        BullaControllerRegistry controllerRegistry,
+        IBullaControllerRegistry controllerRegistry,
         address controller,
         uint64 approvalCount
     ) public view returns (string memory) {
@@ -249,7 +222,7 @@ library BullaClaimPermitLib {
     */
 
     function getPermitCreateClaimDigest(
-        BullaControllerRegistry controllerRegistry,
+        IBullaControllerRegistry controllerRegistry,
         address user,
         address controller,
         CreateClaimApprovalType approvalType,
@@ -297,7 +270,7 @@ library BullaClaimPermitLib {
     }
 
     function getPermitPayClaimDigest(
-        BullaControllerRegistry controllerRegistry,
+        IBullaControllerRegistry controllerRegistry,
         address user,
         address controller,
         PayClaimApprovalType approvalType,
@@ -322,7 +295,7 @@ library BullaClaimPermitLib {
     }
 
     function getPermitCancelClaimDigest(
-        BullaControllerRegistry controllerRegistry,
+        IBullaControllerRegistry controllerRegistry,
         address user,
         address controller,
         uint64 approvalCount,
@@ -341,7 +314,7 @@ library BullaClaimPermitLib {
     }
 
     function getPermitUpdateBindingDigest(
-        BullaControllerRegistry controllerRegistry,
+        IBullaControllerRegistry controllerRegistry,
         address user,
         address controller,
         uint64 approvalCount,
@@ -360,7 +333,7 @@ library BullaClaimPermitLib {
     }
 
     function getPermitImpairClaimDigest(
-        BullaControllerRegistry controllerRegistry,
+        IBullaControllerRegistry controllerRegistry,
         address user,
         address controller,
         uint64 approvalCount,
@@ -379,7 +352,7 @@ library BullaClaimPermitLib {
     }
 
     function getPermitMarkAsPaidDigest(
-        BullaControllerRegistry controllerRegistry,
+        IBullaControllerRegistry controllerRegistry,
         address user,
         address controller,
         uint64 approvalCount,
@@ -437,7 +410,7 @@ library BullaClaimPermitLib {
     ///     S8: The stored signing nonce found in `user`'s CreateClaimApproval struct for `controller`
     function permitCreateClaim(
         Approvals storage approvals,
-        BullaControllerRegistry controllerRegistry,
+        IBullaControllerRegistry controllerRegistry,
         bytes32 domainSeparator,
         address user,
         address controller,
@@ -460,10 +433,10 @@ library BullaClaimPermitLib {
 
         if (
             !SignatureChecker.isValidSignatureNow(user, digest, signature) // spec.SIG1, spec.SIG2
-        ) revert BaseBullaClaim.InvalidSignature();
+        ) revert IBullaApprovalRegistry.InvalidSignature();
 
         if (approvalType == CreateClaimApprovalType.Unapproved) {
-            if (approvalCount > 0 || isBindingAllowed) revert BaseBullaClaim.InvalidApproval(); // spec.R2, spec.R3
+            if (approvalCount > 0 || isBindingAllowed) revert IBullaApprovalRegistry.InvalidApproval(); // spec.R2, spec.R3
 
             approvals.createClaim.nonce++; // spec.R.RES1
             delete approvals.createClaim.isBindingAllowed; // spec.R.RES2
@@ -471,7 +444,7 @@ library BullaClaimPermitLib {
             delete approvals.createClaim.approvalCount; // spec.R.RES4
         } else {
             // spec.A1
-            if (approvalCount == 0) revert BaseBullaClaim.InvalidApproval(); // spec.A2
+            if (approvalCount == 0) revert IBullaApprovalRegistry.InvalidApproval(); // spec.A2
 
             approvals.createClaim.nonce++; // spec.A.RES1
             approvals.createClaim.isBindingAllowed = isBindingAllowed; // spec.A.RES2
@@ -480,7 +453,7 @@ library BullaClaimPermitLib {
         }
 
         // spec.RES3
-        emit CreateClaimApproved(user, controller, approvalType, approvalCount, isBindingAllowed);
+        emit IBullaApprovalRegistry.CreateClaimApproved(user, controller, approvalType, approvalCount, isBindingAllowed);
     }
 
     /// @notice permitPayClaim() allows a user, via a signature, to appove a controller to call payClaim on their behalf
@@ -538,7 +511,7 @@ library BullaClaimPermitLib {
     ///     S8: The stored signing nonce found in `user`'s PayClaimApproval struct for `controller`
     function permitPayClaim(
         Approvals storage approvals,
-        BullaControllerRegistry controllerRegistry,
+        IBullaControllerRegistry controllerRegistry,
         bytes32 domainSeparator,
         address user,
         address controller,
@@ -559,25 +532,27 @@ library BullaClaimPermitLib {
             )
         );
 
-        if (!SignatureChecker.isValidSignatureNow(user, digest, signature)) revert BaseBullaClaim.InvalidSignature();
+        if (!SignatureChecker.isValidSignatureNow(user, digest, signature)) {
+            revert IBullaApprovalRegistry.InvalidSignature();
+        }
         if (approvalDeadline != 0 && (approvalDeadline < block.timestamp || approvalDeadline > type(uint40).max)) {
-            revert IBullaClaim.ApprovalExpired();
+            revert IBullaApprovalRegistry.ApprovalExpired();
         }
 
         if (approvalType == PayClaimApprovalType.IsApprovedForAll) {
-            if (paymentApprovals.length > 0) revert BaseBullaClaim.InvalidApproval();
+            if (paymentApprovals.length > 0) revert IBullaApprovalRegistry.InvalidApproval();
 
             approvals.payClaim.approvalType = PayClaimApprovalType.IsApprovedForAll;
             approvals.payClaim.approvalDeadline = uint40(approvalDeadline); // cast is safe because we check it above
             delete approvals.payClaim.claimApprovals;
         } else if (approvalType == PayClaimApprovalType.IsApprovedForSpecific) {
-            if (paymentApprovals.length == 0) revert BaseBullaClaim.InvalidApproval();
+            if (paymentApprovals.length == 0) revert IBullaApprovalRegistry.InvalidApproval();
 
             for (uint256 i; i < paymentApprovals.length; ++i) {
                 if (
                     paymentApprovals[i].claimId > type(uint88).max
                         || paymentApprovals[i].approvedAmount > type(uint128).max
-                ) revert BaseBullaClaim.InvalidApproval();
+                ) revert IBullaApprovalRegistry.InvalidApproval();
                 if (
                     paymentApprovals[i].approvalDeadline != 0
                         && (
@@ -585,7 +560,7 @@ library BullaClaimPermitLib {
                                 || paymentApprovals[i].approvalDeadline > type(uint40).max
                         )
                 ) {
-                    revert IBullaClaim.ApprovalExpired();
+                    revert IBullaApprovalRegistry.ApprovalExpired();
                 }
 
                 approvals.payClaim.claimApprovals.push(
@@ -601,7 +576,7 @@ library BullaClaimPermitLib {
             approvals.payClaim.approvalDeadline = uint40(approvalDeadline);
         } else {
             if (approvalDeadline != 0 || paymentApprovals.length > 0) {
-                revert BaseBullaClaim.InvalidApproval();
+                revert IBullaApprovalRegistry.InvalidApproval();
             }
 
             delete approvals.payClaim.approvalType; // will reset back to 0, which is unapproved
@@ -611,7 +586,7 @@ library BullaClaimPermitLib {
 
         approvals.payClaim.nonce++;
 
-        emit PayClaimApproved(user, controller, approvalType, approvalDeadline, paymentApprovals);
+        emit IBullaApprovalRegistry.PayClaimApproved(user, controller, approvalType, approvalDeadline, paymentApprovals);
     }
 
     /// @notice permitUpdateBinding() allows a user, via a signature, to appove a controller to call updateBinding on their behalf
@@ -630,7 +605,7 @@ library BullaClaimPermitLib {
     ///     RES3: the UpdateBindingApproved event is emitted
     function permitUpdateBinding(
         Approvals storage approvals,
-        BullaControllerRegistry controllerRegistry,
+        IBullaControllerRegistry controllerRegistry,
         bytes32 domainSeparator,
         address user,
         address controller,
@@ -647,12 +622,14 @@ library BullaClaimPermitLib {
             )
         );
 
-        if (!SignatureChecker.isValidSignatureNow(user, digest, signature)) revert BaseBullaClaim.InvalidSignature();
+        if (!SignatureChecker.isValidSignatureNow(user, digest, signature)) {
+            revert IBullaApprovalRegistry.InvalidSignature();
+        }
 
         approvals.updateBinding.approvalCount = approvalCount;
         approvals.updateBinding.nonce++;
 
-        emit UpdateBindingApproved(user, controller, approvalCount);
+        emit IBullaApprovalRegistry.UpdateBindingApproved(user, controller, approvalCount);
     }
 
     /// @notice permitCancelClaim() allows a user, via a signature, to appove a controller to call cancelClaim on their behalf
@@ -671,7 +648,7 @@ library BullaClaimPermitLib {
     ///     RES3: the CancelClaimApproved event is emitted
     function permitCancelClaim(
         Approvals storage approvals,
-        BullaControllerRegistry controllerRegistry,
+        IBullaControllerRegistry controllerRegistry,
         bytes32 domainSeparator,
         address user,
         address controller,
@@ -688,12 +665,14 @@ library BullaClaimPermitLib {
             )
         );
 
-        if (!SignatureChecker.isValidSignatureNow(user, digest, signature)) revert BaseBullaClaim.InvalidSignature();
+        if (!SignatureChecker.isValidSignatureNow(user, digest, signature)) {
+            revert IBullaApprovalRegistry.InvalidSignature();
+        }
 
         approvals.cancelClaim.approvalCount = approvalCount;
         approvals.cancelClaim.nonce++;
 
-        emit CancelClaimApproved(user, controller, approvalCount);
+        emit IBullaApprovalRegistry.CancelClaimApproved(user, controller, approvalCount);
     }
 
     /// @notice permitImpairClaim() allows a user, via a signature, to appove a controller to call impairClaim on their behalf
@@ -712,7 +691,7 @@ library BullaClaimPermitLib {
     ///     RES3: the ImpairClaimApproved event is emitted
     function permitImpairClaim(
         Approvals storage approvals,
-        BullaControllerRegistry controllerRegistry,
+        IBullaControllerRegistry controllerRegistry,
         bytes32 domainSeparator,
         address user,
         address controller,
@@ -729,12 +708,14 @@ library BullaClaimPermitLib {
             )
         );
 
-        if (!SignatureChecker.isValidSignatureNow(user, digest, signature)) revert BaseBullaClaim.InvalidSignature();
+        if (!SignatureChecker.isValidSignatureNow(user, digest, signature)) {
+            revert IBullaApprovalRegistry.InvalidSignature();
+        }
 
         approvals.impairClaim.approvalCount = approvalCount;
         approvals.impairClaim.nonce++;
 
-        emit ImpairClaimApproved(user, controller, approvalCount);
+        emit IBullaApprovalRegistry.ImpairClaimApproved(user, controller, approvalCount);
     }
 
     /// @notice permitMarkAsPaid() allows a user, via a signature, to appove a controller to call markAsPaid on their behalf
@@ -753,7 +734,7 @@ library BullaClaimPermitLib {
     ///     RES3: the MarkAsPaidApproved event is emitted
     function permitMarkAsPaid(
         Approvals storage approvals,
-        BullaControllerRegistry controllerRegistry,
+        IBullaControllerRegistry controllerRegistry,
         bytes32 domainSeparator,
         address user,
         address controller,
@@ -770,11 +751,13 @@ library BullaClaimPermitLib {
             )
         );
 
-        if (!SignatureChecker.isValidSignatureNow(user, digest, signature)) revert BaseBullaClaim.InvalidSignature();
+        if (!SignatureChecker.isValidSignatureNow(user, digest, signature)) {
+            revert IBullaApprovalRegistry.InvalidSignature();
+        }
 
         approvals.markAsPaid.approvalCount = approvalCount;
         approvals.markAsPaid.nonce++;
 
-        emit MarkAsPaidApproved(user, controller, approvalCount);
+        emit IBullaApprovalRegistry.MarkAsPaidApproved(user, controller, approvalCount);
     }
 }

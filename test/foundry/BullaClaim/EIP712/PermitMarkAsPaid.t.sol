@@ -9,6 +9,7 @@ import "contracts/mocks/ERC1271Wallet.sol";
 import {console} from "forge-std/console.sol";
 import {Test} from "forge-std/Test.sol";
 import {BullaControllerRegistry} from "contracts/BullaControllerRegistry.sol";
+import {IBullaApprovalRegistry} from "contracts/interfaces/IBullaApprovalRegistry.sol";
 
 /// @title Test the permitMarkAsPaid function
 /// @notice This test covers happy paths, fuzzes and tests against some common signature system pitfalls:
@@ -30,6 +31,7 @@ import {BullaControllerRegistry} from "contracts/BullaControllerRegistry.sol";
 ///     RES3: the MarkAsPaidApproved event is emitted
 contract TestPermitMarkAsPaid is Test {
     BullaClaim internal bullaClaim;
+    IBullaApprovalRegistry internal approvalRegistry;
     EIP712Helper internal sigHelper;
     ERC1271WalletMock internal eip1271Wallet;
 
@@ -41,6 +43,7 @@ contract TestPermitMarkAsPaid is Test {
             _initialLockState: LockState.Unlocked,
             _coreProtocolFee: 0
         });
+        approvalRegistry = bullaClaim.approvalRegistry();
         sigHelper = new EIP712Helper(address(bullaClaim));
         eip1271Wallet = new ERC1271WalletMock();
     }
@@ -57,9 +60,14 @@ contract TestPermitMarkAsPaid is Test {
         vm.expectEmit(true, true, true, true);
         emit MarkAsPaidApproved(alice, bob, approvalCount);
 
-        bullaClaim.permitMarkAsPaid({user: alice, controller: bob, approvalCount: approvalCount, signature: signature});
+        approvalRegistry.permitMarkAsPaid({
+            user: alice,
+            controller: bob,
+            approvalCount: approvalCount,
+            signature: signature
+        });
 
-        (,,,,, MarkAsPaidApproval memory approval) = bullaClaim.approvals(alice, bob);
+        (,,,,, MarkAsPaidApproval memory approval) = approvalRegistry.getApprovals(alice, bob);
 
         assertTrue(approval.approvalCount == approvalCount, "approvalCount");
         assertTrue(approval.nonce == 1, "nonce");
@@ -76,9 +84,14 @@ contract TestPermitMarkAsPaid is Test {
         vm.expectEmit(true, true, true, true);
         emit MarkAsPaidApproved(alice, bob, approvalCount);
 
-        bullaClaim.permitMarkAsPaid({user: alice, controller: bob, approvalCount: approvalCount, signature: bytes("")});
+        approvalRegistry.permitMarkAsPaid({
+            user: alice,
+            controller: bob,
+            approvalCount: approvalCount,
+            signature: bytes("")
+        });
 
-        (,,,,, MarkAsPaidApproval memory approval) = bullaClaim.approvals(alice, bob);
+        (,,,,, MarkAsPaidApproval memory approval) = approvalRegistry.getApprovals(alice, bob);
 
         assertTrue(approval.approvalCount == approvalCount, "approvalCount");
         assertTrue(approval.nonce == 1, "nonce");
@@ -90,7 +103,7 @@ contract TestPermitMarkAsPaid is Test {
         address alice = vm.addr(alicePK);
         address bob = address(0xB0b);
 
-        bullaClaim.permitMarkAsPaid({
+        approvalRegistry.permitMarkAsPaid({
             user: alice,
             controller: bob,
             approvalCount: 1,
@@ -103,9 +116,9 @@ contract TestPermitMarkAsPaid is Test {
         vm.expectEmit(true, true, true, true);
         emit MarkAsPaidApproved(alice, bob, 0);
 
-        bullaClaim.permitMarkAsPaid({user: alice, controller: bob, approvalCount: 0, signature: signature});
+        approvalRegistry.permitMarkAsPaid({user: alice, controller: bob, approvalCount: 0, signature: signature});
 
-        (,,,,, MarkAsPaidApproval memory approval) = bullaClaim.approvals(alice, bob);
+        (,,,,, MarkAsPaidApproval memory approval) = approvalRegistry.getApprovals(alice, bob);
 
         assertTrue(approval.approvalCount == 0, "approvalCount");
         assertTrue(approval.nonce == 2, "nonce");
@@ -119,7 +132,7 @@ contract TestPermitMarkAsPaid is Test {
 
         eip1271Wallet.sign(digest);
 
-        bullaClaim.permitMarkAsPaid({user: alice, controller: bob, approvalCount: 1, signature: bytes("")});
+        approvalRegistry.permitMarkAsPaid({user: alice, controller: bob, approvalCount: 1, signature: bytes("")});
 
         digest = sigHelper.getPermitMarkAsPaidDigest({user: alice, controller: bob, approvalCount: 0});
 
@@ -128,9 +141,9 @@ contract TestPermitMarkAsPaid is Test {
         vm.expectEmit(true, true, true, true);
         emit MarkAsPaidApproved(alice, bob, 0);
 
-        bullaClaim.permitMarkAsPaid({user: alice, controller: bob, approvalCount: 0, signature: bytes("")});
+        approvalRegistry.permitMarkAsPaid({user: alice, controller: bob, approvalCount: 0, signature: bytes("")});
 
-        (,,,,, MarkAsPaidApproval memory approval) = bullaClaim.approvals(alice, bob);
+        (,,,,, MarkAsPaidApproval memory approval) = approvalRegistry.getApprovals(alice, bob);
 
         assertTrue(approval.approvalCount == 0, "approvalCount");
         assertTrue(approval.nonce == 2, "nonce");
@@ -141,9 +154,9 @@ contract TestPermitMarkAsPaid is Test {
         address alice = vm.addr(alicePK);
         address bob = address(0xB0b);
 
-        BullaControllerRegistry(bullaClaim.controllerRegistry()).setControllerName(bob, "bobby bob");
+        IBullaControllerRegistry(approvalRegistry.controllerRegistry()).setControllerName(bob, "bobby bob");
 
-        bullaClaim.permitMarkAsPaid({
+        approvalRegistry.permitMarkAsPaid({
             user: alice,
             controller: bob,
             approvalCount: 10,
@@ -160,11 +173,11 @@ contract TestPermitMarkAsPaid is Test {
         bytes memory signature =
             sigHelper.signMarkAsPaidPermit({pk: alicePK, user: alice, controller: bob, approvalCount: 1});
 
-        bullaClaim.setControllerRegistry(address(0));
+        approvalRegistry.setControllerRegistry(address(0));
 
         // This call to the 0 address will fail
         vm.expectRevert();
-        bullaClaim.permitMarkAsPaid({user: alice, controller: bob, approvalCount: 1, signature: signature});
+        approvalRegistry.permitMarkAsPaid({user: alice, controller: bob, approvalCount: 1, signature: signature});
     }
 
     /// @notice SPEC.SIG1
@@ -177,8 +190,8 @@ contract TestPermitMarkAsPaid is Test {
             sigHelper.signMarkAsPaidPermit({pk: alicePK, user: alice, controller: bob, approvalCount: 1});
         signature[64] = bytes1(uint8(signature[64]) + 1);
 
-        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
-        bullaClaim.permitMarkAsPaid({user: alice, controller: bob, approvalCount: 1, signature: signature});
+        vm.expectRevert(IBullaApprovalRegistry.InvalidSignature.selector);
+        approvalRegistry.permitMarkAsPaid({user: alice, controller: bob, approvalCount: 1, signature: signature});
     }
 
     /// @notice SPEC.SIG1
@@ -197,8 +210,13 @@ contract TestPermitMarkAsPaid is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(badGuyPK, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
 
-        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
-        bullaClaim.permitMarkAsPaid({user: alice, controller: bob, approvalCount: approvalCount, signature: signature});
+        vm.expectRevert(IBullaApprovalRegistry.InvalidSignature.selector);
+        approvalRegistry.permitMarkAsPaid({
+            user: alice,
+            controller: bob,
+            approvalCount: approvalCount,
+            signature: signature
+        });
     }
 
     /// @notice SPEC.SIG1
@@ -212,10 +230,15 @@ contract TestPermitMarkAsPaid is Test {
         bytes memory signature =
             sigHelper.signMarkAsPaidPermit({pk: alicePK, user: alice, controller: bob, approvalCount: approvalCount});
 
-        bullaClaim.permitMarkAsPaid({user: alice, controller: bob, approvalCount: approvalCount, signature: signature});
+        approvalRegistry.permitMarkAsPaid({
+            user: alice,
+            controller: bob,
+            approvalCount: approvalCount,
+            signature: signature
+        });
 
         // alice then revokes her approval
-        bullaClaim.permitMarkAsPaid({
+        approvalRegistry.permitMarkAsPaid({
             user: alice,
             controller: bob,
             approvalCount: 0,
@@ -223,8 +246,13 @@ contract TestPermitMarkAsPaid is Test {
         });
 
         // the initial signature can not be used to re-permit
-        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
-        bullaClaim.permitMarkAsPaid({user: alice, controller: bob, approvalCount: approvalCount, signature: signature});
+        vm.expectRevert(IBullaApprovalRegistry.InvalidSignature.selector);
+        approvalRegistry.permitMarkAsPaid({
+            user: alice,
+            controller: bob,
+            approvalCount: approvalCount,
+            signature: signature
+        });
     }
 
     /// @notice SPEC.SIG2
@@ -249,8 +277,8 @@ contract TestPermitMarkAsPaid is Test {
             "ecrecover sanity check"
         );
 
-        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
-        bullaClaim.permitMarkAsPaid({
+        vm.expectRevert(IBullaApprovalRegistry.InvalidSignature.selector);
+        approvalRegistry.permitMarkAsPaid({
             user: user,
             controller: controller,
             approvalCount: approvalCount,
@@ -264,7 +292,7 @@ contract TestPermitMarkAsPaid is Test {
         uint256 alicePK = uint256(0xA11c3);
         address alice = vm.addr(alicePK);
 
-        bullaClaim.permitMarkAsPaid({
+        approvalRegistry.permitMarkAsPaid({
             user: alice,
             controller: address(controller),
             approvalCount: 1,
@@ -290,7 +318,7 @@ contract TestPermitMarkAsPaid is Test {
         address controller = vm.addr(controllerPK);
 
         if (registerContract) {
-            BullaControllerRegistry(bullaClaim.controllerRegistry()).setControllerName(controller, "BullaFake");
+            IBullaControllerRegistry(approvalRegistry.controllerRegistry()).setControllerName(controller, "BullaFake");
         }
 
         bytes memory signature =
@@ -299,14 +327,14 @@ contract TestPermitMarkAsPaid is Test {
         vm.expectEmit(true, true, true, true);
         emit MarkAsPaidApproved(user, controller, approvalCount);
 
-        bullaClaim.permitMarkAsPaid({
+        approvalRegistry.permitMarkAsPaid({
             user: user,
             controller: controller,
             approvalCount: approvalCount,
             signature: signature
         });
 
-        (,,,,, MarkAsPaidApproval memory approval) = bullaClaim.approvals(user, controller);
+        (,,,,, MarkAsPaidApproval memory approval) = approvalRegistry.getApprovals(user, controller);
 
         assertEq(approval.approvalCount, approvalCount, "approvalCount");
         assertEq(approval.nonce, 1, "nonce");

@@ -9,6 +9,7 @@ import "contracts/mocks/PenalizedClaim.sol";
 import "contracts/mocks/ERC1271Wallet.sol";
 import {console} from "forge-std/console.sol";
 import {Test} from "forge-std/Test.sol";
+import {BullaApprovalRegistry} from "contracts/BullaApprovalRegistry.sol";
 
 /// @title Test the permitCreateClaim function
 /// @notice This test covers happy paths, fuzzes and tests against some common signature system pitfalls:
@@ -51,6 +52,7 @@ import {Test} from "forge-std/Test.sol";
 ///     S8: The stored signing nonce found in `user`'s CreateClaimApproval struct for `controller`
 contract TestPermitCreateClaim is Test {
     BullaClaim internal bullaClaim;
+    IBullaApprovalRegistry internal approvalRegistry;
     EIP712Helper internal sigHelper;
     ERC1271WalletMock internal eip1271Wallet;
 
@@ -68,6 +70,7 @@ contract TestPermitCreateClaim is Test {
             _initialLockState: LockState.Unlocked,
             _coreProtocolFee: 0
         });
+        approvalRegistry = bullaClaim.approvalRegistry();
         sigHelper = new EIP712Helper(address(bullaClaim));
         eip1271Wallet = new ERC1271WalletMock();
     }
@@ -94,7 +97,7 @@ contract TestPermitCreateClaim is Test {
         vm.expectEmit(true, true, true, true);
         emit CreateClaimApproved(alice, bob, approvalType, approvalCount, isBindingAllowed);
 
-        bullaClaim.permitCreateClaim({
+        approvalRegistry.permitCreateClaim({
             user: alice,
             controller: bob,
             approvalType: approvalType,
@@ -103,7 +106,7 @@ contract TestPermitCreateClaim is Test {
             signature: signature
         });
 
-        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvals(alice, bob);
+        (CreateClaimApproval memory approval,,,,,) = approvalRegistry.getApprovals(alice, bob);
 
         assertEq(approval.isBindingAllowed, isBindingAllowed, "isBindingAllowed");
         assertTrue(approval.approvalType == approvalType, "approvalType");
@@ -131,7 +134,7 @@ contract TestPermitCreateClaim is Test {
         vm.expectEmit(true, true, true, true);
         emit CreateClaimApproved(alice, bob, approvalType, approvalCount, isBindingAllowed);
 
-        bullaClaim.permitCreateClaim({
+        approvalRegistry.permitCreateClaim({
             user: alice,
             controller: bob,
             approvalType: approvalType,
@@ -140,7 +143,7 @@ contract TestPermitCreateClaim is Test {
             signature: bytes("")
         });
 
-        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvals(alice, bob);
+        (CreateClaimApproval memory approval,,,,,) = approvalRegistry.getApprovals(alice, bob);
 
         assertEq(approval.isBindingAllowed, isBindingAllowed, "isBindingAllowed");
         assertTrue(approval.approvalType == approvalType, "approvalType");
@@ -155,7 +158,7 @@ contract TestPermitCreateClaim is Test {
         address alice = vm.addr(alicePK);
         address bob = address(0xB0b);
 
-        bullaClaim.permitCreateClaim({
+        approvalRegistry.permitCreateClaim({
             user: alice,
             controller: bob,
             approvalType: CreateClaimApprovalType.Approved,
@@ -188,7 +191,7 @@ contract TestPermitCreateClaim is Test {
             0, // revoke case
             false
         );
-        bullaClaim.permitCreateClaim({
+        approvalRegistry.permitCreateClaim({
             user: alice,
             controller: bob,
             approvalType: CreateClaimApprovalType.Unapproved,
@@ -197,7 +200,7 @@ contract TestPermitCreateClaim is Test {
             signature: signature
         });
 
-        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvals(alice, bob);
+        (CreateClaimApproval memory approval,,,,,) = approvalRegistry.getApprovals(alice, bob);
         assertEq(approval.approvalCount, 0, "approvalCount");
         assertTrue(approval.approvalType == CreateClaimApprovalType.Unapproved, "approvalType");
     }
@@ -219,7 +222,7 @@ contract TestPermitCreateClaim is Test {
         });
         eip1271Wallet.sign(digest);
 
-        bullaClaim.permitCreateClaim({
+        approvalRegistry.permitCreateClaim({
             user: alice,
             controller: bob,
             approvalType: CreateClaimApprovalType.Approved,
@@ -246,7 +249,7 @@ contract TestPermitCreateClaim is Test {
             false
         );
 
-        bullaClaim.permitCreateClaim({
+        approvalRegistry.permitCreateClaim({
             user: alice,
             controller: bob,
             approvalType: CreateClaimApprovalType.Unapproved,
@@ -255,7 +258,7 @@ contract TestPermitCreateClaim is Test {
             signature: bytes("")
         });
 
-        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvals(alice, bob);
+        (CreateClaimApproval memory approval,,,,,) = approvalRegistry.getApprovals(alice, bob);
         assertEq(approval.approvalCount, 0, "approvalCount");
         assertTrue(approval.approvalType == CreateClaimApprovalType.Unapproved, "approvalType");
         assertTrue(approval.isBindingAllowed == false, "bindingAllowed");
@@ -268,7 +271,7 @@ contract TestPermitCreateClaim is Test {
         address alice = vm.addr(alicePK);
         address bob = address(0xB0b);
 
-        bullaClaim.permitCreateClaim({
+        approvalRegistry.permitCreateClaim({
             user: alice,
             controller: bob,
             approvalType: CreateClaimApprovalType.Approved,
@@ -293,8 +296,8 @@ contract TestPermitCreateClaim is Test {
             isBindingAllowed: false
         });
 
-        vm.expectRevert(BaseBullaClaim.InvalidApproval.selector);
-        bullaClaim.permitCreateClaim({
+        vm.expectRevert(IBullaApprovalRegistry.InvalidApproval.selector);
+        approvalRegistry.permitCreateClaim({
             user: alice,
             controller: bob,
             approvalType: CreateClaimApprovalType.Unapproved,
@@ -311,7 +314,7 @@ contract TestPermitCreateClaim is Test {
         address alice = vm.addr(alicePK);
         address bob = address(0xB0b);
 
-        bullaClaim.permitCreateClaim({
+        approvalRegistry.permitCreateClaim({
             user: alice,
             controller: bob,
             approvalType: CreateClaimApprovalType.Approved,
@@ -336,8 +339,8 @@ contract TestPermitCreateClaim is Test {
             isBindingAllowed: true
         });
 
-        vm.expectRevert(BaseBullaClaim.InvalidApproval.selector);
-        bullaClaim.permitCreateClaim({
+        vm.expectRevert(IBullaApprovalRegistry.InvalidApproval.selector);
+        approvalRegistry.permitCreateClaim({
             user: alice,
             controller: bob,
             approvalType: CreateClaimApprovalType.Unapproved,
@@ -363,8 +366,8 @@ contract TestPermitCreateClaim is Test {
             isBindingAllowed: true
         });
 
-        vm.expectRevert(BaseBullaClaim.InvalidApproval.selector);
-        bullaClaim.permitCreateClaim({
+        vm.expectRevert(IBullaApprovalRegistry.InvalidApproval.selector);
+        approvalRegistry.permitCreateClaim({
             user: alice,
             controller: bob,
             approvalType: CreateClaimApprovalType.Approved,
@@ -382,8 +385,8 @@ contract TestPermitCreateClaim is Test {
             isBindingAllowed: true
         });
 
-        vm.expectRevert(BaseBullaClaim.InvalidApproval.selector);
-        bullaClaim.permitCreateClaim({
+        vm.expectRevert(IBullaApprovalRegistry.InvalidApproval.selector);
+        approvalRegistry.permitCreateClaim({
             user: alice,
             controller: bob,
             approvalType: CreateClaimApprovalType.CreditorOnly,
@@ -401,8 +404,8 @@ contract TestPermitCreateClaim is Test {
             isBindingAllowed: true
         });
 
-        vm.expectRevert(BaseBullaClaim.InvalidApproval.selector);
-        bullaClaim.permitCreateClaim({
+        vm.expectRevert(IBullaApprovalRegistry.InvalidApproval.selector);
+        approvalRegistry.permitCreateClaim({
             user: alice,
             controller: bob,
             approvalType: CreateClaimApprovalType.DebtorOnly,
@@ -421,9 +424,9 @@ contract TestPermitCreateClaim is Test {
         uint64 approvalCount = 1;
         bool isBindingAllowed = true;
 
-        BullaControllerRegistry(bullaClaim.controllerRegistry()).setControllerName(bob, "bobby bob");
+        approvalRegistry.controllerRegistry().setControllerName(bob, "bobby bob");
 
-        bullaClaim.permitCreateClaim({
+        approvalRegistry.permitCreateClaim({
             user: alice,
             controller: bob,
             approvalType: approvalType,
@@ -458,11 +461,11 @@ contract TestPermitCreateClaim is Test {
             isBindingAllowed: isBindingAllowed
         });
 
-        bullaClaim.setControllerRegistry(address(0));
+        approvalRegistry.setControllerRegistry(address(0));
 
         // This call to the 0 address will fail
         vm.expectRevert();
-        bullaClaim.permitCreateClaim({
+        approvalRegistry.permitCreateClaim({
             user: bob,
             controller: bob,
             approvalType: approvalType,
@@ -491,9 +494,9 @@ contract TestPermitCreateClaim is Test {
         });
         signature[64] = bytes1(uint8(signature[64]) + 1);
 
-        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
+        vm.expectRevert(IBullaApprovalRegistry.InvalidSignature.selector);
 
-        bullaClaim.permitCreateClaim({
+        approvalRegistry.permitCreateClaim({
             user: alice,
             controller: bob,
             approvalType: approvalType,
@@ -525,8 +528,8 @@ contract TestPermitCreateClaim is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(badGuyPK, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
 
-        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
-        bullaClaim.permitCreateClaim({
+        vm.expectRevert(IBullaApprovalRegistry.InvalidSignature.selector);
+        approvalRegistry.permitCreateClaim({
             user: alice,
             controller: bob,
             approvalType: approvalType,
@@ -554,7 +557,7 @@ contract TestPermitCreateClaim is Test {
             isBindingAllowed: true
         });
 
-        bullaClaim.permitCreateClaim({
+        approvalRegistry.permitCreateClaim({
             user: alice,
             controller: bob,
             approvalType: approvalType,
@@ -564,7 +567,7 @@ contract TestPermitCreateClaim is Test {
         });
 
         // alice then revokes her approval
-        bullaClaim.permitCreateClaim({
+        approvalRegistry.permitCreateClaim({
             user: alice,
             controller: bob,
             approvalType: CreateClaimApprovalType.Unapproved,
@@ -581,8 +584,8 @@ contract TestPermitCreateClaim is Test {
         });
 
         // the initial signature can not be used to re-permit
-        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
-        bullaClaim.permitCreateClaim({
+        vm.expectRevert(IBullaApprovalRegistry.InvalidSignature.selector);
+        approvalRegistry.permitCreateClaim({
             user: alice,
             controller: bob,
             approvalType: approvalType,
@@ -620,9 +623,9 @@ contract TestPermitCreateClaim is Test {
             "ecrecover sanity check"
         );
 
-        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
+        vm.expectRevert(IBullaApprovalRegistry.InvalidSignature.selector);
 
-        bullaClaim.permitCreateClaim({
+        approvalRegistry.permitCreateClaim({
             user: user,
             controller: controller,
             approvalType: approvalType,
@@ -637,7 +640,7 @@ contract TestPermitCreateClaim is Test {
         PenalizedClaim controller = new PenalizedClaim(address(bullaClaim));
         uint256 alicePK = uint256(0xA11c3);
 
-        bullaClaim.permitCreateClaim({
+        approvalRegistry.permitCreateClaim({
             user: vm.addr(alicePK),
             controller: address(controller),
             approvalType: CreateClaimApprovalType.Approved,
@@ -678,7 +681,7 @@ contract TestPermitCreateClaim is Test {
         address controller = vm.addr(controllerPK);
 
         if (registerContract) {
-            BullaControllerRegistry(bullaClaim.controllerRegistry()).setControllerName(controller, "BullaFake");
+            approvalRegistry.controllerRegistry().setControllerName(controller, "BullaFake");
         }
 
         bytes memory sig = sigHelper.signCreateClaimPermit({
@@ -693,7 +696,7 @@ contract TestPermitCreateClaim is Test {
         vm.expectEmit(true, true, true, true);
         emit CreateClaimApproved(user, controller, approvalType, approvalCount, isBindingAllowed);
 
-        bullaClaim.permitCreateClaim({
+        approvalRegistry.permitCreateClaim({
             user: user,
             controller: controller,
             approvalType: approvalType,
@@ -702,7 +705,7 @@ contract TestPermitCreateClaim is Test {
             signature: sig
         });
 
-        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvals(user, controller);
+        (CreateClaimApproval memory approval,,,,,) = approvalRegistry.getApprovals(user, controller);
 
         assertEq(approval.nonce, 1, "nonce");
         assertEq(approval.approvalCount, approvalCount, "approvalCount");
@@ -749,7 +752,7 @@ contract TestPermitCreateClaim is Test {
         });
 
         // Call via direct implementation (BullaClaim.permitCreateClaim with enum)
-        bullaClaim.permitCreateClaim({
+        approvalRegistry.permitCreateClaim({
             user: alice,
             controller: controller1,
             approvalType: approvalType,
@@ -759,18 +762,18 @@ contract TestPermitCreateClaim is Test {
         });
 
         // Call via interface (IBullaClaim.permitCreateClaim with uint8)
-        IBullaClaim(address(bullaClaim)).permitCreateClaim({
+        BullaApprovalRegistry(address(approvalRegistry)).permitCreateClaim({
             user: charlie,
             controller: controller2,
-            approvalType: uint8(approvalType),
+            approvalType: approvalType,
             approvalCount: approvalCount,
             isBindingAllowed: isBindingAllowed,
             signature: charlieSignature
         });
 
         // Verify both calls produced identical results
-        (CreateClaimApproval memory aliceApproval,,,,,) = bullaClaim.approvals(alice, controller1);
-        (CreateClaimApproval memory charlieApproval,,,,,) = bullaClaim.approvals(charlie, controller2);
+        (CreateClaimApproval memory aliceApproval,,,,,) = approvalRegistry.getApprovals(alice, controller1);
+        (CreateClaimApproval memory charlieApproval,,,,,) = approvalRegistry.getApprovals(charlie, controller2);
 
         // Both should have identical state
         assertEq(aliceApproval.nonce, charlieApproval.nonce, "nonce should be equal");
@@ -801,7 +804,7 @@ contract TestPermitCreateClaim is Test {
         address controller2 = address(0xB0b2);
 
         // First approve both via different methods
-        bullaClaim.permitCreateClaim({
+        approvalRegistry.permitCreateClaim({
             user: alice,
             controller: controller1,
             approvalType: CreateClaimApprovalType.Approved,
@@ -817,10 +820,10 @@ contract TestPermitCreateClaim is Test {
             })
         });
 
-        IBullaClaim(address(bullaClaim)).permitCreateClaim({
+        BullaApprovalRegistry(address(approvalRegistry)).permitCreateClaim({
             user: charlie,
             controller: controller2,
-            approvalType: uint8(CreateClaimApprovalType.Approved),
+            approvalType: CreateClaimApprovalType.Approved,
             approvalCount: 3,
             isBindingAllowed: true,
             signature: sigHelper.signCreateClaimPermit({
@@ -834,7 +837,7 @@ contract TestPermitCreateClaim is Test {
         });
 
         // Now revoke both via different methods
-        bullaClaim.permitCreateClaim({
+        approvalRegistry.permitCreateClaim({
             user: alice,
             controller: controller1,
             approvalType: CreateClaimApprovalType.Unapproved,
@@ -850,10 +853,10 @@ contract TestPermitCreateClaim is Test {
             })
         });
 
-        IBullaClaim(address(bullaClaim)).permitCreateClaim({
+        BullaApprovalRegistry(address(approvalRegistry)).permitCreateClaim({
             user: charlie,
             controller: controller2,
-            approvalType: uint8(CreateClaimApprovalType.Unapproved),
+            approvalType: CreateClaimApprovalType.Unapproved,
             approvalCount: 0,
             isBindingAllowed: false,
             signature: sigHelper.signCreateClaimPermit({
@@ -867,8 +870,8 @@ contract TestPermitCreateClaim is Test {
         });
 
         // Verify both revocations produced identical results
-        (CreateClaimApproval memory aliceApproval,,,,,) = bullaClaim.approvals(alice, controller1);
-        (CreateClaimApproval memory charlieApproval,,,,,) = bullaClaim.approvals(charlie, controller2);
+        (CreateClaimApproval memory aliceApproval,,,,,) = approvalRegistry.getApprovals(alice, controller1);
+        (CreateClaimApproval memory charlieApproval,,,,,) = approvalRegistry.getApprovals(charlie, controller2);
 
         // Both should be revoked (approvalCount = 0, approvalType = Unapproved)
         assertEq(aliceApproval.nonce, 2, "alice nonce should be 2 after revocation");

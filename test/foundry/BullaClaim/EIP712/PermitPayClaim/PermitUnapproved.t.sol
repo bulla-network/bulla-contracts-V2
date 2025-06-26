@@ -2,6 +2,7 @@
 pragma solidity ^0.8.30;
 
 import "test/foundry/BullaClaim/EIP712/PermitPayClaim/Common.t.sol";
+import "contracts/libraries/BullaClaimPermitLib.sol";
 
 /// @notice SPEC
 /// permitPayClaim() can _revoke_ a controller to pay claims given the following conditions listed below as AR - (Approval Revoked 1-5):
@@ -42,7 +43,7 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
             eip1271Wallet.sign(digest);
         }
 
-        bullaClaim.permitPayClaim({
+        approvalRegistry.permitPayClaim({
             user: alice,
             controller: bob,
             approvalType: _approvalType,
@@ -77,7 +78,7 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
         vm.expectEmit(true, true, true, true);
         emit PayClaimApproved(alice, bob, PayClaimApprovalType.Unapproved, 0, new ClaimPaymentApprovalParam[](0));
 
-        bullaClaim.permitPayClaim({
+        approvalRegistry.permitPayClaim({
             user: alice,
             controller: bob,
             approvalType: approvalType,
@@ -86,7 +87,7 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
             signature: signature
         });
 
-        (, PayClaimApproval memory approval,,,,) = bullaClaim.approvals(alice, bob);
+        (, PayClaimApproval memory approval,,,,) = approvalRegistry.getApprovals(alice, bob);
         assertTrue(approval.approvalType == approvalType, "approvalType");
         assertEq(approval.approvalDeadline, 0, "deadline");
         assertEq(approval.nonce, 2, "nonce");
@@ -103,7 +104,7 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
         vm.expectEmit(true, true, true, true);
         emit PayClaimApproved(alice, bob, PayClaimApprovalType.Unapproved, 0, new ClaimPaymentApprovalParam[](0));
 
-        bullaClaim.permitPayClaim({
+        approvalRegistry.permitPayClaim({
             user: alice,
             controller: bob,
             approvalType: approvalType,
@@ -112,7 +113,7 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
             signature: bytes("")
         });
 
-        (, PayClaimApproval memory approval,,,,) = bullaClaim.approvals(alice, bob);
+        (, PayClaimApproval memory approval,,,,) = approvalRegistry.getApprovals(alice, bob);
         assertTrue(approval.approvalType == approvalType, "approvalType");
         assertEq(approval.approvalDeadline, 0, "deadline");
         assertEq(approval.nonce, 2, "nonce");
@@ -123,12 +124,12 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
     function testRevokeDeleteSpecificApprovals() public {
         _setUp(PayClaimApprovalType.IsApprovedForSpecific);
 
-        (, PayClaimApproval memory approval,,,,) = bullaClaim.approvals(alice, bob);
+        (, PayClaimApproval memory approval,,,,) = approvalRegistry.getApprovals(alice, bob);
         assertEq(approval.claimApprovals.length, 4, "claim approvals");
 
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](0);
 
-        bullaClaim.permitPayClaim({
+        approvalRegistry.permitPayClaim({
             user: alice,
             controller: bob,
             approvalType: approvalType,
@@ -144,7 +145,7 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
             })
         });
 
-        (, approval,,,,) = bullaClaim.approvals(alice, bob);
+        (, approval,,,,) = approvalRegistry.getApprovals(alice, bob);
         assertEq(approval.claimApprovals.length, 0, "claim approvals");
     }
 
@@ -164,8 +165,8 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
             paymentApprovals: paymentApprovals
         });
 
-        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
-        bullaClaim.permitPayClaim({
+        vm.expectRevert(IBullaApprovalRegistry.InvalidSignature.selector);
+        approvalRegistry.permitPayClaim({
             user: alice,
             controller: bob,
             approvalType: approvalType,
@@ -189,7 +190,7 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
             paymentApprovals: paymentApprovals
         });
 
-        bullaClaim.permitPayClaim({
+        approvalRegistry.permitPayClaim({
             user: alice,
             controller: bob,
             approvalType: approvalType,
@@ -198,8 +199,8 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
             signature: signature
         });
 
-        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
-        bullaClaim.permitPayClaim({
+        vm.expectRevert(IBullaApprovalRegistry.InvalidSignature.selector);
+        approvalRegistry.permitPayClaim({
             user: alice,
             controller: bob,
             approvalType: approvalType,
@@ -215,7 +216,11 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
         ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](0);
 
         bytes32 digest = keccak256(
-            bytes(BullaClaimPermitLib.getPermitPayClaimMessage(bullaClaim.controllerRegistry(), bob, approvalType, 0))
+            bytes(
+                BullaClaimPermitLib.getPermitPayClaimMessage(
+                    approvalRegistry.controllerRegistry(), bob, approvalType, 0
+                )
+            )
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePK, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
@@ -226,8 +231,8 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
         (v, r, s) = splitSig(signature);
         assertEq(ecrecover(digest, v, r, s), address(0), "ecrecover sanity check");
 
-        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
-        bullaClaim.permitPayClaim({
+        vm.expectRevert(IBullaApprovalRegistry.InvalidSignature.selector);
+        approvalRegistry.permitPayClaim({
             user: user,
             controller: bob,
             approvalType: approvalType,
@@ -252,8 +257,8 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
             paymentApprovals: paymentApprovals
         });
 
-        vm.expectRevert(BaseBullaClaim.InvalidApproval.selector);
-        bullaClaim.permitPayClaim({
+        vm.expectRevert(IBullaApprovalRegistry.InvalidApproval.selector);
+        approvalRegistry.permitPayClaim({
             user: alice,
             controller: bob,
             approvalType: approvalType,
@@ -278,8 +283,8 @@ contract TestPermitPayClaim_Unapproved is PermitPayClaimTest {
             paymentApprovals: paymentApprovals
         });
 
-        vm.expectRevert(BaseBullaClaim.InvalidApproval.selector);
-        bullaClaim.permitPayClaim({
+        vm.expectRevert(IBullaApprovalRegistry.InvalidApproval.selector);
+        approvalRegistry.permitPayClaim({
             user: alice,
             controller: bob,
             approvalType: approvalType,

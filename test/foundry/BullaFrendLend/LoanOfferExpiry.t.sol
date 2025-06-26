@@ -47,6 +47,7 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
             _coreProtocolFee: FEE
         });
         sigHelper = new EIP712Helper(address(bullaClaim));
+        approvalRegistry = bullaClaim.approvalRegistry();
         bullaFrendLend = new BullaFrendLend(address(bullaClaim), admin, PROTOCOL_FEE_BPS);
 
         vm.deal(creditor, 10 ether);

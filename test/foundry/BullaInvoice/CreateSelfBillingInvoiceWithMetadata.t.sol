@@ -30,7 +30,7 @@ import {Deployer} from "script/Deployment.s.sol";
 import {CreateInvoiceParamsBuilder} from "test/foundry/BullaInvoice/CreateInvoiceParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
 import {InterestConfig, InterestComputationState} from "contracts/libraries/CompoundInterestLib.sol";
-import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/ERC20Mock.sol";
+import {ERC20MockLegacy as ERC20Mock} from "contracts/mocks/ERC20MockLegacy.sol";
 
 contract TestCreateSelfBillingInvoiceWithMetadata is Test {
     WETH public weth;
@@ -54,6 +54,7 @@ contract TestCreateSelfBillingInvoiceWithMetadata is Test {
         address indexed creditor,
         address indexed debtor,
         uint256 claimAmount,
+        uint256 dueBy,
         string description,
         address token,
         address controller,
@@ -89,7 +90,7 @@ contract TestCreateSelfBillingInvoiceWithMetadata is Test {
 
     function _setupDebtorPermissions() internal {
         // Setup create claim permissions for debtor (self-billing)
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: debtor,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -106,7 +107,7 @@ contract TestCreateSelfBillingInvoiceWithMetadata is Test {
         });
 
         // Setup pay claim permissions for debtor (to pay debtor-created invoices)
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(bullaInvoice),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -153,6 +154,7 @@ contract TestCreateSelfBillingInvoiceWithMetadata is Test {
             creditor, // creditor (who will receive the NFT)
             debtor, // debtor (who owes the payment)
             5 ether, // claimAmount
+            block.timestamp + 30 days, // dueBy
             "Self-billing invoice with metadata", // description
             address(0), // token (ETH)
             address(bullaInvoice), // controller

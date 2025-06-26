@@ -11,7 +11,7 @@ import {Deployer} from "script/Deployment.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
-import {BaseBullaClaim} from "contracts/BaseBullaClaim.sol";
+import {IBullaClaim} from "contracts/interfaces/IBullaClaim.sol";
 
 /// @notice covers test cases for updateBinding() and updateBindingFrom()
 /// @notice SPEC: updateBinding() TODO
@@ -37,6 +37,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
 
         bullaClaim = (new Deployer()).deploy_test(address(0xB0b), LockState.Unlocked, 0);
         sigHelper = new EIP712Helper(address(bullaClaim));
+        approvalRegistry = bullaClaim.approvalRegistry();
     }
 
     event BindingUpdated(uint256 indexed claimId, address indexed from, ClaimBinding indexed binding);
@@ -205,7 +206,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
 
     function testCannotUpdateBindingIfNotMinted() public {
         vm.prank(debtor);
-        vm.expectRevert(BaseBullaClaim.NotMinted.selector);
+        vm.expectRevert(IBullaClaim.NotMinted.selector);
         bullaClaim.updateBinding(1, ClaimBinding.Unbound);
     }
 
@@ -391,12 +392,12 @@ contract TestUpdateBinding is BullaClaimTestHelper {
 
         // creditor can't update the binding directly
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(BaseBullaClaim.NotController.selector, creditor));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.NotController.selector, creditor));
         bullaClaim.updateBinding(claimId, ClaimBinding.Unbound);
 
         // neither can the debtor
         vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSelector(BaseBullaClaim.NotController.selector, debtor));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.NotController.selector, debtor));
         bullaClaim.updateBinding(claimId, ClaimBinding.Bound);
 
         // the controller must be approved
@@ -415,7 +416,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         vm.prank(controller);
         bullaClaim.updateBindingFrom(creditor, claimId, ClaimBinding.BindingPending);
 
-        (,, UpdateBindingApproval memory approval,,,) = bullaClaim.approvals(creditor, controller);
+        (,, UpdateBindingApproval memory approval,,,) = bullaClaim.approvalRegistry().getApprovals(creditor, controller);
 
         assertEq(approval.approvalCount, 11, "Should have 11 approvals");
 
@@ -429,7 +430,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         vm.prank(controller);
         bullaClaim.updateBindingFrom(creditor, claimId, ClaimBinding.BindingPending);
 
-        (,, approval,,,) = bullaClaim.approvals(creditor, controller);
+        (,, approval,,,) = bullaClaim.approvalRegistry().getApprovals(creditor, controller);
 
         assertEq(approval.approvalCount, type(uint64).max);
         Claim memory claim = bullaClaim.getClaim(claimId);
@@ -447,7 +448,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         vm.prank(controller);
         bullaClaim.updateBindingFrom(creditor, claimId, ClaimBinding.BindingPending);
 
-        (,, UpdateBindingApproval memory approval,,,) = bullaClaim.approvals(creditor, controller);
+        (,, UpdateBindingApproval memory approval,,,) = bullaClaim.approvalRegistry().getApprovals(creditor, controller);
 
         assertEq(approval.approvalCount, 0, "Should have 0 approvals");
 

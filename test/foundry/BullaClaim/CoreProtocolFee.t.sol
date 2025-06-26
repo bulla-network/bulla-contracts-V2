@@ -17,7 +17,8 @@ import {
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
-import {BaseBullaClaim} from "contracts/BaseBullaClaim.sol";
+import {IBullaClaim} from "contracts/interfaces/IBullaClaim.sol";
+import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
 
 contract TestCoreProtocolFee is Test {
     BullaClaim public bullaClaim;
@@ -40,6 +41,7 @@ contract TestCoreProtocolFee is Test {
         address indexed creditor,
         address indexed debtor,
         uint256 claimAmount,
+        uint256 dueBy,
         string description,
         address token,
         address controller,
@@ -114,17 +116,17 @@ contract TestCoreProtocolFee is Test {
 
         // Test with too little fee
         vm.prank(_creditor);
-        vm.expectRevert(BaseBullaClaim.IncorrectFee.selector);
+        vm.expectRevert(IBullaClaim.IncorrectFee.selector);
         bullaClaim.createClaim{value: _STANDARD_FEE - 1}(params);
 
         // Test with too much fee
         vm.prank(_creditor);
-        vm.expectRevert(BaseBullaClaim.IncorrectFee.selector);
+        vm.expectRevert(IBullaClaim.IncorrectFee.selector);
         bullaClaim.createClaim{value: _STANDARD_FEE + 1}(params);
 
         // Test with zero fee when fee is required
         vm.prank(_creditor);
-        vm.expectRevert(BaseBullaClaim.IncorrectFee.selector);
+        vm.expectRevert(IBullaClaim.IncorrectFee.selector);
         bullaClaim.createClaim{value: 0}(params);
     }
 
@@ -152,7 +154,7 @@ contract TestCoreProtocolFee is Test {
             ClaimMetadata({tokenURI: "https://example.com/token", attachmentURI: "https://example.com/attachment"});
 
         vm.prank(_creditor);
-        vm.expectRevert(BaseBullaClaim.IncorrectFee.selector);
+        vm.expectRevert(IBullaClaim.IncorrectFee.selector);
         bullaClaim.createClaimWithMetadata{value: _STANDARD_FEE - 1}(params, metadata);
     }
 
@@ -235,7 +237,7 @@ contract TestCoreProtocolFee is Test {
         bullaClaim.createClaim{value: _STANDARD_FEE}(params);
 
         vm.prank(_nonOwner);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, _nonOwner));
         bullaClaim.withdrawAllFees();
     }
 
@@ -279,7 +281,7 @@ contract TestCoreProtocolFee is Test {
         uint256 newFee = 0.05 ether;
 
         vm.prank(_nonOwner);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, _nonOwner));
         bullaClaim.setCoreProtocolFee(newFee);
     }
 
@@ -315,7 +317,7 @@ contract TestCoreProtocolFee is Test {
             new CreateClaimParamsBuilder().withCreditor(_creditor).withDebtor(_debtor).withClaimAmount(1 ether).build();
 
         vm.prank(_creditor);
-        vm.expectRevert(BaseBullaClaim.Locked.selector);
+        vm.expectRevert(IBullaClaim.Locked.selector);
         bullaClaim.createClaim{value: _STANDARD_FEE}(params);
     }
 
@@ -327,7 +329,7 @@ contract TestCoreProtocolFee is Test {
             new CreateClaimParamsBuilder().withCreditor(_creditor).withDebtor(_debtor).withClaimAmount(1 ether).build();
 
         vm.prank(_creditor);
-        vm.expectRevert(BaseBullaClaim.Locked.selector);
+        vm.expectRevert(IBullaClaim.Locked.selector);
         bullaClaim.createClaim{value: _STANDARD_FEE}(params);
     }
 

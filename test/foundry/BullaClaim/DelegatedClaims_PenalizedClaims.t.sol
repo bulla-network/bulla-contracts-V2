@@ -11,7 +11,7 @@ import {BullaClaim} from "contracts/BullaClaim.sol";
 import {PenalizedClaim} from "contracts/mocks/PenalizedClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
-import {BaseBullaClaim} from "contracts/BaseBullaClaim.sol";
+import {IBullaClaim} from "contracts/interfaces/IBullaClaim.sol";
 
 contract TestPenalizedClaim is Test {
     WETH public weth;
@@ -40,7 +40,7 @@ contract TestPenalizedClaim is Test {
 
     // deploy contracts, setup extension, ensure cannot call create, cancel, or pay directly on BullaClaim
     function testFeeWorks() public {
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(penalizedClaim),
             approvalType: CreateClaimApprovalType.Approved,
@@ -64,7 +64,7 @@ contract TestPenalizedClaim is Test {
         );
         vm.stopPrank();
 
-        bullaClaim.permitUpdateBinding({
+        bullaClaim.approvalRegistry().permitUpdateBinding({
             user: debtor,
             controller: address(penalizedClaim),
             approvalCount: 1,
@@ -81,7 +81,7 @@ contract TestPenalizedClaim is Test {
 
         vm.warp(block.timestamp + 2 days);
 
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: debtor,
             controller: address(penalizedClaim),
             approvalType: PayClaimApprovalType.IsApprovedForAll,
@@ -104,7 +104,7 @@ contract TestPenalizedClaim is Test {
     }
 
     function testCannotBypassController() public {
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(penalizedClaim),
             approvalType: CreateClaimApprovalType.Approved,
@@ -130,13 +130,13 @@ contract TestPenalizedClaim is Test {
 
         vm.startPrank(debtor);
 
-        vm.expectRevert(abi.encodeWithSelector(BaseBullaClaim.NotController.selector, debtor));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.NotController.selector, debtor));
         bullaClaim.updateBinding(claimId, ClaimBinding.Bound);
 
-        vm.expectRevert(abi.encodeWithSelector(BaseBullaClaim.NotController.selector, debtor));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.NotController.selector, debtor));
         bullaClaim.payClaim{value: 0.5 ether}(claimId, 0.5 ether);
 
-        vm.expectRevert(abi.encodeWithSelector(BaseBullaClaim.NotController.selector, debtor));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.NotController.selector, debtor));
         bullaClaim.cancelClaim(claimId, "Nahhhh");
     }
 }

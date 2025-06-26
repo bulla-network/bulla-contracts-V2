@@ -104,7 +104,7 @@ contract TestBullaInvoiceProtocolFeeExemptions is Test {
     }
 
     function _setupPermissions(address user, uint256 userPK) internal {
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: user,
             controller: address(bullaInvoice),
             approvalType: CreateClaimApprovalType.Approved,
@@ -120,7 +120,7 @@ contract TestBullaInvoiceProtocolFeeExemptions is Test {
             })
         });
 
-        bullaClaim.permitPayClaim({
+        bullaClaim.approvalRegistry().permitPayClaim({
             user: user,
             controller: address(bullaInvoice),
             approvalType: PayClaimApprovalType.IsApprovedForAll,

@@ -12,6 +12,7 @@ import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParam
 /// @notice a base boilerplate class to inherit on PermitPayClaim tests
 contract PermitPayClaimTest is Test {
     BullaClaim internal bullaClaim;
+    IBullaApprovalRegistry internal approvalRegistry;
     WETH internal weth;
     EIP712Helper internal sigHelper;
     ERC1271WalletMock internal eip1271Wallet;
@@ -37,6 +38,7 @@ contract PermitPayClaimTest is Test {
             _initialLockState: LockState.Unlocked,
             _coreProtocolFee: 0
         });
+        approvalRegistry = bullaClaim.approvalRegistry();
         sigHelper = new EIP712Helper(address(bullaClaim));
         eip1271Wallet = new ERC1271WalletMock();
     }

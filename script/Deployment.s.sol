@@ -5,6 +5,8 @@ import "forge-std/Script.sol";
 import "contracts/BullaClaim.sol";
 import "contracts/BullaControllerRegistry.sol";
 import "contracts/WhitelistPermissions.sol";
+import "contracts/BullaApprovalRegistry.sol";
+import "contracts/interfaces/IBullaApprovalRegistry.sol";
 
 contract Deployer is Script {
     BullaClaim bullaClaim;
@@ -36,8 +38,10 @@ contract Deployer is Script {
     function _deploy(LockState _initialLockState, uint256 _coreProtocolFee) internal {
         controllerRegistry = new BullaControllerRegistry();
         whitelistPermissions = new WhitelistPermissions();
+        IBullaApprovalRegistry approvalRegistry = new BullaApprovalRegistry(address(controllerRegistry));
         bullaClaim = new BullaClaim(
-            address(controllerRegistry), _initialLockState, _coreProtocolFee, address(whitelistPermissions)
+            address(approvalRegistry), _initialLockState, _coreProtocolFee, address(whitelistPermissions)
         );
+        approvalRegistry.setAuthorizedContract(address(bullaClaim), true);
     }
 }

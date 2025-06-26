@@ -12,7 +12,7 @@ import "./Permissions.sol";
 contract WhitelistPermissions is Permissions, Ownable {
     mapping(address => bool) private allowedAddresses;
 
-    constructor() {}
+    constructor() Ownable(msg.sender) {}
 
     /**
      * @dev See {IPermissions-isAllowed}.

@@ -107,7 +107,7 @@ contract TestGnosisSafeSignatures is Test {
         assertEq(safe.signedMessages(safeDigest), 1);
         assertEq(IERC1271(safeAddress).isValidSignature(digest, ""), IERC1271.isValidSignature.selector);
 
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: safeAddress,
             controller: controller,
             approvalType: approvalType,
@@ -116,7 +116,7 @@ contract TestGnosisSafeSignatures is Test {
             signature: bytes("")
         });
 
-        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvals(safeAddress, controller);
+        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvalRegistry().getApprovals(safeAddress, controller);
 
         assertEq(approval.approvalCount, approvalCount);
     }
@@ -153,7 +153,7 @@ contract TestGnosisSafeSignatures is Test {
         bytes memory bobSig = abi.encodePacked(r, s, v);
         bytes memory signature = alice < bob ? bytes.concat(aliceSig, bobSig) : bytes.concat(bobSig, aliceSig);
 
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: safeAddress,
             controller: controller,
             approvalType: approvalType,
@@ -162,7 +162,7 @@ contract TestGnosisSafeSignatures is Test {
             signature: signature
         });
 
-        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvals(safeAddress, controller);
+        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvalRegistry().getApprovals(safeAddress, controller);
         assertEq(approval.approvalCount, approvalCount);
     }
 }

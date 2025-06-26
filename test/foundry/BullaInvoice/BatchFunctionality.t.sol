@@ -4,7 +4,7 @@ import "forge-std/Test.sol";
 import "forge-std/Vm.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
-import {ERC20PermitMock} from "openzeppelin-contracts/contracts/mocks/ERC20PermitMock.sol";
+import {ERC20PermitMock} from "contracts/mocks/ERC20PermitMock.sol";
 import {
     Claim,
     Status,
@@ -54,6 +54,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
             _coreProtocolFee: FEE
         });
         sigHelper = new EIP712Helper(address(bullaClaim));
+        approvalRegistry = bullaClaim.approvalRegistry();
         bullaInvoice = new BullaInvoice(address(bullaClaim), address(this), 0);
 
         // Setup token balances

@@ -12,7 +12,7 @@ import {Deployer} from "script/Deployment.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
-import {BaseBullaClaim} from "contracts/BaseBullaClaim.sol";
+import {IBullaClaim} from "contracts/interfaces/IBullaClaim.sol";
 
 /// @notice SPEC:
 /// A function can call this function to verify and "spend" `from`'s approval of `controller` to create a claim given the following:
@@ -41,6 +41,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
         address indexed creditor,
         address indexed debtor,
         uint256 claimAmount,
+        uint256 dueBy,
         string description,
         address token,
         address controller,
@@ -56,6 +57,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
             _coreProtocolFee: 0
         });
         sigHelper = new EIP712Helper(address(bullaClaim));
+        approvalRegistry = bullaClaim.approvalRegistry();
         _newClaim(creditor, creditor, debtor);
     }
 
@@ -66,17 +68,17 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
 
         _permitCreateClaim({_userPK: userPK, _controller: address(this), _approvalCount: type(uint64).max});
 
-        vm.expectRevert(BaseBullaClaim.Locked.selector);
+        vm.expectRevert(IBullaClaim.Locked.selector);
         _newClaim(creditor, creditor, debtor);
 
-        vm.expectRevert(BaseBullaClaim.Locked.selector);
+        vm.expectRevert(IBullaClaim.Locked.selector);
         _newClaimFrom(user, creditor, debtor);
 
         bullaClaim.setLockState(LockState.NoNewClaims);
-        vm.expectRevert(BaseBullaClaim.Locked.selector);
+        vm.expectRevert(IBullaClaim.Locked.selector);
         _newClaim(creditor, creditor, debtor);
 
-        vm.expectRevert(BaseBullaClaim.Locked.selector);
+        vm.expectRevert(IBullaClaim.Locked.selector);
         _newClaimFrom(user, creditor, debtor);
     }
 
@@ -85,19 +87,19 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
         // have the creditor permit bob to act as a controller
         _permitCreateClaim({_userPK: userPK, _controller: controller, _approvalCount: 1});
 
-        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvals(user, controller);
+        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvalRegistry().getApprovals(user, controller);
         uint256 approvalCount = approval.approvalCount;
 
         vm.prank(controller);
         _newClaimFrom(user, user, debtor);
-        (approval,,,,,) = bullaClaim.approvals(user, controller);
+        (approval,,,,,) = bullaClaim.approvalRegistry().getApprovals(user, controller);
 
         assertEq(approval.approvalCount, approvalCount - 1);
     }
 
     function testCreateDelegatedClaim() public {
         PenalizedClaim penalizedClaim = new PenalizedClaim(address(bullaClaim));
-        bullaClaim.permitCreateClaim({
+        bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
             controller: address(penalizedClaim),
             approvalType: CreateClaimApprovalType.Approved,
@@ -155,7 +157,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
         vm.prank(controller);
         _newClaimFrom(user, user, debtor);
 
-        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvals(user, controller);
+        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvalRegistry().getApprovals(user, controller);
 
         assertEq(approval.approvalCount, 0);
         assertTrue(approval.approvalType == CreateClaimApprovalType.Unapproved);
@@ -168,7 +170,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
         vm.prank(controller);
         _newClaimFrom(user, user, debtor);
 
-        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvals(user, controller);
+        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvalRegistry().getApprovals(user, controller);
 
         assertEq(approval.approvalCount, type(uint64).max);
     }
@@ -262,6 +264,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
                 isInvoice ? _user : debtor,
                 isInvoice ? debtor : _user,
                 1 ether,
+                uint256(0),
                 "fuzzzin",
                 address(0),
                 _controller,

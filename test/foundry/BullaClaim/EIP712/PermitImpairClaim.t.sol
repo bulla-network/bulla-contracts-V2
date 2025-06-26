@@ -30,6 +30,7 @@ import {BullaControllerRegistry} from "contracts/BullaControllerRegistry.sol";
 ///     RES3: the ImpairClaimApproved event is emitted
 contract TestPermitImpairClaim is Test {
     BullaClaim internal bullaClaim;
+    IBullaApprovalRegistry internal approvalRegistry;
     EIP712Helper internal sigHelper;
     ERC1271WalletMock internal eip1271Wallet;
 
@@ -41,6 +42,7 @@ contract TestPermitImpairClaim is Test {
             _initialLockState: LockState.Unlocked,
             _coreProtocolFee: 0
         });
+        approvalRegistry = bullaClaim.approvalRegistry();
         sigHelper = new EIP712Helper(address(bullaClaim));
         eip1271Wallet = new ERC1271WalletMock();
     }
@@ -57,9 +59,14 @@ contract TestPermitImpairClaim is Test {
         vm.expectEmit(true, true, true, true);
         emit ImpairClaimApproved(alice, bob, approvalCount);
 
-        bullaClaim.permitImpairClaim({user: alice, controller: bob, approvalCount: approvalCount, signature: signature});
+        approvalRegistry.permitImpairClaim({
+            user: alice,
+            controller: bob,
+            approvalCount: approvalCount,
+            signature: signature
+        });
 
-        (,,,, ImpairClaimApproval memory approval,) = bullaClaim.approvals(alice, bob);
+        (,,,, ImpairClaimApproval memory approval,) = approvalRegistry.getApprovals(alice, bob);
 
         assertTrue(approval.approvalCount == approvalCount, "approvalCount");
         assertTrue(approval.nonce == 1, "nonce");
@@ -76,9 +83,14 @@ contract TestPermitImpairClaim is Test {
         vm.expectEmit(true, true, true, true);
         emit ImpairClaimApproved(alice, bob, approvalCount);
 
-        bullaClaim.permitImpairClaim({user: alice, controller: bob, approvalCount: approvalCount, signature: bytes("")});
+        approvalRegistry.permitImpairClaim({
+            user: alice,
+            controller: bob,
+            approvalCount: approvalCount,
+            signature: bytes("")
+        });
 
-        (,,,, ImpairClaimApproval memory approval,) = bullaClaim.approvals(alice, bob);
+        (,,,, ImpairClaimApproval memory approval,) = approvalRegistry.getApprovals(alice, bob);
 
         assertTrue(approval.approvalCount == approvalCount, "approvalCount");
         assertTrue(approval.nonce == 1, "nonce");
@@ -90,7 +102,7 @@ contract TestPermitImpairClaim is Test {
         address alice = vm.addr(alicePK);
         address bob = address(0xB0b);
 
-        bullaClaim.permitImpairClaim({
+        approvalRegistry.permitImpairClaim({
             user: alice,
             controller: bob,
             approvalCount: 1,
@@ -103,9 +115,9 @@ contract TestPermitImpairClaim is Test {
         vm.expectEmit(true, true, true, true);
         emit ImpairClaimApproved(alice, bob, 0);
 
-        bullaClaim.permitImpairClaim({user: alice, controller: bob, approvalCount: 0, signature: signature});
+        approvalRegistry.permitImpairClaim({user: alice, controller: bob, approvalCount: 0, signature: signature});
 
-        (,,,, ImpairClaimApproval memory approval,) = bullaClaim.approvals(alice, bob);
+        (,,,, ImpairClaimApproval memory approval,) = approvalRegistry.getApprovals(alice, bob);
 
         assertTrue(approval.approvalCount == 0, "approvalCount");
         assertTrue(approval.nonce == 2, "nonce");
@@ -119,7 +131,7 @@ contract TestPermitImpairClaim is Test {
 
         eip1271Wallet.sign(digest);
 
-        bullaClaim.permitImpairClaim({user: alice, controller: bob, approvalCount: 1, signature: bytes("")});
+        approvalRegistry.permitImpairClaim({user: alice, controller: bob, approvalCount: 1, signature: bytes("")});
 
         digest = sigHelper.getPermitImpairClaimDigest({user: alice, controller: bob, approvalCount: 0});
 
@@ -128,9 +140,9 @@ contract TestPermitImpairClaim is Test {
         vm.expectEmit(true, true, true, true);
         emit ImpairClaimApproved(alice, bob, 0);
 
-        bullaClaim.permitImpairClaim({user: alice, controller: bob, approvalCount: 0, signature: bytes("")});
+        approvalRegistry.permitImpairClaim({user: alice, controller: bob, approvalCount: 0, signature: bytes("")});
 
-        (,,,, ImpairClaimApproval memory approval,) = bullaClaim.approvals(alice, bob);
+        (,,,, ImpairClaimApproval memory approval,) = approvalRegistry.getApprovals(alice, bob);
 
         assertTrue(approval.approvalCount == 0, "approvalCount");
         assertTrue(approval.nonce == 2, "nonce");
@@ -141,9 +153,9 @@ contract TestPermitImpairClaim is Test {
         address alice = vm.addr(alicePK);
         address bob = address(0xB0b);
 
-        BullaControllerRegistry(bullaClaim.controllerRegistry()).setControllerName(bob, "bobby bob");
+        IBullaControllerRegistry(approvalRegistry.controllerRegistry()).setControllerName(bob, "bobby bob");
 
-        bullaClaim.permitImpairClaim({
+        approvalRegistry.permitImpairClaim({
             user: alice,
             controller: bob,
             approvalCount: 10,
@@ -160,11 +172,11 @@ contract TestPermitImpairClaim is Test {
         bytes memory signature =
             sigHelper.signImpairClaimPermit({pk: alicePK, user: alice, controller: bob, approvalCount: 1});
 
-        bullaClaim.setControllerRegistry(address(0));
+        approvalRegistry.setControllerRegistry(address(0));
 
         // This call to the 0 address will fail
         vm.expectRevert();
-        bullaClaim.permitImpairClaim({user: alice, controller: bob, approvalCount: 1, signature: signature});
+        approvalRegistry.permitImpairClaim({user: alice, controller: bob, approvalCount: 1, signature: signature});
     }
 
     /// @notice SPEC.SIG1
@@ -177,8 +189,8 @@ contract TestPermitImpairClaim is Test {
             sigHelper.signImpairClaimPermit({pk: alicePK, user: alice, controller: bob, approvalCount: 1});
         signature[64] = bytes1(uint8(signature[64]) + 1);
 
-        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
-        bullaClaim.permitImpairClaim({user: alice, controller: bob, approvalCount: 1, signature: signature});
+        vm.expectRevert(IBullaApprovalRegistry.InvalidSignature.selector);
+        approvalRegistry.permitImpairClaim({user: alice, controller: bob, approvalCount: 1, signature: signature});
     }
 
     /// @notice SPEC.SIG1
@@ -197,8 +209,13 @@ contract TestPermitImpairClaim is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(badGuyPK, digest);
         bytes memory signature = abi.encodePacked(r, s, v);
 
-        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
-        bullaClaim.permitImpairClaim({user: alice, controller: bob, approvalCount: approvalCount, signature: signature});
+        vm.expectRevert(IBullaApprovalRegistry.InvalidSignature.selector);
+        approvalRegistry.permitImpairClaim({
+            user: alice,
+            controller: bob,
+            approvalCount: approvalCount,
+            signature: signature
+        });
     }
 
     /// @notice SPEC.SIG1
@@ -212,10 +229,15 @@ contract TestPermitImpairClaim is Test {
         bytes memory signature =
             sigHelper.signImpairClaimPermit({pk: alicePK, user: alice, controller: bob, approvalCount: approvalCount});
 
-        bullaClaim.permitImpairClaim({user: alice, controller: bob, approvalCount: approvalCount, signature: signature});
+        approvalRegistry.permitImpairClaim({
+            user: alice,
+            controller: bob,
+            approvalCount: approvalCount,
+            signature: signature
+        });
 
         // alice then revokes her approval
-        bullaClaim.permitImpairClaim({
+        approvalRegistry.permitImpairClaim({
             user: alice,
             controller: bob,
             approvalCount: 0,
@@ -223,8 +245,13 @@ contract TestPermitImpairClaim is Test {
         });
 
         // the initial signature can not be used to re-permit
-        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
-        bullaClaim.permitImpairClaim({user: alice, controller: bob, approvalCount: approvalCount, signature: signature});
+        vm.expectRevert(IBullaApprovalRegistry.InvalidSignature.selector);
+        approvalRegistry.permitImpairClaim({
+            user: alice,
+            controller: bob,
+            approvalCount: approvalCount,
+            signature: signature
+        });
     }
 
     /// @notice SPEC.SIG2
@@ -249,8 +276,8 @@ contract TestPermitImpairClaim is Test {
             "ecrecover sanity check"
         );
 
-        vm.expectRevert(BaseBullaClaim.InvalidSignature.selector);
-        bullaClaim.permitImpairClaim({
+        vm.expectRevert(IBullaApprovalRegistry.InvalidSignature.selector);
+        approvalRegistry.permitImpairClaim({
             user: user,
             controller: controller,
             approvalCount: approvalCount,
@@ -264,7 +291,7 @@ contract TestPermitImpairClaim is Test {
         uint256 alicePK = uint256(0xA11c3);
         address alice = vm.addr(alicePK);
 
-        bullaClaim.permitImpairClaim({
+        approvalRegistry.permitImpairClaim({
             user: alice,
             controller: address(controller),
             approvalCount: 1,
@@ -290,7 +317,7 @@ contract TestPermitImpairClaim is Test {
         address controller = vm.addr(controllerPK);
 
         if (registerContract) {
-            BullaControllerRegistry(bullaClaim.controllerRegistry()).setControllerName(controller, "BullaFake");
+            IBullaControllerRegistry(approvalRegistry.controllerRegistry()).setControllerName(controller, "BullaFake");
         }
 
         bytes memory signature =
@@ -299,14 +326,14 @@ contract TestPermitImpairClaim is Test {
         vm.expectEmit(true, true, true, true);
         emit ImpairClaimApproved(user, controller, approvalCount);
 
-        bullaClaim.permitImpairClaim({
+        approvalRegistry.permitImpairClaim({
             user: user,
             controller: controller,
             approvalCount: approvalCount,
             signature: signature
         });
 
-        (,,,, ImpairClaimApproval memory approval,) = bullaClaim.approvals(user, controller);
+        (,,,, ImpairClaimApproval memory approval,) = approvalRegistry.getApprovals(user, controller);
 
         assertEq(approval.approvalCount, approvalCount, "approvalCount");
         assertEq(approval.nonce, 1, "nonce");
