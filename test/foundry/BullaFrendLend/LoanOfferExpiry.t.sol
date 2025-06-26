@@ -36,7 +36,7 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
     address admin = vm.addr(adminPK);
 
     uint256 constant FEE = 0.01 ether;
-    uint256 constant PROTOCOL_FEE_BPS = 1000; // 10% protocol fee
+    uint16 constant PROTOCOL_FEE_BPS = 1000; // 10% protocol fee
 
     function setUp() public {
         weth = new WETH();

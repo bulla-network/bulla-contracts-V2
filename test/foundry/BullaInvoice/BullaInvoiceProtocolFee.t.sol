@@ -39,7 +39,7 @@ contract TestBullaInvoiceProtocolFee is Test {
     ERC20Mock public token1;
     ERC20Mock public token2;
 
-    uint256 constant MAX_BPS = 10_000;
+    uint16 constant MAX_BPS = 10_000;
     uint256 constant INVOICE_ORIGINATION_FEE = 0 ether;
     uint256 constant PURCHASE_ORDER_ORIGINATION_FEE = 0 ether;
     uint256 creditorPK = uint256(0x01);
@@ -54,7 +54,7 @@ contract TestBullaInvoiceProtocolFee is Test {
     // Events for testing
     event InvoiceCreated(uint256 indexed claimId, InvoiceDetails invoiceDetails, uint256 originationFee);
     event InvoicePaid(uint256 indexed claimId, uint256 grossInterestPaid, uint256 principalPaid, uint256 protocolFee);
-    event ProtocolFeeUpdated(uint256 oldFee, uint256 newFee);
+    event ProtocolFeeUpdated(uint16 oldFee, uint16 newFee);
     event FeeWithdrawn(address indexed admin, address indexed token, uint256 amount);
 
     function setUp() public {
@@ -69,8 +69,8 @@ contract TestBullaInvoiceProtocolFee is Test {
         });
         sigHelper = new EIP712Helper(address(bullaClaim));
 
-        // Start with 50% protocol fee for mathematical simplicity
-        bullaInvoice = new BullaInvoice(address(bullaClaim), admin, 5000);
+        // Start with 10% protocol fee for mathematical simplicity (interest % = protocol fee %)
+        bullaInvoice = new BullaInvoice(address(bullaClaim), admin, 1000);
 
         // Setup balances
         vm.deal(debtor, 100 ether);
@@ -107,28 +107,6 @@ contract TestBullaInvoiceProtocolFee is Test {
 
         // Check that no protocol fee was charged
         assertEq(address(zeroFeeInvoice).balance, 0, "No ETH should remain in contract");
-    }
-
-    function testFeeCalculationWith100PercentProtocolFee() public {
-        BullaInvoice maxFeeInvoice = new BullaInvoice(address(bullaClaim), admin, MAX_BPS);
-
-        uint256 invoiceId = _createAndSetupInvoice(maxFeeInvoice, address(0), 1 ether, _getInterestConfig(1000, 12));
-
-        // Fast forward to accrue interest
-        vm.warp(block.timestamp + 90 days);
-
-        Invoice memory invoice = maxFeeInvoice.getInvoice(invoiceId);
-        uint256 accruedInterest = invoice.interestComputationState.accruedInterest;
-
-        uint256 creditorBalanceBefore = creditor.balance;
-
-        // Make payment covering only interest
-        vm.prank(debtor);
-        maxFeeInvoice.payInvoice{value: accruedInterest}(invoiceId, accruedInterest);
-
-        // Check that all interest went to protocol fee (creditor gets nothing)
-        assertEq(creditor.balance, creditorBalanceBefore, "Creditor should receive no funds");
-        assertEq(address(maxFeeInvoice).balance, accruedInterest, "All interest should be protocol fee");
     }
 
     // Helper functions
@@ -210,7 +188,7 @@ contract TestBullaInvoiceProtocolFee is Test {
     }
 
     function testPaymentCoveringFullInterestAndPartialPrincipal() public {
-        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(1200, 12));
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(1000, 12));
 
         // Fast forward to accrue interest
         vm.warp(block.timestamp + 90 days);
@@ -239,7 +217,7 @@ contract TestBullaInvoiceProtocolFee is Test {
     }
 
     function testPaymentCoveringFullInterestAndFullPrincipal() public {
-        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(1200, 12));
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(1000, 12));
 
         // Fast forward to accrue interest
         vm.warp(block.timestamp + 90 days);
@@ -271,7 +249,7 @@ contract TestBullaInvoiceProtocolFee is Test {
     }
 
     function testProtocolFeeOnlyOnInterestPortion() public {
-        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 2 ether, _getInterestConfig(1200, 12));
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 2 ether, _getInterestConfig(1000, 12));
 
         // Fast forward to accrue significant interest
         vm.warp(block.timestamp + 62 days); // 2 months
@@ -307,40 +285,10 @@ contract TestBullaInvoiceProtocolFee is Test {
         assertGt(address(bullaInvoice).balance, 0, "Protocol fee is not 0");
     }
 
-    // ==================== CREDITOR TOTAL ZERO EDGE CASE ====================
-
-    function testCreditorTotalZeroWith100PercentProtocolFee() public {
-        BullaInvoice maxFeeInvoice = new BullaInvoice(address(bullaClaim), admin, MAX_BPS); // 100% protocol fee
-
-        uint256 invoiceId = _createAndSetupInvoice(maxFeeInvoice, address(0), 1 ether, _getInterestConfig(1200, 12));
-
-        // Fast forward to accrue interest
-        vm.warp(block.timestamp + 90 days);
-
-        Invoice memory invoice = maxFeeInvoice.getInvoice(invoiceId);
-        uint256 accruedInterest = invoice.interestComputationState.accruedInterest;
-
-        uint256 creditorBalanceBefore = creditor.balance;
-
-        vm.expectEmit(true, false, false, true);
-        emit InvoicePaid(invoiceId, accruedInterest, 0, accruedInterest); // All interest goes to protocol fee
-
-        // Pay only interest with 100% protocol fee
-        vm.prank(debtor);
-        maxFeeInvoice.payInvoice{value: accruedInterest}(invoiceId, accruedInterest);
-
-        // Verify creditorTotal = 0 scenario
-        assertEq(creditor.balance, creditorBalanceBefore, "Creditor should receive nothing");
-        assertEq(address(maxFeeInvoice).balance, accruedInterest, "All interest should go to protocol fee");
-
-        // Verify no transfer was attempted to creditor
-        assertTrue(creditor.balance == creditorBalanceBefore, "No transfer should occur when creditorTotal = 0");
-    }
-
     // ==================== 4. ERC20 PAYMENT TESTS ====================
 
     function testFirstERC20PaymentAddsTokenToArray() public {
-        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(token1), 1 ether, _getInterestConfig(1200, 12));
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(token1), 1 ether, _getInterestConfig(1000, 12));
 
         // Fast forward to accrue interest
         vm.warp(block.timestamp + 90 days);
@@ -364,7 +312,7 @@ contract TestBullaInvoiceProtocolFee is Test {
     }
 
     function testSubsequentPaymentsSameTokenIncrementFees() public {
-        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(token1), 2 ether, _getInterestConfig(1200, 24));
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(token1), 2 ether, _getInterestConfig(1000, 24));
 
         // Fast forward to accrue interest
         vm.warp(block.timestamp + 60 days);
@@ -404,7 +352,7 @@ contract TestBullaInvoiceProtocolFee is Test {
     // ==================== 5. ETH PAYMENT TESTS ====================
 
     function testETHPaymentWithCorrectMsgValue() public {
-        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(1200, 12));
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(1000, 12));
 
         // Fast forward to accrue interest
         vm.warp(block.timestamp + 90 days);
@@ -419,7 +367,7 @@ contract TestBullaInvoiceProtocolFee is Test {
     }
 
     function testETHPaymentWithIncorrectMsgValueReverts() public {
-        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(1200, 12));
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(1000, 12));
 
         // Fast forward to accrue interest
         vm.warp(block.timestamp + 90 days);
@@ -434,7 +382,7 @@ contract TestBullaInvoiceProtocolFee is Test {
     }
 
     function testETHBalanceVerification() public {
-        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 2 ether, _getInterestConfig(1200, 12));
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 2 ether, _getInterestConfig(1000, 12));
 
         // Fast forward to accrue interest
         vm.warp(block.timestamp + 90 days);
@@ -463,7 +411,7 @@ contract TestBullaInvoiceProtocolFee is Test {
     // ==================== 6. PROTOCOL FEE MANAGEMENT TESTS ====================
 
     function testAdminCanWithdrawETHFees() public {
-        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(1200, 12));
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(1000, 12));
 
         // Fast forward and make payment to accumulate ETH fees
         vm.warp(block.timestamp + 90 days);
@@ -486,8 +434,8 @@ contract TestBullaInvoiceProtocolFee is Test {
 
     function testAdminCanWithdrawERC20FeesMultipleTokens() public {
         // Create invoices with different tokens
-        uint256 invoice1 = _createAndSetupInvoice(bullaInvoice, address(token1), 1 ether, _getInterestConfig(1200, 12));
-        uint256 invoice2 = _createAndSetupInvoice(bullaInvoice, address(token2), 1 ether, _getInterestConfig(1200, 12));
+        uint256 invoice1 = _createAndSetupInvoice(bullaInvoice, address(token1), 1 ether, _getInterestConfig(1000, 12));
+        uint256 invoice2 = _createAndSetupInvoice(bullaInvoice, address(token2), 1 ether, _getInterestConfig(1000, 12));
 
         // Fast forward and make payments
         vm.warp(block.timestamp + 90 days);
@@ -525,7 +473,7 @@ contract TestBullaInvoiceProtocolFee is Test {
     }
 
     function testFeeAmountsResetAfterWithdrawal() public {
-        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(token1), 1 ether, _getInterestConfig(1200, 12));
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(token1), 1 ether, _getInterestConfig(1000, 12));
 
         // Make payment to accumulate fees
         vm.warp(block.timestamp + 90 days);
@@ -566,10 +514,10 @@ contract TestBullaInvoiceProtocolFee is Test {
     }
 
     function testAdminCanUpdateProtocolFee() public {
-        uint256 newFee = 1000; // 10%
+        uint16 newFee = 500; // 5%
 
         vm.expectEmit(false, false, false, true);
-        emit ProtocolFeeUpdated(5000, newFee); // Old fee was 50%
+        emit ProtocolFeeUpdated(uint16(1000), newFee); // Old fee was 10%
 
         vm.prank(admin);
         bullaInvoice.setProtocolFee(newFee);
@@ -578,8 +526,8 @@ contract TestBullaInvoiceProtocolFee is Test {
     }
 
     function testProtocolFeeUpdateEmitsEvent() public {
-        uint256 oldFee = bullaInvoice.protocolFeeBPS();
-        uint256 newFee = 750;
+        uint16 oldFee = bullaInvoice.protocolFeeBPS();
+        uint16 newFee = 750;
 
         vm.expectEmit(false, false, false, true);
         emit ProtocolFeeUpdated(oldFee, newFee);
@@ -597,7 +545,7 @@ contract TestBullaInvoiceProtocolFee is Test {
     function testSetProtocolFeeRevertsWithInvalidFee() public {
         vm.prank(admin);
         vm.expectRevert(InvalidProtocolFee.selector);
-        bullaInvoice.setProtocolFee(MAX_BPS + 1);
+        bullaInvoice.setProtocolFee(MAX_BPS + uint16(1));
     }
 
     function testSetProtocolFeeToZero() public {
@@ -617,7 +565,7 @@ contract TestBullaInvoiceProtocolFee is Test {
     // ==================== 7. EVENT EMISSION TESTS ====================
 
     function testInvoicePaidEventWithCorrectParameters() public {
-        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(1200, 12));
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(1000, 12));
 
         vm.warp(block.timestamp + 90 days);
         Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
@@ -625,7 +573,7 @@ contract TestBullaInvoiceProtocolFee is Test {
         uint256 principalPayment = 0.5 ether;
         uint256 paymentAmount = accruedInterest + principalPayment;
 
-        // With 50% protocol fee: protocol fee = accruedInterest / 2
+        // With protocol fee = interest: protocol fee = accruedInterest / 2
         uint256 expectedProtocolFee = accruedInterest / 2;
 
         vm.expectEmit(true, false, false, true);
@@ -636,7 +584,7 @@ contract TestBullaInvoiceProtocolFee is Test {
     }
 
     function testEventEmissionWithVariousPaymentScenarios() public {
-        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(token1), 2 ether, _getInterestConfig(1200, 12));
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(token1), 2 ether, _getInterestConfig(1000, 12));
 
         vm.warp(block.timestamp + 90 days);
         Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
@@ -644,7 +592,7 @@ contract TestBullaInvoiceProtocolFee is Test {
 
         // Scenario 1: Interest only
         uint256 payment1 = accruedInterest;
-        // With 50% protocol fee: protocol fee = payment1 / 2
+        // With protocol fee = interest: protocol fee = payment1 / 2
         uint256 expectedProtocolFee1 = payment1 / 2;
 
         vm.prank(debtor);
@@ -670,7 +618,7 @@ contract TestBullaInvoiceProtocolFee is Test {
 
     function testEventEmissionWhenProtocolFeeIsZero() public {
         BullaInvoice zeroFeeInvoice = new BullaInvoice(address(bullaClaim), admin, 0);
-        uint256 invoiceId = _createAndSetupInvoice(zeroFeeInvoice, address(0), 1 ether, _getInterestConfig(1200, 12));
+        uint256 invoiceId = _createAndSetupInvoice(zeroFeeInvoice, address(0), 1 ether, _getInterestConfig(1000, 12));
 
         vm.warp(block.timestamp + 90 days);
         Invoice memory invoice = zeroFeeInvoice.getInvoice(invoiceId);
@@ -687,7 +635,7 @@ contract TestBullaInvoiceProtocolFee is Test {
 
     function testEndToEndInvoiceLifecycleWithProtocolFees() public {
         // Create invoice with interest
-        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(token1), 2 ether, _getInterestConfig(1200, 12));
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(token1), 2 ether, _getInterestConfig(1000, 12));
 
         // Fast forward to accrue interest
         vm.warp(block.timestamp + 62 days); // 2 months
@@ -700,7 +648,7 @@ contract TestBullaInvoiceProtocolFee is Test {
         uint256 payment2 = totalInterest / 3 + 0.5 ether;
         uint256 payment3 = (totalInterest - (totalInterest / 3) - (totalInterest / 3)) + 1 ether; // Remaining
 
-        // With 50% protocol fee: total protocol fee = totalInterest / 2
+        // With protocol fee = interest: total protocol fee = totalInterest / 2
         uint256 expectedTotalProtocolFee = totalInterest / 2;
 
         // Payment 1
@@ -746,11 +694,11 @@ contract TestBullaInvoiceProtocolFee is Test {
 
     function testMultipleInvoicesDifferentTokensAndFeeAccumulation() public {
         // Create multiple invoices with different tokens
-        uint256 ethInvoice = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(1200, 12));
+        uint256 ethInvoice = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(1000, 12));
         uint256 token1Invoice =
-            _createAndSetupInvoice(bullaInvoice, address(token1), 1 ether, _getInterestConfig(1200, 12));
+            _createAndSetupInvoice(bullaInvoice, address(token1), 1 ether, _getInterestConfig(1000, 12));
         uint256 token2Invoice =
-            _createAndSetupInvoice(bullaInvoice, address(token2), 1 ether, _getInterestConfig(1200, 12));
+            _createAndSetupInvoice(bullaInvoice, address(token2), 1 ether, _getInterestConfig(1000, 12));
 
         vm.warp(block.timestamp + 90 days);
 
@@ -779,7 +727,7 @@ contract TestBullaInvoiceProtocolFee is Test {
         vm.prank(debtor);
         bullaInvoice.payInvoice(token2Invoice, token2Interest);
 
-        // Verify separate fee tracking - with 50% protocol fee
+        // Verify separate fee tracking - with protocol fee = interest
         uint256 expectedEthFee = ethInterest / 2;
         uint256 expectedToken1Fee = token1Interest / 2;
         uint256 expectedToken2Fee = token2Interest / 2;
@@ -796,7 +744,7 @@ contract TestBullaInvoiceProtocolFee is Test {
     // ==================== 9. EDGE CASES & ERROR HANDLING ====================
 
     function testPaymentOfOneWeiWithProtocolFees() public {
-        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 1000 wei, _getInterestConfig(1200, 12));
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 1000 wei, _getInterestConfig(1000, 12));
 
         vm.warp(block.timestamp + 1 days);
 
@@ -814,7 +762,7 @@ contract TestBullaInvoiceProtocolFee is Test {
     function testVeryLargePaymentAmounts() public {
         uint256 largeAmount = 1000000 ether;
         uint256 invoiceId =
-            _createAndSetupInvoice(bullaInvoice, address(token1), largeAmount, _getInterestConfig(1200, 12));
+            _createAndSetupInvoice(bullaInvoice, address(token1), largeAmount, _getInterestConfig(1000, 12));
 
         // Mint large amount for debtor
         token1.mint(debtor, largeAmount * 2);
@@ -846,7 +794,7 @@ contract TestBullaInvoiceProtocolFee is Test {
 
     function testFeeWithdrawnEventEmittedForETH() public {
         // Create invoice and make payment to accumulate ETH fees
-        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(1200, 12));
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(1000, 12));
 
         vm.warp(block.timestamp + 90 days);
         Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
@@ -868,7 +816,7 @@ contract TestBullaInvoiceProtocolFee is Test {
 
     function testFeeWithdrawnEventEmittedForERC20Token() public {
         // Create invoice and make payment to accumulate token fees
-        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(token1), 1 ether, _getInterestConfig(1200, 12));
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(token1), 1 ether, _getInterestConfig(1000, 12));
 
         vm.warp(block.timestamp + 90 days);
         Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
@@ -892,11 +840,11 @@ contract TestBullaInvoiceProtocolFee is Test {
 
     function testFeeWithdrawnEventEmittedForMultipleTokens() public {
         // Create invoices for ETH and multiple tokens
-        uint256 ethInvoice = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(1200, 12));
+        uint256 ethInvoice = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(1000, 12));
         uint256 token1Invoice =
-            _createAndSetupInvoice(bullaInvoice, address(token1), 1 ether, _getInterestConfig(1200, 12));
+            _createAndSetupInvoice(bullaInvoice, address(token1), 1 ether, _getInterestConfig(1000, 12));
         uint256 token2Invoice =
-            _createAndSetupInvoice(bullaInvoice, address(token2), 1 ether, _getInterestConfig(1200, 12));
+            _createAndSetupInvoice(bullaInvoice, address(token2), 1 ether, _getInterestConfig(1000, 12));
 
         vm.warp(block.timestamp + 90 days);
 
@@ -969,7 +917,7 @@ contract TestBullaInvoiceProtocolFee is Test {
 
     function testFeeWithdrawnEventNotEmittedForZeroTokenFees() public {
         // Create invoice and make payment to accumulate token fees
-        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(token1), 1 ether, _getInterestConfig(1200, 12));
+        uint256 invoiceId = _createAndSetupInvoice(bullaInvoice, address(token1), 1 ether, _getInterestConfig(1000, 12));
 
         vm.warp(block.timestamp + 90 days);
         Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);

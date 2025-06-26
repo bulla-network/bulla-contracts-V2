@@ -66,11 +66,11 @@ interface IBullaInvoice {
     function cancelInvoice(uint256 claimId, string memory note) external;
 
     // Admin functions
-    function setProtocolFee(uint256 _protocolFeeBPS) external;
+    function setProtocolFee(uint16 _protocolFeeBPS) external;
     function withdrawAllFees() external;
 
     // View functions
     function admin() external view returns (address);
-    function protocolFeeBPS() external view returns (uint256);
+    function protocolFeeBPS() external view returns (uint16);
     function protocolFeesByToken(address token) external view returns (uint256);
 }

@@ -15,7 +15,8 @@ contract InvoiceDetailsBuilder {
         _requestedByCreditor = true;
         _purchaseOrder = PurchaseOrderState({deliveryDate: 0, isDelivered: false, depositAmount: 0});
         _lateFeeConfig = InterestConfig({interestRateBps: 0, numberOfPeriodsPerYear: 0});
-        _interestComputationState = InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0});
+        _interestComputationState =
+            InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0, protocolFeeBps: 0});
         _isProtocolFeeExempt = false;
     }
 
