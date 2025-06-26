@@ -1,3 +1,10 @@
+## [1.6.1](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.6.0...v1.6.1) (2025-06-26)
+
+
+### Bug Fixes
+
+* loanAmount type ([#69](https://github.com/bulla-network/bulla-contracts-V2/issues/69)) ([394b531](https://github.com/bulla-network/bulla-contracts-V2/commit/394b531b286d0b3ea25647fc7e172fd8123d6800))
+
 # [1.6.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.5.0...v1.6.0) (2025-06-26)
 
 
