@@ -47,24 +47,10 @@ contract BullaApprovalRegistry is IBullaApprovalRegistry, Ownable, EIP712 {
     function getApprovals(address user, address controller)
         external
         view
-        returns (
-            CreateClaimApproval memory createClaim,
-            PayClaimApproval memory payClaim,
-            UpdateBindingApproval memory updateBinding,
-            CancelClaimApproval memory cancelClaim,
-            ImpairClaimApproval memory impairClaim,
-            MarkAsPaidApproval memory markAsPaid
-        )
+        returns (CreateClaimApproval memory createClaim)
     {
         Approvals storage userApprovals = approvals[user][controller];
-        return (
-            userApprovals.createClaim,
-            userApprovals.payClaim,
-            userApprovals.updateBinding,
-            userApprovals.cancelClaim,
-            userApprovals.impairClaim,
-            userApprovals.markAsPaid
-        );
+        return userApprovals.createClaim;
     }
 
     function isAuthorizedContract(address contractAddress) external view returns (bool) {
@@ -99,65 +85,6 @@ contract BullaApprovalRegistry is IBullaApprovalRegistry, Ownable, EIP712 {
         }
     }
 
-    function spendPayClaimApproval(address user, address controller, uint256 claimId, uint256 amount)
-        external
-        onlyAuthorized
-    {
-        PayClaimApproval storage approval = approvals[user][controller].payClaim;
-
-        // Use validation library for approval validation
-        (uint256 _approvalIndex,) = BullaClaimValidationLib.validatePayClaimApproval(approval, claimId, amount);
-
-        // If approved for all, no storage updates needed
-        if (approval.approvalType == PayClaimApprovalType.IsApprovedForAll) return;
-
-        // Handle specific approval spending
-        uint256 i = _approvalIndex;
-        if (amount == approval.claimApprovals[i].approvedAmount) {
-            // Approval is fully spent, remove it
-            uint256 totalApprovals = approval.claimApprovals.length;
-            if (i != totalApprovals - 1) {
-                approval.claimApprovals[i] = approval.claimApprovals[totalApprovals - 1];
-            }
-            approval.claimApprovals.pop();
-        } else {
-            // Partially spend the approval
-            approval.claimApprovals[i].approvedAmount -= uint128(amount);
-        }
-    }
-
-    function spendUpdateBindingApproval(address user, address controller) external onlyAuthorized {
-        UpdateBindingApproval storage approval = approvals[user][controller].updateBinding;
-
-        BullaClaimValidationLib.validateSimpleApproval(approval.approvalCount);
-
-        if (approval.approvalCount != type(uint64).max) approval.approvalCount--;
-    }
-
-    function spendCancelClaimApproval(address user, address controller) external onlyAuthorized {
-        CancelClaimApproval storage approval = approvals[user][controller].cancelClaim;
-
-        BullaClaimValidationLib.validateSimpleApproval(approval.approvalCount);
-
-        if (approval.approvalCount != type(uint64).max) approval.approvalCount--;
-    }
-
-    function spendImpairClaimApproval(address user, address controller) external onlyAuthorized {
-        ImpairClaimApproval storage approval = approvals[user][controller].impairClaim;
-
-        BullaClaimValidationLib.validateSimpleApproval(approval.approvalCount);
-
-        if (approval.approvalCount != type(uint64).max) approval.approvalCount--;
-    }
-
-    function spendMarkAsPaidApproval(address user, address controller) external onlyAuthorized {
-        MarkAsPaidApproval storage approval = approvals[user][controller].markAsPaid;
-
-        BullaClaimValidationLib.validateSimpleApproval(approval.approvalCount);
-
-        if (approval.approvalCount != type(uint64).max) approval.approvalCount--;
-    }
-
     /*///////////////////////////////////////////////////////////////
                         PERMIT FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -179,83 +106,6 @@ contract BullaApprovalRegistry is IBullaApprovalRegistry, Ownable, EIP712 {
             approvalType,
             approvalCount,
             isBindingAllowed,
-            signature
-        );
-    }
-
-    function permitPayClaim(
-        address user,
-        address controller,
-        PayClaimApprovalType approvalType,
-        uint256 approvalDeadline,
-        ClaimPaymentApprovalParam[] memory paymentApprovals,
-        bytes memory signature
-    ) external {
-        BullaClaimPermitLib.permitPayClaim(
-            approvals[user][controller],
-            controllerRegistry,
-            _domainSeparatorV4(),
-            user,
-            controller,
-            approvalType,
-            approvalDeadline,
-            paymentApprovals,
-            signature
-        );
-    }
-
-    function permitUpdateBinding(address user, address controller, uint64 approvalCount, bytes memory signature)
-        external
-    {
-        BullaClaimPermitLib.permitUpdateBinding(
-            approvals[user][controller],
-            controllerRegistry,
-            _domainSeparatorV4(),
-            user,
-            controller,
-            approvalCount,
-            signature
-        );
-    }
-
-    function permitCancelClaim(address user, address controller, uint64 approvalCount, bytes memory signature)
-        external
-    {
-        BullaClaimPermitLib.permitCancelClaim(
-            approvals[user][controller],
-            controllerRegistry,
-            _domainSeparatorV4(),
-            user,
-            controller,
-            approvalCount,
-            signature
-        );
-    }
-
-    function permitImpairClaim(address user, address controller, uint64 approvalCount, bytes memory signature)
-        external
-    {
-        BullaClaimPermitLib.permitImpairClaim(
-            approvals[user][controller],
-            controllerRegistry,
-            _domainSeparatorV4(),
-            user,
-            controller,
-            approvalCount,
-            signature
-        );
-    }
-
-    function permitMarkAsPaid(address user, address controller, uint64 approvalCount, bytes memory signature)
-        external
-    {
-        BullaClaimPermitLib.permitMarkAsPaid(
-            approvals[user][controller],
-            controllerRegistry,
-            _domainSeparatorV4(),
-            user,
-            controller,
-            approvalCount,
             signature
         );
     }

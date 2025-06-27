@@ -13,9 +13,7 @@ import {
     CreateClaimParams,
     LockState,
     ClaimMetadata,
-    CreateClaimApprovalType,
-    PayClaimApprovalType,
-    ClaimPaymentApprovalParam
+    CreateClaimApprovalType
 } from "contracts/types/Types.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
@@ -244,32 +242,6 @@ contract TestBatchFunctionality is BullaClaimTestHelper {
 
         assertEq(uint256(claim1.status), uint256(Status.Paid));
         assertEq(uint256(claim2.status), uint256(Status.Paid));
-    }
-
-    function testBatch_PayClaimFrom_Delegated() public {
-        uint256 userPK = 54321;
-        address user = vm.addr(userPK);
-
-        uint256 claimId = _newClaim(creditor, creditor, debtor);
-
-        // Give permission for this contract to pay claims on behalf of user
-        ClaimPaymentApprovalParam[] memory approvals = new ClaimPaymentApprovalParam[](1);
-        approvals[0] = ClaimPaymentApprovalParam({claimId: claimId, approvedAmount: 1 ether, approvalDeadline: 0});
-
-        _permitPayClaim(userPK, address(this), PayClaimApprovalType.IsApprovedForSpecific, 0, approvals);
-
-        // Fund the user
-        weth.transferFrom(address(this), user, 10 ether);
-        vm.prank(user);
-        weth.approve(address(bullaClaim), 10 ether);
-
-        bytes[] memory calls = new bytes[](1);
-        calls[0] = abi.encodeCall(BullaClaim.payClaimFrom, (user, claimId, 1 ether));
-
-        bullaClaim.batch(calls, true);
-
-        Claim memory claim = bullaClaim.getClaim(claimId);
-        assertEq(uint256(claim.status), uint256(Status.Paid));
     }
 
     /*///////////////////// BATCH MANAGEMENT TESTS /////////////////////*/
