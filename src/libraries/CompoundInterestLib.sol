@@ -4,18 +4,20 @@ pragma solidity ^0.8.30;
 import "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
 struct InterestConfig {
-    uint16 interestRateBps;
+    uint16 interestRateBps; // this is the NET interest rate, not including protocol fees
     uint16 numberOfPeriodsPerYear;
 }
 
 struct InterestComputationState {
     uint256 accruedInterest;
     uint256 latestPeriodNumber;
+    uint16 protocolFeeBps;
+    uint256 totalGrossInterestPaid;
 }
 
 uint16 constant MAX_DAYS_PER_YEAR = 365;
 uint256 constant SECONDS_PER_YEAR = 31536000;
-uint256 constant MAX_BPS = 10_000;
+uint16 constant MAX_BPS = 10_000;
 uint256 constant ONE = 10 ** 18;
 
 library CompoundInterestLib {
@@ -39,6 +41,8 @@ library CompoundInterestLib {
     /**
      * @notice Computes the interest for a given principal, dueBy date, and interest configuration
      * @dev An implication is made that if remainingPrincipal is 0, there cannot be any interest accrued
+     * @dev The protocolFeeBps is added to the interestRateBps to get the gross interest rate
+     * @param state The current interest computation state
      * @param remainingPrincipal The remaining principal to compute interest for
      * @param dueBy The dueBy date
      * @param config The interest configuration
@@ -74,7 +78,7 @@ library CompoundInterestLib {
 
         // Calculate interest rate per period scaled to 18 decimal places
         uint256 ratePerPeriodScaled =
-            Math.mulDiv(uint256(config.interestRateBps), ONE, numberOfPeriodsPerYear * MAX_BPS);
+            Math.mulDiv(uint256(config.interestRateBps + state.protocolFeeBps), ONE, numberOfPeriodsPerYear * MAX_BPS);
 
         // Calculate compound factor: (1 + r)^n
         // Using the formula: x^n = exp(n * ln(x))
@@ -87,8 +91,12 @@ library CompoundInterestLib {
         uint256 totalAccruedInterest = totalWithInterest - remainingPrincipal;
 
         // Add to previously accrued interest
-        return
-            InterestComputationState({accruedInterest: totalAccruedInterest, latestPeriodNumber: currentPeriodNumber});
+        return InterestComputationState({
+            accruedInterest: totalAccruedInterest,
+            latestPeriodNumber: currentPeriodNumber,
+            protocolFeeBps: state.protocolFeeBps,
+            totalGrossInterestPaid: state.totalGrossInterestPaid
+        });
     }
 
     /**

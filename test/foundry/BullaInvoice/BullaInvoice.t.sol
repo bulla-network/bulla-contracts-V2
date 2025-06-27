@@ -3002,4 +3002,400 @@ contract TestBullaInvoice is Test {
         uint256 finalAmountNeeded = bullaInvoice.getTotalAmountNeededForPurchaseOrderDeposit(invoiceId);
         assertEq(finalAmountNeeded, 0, "No remaining amount should be needed");
     }
+
+    // ========================================
+    // Total Gross Interest Paid Test Cases
+    // ========================================
+
+    function testTotalGrossInterestPaid_SingleFullPayment() public {
+        // Setup permissions
+        bullaClaim.approvalRegistry().permitCreateClaim({
+            user: creditor,
+            controller: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        // Create invoice with late fees
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withLateFeeConfig(InterestConfig({interestRateBps: 1200, numberOfPeriodsPerYear: 12})).withDueBy(
+            block.timestamp + 30 days
+        ) // 12% annual late fee
+                // Set due date relative to current timestamp
+            .build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Initially, no interest should be paid
+        Invoice memory initialInvoice = bullaInvoice.getInvoice(invoiceId);
+        assertEq(
+            initialInvoice.interestComputationState.totalGrossInterestPaid,
+            0,
+            "Initial total gross interest paid should be zero"
+        );
+
+        // Setup payment permit
+        bullaClaim.approvalRegistry().permitPayClaim({
+            user: debtor,
+            controller: address(bullaInvoice),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaInvoice),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        // Fast forward past due date to accrue late fees
+        vm.warp(block.timestamp + 60 days);
+
+        // Get invoice details to calculate interest
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        uint256 currentInterest = invoice.interestComputationState.accruedInterest;
+        uint256 totalPayment = invoice.claimAmount + currentInterest;
+
+        // Pay the full amount including interest
+        vm.prank(debtor);
+        bullaInvoice.payInvoice{value: totalPayment}(invoiceId, totalPayment);
+
+        // Check total gross interest paid
+        Invoice memory finalInvoice = bullaInvoice.getInvoice(invoiceId);
+        assertEq(
+            finalInvoice.interestComputationState.totalGrossInterestPaid,
+            currentInterest,
+            "Total gross interest paid should equal current interest"
+        );
+    }
+
+    function testTotalGrossInterestPaid_MultiplePartialPayments() public {
+        // Setup permissions
+        bullaClaim.approvalRegistry().permitCreateClaim({
+            user: creditor,
+            controller: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        // Create invoice with late fees
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withLateFeeConfig(InterestConfig({interestRateBps: 1200, numberOfPeriodsPerYear: 12})).withClaimAmount(2 ether)
+            .withDueBy(block.timestamp + 30 days).withImpairmentGracePeriod(0) // 12% annual late fee
+                // Larger amount for testing
+                // Set due date relative to current timestamp
+            .build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Setup payment permit
+        bullaClaim.approvalRegistry().permitPayClaim({
+            user: debtor,
+            controller: address(bullaInvoice),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaInvoice),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        uint256 totalInterestPaid = 0;
+
+        // First payment - pay some interest after it accrues
+        vm.warp(block.timestamp + 61 days); // Past due date to accrue interest
+        Invoice memory invoice1 = bullaInvoice.getInvoice(invoiceId);
+        uint256 interest1 = invoice1.interestComputationState.accruedInterest;
+
+        vm.prank(debtor);
+        bullaInvoice.payInvoice{value: interest1}(invoiceId, interest1);
+
+        totalInterestPaid += interest1;
+        Invoice memory invoiceAfterPayment1 = bullaInvoice.getInvoice(invoiceId);
+        assertEq(
+            invoiceAfterPayment1.interestComputationState.totalGrossInterestPaid,
+            totalInterestPaid,
+            "Total gross interest paid should equal first interest payment"
+        );
+
+        // Second payment - more interest accrues
+        vm.warp(block.timestamp + 31 days);
+        Invoice memory invoice2 = bullaInvoice.getInvoice(invoiceId);
+        uint256 interest2 = invoice2.interestComputationState.accruedInterest;
+
+        vm.prank(debtor);
+        bullaInvoice.payInvoice{value: interest2}(invoiceId, interest2);
+
+        totalInterestPaid += interest2;
+        Invoice memory invoiceAfterPayment2 = bullaInvoice.getInvoice(invoiceId);
+        assertEq(
+            invoiceAfterPayment2.interestComputationState.totalGrossInterestPaid,
+            totalInterestPaid,
+            "Total gross interest paid should equal sum of both interest payments"
+        );
+
+        // Final payment - remaining principal plus any new interest
+        Invoice memory invoice3 = bullaInvoice.getInvoice(invoiceId);
+        uint256 interest3 = invoice3.interestComputationState.accruedInterest;
+        uint256 remainingPrincipal = invoice3.claimAmount - invoice3.paidAmount;
+        uint256 finalPayment = remainingPrincipal + interest3;
+
+        vm.prank(debtor);
+        bullaInvoice.payInvoice{value: finalPayment}(invoiceId, finalPayment);
+
+        totalInterestPaid += interest3;
+        Invoice memory invoiceAfterFinalPayment = bullaInvoice.getInvoice(invoiceId);
+        assertEq(
+            invoiceAfterFinalPayment.interestComputationState.totalGrossInterestPaid,
+            totalInterestPaid,
+            "Total gross interest paid should equal sum of all interest payments"
+        );
+    }
+
+    function testTotalGrossInterestPaid_PrincipalOnlyPayment() public {
+        // Setup permissions
+        bullaClaim.approvalRegistry().permitCreateClaim({
+            user: creditor,
+            controller: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        // Create invoice without late fees (0% interest)
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withLateFeeConfig(InterestConfig({interestRateBps: 0, numberOfPeriodsPerYear: 1})) // 0% late fee
+            .build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Setup payment permit
+        bullaClaim.approvalRegistry().permitPayClaim({
+            user: debtor,
+            controller: address(bullaInvoice),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaInvoice),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        // Pay principal only (should be no interest even after due date)
+        vm.warp(block.timestamp + 60 days); // Past due date
+        vm.prank(debtor);
+        bullaInvoice.payInvoice{value: 1 ether}(invoiceId, 1 ether);
+
+        // Total gross interest paid should remain zero
+        Invoice memory paidInvoice = bullaInvoice.getInvoice(invoiceId);
+        assertEq(
+            paidInvoice.interestComputationState.totalGrossInterestPaid,
+            0,
+            "Total gross interest paid should be zero for principal-only payment"
+        );
+    }
+
+    function testTotalGrossInterestPaid_MultipleDifferentInvoices() public {
+        // Setup permissions
+        bullaClaim.approvalRegistry().permitCreateClaim({
+            user: creditor,
+            controller: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 2,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 2,
+                isBindingAllowed: false
+            })
+        });
+
+        // Create two different invoices with different late fee rates
+        CreateInvoiceParams memory params1 = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withLateFeeConfig(InterestConfig({interestRateBps: 1000, numberOfPeriodsPerYear: 12})).withClaimAmount(1 ether)
+            .withDescription("Invoice 1").withDueBy(block.timestamp + 30 days).withImpairmentGracePeriod(0) // 10% annual
+                // Set due date relative to current timestamp
+            .build();
+
+        CreateInvoiceParams memory params2 = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withLateFeeConfig(InterestConfig({interestRateBps: 1500, numberOfPeriodsPerYear: 12})).withClaimAmount(2 ether)
+            .withDescription("Invoice 2").withDueBy(block.timestamp + 30 days).withImpairmentGracePeriod(0) // 15% annual
+                // Set due date relative to current timestamp
+            .build();
+
+        vm.prank(creditor);
+        uint256 invoiceId1 = bullaInvoice.createInvoice(params1);
+
+        vm.prank(creditor);
+        uint256 invoiceId2 = bullaInvoice.createInvoice(params2);
+
+        // Setup payment permit
+        bullaClaim.approvalRegistry().permitPayClaim({
+            user: debtor,
+            controller: address(bullaInvoice),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaInvoice),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        // Fast forward to accrue interest
+        vm.warp(block.timestamp + 90 days);
+
+        // Pay interest on invoice 1
+        Invoice memory invoice1 = bullaInvoice.getInvoice(invoiceId1);
+        uint256 interest1 = invoice1.interestComputationState.accruedInterest;
+        vm.prank(debtor);
+        bullaInvoice.payInvoice{value: interest1}(invoiceId1, interest1);
+
+        // Pay interest on invoice 2
+        Invoice memory invoice2 = bullaInvoice.getInvoice(invoiceId2);
+        uint256 interest2 = invoice2.interestComputationState.accruedInterest;
+        vm.prank(debtor);
+        bullaInvoice.payInvoice{value: interest2}(invoiceId2, interest2);
+
+        // Verify both invoices track interest independently
+        Invoice memory invoice1Final = bullaInvoice.getInvoice(invoiceId1);
+        Invoice memory invoice2Final = bullaInvoice.getInvoice(invoiceId2);
+
+        assertEq(
+            invoice1Final.interestComputationState.totalGrossInterestPaid,
+            interest1,
+            "Invoice 1 total gross interest should be tracked independently"
+        );
+
+        assertEq(
+            invoice2Final.interestComputationState.totalGrossInterestPaid,
+            interest2,
+            "Invoice 2 total gross interest should be tracked independently"
+        );
+
+        assertGt(interest2, interest1, "Invoice 2 should have higher interest due to higher rate and amount");
+    }
+
+    function testTotalGrossInterestPaid_ERC20Token() public {
+        // Setup permissions
+        bullaClaim.approvalRegistry().permitCreateClaim({
+            user: creditor,
+            controller: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        // Create invoice with ERC20 token and late fees
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withToken(address(weth)).withClaimAmount(1 ether).withLateFeeConfig(
+            InterestConfig({interestRateBps: 1200, numberOfPeriodsPerYear: 12})
+        ) // 1 WETH
+                // 12% annual late fee
+            .build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Setup payment permit
+        bullaClaim.approvalRegistry().permitPayClaim({
+            user: debtor,
+            controller: address(bullaInvoice),
+            approvalType: PayClaimApprovalType.IsApprovedForAll,
+            approvalDeadline: 0,
+            paymentApprovals: new ClaimPaymentApprovalParam[](0),
+            signature: sigHelper.signPayClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaInvoice),
+                approvalType: PayClaimApprovalType.IsApprovedForAll,
+                approvalDeadline: 0,
+                paymentApprovals: new ClaimPaymentApprovalParam[](0)
+            })
+        });
+
+        // Fast forward past due date to accrue late fees
+        vm.warp(block.timestamp + 60 days);
+
+        // Get invoice details to calculate interest
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        uint256 currentInterest = invoice.interestComputationState.accruedInterest;
+        uint256 totalPayment = invoice.claimAmount + currentInterest;
+
+        // Provide WETH to the debtor
+        vm.deal(debtor, totalPayment);
+        vm.prank(debtor);
+        weth.deposit{value: totalPayment}();
+
+        // Approve and pay the full amount including interest
+        vm.prank(debtor);
+        weth.approve(address(bullaInvoice), totalPayment);
+        vm.prank(debtor);
+        bullaInvoice.payInvoice(invoiceId, totalPayment);
+
+        // Check total gross interest paid
+        Invoice memory finalInvoice = bullaInvoice.getInvoice(invoiceId);
+        assertEq(
+            finalInvoice.interestComputationState.totalGrossInterestPaid,
+            currentInterest,
+            "Total gross interest paid should equal current interest for ERC20 token"
+        );
+    }
 }

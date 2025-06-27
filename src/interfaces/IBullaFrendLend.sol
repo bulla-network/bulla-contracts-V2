@@ -38,6 +38,7 @@ struct Loan {
     ClaimBinding binding;
     bool payerReceivesClaimOnPayment;
     address debtor;
+    address creditor;
     address token;
     address controller;
     uint256 dueBy;
@@ -72,13 +73,13 @@ interface IBullaFrendLend {
 
     // Admin functions
     function withdrawAllFees() external;
-    function setProtocolFee(uint256 _protocolFeeBPS) external;
+    function setProtocolFee(uint16 _protocolFeeBPS) external;
 
     // State variables
     function admin() external view returns (address);
 
     function loanOfferCount() external view returns (uint256);
-    function protocolFeeBPS() external view returns (uint256);
+    function protocolFeeBPS() external view returns (uint16);
     function getLoanOffer(uint256) external view returns (LoanOffer memory);
     function getLoanOfferMetadata(uint256) external view returns (ClaimMetadata memory);
     function protocolFeesByToken(address token) external view returns (uint256);

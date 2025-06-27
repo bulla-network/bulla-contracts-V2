@@ -41,7 +41,7 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
 
     address public admin;
     uint256 public loanOfferCount;
-    uint256 public protocolFeeBPS;
+    uint16 public protocolFeeBPS;
 
     address[] public protocolFeeTokens;
     mapping(address => uint256) public protocolFeesByToken;
@@ -59,7 +59,7 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
     event LoanOfferRejected(uint256 indexed loanId, address indexed rejectedBy);
     /// @notice grossInterestPaid = interest received by creditor + protocolFee
     event LoanPayment(uint256 indexed claimId, uint256 grossInterestPaid, uint256 principalPaid, uint256 protocolFee);
-    event ProtocolFeeUpdated(uint256 oldFee, uint256 newFee);
+    event ProtocolFeeUpdated(uint16 oldFee, uint16 newFee);
     event FeeWithdrawn(address indexed admin, address indexed token, uint256 amount);
 
     ClaimMetadata private _emptyMetadata;
@@ -69,7 +69,7 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
      * @param _admin Address of the contract administrator
      * @param _protocolFeeBPS Protocol fee in basis points taken from interest payments
      */
-    constructor(address bullaClaim, address _admin, uint256 _protocolFeeBPS) BullaClaimControllerBase(bullaClaim) {
+    constructor(address bullaClaim, address _admin, uint16 _protocolFeeBPS) BullaClaimControllerBase(bullaClaim) {
         admin = _admin;
         if (_protocolFeeBPS > MAX_BPS) revert InvalidProtocolFee();
         protocolFeeBPS = _protocolFeeBPS;
@@ -81,20 +81,38 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
     ////////////////////////////////
 
     /**
-     * @notice Get the total amount due for a loan including principal and interest
+     * @notice Get the total amount due for a loan including principal and interest. This function will compute the interest if the loan is not paid.
      * @param claimId The ID of the loan
      * @return remainingPrincipal The remaining principal amount due
-     * @return interest The current interest amount accrued
+     * @return grossInterest The current gross interest amount accrued
      */
-    function getTotalAmountDue(uint256 claimId) public view returns (uint256 remainingPrincipal, uint256 interest) {
+    function getTotalAmountDue(uint256 claimId)
+        public
+        view
+        returns (uint256 remainingPrincipal, uint256 grossInterest)
+    {
         Loan memory loan = getLoan(claimId);
 
-        remainingPrincipal = loan.claimAmount - loan.paidAmount;
-        interest = loan.interestComputationState.accruedInterest;
+        return getTotalAmountDue(loan);
     }
 
     /**
-     * @notice Get a loan with all its details
+     * @notice Get the total amount due for a loan including principal and interest. This function will compute the interest if the loan is not paid.
+     * @param loan The loan to get the total amount due for
+     * @return remainingPrincipal The remaining principal amount due
+     * @return grossInterest The current gross interest amount accrued
+     */
+    function getTotalAmountDue(Loan memory loan)
+        private
+        pure
+        returns (uint256 remainingPrincipal, uint256 grossInterest)
+    {
+        remainingPrincipal = loan.claimAmount - loan.paidAmount;
+        grossInterest = loan.interestComputationState.accruedInterest;
+    }
+
+    /**
+     * @notice Get a loan with all its details. This function will compute the interest if the loan is not paid.
      * @param claimId The ID of the claim associated with the loan
      * @return The loan details
      */
@@ -120,6 +138,7 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
             binding: claim.binding,
             payerReceivesClaimOnPayment: claim.payerReceivesClaimOnPayment,
             debtor: claim.debtor,
+            creditor: claim.creditor,
             token: claim.token,
             controller: claim.controller,
             dueBy: claim.dueBy,
@@ -298,7 +317,12 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
         _loanDetailsByClaimId[claimId] = LoanDetails({
             acceptedAt: block.timestamp,
             interestConfig: offer.params.interestConfig,
-            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0}),
+            interestComputationState: InterestComputationState({
+                accruedInterest: 0,
+                latestPeriodNumber: 0,
+                protocolFeeBps: isProtocolFeeExempt ? 0 : protocolFeeBPS,
+                totalGrossInterestPaid: 0
+            }),
             isProtocolFeeExempt: isProtocolFeeExempt
         });
 
@@ -325,21 +349,29 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
      * @param paymentAmount The amount to pay
      */
     function payLoan(uint256 claimId, uint256 paymentAmount) external {
-        Claim memory claim = _bullaClaim.getClaim(claimId);
-        _checkController(claim.controller);
-        address creditor = _bullaClaim.ownerOf(claimId);
+        Loan memory loan = getLoan(claimId);
 
-        (uint256 remainingPrincipal, uint256 interest) = getTotalAmountDue(claimId);
+        (uint256 remainingPrincipal, uint256 grossInterest) = getTotalAmountDue(loan);
 
-        uint256 grossInterestBeingPaid = Math.min(paymentAmount, interest);
+        uint256 grossInterestBeingPaid = Math.min(paymentAmount, grossInterest);
         uint256 principalPayment = Math.min(paymentAmount - grossInterestBeingPaid, remainingPrincipal);
+
+        _loanDetailsByClaimId[claimId].interestComputationState = InterestComputationState({
+            accruedInterest: loan.interestComputationState.accruedInterest - grossInterestBeingPaid,
+            latestPeriodNumber: loan.interestComputationState.latestPeriodNumber,
+            protocolFeeBps: loan.interestComputationState.protocolFeeBps,
+            totalGrossInterestPaid: loan.interestComputationState.totalGrossInterestPaid + grossInterestBeingPaid
+        });
 
         // Calculate total actual payment (interest + principal)
         paymentAmount = grossInterestBeingPaid + principalPayment;
 
-        // Check exemption status for this loan
-        LoanDetails memory loanDetails = _loanDetailsByClaimId[claimId];
-        uint256 protocolFee = loanDetails.isProtocolFeeExempt ? 0 : _calculateProtocolFee(grossInterestBeingPaid);
+        uint256 protocolFee = _loanDetailsByClaimId[claimId].isProtocolFeeExempt || grossInterestBeingPaid == 0
+            ? 0
+            : _calculateProtocolFee(
+                grossInterestBeingPaid, loan.interestConfig.interestRateBps, loan.interestComputationState.protocolFeeBps
+            );
+
         uint256 creditorInterest = grossInterestBeingPaid - protocolFee;
         uint256 creditorTotal = creditorInterest + principalPayment;
 
@@ -352,18 +384,18 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
         if (paymentAmount > 0) {
             // Track protocol fee for this token if any interest was paid
             if (protocolFee > 0) {
-                if (!_tokenExists[claim.token]) {
-                    protocolFeeTokens.push(claim.token);
-                    _tokenExists[claim.token] = true;
+                if (!_tokenExists[loan.token]) {
+                    protocolFeeTokens.push(loan.token);
+                    _tokenExists[loan.token] = true;
                 }
-                protocolFeesByToken[claim.token] += protocolFee;
+                protocolFeesByToken[loan.token] += protocolFee;
             }
 
-            ERC20(claim.token).safeTransferFrom(msg.sender, address(this), paymentAmount);
+            ERC20(loan.token).safeTransferFrom(msg.sender, address(this), paymentAmount);
 
             if (creditorTotal > 0) {
                 // Transfer interest and principal to creditor
-                ERC20(claim.token).safeTransfer(creditor, creditorTotal);
+                ERC20(loan.token).safeTransfer(loan.creditor, creditorTotal);
             }
         }
 
@@ -419,11 +451,11 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
      * @notice Allows admin to set the protocol fee percentage
      * @param _protocolFeeBPS New protocol fee in basis points
      */
-    function setProtocolFee(uint256 _protocolFeeBPS) external {
+    function setProtocolFee(uint16 _protocolFeeBPS) external {
         if (msg.sender != admin) revert NotAdmin();
         if (_protocolFeeBPS > MAX_BPS) revert InvalidProtocolFee();
 
-        uint256 oldFee = protocolFeeBPS;
+        uint16 oldFee = protocolFeeBPS;
         protocolFeeBPS = _protocolFeeBPS;
 
         emit ProtocolFeeUpdated(oldFee, _protocolFeeBPS);
@@ -530,8 +562,12 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
      * @param grossInterestAmount The interest amount to calculate fee from
      * @return The protocol fee amount
      */
-    function _calculateProtocolFee(uint256 grossInterestAmount) private view returns (uint256) {
-        return Math.mulDiv(grossInterestAmount, protocolFeeBPS, MAX_BPS);
+    function _calculateProtocolFee(uint256 grossInterestAmount, uint16 interestRateBps, uint16 protocolFeeBps)
+        private
+        pure
+        returns (uint256)
+    {
+        return Math.mulDiv(grossInterestAmount, uint256(protocolFeeBps), uint256(interestRateBps + protocolFeeBps));
     }
 
     /**

@@ -13,7 +13,7 @@ contract BullaInvoiceERC165Test is Test {
     BullaInvoice public bullaInvoice;
 
     address admin = makeAddr("admin");
-    uint256 constant PROTOCOL_FEE_BPS = 1000; // 10%
+    uint16 constant PROTOCOL_FEE_BPS = 1000; // 10%
 
     function setUp() public {
         bullaClaim = (new Deployer()).deploy_test({

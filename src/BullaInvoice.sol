@@ -48,7 +48,7 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
     using SafeTransferLib for ERC20;
 
     address public admin;
-    uint256 public protocolFeeBPS;
+    uint16 public protocolFeeBPS;
 
     ClaimMetadata public EMPTY_METADATA = ClaimMetadata({attachmentURI: "", tokenURI: ""});
 
@@ -63,7 +63,7 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
 
     event InvoiceCreated(uint256 indexed claimId, InvoiceDetails invoiceDetails);
     event InvoicePaid(uint256 indexed claimId, uint256 grossInterestPaid, uint256 principalPaid, uint256 protocolFee);
-    event ProtocolFeeUpdated(uint256 oldFee, uint256 newFee);
+    event ProtocolFeeUpdated(uint16 oldFee, uint16 newFee);
     event PurchaseOrderDelivered(uint256 indexed claimId);
     event FeeWithdrawn(address indexed admin, address indexed token, uint256 amount);
     /**
@@ -73,7 +73,7 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
      * @param _protocolFeeBPS Protocol fee in basis points taken from interest payments
      */
 
-    constructor(address bullaClaim, address _admin, uint256 _protocolFeeBPS) BullaClaimControllerBase(bullaClaim) {
+    constructor(address bullaClaim, address _admin, uint16 _protocolFeeBPS) BullaClaimControllerBase(bullaClaim) {
         admin = _admin;
         if (_protocolFeeBPS > MAX_BPS) revert InvalidProtocolFee();
         protocolFeeBPS = _protocolFeeBPS;
@@ -230,7 +230,12 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
                 depositAmount: params.depositAmount
             }),
             lateFeeConfig: params.lateFeeConfig,
-            interestComputationState: InterestComputationState({accruedInterest: 0, latestPeriodNumber: 0}),
+            interestComputationState: InterestComputationState({
+                accruedInterest: 0,
+                latestPeriodNumber: 0,
+                protocolFeeBps: isProtocolFeeExempt ? 0 : protocolFeeBPS,
+                totalGrossInterestPaid: 0
+            }),
             requestedByCreditor: msg.sender == params.creditor,
             isProtocolFeeExempt: isProtocolFeeExempt
         });
@@ -300,7 +305,13 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
         address creditor = _bullaClaim.ownerOf(claimId);
 
         // Calculate protocol fee from interest only
-        uint256 protocolFee = invoiceDetails.isProtocolFeeExempt ? 0 : _calculateProtocolFee(grossInterestBeingPaid);
+        uint256 protocolFee = invoiceDetails.isProtocolFeeExempt || grossInterestBeingPaid == 0
+            ? 0
+            : _calculateProtocolFee(
+                grossInterestBeingPaid,
+                invoiceDetails.lateFeeConfig.interestRateBps,
+                invoiceDetails.interestComputationState.protocolFeeBps
+            );
         uint256 creditorInterest = grossInterestBeingPaid - protocolFee;
         uint256 creditorTotal = creditorInterest + principalBeingPaid;
 
@@ -313,7 +324,10 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
         if (invoiceDetails.lateFeeConfig.interestRateBps > 0) {
             _invoiceDetailsByClaimId[claimId].interestComputationState = InterestComputationState({
                 accruedInterest: interestComputationState.accruedInterest - grossInterestBeingPaid,
-                latestPeriodNumber: interestComputationState.latestPeriodNumber
+                latestPeriodNumber: interestComputationState.latestPeriodNumber,
+                protocolFeeBps: invoiceDetails.interestComputationState.protocolFeeBps,
+                totalGrossInterestPaid: invoiceDetails.interestComputationState.totalGrossInterestPaid
+                    + grossInterestBeingPaid
             });
         }
 
@@ -512,11 +526,11 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
      * @notice Allows admin to set the protocol fee percentage
      * @param _protocolFeeBPS New protocol fee in basis points
      */
-    function setProtocolFee(uint256 _protocolFeeBPS) external {
+    function setProtocolFee(uint16 _protocolFeeBPS) external {
         if (msg.sender != admin) revert NotAdmin();
         if (_protocolFeeBPS > MAX_BPS) revert InvalidProtocolFee();
 
-        uint256 oldFee = protocolFeeBPS;
+        uint16 oldFee = protocolFeeBPS;
         protocolFeeBPS = _protocolFeeBPS;
 
         emit ProtocolFeeUpdated(oldFee, _protocolFeeBPS);
@@ -614,8 +628,12 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
      * @param grossInterestAmount The interest amount to calculate fee from
      * @return The protocol fee amount
      */
-    function _calculateProtocolFee(uint256 grossInterestAmount) private view returns (uint256) {
-        return Math.mulDiv(grossInterestAmount, protocolFeeBPS, MAX_BPS);
+    function _calculateProtocolFee(uint256 grossInterestAmount, uint16 interestRateBps, uint16 protocolFeeBps)
+        private
+        pure
+        returns (uint256)
+    {
+        return Math.mulDiv(grossInterestAmount, uint256(protocolFeeBps), uint256(interestRateBps + protocolFeeBps));
     }
 
     /**
