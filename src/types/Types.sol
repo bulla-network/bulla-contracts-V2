@@ -28,12 +28,6 @@ enum CreateClaimApprovalType {
 
 }
 
-enum PayClaimApprovalType {
-    Unapproved,
-    IsApprovedForSpecific,
-    IsApprovedForAll
-}
-
 enum LockState {
     Unlocked,
     NoNewClaims, // an intermediary state where we allow users to pay, reject, rescind, and accept claims, but disallow new claims to be made
@@ -41,7 +35,6 @@ enum LockState {
 }
 
 ////// STRUCTS //////
-
 struct CreateClaimParams {
     address creditor;
     address debtor;
@@ -98,51 +91,6 @@ struct CreateClaimApproval {
     uint64 nonce; // the nonce for the approval - only incremented per approval update.
 }
 
-struct ClaimPaymentApprovalParam {
-    uint256 claimId;
-    uint256 approvalDeadline;
-    uint256 approvedAmount;
-}
-
-// a compact 1 slot representation of a claim payment approval
-struct ClaimPaymentApproval {
-    uint88 claimId;
-    uint40 approvalDeadline;
-    uint128 approvedAmount;
-}
-
-struct PayClaimApproval {
-    PayClaimApprovalType approvalType;
-    uint40 approvalDeadline;
-    uint64 nonce;
-    ClaimPaymentApproval[] claimApprovals;
-}
-
-struct UpdateBindingApproval {
-    uint64 approvalCount;
-    uint64 nonce;
-}
-
-struct CancelClaimApproval {
-    uint64 approvalCount;
-    uint64 nonce;
-}
-
-struct ImpairClaimApproval {
-    uint64 approvalCount;
-    uint64 nonce;
-}
-
-struct MarkAsPaidApproval {
-    uint64 approvalCount;
-    uint64 nonce;
-}
-
 struct Approvals {
     CreateClaimApproval createClaim;
-    PayClaimApproval payClaim;
-    UpdateBindingApproval updateBinding;
-    CancelClaimApproval cancelClaim;
-    ImpairClaimApproval impairClaim;
-    MarkAsPaidApproval markAsPaid;
 }

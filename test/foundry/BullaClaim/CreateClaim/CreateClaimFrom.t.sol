@@ -87,12 +87,12 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
         // have the creditor permit bob to act as a controller
         _permitCreateClaim({_userPK: userPK, _controller: controller, _approvalCount: 1});
 
-        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvalRegistry().getApprovals(user, controller);
+        CreateClaimApproval memory approval = bullaClaim.approvalRegistry().getApprovals(user, controller);
         uint256 approvalCount = approval.approvalCount;
 
         vm.prank(controller);
         _newClaimFrom(user, user, debtor);
-        (approval,,,,,) = bullaClaim.approvalRegistry().getApprovals(user, controller);
+        approval = bullaClaim.approvalRegistry().getApprovals(user, controller);
 
         assertEq(approval.approvalCount, approvalCount - 1);
     }
@@ -157,7 +157,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
         vm.prank(controller);
         _newClaimFrom(user, user, debtor);
 
-        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvalRegistry().getApprovals(user, controller);
+        CreateClaimApproval memory approval = bullaClaim.approvalRegistry().getApprovals(user, controller);
 
         assertEq(approval.approvalCount, 0);
         assertTrue(approval.approvalType == CreateClaimApprovalType.Unapproved);
@@ -170,7 +170,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
         vm.prank(controller);
         _newClaimFrom(user, user, debtor);
 
-        (CreateClaimApproval memory approval,,,,,) = bullaClaim.approvalRegistry().getApprovals(user, controller);
+        CreateClaimApproval memory approval = bullaClaim.approvalRegistry().getApprovals(user, controller);
 
         assertEq(approval.approvalCount, type(uint64).max);
     }
