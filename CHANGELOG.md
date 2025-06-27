@@ -1,3 +1,10 @@
+# [1.7.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.6.1...v1.7.0) (2025-06-27)
+
+
+### Features
+
+* Define protocol fee as % of notional, similar to factoring pool ([#70](https://github.com/bulla-network/bulla-contracts-V2/issues/70)) ([6981d94](https://github.com/bulla-network/bulla-contracts-V2/commit/6981d945ceee219f761872018946aca43f10824c))
+
 ## [1.6.1](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.6.0...v1.6.1) (2025-06-26)
 
 
