@@ -58,4 +58,8 @@ contract PenalizedClaim is BullaClaimControllerBase {
 
         _bullaClaim.updateBindingFrom(msg.sender, claimId, ClaimBinding.Bound);
     }
+
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return _supportsERC721Interface(interfaceId) || _bullaClaim.supportsInterface(interfaceId);
+    }
 }

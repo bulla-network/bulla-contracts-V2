@@ -42,12 +42,6 @@ contract BullaInvoiceERC165Test is Test {
         assertFalse(bullaInvoice.supportsInterface(randomInterfaceId), "Should not support random interface");
     }
 
-    function testDoesNotSupportERC721Interface() public {
-        // ERC721 interface ID (0x80ac58cd) - should not be supported
-        bytes4 erc721InterfaceId = 0x80ac58cd;
-        assertFalse(bullaInvoice.supportsInterface(erc721InterfaceId), "Should not support ERC721");
-    }
-
     function testInterfaceIdCalculation() public {
         // Test that we can calculate the interface ID correctly
         bytes4 expectedInterfaceId = IBullaInvoice.createInvoice.selector
@@ -69,7 +63,6 @@ contract BullaInvoiceERC165Test is Test {
 
         assertTrue(detector.detectsERC165(address(bullaInvoice)), "External contract should detect ERC165");
         assertTrue(detector.detectsBullaInvoice(address(bullaInvoice)), "External contract should detect IBullaInvoice");
-        assertFalse(detector.detectsERC721(address(bullaInvoice)), "External contract should not detect ERC721");
     }
 }
 

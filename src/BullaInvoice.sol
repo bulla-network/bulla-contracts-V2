@@ -641,7 +641,8 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
      * @param interfaceId The interface identifier, as specified in ERC-165
      * @return True if the contract implements interfaceId
      */
-    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return interfaceId == type(IBullaInvoice).interfaceId || super.supportsInterface(interfaceId);
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165, IERC165) returns (bool) {
+        return interfaceId == type(IBullaInvoice).interfaceId || _supportsERC721Interface(interfaceId)
+            || super.supportsInterface(interfaceId);
     }
 }

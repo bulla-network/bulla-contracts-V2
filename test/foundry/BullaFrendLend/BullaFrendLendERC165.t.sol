@@ -39,12 +39,6 @@ contract BullaFrendLendERC165Test is Test {
         assertFalse(bullaFrendLend.supportsInterface(randomInterfaceId), "Should not support random interface");
     }
 
-    function testDoesNotSupportERC721Interface() public {
-        // ERC721 interface ID (0x80ac58cd) - should not be supported
-        bytes4 erc721InterfaceId = 0x80ac58cd;
-        assertFalse(bullaFrendLend.supportsInterface(erc721InterfaceId), "Should not support ERC721");
-    }
-
     function testInterfaceIdCalculation() public {
         // Test that we can calculate the interface ID correctly
         bytes4 expectedInterfaceId = IBullaFrendLend.getTotalAmountDue.selector ^ IBullaFrendLend.getLoan.selector
@@ -70,7 +64,6 @@ contract BullaFrendLendERC165Test is Test {
         assertTrue(
             detector.detectsBullaFrendLend(address(bullaFrendLend)), "External contract should detect IBullaFrendLend"
         );
-        assertFalse(detector.detectsERC721(address(bullaFrendLend)), "External contract should not detect ERC721");
     }
 }
 
