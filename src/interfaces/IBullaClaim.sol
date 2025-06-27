@@ -28,6 +28,8 @@ interface IBullaClaim is IBullaClaimCore, IBullaClaimAdmin {
     error PayingZero();
     error OverPaying(uint256 paymentAmount);
     error ApprovalExpired();
+    error NotSupported();
+    error MustBeControlledClaim();
 
     /*///////////////////////////////////////////////////////////////
                             EVENTS

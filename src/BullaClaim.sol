@@ -20,6 +20,7 @@ import {IPermissions} from "./interfaces/IPermissions.sol";
 import {IBullaClaim} from "./interfaces/IBullaClaim.sol";
 import {IERC20Permit} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import {IBullaClaimAdmin} from "./interfaces/IBullaClaimAdmin.sol";
+import {ERC721Utils} from "openzeppelin-contracts/contracts/token/ERC721/utils/ERC721Utils.sol";
 
 contract BullaClaim is ERC721, Ownable, BoringBatchable, IBullaClaim {
     using SafeTransferLib for ERC20;
@@ -494,16 +495,94 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, IBullaClaim {
         return _ownerOf(claimId);
     }
 
+    function safeTransferFromFrom(
+        address fromAkaOriginalMsgSender,
+        address fromAkaNftOwner,
+        address to,
+        uint256 claimId,
+        bytes memory data
+    ) public {
+        // Check if this is a controlled claim
+        Claim memory claim = getClaim(claimId);
+        if (claim.controller == address(0)) revert MustBeControlledClaim();
+
+        _safeTransferFromFrom(fromAkaOriginalMsgSender, fromAkaNftOwner, to, claimId, data);
+    }
+
+    function safeTransferFrom(address from, address to, uint256 claimId, bytes memory data)
+        public
+        override(ERC721, IERC721)
+    {
+        _safeTransferFromFrom(msg.sender, from, to, claimId, data);
+    }
+
+    /// @notice Copied the super implementation but replaced _msgSender with fromAkaOriginalMsgSender
+    function _safeTransferFromFrom(
+        address fromAkaOriginalMsgSender,
+        address fromAkaNftOwner,
+        address to,
+        uint256 claimId,
+        bytes memory data
+    ) private {
+        _transferFrom(fromAkaOriginalMsgSender, fromAkaNftOwner, to, claimId);
+        ERC721Utils.checkOnERC721Received(fromAkaOriginalMsgSender, fromAkaNftOwner, to, claimId, data);
+    }
+
+    function transferFromFrom(address fromAkaOriginalMsgSender, address fromAkaNftOwner, address to, uint256 claimId)
+        public
+    {
+        // Check if this is a controlled claim
+        Claim memory claim = getClaim(claimId);
+        if (claim.controller == address(0)) revert MustBeControlledClaim();
+
+        _transferFrom(fromAkaOriginalMsgSender, fromAkaNftOwner, to, claimId);
+    }
+
     function transferFrom(address from, address to, uint256 claimId) public override(ERC721, IERC721) {
-        super.transferFrom(from, to, claimId);
+        _transferFrom(msg.sender, from, to, claimId);
+    }
+
+    function _transferFrom(address fromAkaOriginalMsgSender, address fromAkaNftOwner, address to, uint256 claimId)
+        private
+    {
+        Claim memory claim = getClaim(claimId);
+        if (claim.controller != address(0) && msg.sender != claim.controller) revert NotController(msg.sender);
+
+        if (to == address(0)) {
+            revert ERC721InvalidReceiver(address(0));
+        }
+
+        // Copied the super implementation but replaced _msgSender with fromAkaOriginalMsgSender
+        address previousOwner = _update(to, claimId, fromAkaOriginalMsgSender);
+        if (previousOwner != fromAkaNftOwner) {
+            revert ERC721IncorrectOwner(fromAkaNftOwner, claimId, previousOwner);
+        }
+    }
+
+    function approveFrom(address from, address to, uint256 claimId) public {
+        // Check if this is a controlled claim
+        Claim memory claim = getClaim(claimId);
+        if (claim.controller == address(0)) revert MustBeControlledClaim();
+
+        _approveFrom(from, to, claimId);
     }
 
     function approve(address to, uint256 claimId) public override(ERC721, IERC721) {
-        super.approve(to, claimId);
+        _approveFrom(msg.sender, to, claimId);
+    }
+
+    function _approveFrom(address from, address to, uint256 claimId) private {
+        // Check if this is a controlled claim
+        Claim memory claim = getClaim(claimId);
+        if (claim.controller != address(0) && msg.sender != claim.controller) revert NotController(msg.sender);
+
+        super._approve(to, claimId, from);
     }
 
     function setApprovalForAll(address operator, bool approved) public override(ERC721, IERC721) {
-        super.setApprovalForAll(operator, approved);
+        // This is physically impossible, because users will have multiple claim types, so we can't set approval for all
+        // claims at once.
+        revert NotSupported();
     }
 
     function supportsInterface(bytes4 interfaceId) public view override(ERC721, IERC165) returns (bool) {
