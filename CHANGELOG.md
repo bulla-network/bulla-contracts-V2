@@ -1,3 +1,10 @@
+# [1.8.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.7.0...v1.8.0) (2025-06-30)
+
+
+### Features
+
+* Implement ERC721 on controller base class, restrict direct acce… ([#71](https://github.com/bulla-network/bulla-contracts-V2/issues/71)) ([9c6fb6d](https://github.com/bulla-network/bulla-contracts-V2/commit/9c6fb6d09c06c9a3bc16a9b338496f18a1c38124))
+
 # [1.7.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.6.1...v1.7.0) (2025-06-27)
 
 
