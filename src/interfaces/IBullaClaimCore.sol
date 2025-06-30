@@ -62,4 +62,21 @@ interface IBullaClaimCore is IERC721 {
     function markClaimAsPaid(uint256 claimId) external;
 
     function markClaimAsPaidFrom(address from, uint256 claimId) external;
+
+    /*///////////////////////////////////////////////////////////////
+                        ERC721 "FROM" FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    function safeTransferFromFrom(
+        address fromAkaOriginalMsgSender,
+        address fromAkaNftOwner,
+        address to,
+        uint256 claimId,
+        bytes memory data
+    ) external;
+
+    function transferFromFrom(address fromAkaOriginalMsgSender, address fromAkaNftOwner, address to, uint256 claimId)
+        external;
+
+    function approveFrom(address from, address to, uint256 claimId) external;
 }

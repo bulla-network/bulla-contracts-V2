@@ -1689,7 +1689,7 @@ contract TestBullaInvoice is Test {
 
         // Transfer invoice to new creditor
         vm.prank(creditor);
-        bullaClaim.safeTransferFrom(creditor, newCreditor, invoiceId);
+        bullaInvoice.safeTransferFrom(creditor, newCreditor, invoiceId);
 
         // Verify ownership transfer
         assertEq(bullaClaim.ownerOf(invoiceId), newCreditor, "New creditor should own the invoice");
@@ -2092,10 +2092,10 @@ contract TestBullaInvoice is Test {
 
         // Transfer invoice to new creditor
         vm.prank(creditor);
-        bullaClaim.safeTransferFrom(creditor, newCreditor, invoiceId);
+        bullaInvoice.safeTransferFrom(creditor, newCreditor, invoiceId);
 
         // Verify ownership transfer
-        assertEq(bullaClaim.ownerOf(invoiceId), newCreditor, "New creditor should own the invoice");
+        assertEq(bullaInvoice.ownerOf(invoiceId), newCreditor, "New creditor should own the invoice");
 
         // Set up mark as paid permission for new creditor
         bullaClaim.approvalRegistry().permitMarkAsPaid({
