@@ -64,38 +64,10 @@ contract TestPenalizedClaim is Test {
         );
         vm.stopPrank();
 
-        bullaClaim.approvalRegistry().permitUpdateBinding({
-            user: debtor,
-            controller: address(penalizedClaim),
-            approvalCount: 1,
-            signature: sigHelper.signUpdateBindingPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(penalizedClaim),
-                approvalCount: 1
-            })
-        });
-
         vm.prank(debtor);
         penalizedClaim.acceptClaim(claimId);
 
         vm.warp(block.timestamp + 2 days);
-
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(penalizedClaim),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(penalizedClaim),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
 
         vm.prank(debtor);
         penalizedClaim.payClaim{value: 1.05 ether}(claimId, 1.05 ether);

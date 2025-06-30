@@ -30,7 +30,7 @@ contract MockController is BullaClaimControllerBase {
         return _bullaClaim.createClaimFrom(msg.sender, params);
     }
 
-    function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public pure override returns (bool) {
         return super._supportsERC721Interface(interfaceId);
     }
 }
@@ -63,7 +63,7 @@ contract MockAdapter is IControllerAdapter {
         return address(controller);
     }
 
-    function getClaimCreatorPk(uint256 creditorPk, uint256 debtorPk) external view override returns (uint256) {
+    function getClaimCreatorPk(uint256 creditorPk, uint256) external pure override returns (uint256) {
         return creditorPk;
     }
 }
@@ -90,7 +90,7 @@ contract InvoiceAdapter is IControllerAdapter {
         return address(invoice);
     }
 
-    function getClaimCreatorPk(uint256 creditorPk, uint256 debtorPk) external view override returns (uint256) {
+    function getClaimCreatorPk(uint256 creditorPk, uint256) external pure override returns (uint256) {
         return creditorPk;
     }
 }
@@ -128,7 +128,7 @@ contract FrendLendAdapter is IControllerAdapter {
         return address(frendLend);
     }
 
-    function getClaimCreatorPk(uint256 creditorPk, uint256 debtorPk) external view override returns (uint256) {
+    function getClaimCreatorPk(uint256, uint256 debtorPk) external pure override returns (uint256) {
         return debtorPk;
     }
 }

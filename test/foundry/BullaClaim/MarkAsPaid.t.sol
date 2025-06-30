@@ -5,16 +5,7 @@ import "forge-std/Test.sol";
 import "forge-std/Vm.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
-import {
-    Claim,
-    Status,
-    ClaimBinding,
-    CreateClaimParams,
-    ClaimMetadata,
-    LockState,
-    CancelClaimApproval,
-    MarkAsPaidApproval
-} from "contracts/types/Types.sol";
+import {Claim, Status, ClaimBinding, CreateClaimParams, ClaimMetadata, LockState} from "contracts/types/Types.sol";
 import {BullaClaim, CreateClaimApprovalType} from "contracts/BullaClaim.sol";
 import {PenalizedClaim} from "contracts/mocks/PenalizedClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
@@ -56,6 +47,8 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
         weth.deposit{value: 10 ether}();
         vm.prank(controller);
         weth.deposit{value: 10 ether}();
+
+        _permitCreateClaim(creditorPK, controller, 1);
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -99,29 +92,6 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
         assertEq(uint256(claimAfter.status), uint256(Status.Paid), "Claim should be marked as paid");
     }
 
-    function testMarkAsPaidFrom_Success() public {
-        // Create claim
-        uint256 claimId = _newClaim(creditor, creditor, debtor);
-
-        // Setup approval for controller
-        _permitMarkAsPaid(creditorPK, controller, 1);
-
-        (,,,,, MarkAsPaidApproval memory approval) = bullaClaim.approvalRegistry().getApprovals(creditor, controller);
-        uint256 approvalCountBefore = approval.approvalCount;
-
-        vm.expectEmit(true, true, false, true);
-        emit ClaimMarkedAsPaid(claimId);
-
-        vm.prank(controller);
-        bullaClaim.markClaimAsPaidFrom(creditor, claimId);
-
-        Claim memory claim = bullaClaim.getClaim(claimId);
-        assertEq(uint256(claim.status), uint256(Status.Paid), "Claim should be marked as paid");
-
-        (,,,,, approval) = bullaClaim.approvalRegistry().getApprovals(creditor, controller);
-        assertEq(approval.approvalCount, approvalCountBefore - 1, "Approval count should decrement");
-    }
-
     function testMarkAsPaidFrom_WithController() public {
         PenalizedClaim penalizedClaim = new PenalizedClaim(address(bullaClaim));
 
@@ -136,9 +106,6 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
 
         Claim memory claimBefore = bullaClaim.getClaim(claimId);
         assertEq(claimBefore.controller, address(penalizedClaim), "Controller should be set");
-
-        // Setup approval for controller to mark as paid
-        _permitMarkAsPaid(creditorPK, address(penalizedClaim), 1);
 
         vm.expectEmit(true, true, false, true);
         emit ClaimMarkedAsPaid(claimId);
@@ -237,7 +204,7 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
         uint256 claimId = _newClaim(creditor, creditor, debtor);
 
         vm.prank(controller);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotApproved.selector));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.MustBeControlledClaim.selector));
         bullaClaim.markClaimAsPaidFrom(creditor, claimId);
     }
 
@@ -363,58 +330,15 @@ contract TestMarkAsPaid is BullaClaimTestHelper {
     }
 
     function testMarkAsPaidFrom_EventEmission() public {
-        uint256 claimId = _newClaim(creditor, creditor, debtor);
-
-        // Setup approval
-        _permitMarkAsPaid(creditorPK, controller, 1);
+        vm.startPrank(controller);
+        uint256 claimId = _newClaimFrom({_from: creditor, _creditor: creditor, _debtor: debtor});
+        vm.stopPrank();
 
         vm.expectEmit(true, true, false, true);
         emit ClaimMarkedAsPaid(claimId);
 
         vm.prank(controller);
         bullaClaim.markClaimAsPaidFrom(creditor, claimId);
-    }
-
-    /*///////////////////////////////////////////////////////////////
-                        APPROVAL MANAGEMENT TESTS
-    //////////////////////////////////////////////////////////////*/
-
-    function testMarkAsPaidFrom_ApprovalSpending() public {
-        uint256 claimId = _newClaim(creditor, creditor, debtor);
-
-        // Setup limited approvals
-        _permitMarkAsPaid(creditorPK, controller, 2);
-
-        (,,,,, MarkAsPaidApproval memory approvalBefore) =
-            bullaClaim.approvalRegistry().getApprovals(creditor, controller);
-        assertEq(approvalBefore.approvalCount, 2, "Should have 2 approvals");
-
-        // Use first approval
-        vm.prank(controller);
-        bullaClaim.markClaimAsPaidFrom(creditor, claimId);
-
-        (,,,,, MarkAsPaidApproval memory approvalAfter) =
-            bullaClaim.approvalRegistry().getApprovals(creditor, controller);
-        assertEq(approvalAfter.approvalCount, 1, "Should have 1 approval remaining");
-    }
-
-    function testMarkAsPaidFrom_UnlimitedApprovals() public {
-        uint256 claimId = _newClaim(creditor, creditor, debtor);
-
-        // Setup unlimited approvals
-        _permitMarkAsPaid(creditorPK, controller, type(uint64).max);
-
-        (,,,,, MarkAsPaidApproval memory approvalBefore) =
-            bullaClaim.approvalRegistry().getApprovals(creditor, controller);
-        assertEq(approvalBefore.approvalCount, type(uint64).max, "Should have unlimited approvals");
-
-        // Use approval
-        vm.prank(controller);
-        bullaClaim.markClaimAsPaidFrom(creditor, claimId);
-
-        (,,,,, MarkAsPaidApproval memory approvalAfter) =
-            bullaClaim.approvalRegistry().getApprovals(creditor, controller);
-        assertEq(approvalAfter.approvalCount, type(uint64).max, "Should still have unlimited approvals");
     }
 
     /*///////////////////////////////////////////////////////////////

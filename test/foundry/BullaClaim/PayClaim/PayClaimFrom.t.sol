@@ -36,9 +36,10 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
     uint256 OCTOBER_23RD_2022 = 1666560688;
 
     uint256 userPK = uint256(0xA11c3);
+    uint256 user2PK = uint256(0xB11c3);
     address user = vm.addr(userPK);
     address controller = address(0xb0b);
-    address user2 = address(0x02);
+    address user2 = vm.addr(user2PK);
 
     function setUp() public {
         weth = new WETH();
@@ -56,101 +57,14 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
         weth.transferFrom(address(this), user, 1000 ether);
         weth.transferFrom(address(this), controller, 1000 ether);
         weth.transferFrom(address(this), user2, 1000 ether);
+
+        _permitCreateClaim(userPK, controller, 1);
+        _permitCreateClaim(user2PK, controller, 1);
     }
 
-    function _permitPayClaim(uint256 _userPK, address _controller, uint256 _approvalDeadline) private {
-        ClaimPaymentApprovalParam[] memory approvals = new ClaimPaymentApprovalParam[](0);
-        _permitPayClaim(_userPK, _controller, PayClaimApprovalType.IsApprovedForAll, _approvalDeadline, approvals);
-    }
-
-    //
-    ///////// PAY CLAIM FROM TESTS /////////
-    //
-
-    //// APPROVED FOR SPECIFIC ////
-
-    /// @notice SPEC.AS.RES1
-    function testApprovedForSpecificFullPayment() public {
-        uint256 claimId = _newClaim({_creator: user2, _creditor: user2, _debtor: user});
-        ClaimPaymentApprovalParam[] memory approvals = new ClaimPaymentApprovalParam[](1);
-        approvals[0] = ClaimPaymentApprovalParam({claimId: claimId, approvedAmount: 1 ether, approvalDeadline: 0});
-
-        _permitPayClaim({
-            _userPK: userPK,
-            _controller: controller,
-            _approvalDeadline: 0,
-            _approvalType: PayClaimApprovalType.IsApprovedForSpecific,
-            _paymentApprovals: approvals
-        });
-
-        vm.prank(user);
-        weth.approve(address(bullaClaim), 1 ether);
-
-        vm.prank(controller);
-        bullaClaim.payClaimFrom(user, claimId, 1 ether);
-
-        (, PayClaimApproval memory approval,,,,) = bullaClaim.approvalRegistry().getApprovals(user, controller);
-        assertEq(approval.claimApprovals.length, 0, "AS.RES1: claim approvals not cleared");
-    }
-
-    /// @notice SPEC.AS.RES1
-    function testApprovedForSpecificPartialPayment() public {
-        uint256 claimId = _newClaim({_creator: user2, _creditor: user2, _debtor: user});
-        ClaimPaymentApprovalParam[] memory approvals = new ClaimPaymentApprovalParam[](1);
-        approvals[0] = ClaimPaymentApprovalParam({claimId: claimId, approvedAmount: 1 ether, approvalDeadline: 0});
-
-        _permitPayClaim({
-            _userPK: userPK,
-            _controller: controller,
-            _approvalDeadline: 0,
-            _approvalType: PayClaimApprovalType.IsApprovedForSpecific,
-            _paymentApprovals: approvals
-        });
-
-        vm.prank(user);
-        weth.approve(address(bullaClaim), 0.5 ether);
-
-        vm.prank(controller);
-        bullaClaim.payClaimFrom(user, claimId, 0.5 ether);
-
-        (, PayClaimApproval memory approval,,,,) = bullaClaim.approvalRegistry().getApprovals(user, controller);
-        assertEq(approval.claimApprovals.length, 1, "AS.RES1: claim approval not decremented");
-        assertEq(approval.claimApprovals[0].approvedAmount, 0.5 ether, "AS.RES1: claim approval not decremented");
-        assertEq(
-            approval.claimApprovals[0].approvalDeadline, approvals[0].approvalDeadline, "approval deadline changed"
-        );
-    }
-
-    /// @notice SPEC.AS.RES1
-    function testApprovedForSpecificWithManyApprovals(uint8 approvalCount, uint8 claimIdToPay) public {
-        vm.assume(approvalCount > 1 && claimIdToPay > 0);
-        vm.assume(claimIdToPay < approvalCount);
-
-        ClaimPaymentApprovalParam[] memory approvals = _generateClaimPaymentApprovals(approvalCount, user, user2);
-
-        _permitPayClaim({
-            _userPK: userPK,
-            _controller: controller,
-            _approvalDeadline: 0,
-            _approvalType: PayClaimApprovalType.IsApprovedForSpecific,
-            _paymentApprovals: approvals
-        });
-
-        vm.prank(user);
-        weth.approve(address(bullaClaim), 1 ether);
-
-        vm.prank(controller);
-        bullaClaim.payClaimFrom(user, claimIdToPay, 1 ether);
-
-        (, PayClaimApproval memory approval,,,,) = bullaClaim.approvalRegistry().getApprovals(user, controller);
-        assertEq(approval.claimApprovals.length, approvalCount - 1, "AS.RES1: claim approvals not cleared");
-
-        bool approvalFound;
-        for (uint256 i; i < approval.claimApprovals.length; i++) {
-            if (approval.claimApprovals[i].claimId == claimIdToPay) approvalFound = true;
-        }
-        assertFalse(approvalFound, "AS.RES1: claim approval not cleared");
-    }
+    /*///////////////////////////////////////////////////////////////
+                        PAY CLAIM FROM TESTS
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice SPEC.SA1
     function testCannotPayClaimFromIfUnapproved() public {
@@ -161,152 +75,16 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
 
         // user 2 tries to pull user's funds
         vm.prank(user2);
-        vm.expectRevert(BullaClaimValidationLib.NotApproved.selector);
-        bullaClaim.payClaimFrom(user, claimId, 1 ether);
-    }
-
-    /// @notice SPEC.AS1
-    function testCannotPayWhenClaimHasNotBeenSpecified() public {
-        _newClaim({_creator: user2, _creditor: user2, _debtor: user});
-        _newClaim({_creator: user2, _creditor: user2, _debtor: user});
-
-        ClaimPaymentApprovalParam[] memory approvals = new ClaimPaymentApprovalParam[](1);
-        approvals[0] = ClaimPaymentApprovalParam({claimId: 1, approvedAmount: 1 ether, approvalDeadline: 0});
-
-        // controller has been approved to pay claimId 1, but not claimId 2
-        _permitPayClaim({
-            _userPK: userPK,
-            _controller: controller,
-            _approvalDeadline: 0,
-            _approvalType: PayClaimApprovalType.IsApprovedForSpecific,
-            _paymentApprovals: approvals
-        });
-
-        vm.prank(user);
-        weth.approve(address(bullaClaim), 1 ether);
-
-        // controller tries to pay claimId 2
-        vm.prank(controller);
-        vm.expectRevert(BullaClaimValidationLib.NotApproved.selector);
-        bullaClaim.payClaimFrom(user, 2, 1 ether);
-    }
-
-    /// @notice SPEC.AS2
-    function testCannotPayWhenSpecificClaimIsUnderApproved() public {
-        _newClaim({_creator: user2, _creditor: user2, _debtor: user});
-
-        ClaimPaymentApprovalParam[] memory approvals = new ClaimPaymentApprovalParam[](1);
-        approvals[0] = ClaimPaymentApprovalParam({claimId: 1, approvedAmount: 0.5 ether, approvalDeadline: 0});
-
-        // controller has been approved to pay .5 ether
-        _permitPayClaim({
-            _userPK: userPK,
-            _controller: controller,
-            _approvalDeadline: 0,
-            _approvalType: PayClaimApprovalType.IsApprovedForSpecific,
-            _paymentApprovals: approvals
-        });
-
-        vm.prank(user);
-        weth.approve(address(bullaClaim), 1 ether);
-
-        // controller tries to pay 1 ether
-        vm.prank(controller);
-        vm.expectRevert(BullaClaimValidationLib.PaymentUnderApproved.selector);
-        bullaClaim.payClaimFrom(user, 1, 1 ether);
-    }
-
-    /// @notice SPEC.AS3.1
-    function testCannotPayWhenApprovedForSpecificAndControllerApprovalHasExpired() public {
-        uint256 claimId = _newClaim({_creator: user2, _creditor: user2, _debtor: user});
-
-        ClaimPaymentApprovalParam[] memory approvals = new ClaimPaymentApprovalParam[](1);
-        // this is an unexpiring approval
-        approvals[0] = ClaimPaymentApprovalParam({claimId: claimId, approvedAmount: 1 ether, approvalDeadline: 0});
-
-        // controller can only pay claims for user until the 23rd
-        _permitPayClaim({
-            _userPK: userPK,
-            _controller: controller,
-            _approvalDeadline: OCTOBER_23RD_2022,
-            _approvalType: PayClaimApprovalType.IsApprovedForSpecific,
-            _paymentApprovals: approvals
-        });
-
-        vm.warp(OCTOBER_28TH_2022);
-
-        vm.prank(user);
-        weth.approve(address(bullaClaim), 1 ether);
-
-        // controller tries to pay 1 ether on October 28th
-        vm.prank(controller);
-        vm.expectRevert(BullaClaimValidationLib.PastApprovalDeadline.selector);
-        bullaClaim.payClaimFrom(user, claimId, 1 ether);
-    }
-
-    /// @notice SPEC.AS3.2
-    function testCannotPayWhenApprovedForSpecificAndClaimApprovalHasExpired() public {
-        uint256 claimId = _newClaim({_creator: user2, _creditor: user2, _debtor: user});
-
-        ClaimPaymentApprovalParam[] memory approvals = new ClaimPaymentApprovalParam[](1);
-        // approval for claimId 1 expires on the 23rd
-        approvals[0] =
-            ClaimPaymentApprovalParam({claimId: claimId, approvedAmount: 1 ether, approvalDeadline: OCTOBER_23RD_2022});
-
-        // controller has unexpiring approval to pay claims for user
-        _permitPayClaim({
-            _userPK: userPK,
-            _controller: controller,
-            _approvalDeadline: 0,
-            _approvalType: PayClaimApprovalType.IsApprovedForSpecific,
-            _paymentApprovals: approvals
-        });
-
-        vm.warp(OCTOBER_28TH_2022);
-
-        vm.prank(user);
-        weth.approve(address(bullaClaim), 1 ether);
-
-        // controller tries to pay 1 ether on October 28th
-        vm.prank(controller);
-        vm.expectRevert(BullaClaimValidationLib.PastApprovalDeadline.selector);
-        bullaClaim.payClaimFrom(user, claimId, 1 ether);
-    }
-
-    //// APPROVED FOR ALL ////
-
-    /// @notice happy path : SPEC.AA.RES1
-    function testIsApprovedForAll() public {
-        _permitPayClaim({_userPK: userPK, _controller: controller, _approvalDeadline: 0});
-        uint256 claimId = _newClaim({_creator: user2, _creditor: user2, _debtor: user});
-
-        vm.prank(user);
-        weth.approve(address(bullaClaim), 1 ether);
-
-        vm.prank(controller);
-        bullaClaim.payClaimFrom(user, claimId, 1 ether);
-    }
-
-    /// @notice SPEC.AA1
-    function testCannotPayWhenApprovedForAllAndControllerApprovalExpired() public {
-        _permitPayClaim({_userPK: userPK, _controller: controller, _approvalDeadline: OCTOBER_23RD_2022});
-        uint256 claimId = _newClaim({_creator: user2, _creditor: user2, _debtor: user});
-
-        vm.warp(OCTOBER_28TH_2022);
-
-        vm.prank(user);
-        weth.approve(address(bullaClaim), 1 ether);
-
-        vm.prank(controller);
-        vm.expectRevert(BullaClaimValidationLib.PastApprovalDeadline.selector);
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.MustBeControlledClaim.selector));
         bullaClaim.payClaimFrom(user, claimId, 1 ether);
     }
 
     //// CONTRACT LOCK ////
     /// @notice SPEC.SA2
     function testCanPayClaimFromWhenPartiallyLocked() public {
-        uint256 claimId = _newClaim({_creator: user2, _creditor: user2, _debtor: user});
-        _permitPayClaim({_userPK: userPK, _controller: controller, _approvalDeadline: 0});
+        vm.startPrank(controller);
+        uint256 claimId = _newClaimFrom({_from: user2, _creditor: user2, _debtor: user});
+        vm.stopPrank();
 
         bullaClaim.setLockState(LockState.NoNewClaims);
 
@@ -319,8 +97,9 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
 
     /// @notice SPEC.SA2
     function testCannotPayClaimFromWhenLocked() public {
-        uint256 claimId = _newClaim({_creator: user2, _creditor: user2, _debtor: user});
-        _permitPayClaim({_userPK: userPK, _controller: controller, _approvalDeadline: 0});
+        vm.startPrank(controller);
+        uint256 claimId = _newClaimFrom({_from: user2, _creditor: user2, _debtor: user});
+        vm.stopPrank();
 
         bullaClaim.setLockState(LockState.Locked);
 
@@ -339,10 +118,8 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
         CreateClaimParams memory params = new CreateClaimParamsBuilder().withCreditor(user2).withDebtor(user)
             .withPayerReceivesClaimOnPayment(true).build();
 
-        vm.prank(user2);
-        uint256 claimId = bullaClaim.createClaim(params);
-
-        _permitPayClaim({_userPK: userPK, _controller: controller, _approvalDeadline: 0});
+        vm.prank(controller);
+        uint256 claimId = bullaClaim.createClaimFrom(user2, params);
 
         vm.prank(controller);
         bullaClaim.payClaimFrom{value: 1 ether}(user, claimId, 1 ether);

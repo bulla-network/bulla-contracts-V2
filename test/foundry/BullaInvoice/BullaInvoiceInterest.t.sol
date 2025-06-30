@@ -76,23 +76,6 @@ contract TestBullaInvoiceInterest is Test {
                 isBindingAllowed: false
             })
         });
-
-        // Setup payment permission for debtor
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
     }
 
     // Test that a new invoice starts with period number 0

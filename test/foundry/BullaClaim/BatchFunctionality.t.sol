@@ -186,8 +186,8 @@ contract TestBatchFunctionality is BullaClaimTestHelper {
     function testBatch_PayMultipleClaims_ERC20() public {
         // Create claims first
         uint256 claimId1 = _newClaim(creditor, creditor, debtor);
-        uint256 claimId2 = _newClaim(creditor, creditor, charlie);
-        uint256 claimId3 = _newClaim(creditor, creditor, alice);
+        uint256 claimId2 = _newClaim(creditor, creditor, debtor);
+        uint256 claimId3 = _newClaim(creditor, creditor, debtor);
 
         bytes[] memory calls = new bytes[](3);
 
@@ -224,7 +224,7 @@ contract TestBatchFunctionality is BullaClaimTestHelper {
             new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(0)).build()
         );
         uint256 claimId2 = bullaClaim.createClaim(
-            new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(charlie).withToken(address(0)).build()
+            new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(0)).build()
         );
         vm.stopPrank();
 

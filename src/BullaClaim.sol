@@ -258,7 +258,7 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, IBullaClaim {
 
         // Use validation library for payment validation and calculation
         (uint256 totalPaidAmount, bool claimPaid) =
-            BullaClaimValidationLib.validateAndCalculatePayment(claim, paymentAmount);
+            BullaClaimValidationLib.validateAndCalculatePayment(from, claim, paymentAmount);
 
         ClaimStorage storage claimStorage = claims[claimId];
 
@@ -580,7 +580,7 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, IBullaClaim {
         super._approve(to, claimId, from);
     }
 
-    function setApprovalForAll(address operator, bool approved) public override(ERC721, IERC721) {
+    function setApprovalForAll(address, bool) public pure override(ERC721, IERC721) {
         // This is physically impossible, because users will have multiple claim types, so we can't set approval for all
         // claims at once.
         revert NotSupported();

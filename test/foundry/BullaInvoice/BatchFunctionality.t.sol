@@ -12,9 +12,7 @@ import {
     CreateClaimParams,
     LockState,
     ClaimMetadata,
-    CreateClaimApprovalType,
-    PayClaimApprovalType,
-    ClaimPaymentApprovalParam
+    CreateClaimApprovalType
 } from "contracts/types/Types.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {BullaInvoice, CreateInvoiceParams, Invoice} from "src/BullaInvoice.sol";
@@ -197,9 +195,6 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         );
         vm.stopPrank();
 
-        // Setup payment permissions
-        _permitPayInvoice(debtorPK);
-
         // Ensure debtor has WETH tokens
         vm.prank(debtor);
         weth.deposit{value: 5 ether}();
@@ -248,9 +243,6 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         );
         vm.stopPrank();
 
-        // Setup update binding permissions
-        _permitUpdateInvoiceBinding(creditorPK, 2);
-
         bytes[] memory calls = new bytes[](2);
 
         calls[0] = abi.encodeCall(BullaInvoice.updateBinding, (invoiceId1, ClaimBinding.BindingPending));
@@ -279,9 +271,6 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
             new CreateInvoiceParamsBuilder().withDebtor(charlie).withCreditor(creditor).build()
         );
         vm.stopPrank();
-
-        // Setup cancel permissions
-        _permitCancelInvoice(creditorPK, 2);
 
         bytes[] memory calls = new bytes[](2);
 
@@ -320,9 +309,6 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         // Move time forward past due date and grace period
         vm.warp(pastDueBy + 2 hours);
 
-        // Setup impair permissions
-        _permitImpairInvoice(creditorPK, 2);
-
         bytes[] memory calls = new bytes[](2);
 
         calls[0] = abi.encodeCall(BullaInvoice.impairInvoice, (invoiceId1));
@@ -352,9 +338,6 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
             new CreateInvoiceParamsBuilder().withDebtor(charlie).withCreditor(creditor).build()
         );
         vm.stopPrank();
-
-        // Setup mark as paid permissions
-        _permitMarkInvoiceAsPaid(creditorPK, 2);
 
         bytes[] memory calls = new bytes[](2);
 

@@ -252,7 +252,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
     function testControllerCannotCancelUncontrolledClaim() public {
         // creditor creates uncontrolled claim
         vm.startPrank(creditor);
-        (uint256 claimId, Claim memory claim) = _newClaim(ClaimBinding.Unbound);
+        (uint256 claimId,) = _newClaim(ClaimBinding.Unbound);
         vm.stopPrank();
 
         // controller cannot cancel uncontrolled claim

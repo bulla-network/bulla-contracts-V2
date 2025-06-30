@@ -105,23 +105,6 @@ contract TestCreateSelfBillingInvoiceWithMetadata is Test {
                 isBindingAllowed: true
             })
         });
-
-        // Setup pay claim permissions for debtor (to pay debtor-created invoices)
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
     }
 
     // ==================== BASIC SELF BILLING WITH METADATA TESTS ====================

@@ -11,6 +11,7 @@ library BullaClaimValidationLib {
     error InvalidDueBy();
     error ZeroAmount();
     error NotCreditorOrDebtor();
+    error NotDebtor();
     error CannotBindClaim();
     error PayingZero();
     error ClaimNotPending();
@@ -63,7 +64,7 @@ library BullaClaimValidationLib {
     /// @param paymentAmount The amount being paid
     /// @return totalPaidAmount The total amount that will be paid after this payment
     /// @return claimPaid Whether the claim will be fully paid after this payment
-    function validateAndCalculatePayment(Claim memory claim, uint256 paymentAmount)
+    function validateAndCalculatePayment(address from, Claim memory claim, uint256 paymentAmount)
         external
         pure
         returns (uint256 totalPaidAmount, bool claimPaid)
@@ -75,6 +76,9 @@ library BullaClaimValidationLib {
         if (claim.status != Status.Pending && claim.status != Status.Repaying && claim.status != Status.Impaired) {
             revert ClaimNotPending();
         }
+
+        // Validate sender is debtor
+        if (from != claim.debtor) revert NotDebtor();
 
         // Calculate payment state
         totalPaidAmount = claim.paidAmount + paymentAmount;

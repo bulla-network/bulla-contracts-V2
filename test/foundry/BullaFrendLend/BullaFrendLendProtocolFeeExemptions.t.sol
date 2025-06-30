@@ -240,7 +240,6 @@ contract TestBullaFrendLendProtocolFeeExemptions is Test {
         Loan memory loan = bullaFrendLend.getLoan(claimId);
         uint256 accruedInterest = loan.interestComputationState.accruedInterest;
 
-        uint256 creditorBalanceBefore = token.balanceOf(_creditor);
         uint256 contractBalanceBefore = token.balanceOf(address(bullaFrendLend));
 
         // Pay interest
