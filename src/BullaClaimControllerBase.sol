@@ -3,8 +3,8 @@ pragma solidity ^0.8.30;
 
 import "./interfaces/IBullaClaim.sol";
 import "./types/Types.sol";
-import {IERC721} from "openzeppelin-contracts/contracts/token/ERC721/IERC721.sol";
-import {IERC165} from "openzeppelin-contracts/contracts/utils/introspection/IERC165.sol";
+import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 abstract contract BullaClaimControllerBase is IERC721 {
     IBullaClaim public immutable _bullaClaim;
