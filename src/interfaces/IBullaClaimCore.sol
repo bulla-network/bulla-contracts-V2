@@ -2,7 +2,7 @@
 pragma solidity ^0.8.30;
 
 import "../types/Types.sol";
-import {IERC721} from "openzeppelin-contracts/contracts/interfaces/IERC721.sol";
+import {IERC721} from "@openzeppelin/contracts/interfaces/IERC721.sol";
 import {IBullaControllerRegistry} from "./IBullaControllerRegistry.sol";
 import {IBullaApprovalRegistry} from "./IBullaApprovalRegistry.sol";
 

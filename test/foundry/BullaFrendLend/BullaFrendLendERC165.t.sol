@@ -6,7 +6,7 @@ import "contracts/interfaces/IBullaFrendLend.sol";
 import {EIP712Helper} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
-import {IERC165} from "openzeppelin-contracts/contracts/utils/introspection/IERC165.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 contract BullaFrendLendERC165Test is Test {
     BullaClaim public bullaClaim;

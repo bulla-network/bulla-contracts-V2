@@ -8,8 +8,8 @@ import "./types/Types.sol";
 import "./libraries/CompoundInterestLib.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
-import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
-import {ERC165} from "openzeppelin-contracts/contracts/utils/introspection/ERC165.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {BoringBatchable} from "./libraries/BoringBatchable.sol";
 
 // Data specific to invoices and not claims

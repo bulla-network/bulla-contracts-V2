@@ -8,7 +8,7 @@ import {Claim, Status, ClaimBinding, LockState, CreateClaimParams} from "contrac
 import {Deployer} from "script/Deployment.s.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "src/libraries/BullaClaimValidationLib.sol";
-import {IERC721Errors} from "openzeppelin-contracts/contracts/interfaces/draft-IERC6093.sol";
+import {IERC721Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 
 // run the solmate ERC721 spec against bulla claim to ensure functionality
 

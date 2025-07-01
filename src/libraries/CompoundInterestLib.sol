@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.30;
 
-import "openzeppelin-contracts/contracts/utils/math/Math.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 
 struct InterestConfig {
     uint16 interestRateBps; // this is the NET interest rate, not including protocol fees

@@ -6,8 +6,8 @@ import "./types/Types.sol";
 import "./interfaces/IBullaControllerRegistry.sol";
 import "./libraries/BullaClaimPermitLib.sol";
 import "./libraries/BullaClaimValidationLib.sol";
-import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
-import {EIP712} from "openzeppelin-contracts/contracts/utils/cryptography/EIP712.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 
 contract BullaApprovalRegistry is IBullaApprovalRegistry, Ownable, EIP712 {
     /*///////////////////////////////////////////////////////////////

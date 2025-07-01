@@ -6,7 +6,7 @@ import "contracts/types/Types.sol";
 import "safe-contracts/handler/DefaultCallbackHandler.sol";
 import "safe-contracts/interfaces/ISignatureValidator.sol";
 import {GnosisSafe} from "safe-contracts/GnosisSafe.sol";
-import "openzeppelin-contracts/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 import {BullaClaimPermitLib} from "contracts/libraries/BullaClaimPermitLib.sol";
 import {IBullaApprovalRegistry} from "contracts/interfaces/IBullaApprovalRegistry.sol";
 import {IBullaControllerRegistry} from "contracts/interfaces/IBullaControllerRegistry.sol";

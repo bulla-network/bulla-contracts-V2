@@ -4,7 +4,7 @@ pragma solidity ^0.8.30;
 import "forge-std/Test.sol";
 import "../../src/WhitelistPermissions.sol";
 import "../../src/interfaces/IPermissions.sol";
-import {IERC165} from "openzeppelin-contracts/contracts/utils/introspection/IERC165.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 contract WhitelistPermissionsTest is Test {
     WhitelistPermissions public whitelist;

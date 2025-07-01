@@ -4,8 +4,8 @@ pragma solidity ^0.8.30;
 import "../types/Types.sol";
 import "../interfaces/IBullaControllerRegistry.sol";
 import "../interfaces/IBullaApprovalRegistry.sol";
-import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
-import {SignatureChecker} from "openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 
 library BullaClaimPermitLib {
     using Strings for uint256;

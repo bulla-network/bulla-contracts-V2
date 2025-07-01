@@ -13,7 +13,7 @@ import {MissingReturnToken} from "solmate/test/utils/weird-tokens/MissingReturnT
 import {ReturnsTooMuchToken} from "solmate/test/utils/weird-tokens/ReturnsTooMuchToken.sol";
 import {ReturnsGarbageToken} from "solmate/test/utils/weird-tokens/ReturnsGarbageToken.sol";
 import {ReturnsTooLittleToken} from "solmate/test/utils/weird-tokens/ReturnsTooLittleToken.sol";
-import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {FeeOnTransferToken} from "contracts/mocks/FeeOnTransferToken.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {Claim, Status, ClaimBinding, CreateClaimParams, LockState} from "contracts/types/Types.sol";
