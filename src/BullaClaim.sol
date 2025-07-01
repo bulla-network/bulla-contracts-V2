@@ -196,10 +196,10 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, IBullaClaim {
 
     /// @notice allows a controller to pay a claim on behalf of a user
     /// @notice SPEC:
-    ///     1. verify and spend msg.sender's approval to pay claims for `from`
+    ///     1. verify the claim is controlled
     ///     2. call payClaim on `from`'s behalf
     function payClaimFrom(address from, uint256 claimId, uint256 amount) external payable {
-        approvalRegistry.spendPayClaimApproval(from, msg.sender, claimId, amount);
+        if (getClaim(claimId).controller == address(0)) revert MustBeControlledClaim();
 
         _payClaim(from, claimId, amount);
     }
@@ -210,9 +210,10 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, IBullaClaim {
     /// @param claimId The ID of the claim to pay
     /// @param amount The amount to pay
     function payClaimFromControllerWithoutTransfer(address from, uint256 claimId, uint256 amount) external {
-        approvalRegistry.spendPayClaimApproval(from, msg.sender, claimId, amount);
-
         Claim memory claim = getClaim(claimId);
+
+        // Only controlled claims can use this function
+        if (claim.controller == address(0)) revert MustBeControlledClaim();
 
         // Only the controller can call this function
         if (claim.controller != msg.sender) revert NotController(msg.sender);
@@ -257,7 +258,7 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, IBullaClaim {
 
         // Use validation library for payment validation and calculation
         (uint256 totalPaidAmount, bool claimPaid) =
-            BullaClaimValidationLib.validateAndCalculatePayment(claim, paymentAmount);
+            BullaClaimValidationLib.validateAndCalculatePayment(from, claim, paymentAmount);
 
         ClaimStorage storage claimStorage = claims[claimId];
 
@@ -285,10 +286,10 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, IBullaClaim {
 
     /// @notice allows a controller to update the binding of a claim for a creditor or debtor
     /// @notice SPEC:
-    ///     1. verify and spend msg.sender's approval to update bindings
+    ///     1. verify the claim is controlled
     ///     2. update the binding on `from`'s behalf
     function updateBindingFrom(address from, uint256 claimId, ClaimBinding binding) external {
-        approvalRegistry.spendUpdateBindingApproval(from, msg.sender);
+        if (getClaim(claimId).controller == address(0)) revert MustBeControlledClaim();
 
         _updateBinding(from, claimId, binding);
     }
@@ -328,10 +329,10 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, IBullaClaim {
 
     /// @notice allows a controller to cancel a claim on behalf of a creditor or debtor
     /// @notice SPEC:
-    ///     1. verify and spend msg.sender's approval to cancel claims
+    ///     1. verify the claim is controlled
     ///     2. cancel the claim on `from`'s behalf
     function cancelClaimFrom(address from, uint256 claimId, string calldata note) external {
-        approvalRegistry.spendCancelClaimApproval(from, msg.sender);
+        if (getClaim(claimId).controller == address(0)) revert MustBeControlledClaim();
 
         _cancelClaim(from, claimId, note);
     }
@@ -375,10 +376,10 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, IBullaClaim {
 
     /// @notice allows a controller to impair a claim on behalf of a creditor
     /// @notice SPEC:
-    ///     1. verify and spend msg.sender's approval to impair claims
+    ///     1. verify the claim is controlled
     ///     2. impair the claim on `from`'s behalf
     function impairClaimFrom(address from, uint256 claimId) external {
-        approvalRegistry.spendImpairClaimApproval(from, msg.sender);
+        if (getClaim(claimId).controller == address(0)) revert MustBeControlledClaim();
 
         _impairClaim(from, claimId);
     }
@@ -420,10 +421,10 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, IBullaClaim {
 
     /// @notice allows a controller to mark a claim as paid on behalf of a creditor
     /// @notice SPEC:
-    ///     1. verify and spend msg.sender's approval to mark claims as paid
+    ///     1. verify the claim is controlled
     ///     2. mark the claim as paid on `from`'s behalf
     function markClaimAsPaidFrom(address from, uint256 claimId) external {
-        approvalRegistry.spendMarkAsPaidApproval(from, msg.sender);
+        if (getClaim(claimId).controller == address(0)) revert MustBeControlledClaim();
 
         _markClaimAsPaid(from, claimId);
     }
@@ -579,7 +580,7 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, IBullaClaim {
         super._approve(to, claimId, from);
     }
 
-    function setApprovalForAll(address operator, bool approved) public override(ERC721, IERC721) {
+    function setApprovalForAll(address, bool) public pure override(ERC721, IERC721) {
         // This is physically impossible, because users will have multiple claim types, so we can't set approval for all
         // claims at once.
         revert NotSupported();

@@ -118,19 +118,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
 
-        // Setup binding permit
-        bullaClaim.approvalRegistry().permitUpdateBinding({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalCount: 1,
-            signature: sigHelper.signUpdateBindingPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalCount: 1
-            })
-        });
-
         // Accept the invoice (update binding to Bound)
         vm.prank(debtor);
         bullaInvoice.updateBinding(invoiceId, ClaimBinding.Bound);
@@ -165,23 +152,6 @@ contract TestBullaInvoice is Test {
         // Create an invoice
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
-
-        // Setup payment permit
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
 
         // Pay the invoice
         vm.prank(debtor);
@@ -219,19 +189,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
 
-        // Setup cancel permit
-        bullaClaim.approvalRegistry().permitCancelClaim({
-            user: creditor,
-            controller: address(bullaInvoice),
-            approvalCount: 1,
-            signature: sigHelper.signCancelClaimPermit({
-                pk: creditorPK,
-                user: creditor,
-                controller: address(bullaInvoice),
-                approvalCount: 1
-            })
-        });
-
         // Cancel the invoice
         vm.prank(creditor);
         bullaInvoice.cancelInvoice(invoiceId, "No longer needed");
@@ -266,19 +223,6 @@ contract TestBullaInvoice is Test {
         // Create an invoice
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
-
-        // Setup reject permit
-        bullaClaim.approvalRegistry().permitCancelClaim({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalCount: 1,
-            signature: sigHelper.signCancelClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalCount: 1
-            })
-        });
 
         // Reject the invoice
         vm.prank(debtor);
@@ -315,23 +259,6 @@ contract TestBullaInvoice is Test {
         // Create an invoice
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
-
-        // Setup payment permit
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
 
         // Make a partial payment (0.4 ETH)
         vm.prank(debtor);
@@ -386,23 +313,6 @@ contract TestBullaInvoice is Test {
         // Create an invoice with WETH as token
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
-
-        // Setup payment permit
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
 
         // Record initial balances
         uint256 creditorInitialBalance = weth.balanceOf(creditor);
@@ -537,23 +447,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
 
-        // Setup payment permit
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
         // Warp time to exactly the due date
         vm.warp(dueDate);
 
@@ -592,23 +485,6 @@ contract TestBullaInvoice is Test {
         // Create an invoice
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
-
-        // Setup payment permit
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
 
         // Warp time past the due date
         vm.warp(dueDate + 1 days);
@@ -652,7 +528,7 @@ contract TestBullaInvoice is Test {
         // Try to cancel without proper permissions (no permit)
         address randomUser = vm.addr(0x03);
         vm.prank(randomUser);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotApproved.selector)); // Should fail - random user can't cancel
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotCreditorOrDebtor.selector)); // Should fail - random user can't cancel
         bullaInvoice.cancelInvoice(invoiceId, "Unauthorized cancellation");
     }
 
@@ -686,7 +562,7 @@ contract TestBullaInvoice is Test {
         address randomUser = vm.addr(0x03);
         vm.deal(randomUser, 2 ether);
         vm.prank(randomUser);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotApproved.selector)); // Should fail - random user can't pay without permit
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotDebtor.selector)); // Should fail - random user can't pay
         bullaInvoice.payInvoice{value: 1 ether}(invoiceId, 1 ether);
     }
 
@@ -763,23 +639,6 @@ contract TestBullaInvoice is Test {
         // Ensure debtor has enough ETH
         vm.deal(debtor, amount + 1 ether);
 
-        // Setup payment permit
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
         // Make partial payment
         vm.prank(debtor);
         bullaInvoice.payInvoice{value: partialAmount}(invoiceId, partialAmount);
@@ -825,23 +684,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
 
-        // Setup payment permit
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
         // Try to pay with mismatched amount (sending 0.5 ETH but claiming to pay 1 ETH)
         vm.prank(debtor);
         vm.expectRevert(); // Should revert with appropriate error
@@ -873,24 +715,6 @@ contract TestBullaInvoice is Test {
         // Create an invoice
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
-
-        // Setup payment permit
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
         // Pay the invoice
         vm.prank(debtor);
         bullaInvoice.payInvoice{value: 1 ether}(invoiceId, 1 ether);
@@ -960,19 +784,6 @@ contract TestBullaInvoice is Test {
 
         vm.prank(creditor);
         uint256 claimId = bullaClaim.createClaim(params);
-
-        // Setup binding permit
-        bullaClaim.approvalRegistry().permitUpdateBinding({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalCount: 1,
-            signature: sigHelper.signUpdateBindingPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalCount: 1
-            })
-        });
 
         // Try to update binding via BullaInvoice
         vm.prank(debtor);
@@ -1367,19 +1178,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
 
-        // Setup cancel permit
-        bullaClaim.approvalRegistry().permitCancelClaim({
-            user: creditor,
-            controller: address(bullaInvoice),
-            approvalCount: 1,
-            signature: sigHelper.signCancelClaimPermit({
-                pk: creditorPK,
-                user: creditor,
-                controller: address(bullaInvoice),
-                approvalCount: 1
-            })
-        });
-
         // Cancel the invoice
         vm.prank(creditor);
         bullaInvoice.cancelInvoice(invoiceId, "No longer needed");
@@ -1532,23 +1330,6 @@ contract TestBullaInvoice is Test {
         assertTrue(invoice.purchaseOrder.isDelivered, "Purchase order should be marked as delivered");
         assertTrue(invoice.status == Status.Pending, "Invoice status should still be Pending after delivery");
 
-        // Setup payment permit
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
         // Pay the invoice
         vm.prank(debtor);
         bullaInvoice.payInvoice{value: 1 ether}(invoiceId, 1 ether);
@@ -1603,23 +1384,6 @@ contract TestBullaInvoice is Test {
         Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
         assertTrue(invoice.purchaseOrder.isDelivered, "Purchase order should be marked as delivered");
         assertTrue(invoice.status == Status.Pending, "Invoice status should be Pending");
-
-        // Setup payment permit
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
 
         // Make first partial payment
         vm.prank(debtor);
@@ -1719,20 +1483,6 @@ contract TestBullaInvoice is Test {
                         MARK INVOICE AS PAID TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function _permitMarkAsPaid(uint256 pk, address controller, uint64 approvalCount) internal {
-        bullaClaim.approvalRegistry().permitMarkAsPaid({
-            user: vm.addr(pk),
-            controller: controller,
-            approvalCount: approvalCount,
-            signature: sigHelper.signMarkAsPaidPermit({
-                pk: pk,
-                user: vm.addr(pk),
-                controller: controller,
-                approvalCount: approvalCount
-            })
-        });
-    }
-
     function testMarkInvoiceAsPaid_Success() public {
         bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,
@@ -1758,9 +1508,6 @@ contract TestBullaInvoice is Test {
 
         Invoice memory invoiceBefore = bullaInvoice.getInvoice(invoiceId);
         assertEq(uint256(invoiceBefore.status), uint256(Status.Pending), "Invoice should be pending");
-
-        // Set up mark as paid permission
-        _permitMarkAsPaid(creditorPK, address(bullaInvoice), 1);
 
         // Check balances before marking as paid
         uint256 debtorBalanceBefore = debtor.balance;
@@ -1802,22 +1549,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
 
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
         // Make partial payment (0.4 ETH)
         vm.prank(debtor);
         bullaInvoice.payInvoice{value: 0.4 ether}(invoiceId, 0.4 ether);
@@ -1826,9 +1557,6 @@ contract TestBullaInvoice is Test {
         Invoice memory invoiceAfterPayment = bullaInvoice.getInvoice(invoiceId);
         assertEq(uint256(invoiceAfterPayment.status), uint256(Status.Repaying), "Invoice should be repaying");
         assertEq(invoiceAfterPayment.paidAmount, 0.4 ether, "Invoice paid amount should match partial payment");
-
-        // Set up mark as paid permission
-        _permitMarkAsPaid(creditorPK, address(bullaInvoice), 1);
 
         // Mark the invoice as paid
         vm.prank(creditor);
@@ -1863,11 +1591,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
 
-        // Set up mark as paid permission for all users (so they pass the approval check and reach the NotCreditor validation)
-        _permitMarkAsPaid(creditorPK, address(bullaInvoice), 1);
-        _permitMarkAsPaid(debtorPK, address(bullaInvoice), 1);
-        _permitMarkAsPaid(adminPK, address(bullaInvoice), 1);
-
         // Debtor cannot mark invoice as paid
         vm.prank(debtor);
         vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotCreditor.selector));
@@ -1886,9 +1609,6 @@ contract TestBullaInvoice is Test {
 
         vm.prank(creditor);
         uint256 claimId = bullaClaim.createClaim(params);
-
-        // Set up mark as paid permission
-        _permitMarkAsPaid(creditorPK, address(bullaInvoice), 1);
 
         // Try to mark as paid via BullaInvoice - should fail since it's not the controller
         vm.prank(creditor);
@@ -1913,18 +1633,6 @@ contract TestBullaInvoice is Test {
             })
         });
 
-        bullaClaim.approvalRegistry().permitImpairClaim({
-            user: creditor,
-            controller: address(bullaInvoice),
-            approvalCount: 1,
-            signature: sigHelper.signImpairClaimPermit({
-                pk: creditorPK,
-                user: creditor,
-                controller: address(bullaInvoice),
-                approvalCount: 1
-            })
-        });
-
         uint256 dueDate = block.timestamp + 30 days;
         CreateInvoiceParams memory params =
             new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor).withDueBy(dueDate).build();
@@ -1939,9 +1647,6 @@ contract TestBullaInvoice is Test {
 
         Invoice memory invoiceAfterImpairment = bullaInvoice.getInvoice(invoiceId);
         assertEq(uint256(invoiceAfterImpairment.status), uint256(Status.Impaired), "Invoice should be impaired");
-
-        // Set up mark as paid permission
-        _permitMarkAsPaid(creditorPK, address(bullaInvoice), 1);
 
         // Then mark it as paid
         vm.prank(creditor);
@@ -1988,9 +1693,6 @@ contract TestBullaInvoice is Test {
         Invoice memory invoiceAfterDelivery = bullaInvoice.getInvoice(invoiceId);
         assertTrue(invoiceAfterDelivery.purchaseOrder.isDelivered, "Purchase order should be delivered");
         assertEq(uint256(invoiceAfterDelivery.status), uint256(Status.Pending), "Invoice should still be pending");
-
-        // Set up mark as paid permission
-        _permitMarkAsPaid(creditorPK, address(bullaInvoice), 1);
 
         // Check balances before marking as paid
         uint256 debtorBalanceBefore = debtor.balance;
@@ -2046,9 +1748,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoiceWithMetadata(invoiceParams, metadata);
 
-        // Set up mark as paid permission
-        _permitMarkAsPaid(creditorPK, address(bullaInvoice), 1);
-
         // Mark the invoice as paid
         vm.prank(creditor);
         bullaInvoice.markInvoiceAsPaid(invoiceId);
@@ -2097,19 +1796,6 @@ contract TestBullaInvoice is Test {
         // Verify ownership transfer
         assertEq(bullaInvoice.ownerOf(invoiceId), newCreditor, "New creditor should own the invoice");
 
-        // Set up mark as paid permission for new creditor
-        bullaClaim.approvalRegistry().permitMarkAsPaid({
-            user: newCreditor,
-            controller: address(bullaInvoice),
-            approvalCount: 1,
-            signature: sigHelper.signMarkAsPaidPermit({
-                pk: newCreditorPK,
-                user: newCreditor,
-                controller: address(bullaInvoice),
-                approvalCount: 1
-            })
-        });
-
         // Mark as paid using new creditor
         vm.prank(newCreditor);
         bullaInvoice.markInvoiceAsPaid(invoiceId);
@@ -2138,34 +1824,6 @@ contract TestBullaInvoice is Test {
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
                 isBindingAllowed: false
-            })
-        });
-
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
-        bullaClaim.approvalRegistry().permitUpdateBinding({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalCount: 1,
-            signature: sigHelper.signUpdateBindingPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalCount: 1
             })
         });
 
@@ -2237,34 +1895,6 @@ contract TestBullaInvoice is Test {
             })
         });
 
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
-        bullaClaim.approvalRegistry().permitUpdateBinding({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalCount: 1,
-            signature: sigHelper.signUpdateBindingPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalCount: 1
-            })
-        });
-
         // Create purchase order with deposit amount using WETH
         uint256 deliveryDate = block.timestamp + 7 days;
         uint256 depositAmount = 0.4 ether;
@@ -2311,34 +1941,6 @@ contract TestBullaInvoice is Test {
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
                 isBindingAllowed: false
-            })
-        });
-
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
-        bullaClaim.approvalRegistry().permitUpdateBinding({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalCount: 1,
-            signature: sigHelper.signUpdateBindingPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalCount: 1
             })
         });
 
@@ -2406,18 +2008,6 @@ contract TestBullaInvoice is Test {
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
                 isBindingAllowed: false
-            })
-        });
-
-        bullaClaim.approvalRegistry().permitUpdateBinding({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalCount: 1,
-            signature: sigHelper.signUpdateBindingPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalCount: 1
             })
         });
 
@@ -2495,34 +2085,6 @@ contract TestBullaInvoice is Test {
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
                 isBindingAllowed: false
-            })
-        });
-
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
-        bullaClaim.approvalRegistry().permitUpdateBinding({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalCount: 1,
-            signature: sigHelper.signUpdateBindingPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalCount: 1
             })
         });
 
@@ -2748,34 +2310,6 @@ contract TestBullaInvoice is Test {
             })
         });
 
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
-        bullaClaim.approvalRegistry().permitUpdateBinding({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalCount: 1,
-            signature: sigHelper.signUpdateBindingPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalCount: 1
-            })
-        });
-
         // Create purchase order with deposit amount
         uint256 deliveryDate = block.timestamp + 7 days;
         uint256 depositAmount = 0.5 ether;
@@ -2910,34 +2444,6 @@ contract TestBullaInvoice is Test {
             })
         });
 
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
-        bullaClaim.approvalRegistry().permitUpdateBinding({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalCount: 1,
-            signature: sigHelper.signUpdateBindingPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalCount: 1
-            })
-        });
-
         // Create purchase order with deposit amount and late fee configuration
         uint256 deliveryDate = block.timestamp + 7 days;
         uint256 depositAmount = 0.5 ether;
@@ -3044,23 +2550,6 @@ contract TestBullaInvoice is Test {
             "Initial total gross interest paid should be zero"
         );
 
-        // Setup payment permit
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
         // Fast forward past due date to accrue late fees
         vm.warp(block.timestamp + 60 days);
 
@@ -3110,23 +2599,6 @@ contract TestBullaInvoice is Test {
 
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
-
-        // Setup payment permit
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
 
         uint256 totalInterestPaid = 0;
 
@@ -3206,23 +2678,6 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
 
-        // Setup payment permit
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
         // Pay principal only (should be no interest even after due date)
         vm.warp(block.timestamp + 60 days); // Past due date
         vm.prank(debtor);
@@ -3273,23 +2728,6 @@ contract TestBullaInvoice is Test {
 
         vm.prank(creditor);
         uint256 invoiceId2 = bullaInvoice.createInvoice(params2);
-
-        // Setup payment permit
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
 
         // Fast forward to accrue interest
         vm.warp(block.timestamp + 90 days);
@@ -3353,23 +2791,6 @@ contract TestBullaInvoice is Test {
 
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
-
-        // Setup payment permit
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaInvoice),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaInvoice),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
 
         // Fast forward past due date to accrue late fees
         vm.warp(block.timestamp + 60 days);

@@ -11,9 +11,7 @@ import {
     CreateClaimParams,
     LockState,
     ClaimMetadata,
-    CreateClaimApprovalType,
-    PayClaimApprovalType,
-    ClaimPaymentApprovalParam
+    CreateClaimApprovalType
 } from "contracts/types/Types.sol";
 import {InterestConfig, InterestComputationState} from "contracts/libraries/CompoundInterestLib.sol";
 import {
@@ -120,22 +118,6 @@ contract TestBullaFrendLendProtocolFeeExemptions is Test {
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: type(uint64).max,
                 isBindingAllowed: true
-            })
-        });
-
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: user,
-            controller: address(bullaFrendLend),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: userPK,
-                user: user,
-                controller: address(bullaFrendLend),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
             })
         });
     }
@@ -258,7 +240,6 @@ contract TestBullaFrendLendProtocolFeeExemptions is Test {
         Loan memory loan = bullaFrendLend.getLoan(claimId);
         uint256 accruedInterest = loan.interestComputationState.accruedInterest;
 
-        uint256 creditorBalanceBefore = token.balanceOf(_creditor);
         uint256 contractBalanceBefore = token.balanceOf(address(bullaFrendLend));
 
         // Pay interest

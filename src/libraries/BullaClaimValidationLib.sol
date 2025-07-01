@@ -11,6 +11,7 @@ library BullaClaimValidationLib {
     error InvalidDueBy();
     error ZeroAmount();
     error NotCreditorOrDebtor();
+    error NotDebtor();
     error CannotBindClaim();
     error PayingZero();
     error ClaimNotPending();
@@ -63,7 +64,7 @@ library BullaClaimValidationLib {
     /// @param paymentAmount The amount being paid
     /// @return totalPaidAmount The total amount that will be paid after this payment
     /// @return claimPaid Whether the claim will be fully paid after this payment
-    function validateAndCalculatePayment(Claim memory claim, uint256 paymentAmount)
+    function validateAndCalculatePayment(address from, Claim memory claim, uint256 paymentAmount)
         external
         pure
         returns (uint256 totalPaidAmount, bool claimPaid)
@@ -75,6 +76,9 @@ library BullaClaimValidationLib {
         if (claim.status != Status.Pending && claim.status != Status.Repaying && claim.status != Status.Impaired) {
             revert ClaimNotPending();
         }
+
+        // Validate sender is debtor
+        if (from != claim.debtor) revert NotDebtor();
 
         // Calculate payment state
         totalPaidAmount = claim.paidAmount + paymentAmount;
@@ -179,58 +183,5 @@ library BullaClaimValidationLib {
         ) {
             revert NotApproved();
         }
-    }
-
-    /// @notice Validates pay claim approval parameters
-    /// @param approval The pay claim approval struct
-    /// @param claimId The claim ID being paid
-    /// @param amount The payment amount
-    /// @return approvalIndex The index of the matching approval (only valid for specific approvals)
-    /// @return approvalFound Whether a matching approval was found
-    function validatePayClaimApproval(PayClaimApproval memory approval, uint256 claimId, uint256 amount)
-        external
-        view
-        returns (uint256 approvalIndex, bool approvalFound)
-    {
-        // Validate approval type
-        if (approval.approvalType == PayClaimApprovalType.Unapproved) revert NotApproved();
-
-        // Validate deadline
-        if (approval.approvalDeadline != 0 && block.timestamp > approval.approvalDeadline) {
-            revert PastApprovalDeadline();
-        }
-
-        // For approved for all, no specific validation needed
-        if (approval.approvalType == PayClaimApprovalType.IsApprovedForAll) {
-            return (0, true);
-        }
-
-        // For specific approvals, find matching claim
-        ClaimPaymentApproval[] memory paymentApprovals = approval.claimApprovals;
-        uint256 totalApprovals = paymentApprovals.length;
-
-        for (uint256 i = 0; i < totalApprovals; ++i) {
-            if (paymentApprovals[i].claimId == claimId) {
-                // Check if approval is expired
-                if (paymentApprovals[i].approvalDeadline != 0 && block.timestamp > paymentApprovals[i].approvalDeadline)
-                {
-                    revert PastApprovalDeadline();
-                }
-
-                // Check if amount is approved
-                if (amount > paymentApprovals[i].approvedAmount) revert PaymentUnderApproved();
-
-                return (i, true);
-            }
-        }
-
-        // No matching approval found
-        revert NotApproved();
-    }
-
-    /// @notice Validates simple approval (for update binding, cancel claim, impair claim, mark as paid)
-    /// @param approvalCount The approval count
-    function validateSimpleApproval(uint64 approvalCount) external pure {
-        if (approvalCount == 0) revert NotApproved();
     }
 }

@@ -12,14 +12,9 @@ import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
 import {IBullaClaim} from "contracts/interfaces/IBullaClaim.sol";
+import {MockController} from "contracts/mocks/MockController.sol";
 
 /// @notice covers test cases for cancelClaim() and cancelClaimFrom()
-/// @notice SPEC: canceClaim() TODO
-/// @notice SPEC: _spendCancelClaimApproval()
-///     A function can call this internal function to verify and "spend" `from`'s approval of `controller` to cancel a claim given:
-///         S1. `controller` has > 0 approvalCount from `from` address -> otherwise: reverts
-///
-///     RES1: If the above is true, and the approvalCount != type(uint64).max, decrement the approval count by 1 and return
 contract TestCancelClaim is BullaClaimTestHelper {
     address public deployer = address(0xB0b);
 
@@ -30,6 +25,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
     address debtor = vm.addr(debtorPK);
 
     address controller = address(0x03);
+    MockController mockController;
 
     function setUp() public {
         weth = new WETH();
@@ -40,6 +36,24 @@ contract TestCancelClaim is BullaClaimTestHelper {
         bullaClaim = (new Deployer()).deploy_test(deployer, LockState.Unlocked, 0);
         sigHelper = new EIP712Helper(address(bullaClaim));
         approvalRegistry = bullaClaim.approvalRegistry();
+        mockController = new MockController(address(bullaClaim));
+
+        // Set up approval for mock controller to create many claims
+        bullaClaim.approvalRegistry().permitCreateClaim({
+            user: creditor,
+            controller: address(mockController),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: type(uint64).max, // Max approvals
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(mockController),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: type(uint64).max,
+                isBindingAllowed: true
+            })
+        });
     }
 
     event ClaimRejected(uint256 indexed claimId, address indexed from, string note);
@@ -51,6 +65,15 @@ contract TestCancelClaim is BullaClaimTestHelper {
             new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth))
                 .withBinding(binding).build()
         );
+        claim = bullaClaim.getClaim(claimId);
+    }
+
+    function _newControlledClaim(ClaimBinding binding) internal returns (uint256 claimId, Claim memory claim) {
+        CreateClaimParams memory params = new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withBinding(binding).build();
+
+        mockController.setCurrentUser(creditor);
+        claimId = mockController.createClaim(params);
         claim = bullaClaim.getClaim(claimId);
     }
 
@@ -75,21 +98,27 @@ contract TestCancelClaim is BullaClaimTestHelper {
         claim = bullaClaim.getClaim(claimId);
         assertTrue(claim.status == Status.Rejected);
 
-        // test with controller
+        // test with controller - uncontrolled claim should revert
         vm.startPrank(creditor);
         // make a new claim
         (claimId, claim) = _newClaim(ClaimBinding.Unbound);
         vm.stopPrank();
         assertTrue(claimId == 2);
 
-        // permit an controller
-        _permitCancelClaim({_userPK: debtorPK, _controller: controller, _approvalCount: type(uint64).max});
+        // Test that cancelClaimFrom requires controlled claim
+        vm.prank(controller);
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.MustBeControlledClaim.selector));
+        bullaClaim.cancelClaimFrom(debtor, claimId, note);
+
+        // test with controlled claim - should work
+        (claimId, claim) = _newControlledClaim(ClaimBinding.Unbound);
+        assertTrue(claimId == 3);
+
+        mockController.setCurrentUser(debtor);
 
         vm.expectEmit(true, true, true, true);
         emit ClaimRejected(claimId, debtor, note);
-
-        vm.prank(controller);
-        bullaClaim.cancelClaimFrom(debtor, claimId, note);
+        mockController.cancelClaim(claimId, note);
 
         claim = bullaClaim.getClaim(claimId);
         assertTrue(claim.status == Status.Rejected);
@@ -111,21 +140,26 @@ contract TestCancelClaim is BullaClaimTestHelper {
         claim = bullaClaim.getClaim(claimId);
         assertTrue(claim.status == Status.Rescinded);
 
-        // test with controller
+        // test with controller - uncontrolled claim should revert
         vm.startPrank(creditor);
         // make a new claim
         (claimId, claim) = _newClaim(ClaimBinding.Unbound);
         vm.stopPrank();
         assertTrue(claimId == 2);
 
-        // permit an controller
-        _permitCancelClaim({_userPK: creditorPK, _controller: controller, _approvalCount: type(uint64).max});
+        // Test that cancelClaimFrom requires controlled claim
+        vm.prank(controller);
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.MustBeControlledClaim.selector));
+        bullaClaim.cancelClaimFrom(creditor, claimId, note);
+
+        // test with controlled claim - should work
+        (claimId, claim) = _newControlledClaim(ClaimBinding.Unbound);
+
+        mockController.setCurrentUser(creditor);
 
         vm.expectEmit(true, true, true, true);
         emit ClaimRescinded(claimId, creditor, note);
-
-        vm.prank(controller);
-        bullaClaim.cancelClaimFrom(creditor, claimId, note);
+        mockController.cancelClaim(claimId, note);
 
         claim = bullaClaim.getClaim(claimId);
         assertTrue(claim.status == Status.Rescinded);
@@ -144,12 +178,17 @@ contract TestCancelClaim is BullaClaimTestHelper {
         vm.expectRevert(BullaClaimValidationLib.NotCreditorOrDebtor.selector);
         bullaClaim.cancelClaim(claimId, note);
 
-        // test with controller
-        _permitCancelClaim({_userPK: callerPK, _controller: controller, _approvalCount: type(uint64).max});
-
+        // Test that cancelClaimFrom requires controlled claim for random address (uncontrolled claim)
         vm.prank(controller);
-        vm.expectRevert(BullaClaimValidationLib.NotCreditorOrDebtor.selector);
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.MustBeControlledClaim.selector));
         bullaClaim.cancelClaimFrom(randomAddress, claimId, note);
+
+        // Test with controlled claim - should still fail for random address
+        (claimId,) = _newControlledClaim(ClaimBinding.Unbound);
+
+        mockController.setCurrentUser(randomAddress);
+        vm.expectRevert(BullaClaimValidationLib.NotCreditorOrDebtor.selector);
+        mockController.cancelClaim(claimId, note);
     }
 
     function testCannotCancelIfLocked() public {
@@ -167,17 +206,19 @@ contract TestCancelClaim is BullaClaimTestHelper {
         vm.prank(creditor);
         bullaClaim.cancelClaim(claimId, "No thanks");
 
-        // test with controller
-        _permitCancelClaim({_userPK: debtorPK, _controller: controller, _approvalCount: type(uint64).max});
-        _permitCancelClaim({_userPK: creditorPK, _controller: controller, _approvalCount: type(uint64).max});
-
-        vm.expectRevert(IBullaClaim.Locked.selector);
+        // Test that cancelClaimFrom also reverts when locked (first for uncontrolled claim)
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.MustBeControlledClaim.selector));
         vm.prank(controller);
         bullaClaim.cancelClaimFrom(debtor, claimId, "nah");
 
+        // Test with controlled claim when locked
+        _setLockState(LockState.Unlocked);
+        (uint256 controlledClaimId,) = _newControlledClaim(ClaimBinding.Unbound);
+        _setLockState(LockState.Locked);
+
+        mockController.setCurrentUser(debtor);
         vm.expectRevert(IBullaClaim.Locked.selector);
-        vm.prank(controller);
-        bullaClaim.cancelClaimFrom(creditor, claimId, "nah");
+        mockController.cancelClaim(controlledClaimId, "nah");
     }
 
     function testCanCancelIfPartiallyLocked() public {
@@ -208,35 +249,16 @@ contract TestCancelClaim is BullaClaimTestHelper {
         assertTrue(bullaClaim.getClaim(claimId).status == Status.Rescinded);
     }
 
-    function testControllerCanCancelIfPartiallyLocked() public {
-        _permitCancelClaim({_userPK: debtorPK, _controller: controller, _approvalCount: type(uint64).max});
-        _permitCancelClaim({_userPK: creditorPK, _controller: controller, _approvalCount: type(uint64).max});
-
-        // creditor creates and controller rejects for debtor
+    function testControllerCannotCancelUncontrolledClaim() public {
+        // creditor creates uncontrolled claim
         vm.startPrank(creditor);
-        (uint256 claimId, Claim memory claim) = _newClaim(ClaimBinding.Unbound);
+        (uint256 claimId,) = _newClaim(ClaimBinding.Unbound);
         vm.stopPrank();
 
-        _setLockState(LockState.NoNewClaims);
-
+        // controller cannot cancel uncontrolled claim
         vm.prank(controller);
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.MustBeControlledClaim.selector));
         bullaClaim.cancelClaimFrom(debtor, claimId, "No thanks");
-
-        assertTrue(bullaClaim.getClaim(claimId).status == Status.Rejected);
-
-        // creditor creates and controller rejects for creditor
-        _setLockState(LockState.Unlocked);
-
-        vm.startPrank(creditor);
-        (claimId, claim) = _newClaim(ClaimBinding.Unbound);
-        vm.stopPrank();
-
-        _setLockState(LockState.NoNewClaims);
-
-        vm.prank(controller);
-        bullaClaim.cancelClaimFrom(creditor, claimId, "nah");
-
-        assertTrue(bullaClaim.getClaim(claimId).status == Status.Rescinded);
     }
 
     function testCanCancelWhenBindingPending() public {
@@ -254,21 +276,25 @@ contract TestCancelClaim is BullaClaimTestHelper {
         claim = bullaClaim.getClaim(claimId);
         assertTrue(claim.status == Status.Rejected);
 
-        // test with controller
+        // test with controller - uncontrolled claim should revert
         vm.startPrank(creditor);
         // make a new claim
         (claimId, claim) = _newClaim(ClaimBinding.BindingPending);
         vm.stopPrank();
-        assertTrue(claimId == 2);
 
-        // permit an controller
-        _permitCancelClaim({_userPK: debtorPK, _controller: controller, _approvalCount: type(uint64).max});
+        // controller cannot cancel uncontrolled claim
+        vm.prank(controller);
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.MustBeControlledClaim.selector));
+        bullaClaim.cancelClaimFrom(debtor, claimId, note);
+
+        // test with controlled claim
+        (claimId, claim) = _newControlledClaim(ClaimBinding.BindingPending);
+
+        mockController.setCurrentUser(debtor);
 
         vm.expectEmit(true, true, true, true);
         emit ClaimRejected(claimId, debtor, note);
-
-        vm.prank(controller);
-        bullaClaim.cancelClaimFrom(debtor, claimId, note);
+        mockController.cancelClaim(claimId, note);
 
         claim = bullaClaim.getClaim(claimId);
         assertTrue(claim.status == Status.Rejected);
@@ -286,21 +312,25 @@ contract TestCancelClaim is BullaClaimTestHelper {
         claim = bullaClaim.getClaim(claimId);
         assertTrue(claim.status == Status.Rescinded);
 
-        // test with controller
+        // test with controller - uncontrolled claim should revert
         vm.startPrank(creditor);
         // make a new claim
         (claimId, claim) = _newClaim(ClaimBinding.BindingPending);
         vm.stopPrank();
-        assertTrue(claimId == 4);
 
-        // permit an controller
-        _permitCancelClaim({_userPK: creditorPK, _controller: controller, _approvalCount: type(uint64).max});
+        // controller cannot cancel uncontrolled claim
+        vm.prank(controller);
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.MustBeControlledClaim.selector));
+        bullaClaim.cancelClaimFrom(creditor, claimId, note);
+
+        // test with controlled claim
+        (claimId, claim) = _newControlledClaim(ClaimBinding.BindingPending);
+
+        mockController.setCurrentUser(creditor);
 
         vm.expectEmit(true, true, true, true);
         emit ClaimRescinded(claimId, creditor, note);
-
-        vm.prank(controller);
-        bullaClaim.cancelClaimFrom(creditor, claimId, note);
+        mockController.cancelClaim(claimId, note);
 
         claim = bullaClaim.getClaim(claimId);
         assertTrue(claim.status == Status.Rescinded);
@@ -324,12 +354,21 @@ contract TestCancelClaim is BullaClaimTestHelper {
         bullaClaim.cancelClaim(claimId, note);
         vm.stopPrank();
 
-        // test with controller
-        _permitCancelClaim({_userPK: debtorPK, _controller: controller, _approvalCount: type(uint64).max});
-
+        // test with controller - should revert with MustBeControlledClaim for uncontrolled claim
         vm.prank(controller);
-        vm.expectRevert(BullaClaimValidationLib.ClaimBound.selector);
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.MustBeControlledClaim.selector));
         bullaClaim.cancelClaimFrom(debtor, claimId, note);
+
+        // test with controlled claim - should still fail because claim is bound
+        (uint256 controlledClaimId,) = _newControlledClaim(ClaimBinding.Unbound);
+
+        // bind the controlled claim
+        mockController.setCurrentUser(debtor);
+        mockController.updateBinding(controlledClaimId, ClaimBinding.Bound);
+
+        mockController.setCurrentUser(debtor);
+        vm.expectRevert(BullaClaimValidationLib.ClaimBound.selector);
+        mockController.cancelClaim(controlledClaimId, note);
     }
 
     function testCreditorCanCancelClaimIfBound() public {
@@ -403,8 +442,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
         vm.prank(controller);
         uint256 claimId = bullaClaim.createClaimFrom(creditor, params);
 
-        _permitCancelClaim({_userPK: creditorPK, _controller: controller, _approvalCount: type(uint64).max});
-
+        // Controller can cancel the controlled claim
         vm.prank(controller);
         bullaClaim.cancelClaimFrom(creditor, claimId, "No thanks");
     }
@@ -490,82 +528,5 @@ contract TestCancelClaim is BullaClaimTestHelper {
         vm.expectRevert(BullaClaimValidationLib.ClaimNotPending.selector);
         bullaClaim.cancelClaim(claimId, "No thanks");
         vm.stopPrank();
-    }
-
-    /// @notice SPEC._spendCancelClaimApproval.RES1
-    function testCancelClaimFromDecrements(uint64 approvalCount) public {
-        string memory note = "Nope";
-        vm.assume(approvalCount > 0 && approvalCount < type(uint64).max);
-
-        // test for reject
-
-        vm.startPrank(creditor);
-        (uint256 claimId,) = _newClaim(ClaimBinding.Unbound);
-        vm.stopPrank();
-
-        // permit an controller
-        _permitCancelClaim({_userPK: debtorPK, _controller: controller, _approvalCount: approvalCount});
-
-        vm.expectEmit(true, true, true, true);
-        emit ClaimRejected(claimId, debtor, note);
-
-        vm.prank(controller);
-        bullaClaim.cancelClaimFrom(debtor, claimId, note);
-
-        (,,, CancelClaimApproval memory approval,,) = bullaClaim.approvalRegistry().getApprovals(debtor, controller);
-        assertEq(approval.approvalCount, approvalCount - 1);
-
-        // test for rescind
-
-        vm.startPrank(creditor);
-        (claimId,) = _newClaim(ClaimBinding.Unbound);
-        vm.stopPrank();
-
-        // permit an controller
-        _permitCancelClaim({_userPK: creditorPK, _controller: controller, _approvalCount: approvalCount});
-
-        vm.expectEmit(true, true, true, true);
-        emit ClaimRescinded(claimId, creditor, note);
-
-        vm.prank(controller);
-        bullaClaim.cancelClaimFrom(creditor, claimId, note);
-
-        (,,, approval,,) = bullaClaim.approvalRegistry().getApprovals(creditor, controller);
-        assertEq(approval.approvalCount, approvalCount - 1);
-    }
-
-    /// @notice SPEC._spendCancelClaimApproval.S1
-    function testCancelClaimFromRevertsIfUnapproved() public {
-        // make a new claim
-        vm.startPrank(creditor);
-        (uint256 claimId,) = _newClaim(ClaimBinding.Unbound);
-        vm.stopPrank();
-
-        // permit an controller
-        _permitCancelClaim({_userPK: debtorPK, _controller: controller, _approvalCount: 5});
-
-        // revokes approval
-        _permitCancelClaim({_userPK: debtorPK, _controller: controller, _approvalCount: 0});
-
-        vm.prank(controller);
-        vm.expectRevert(BullaClaimValidationLib.NotApproved.selector);
-        bullaClaim.cancelClaimFrom(debtor, claimId, "Nope");
-    }
-
-    /// @notice SPEC._spendCancelClaimApproval.RES1
-    function testCancelClaimFromDoesNotDecrementIfApprovalMaxedOut() public {
-        // make a new claim
-        vm.startPrank(creditor);
-        (uint256 claimId,) = _newClaim(ClaimBinding.Unbound);
-        vm.stopPrank();
-
-        // permit an controller
-        _permitCancelClaim({_userPK: debtorPK, _controller: controller, _approvalCount: type(uint64).max});
-
-        vm.prank(controller);
-        bullaClaim.cancelClaimFrom(debtor, claimId, "Nope");
-
-        (,,, CancelClaimApproval memory approval,,) = bullaClaim.approvalRegistry().getApprovals(debtor, controller);
-        assertEq(approval.approvalCount, type(uint64).max);
     }
 }

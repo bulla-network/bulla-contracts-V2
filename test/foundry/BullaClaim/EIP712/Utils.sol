@@ -54,7 +54,7 @@ contract EIP712Helper {
         uint64 approvalCount,
         bool isBindingAllowed
     ) internal view returns (bytes32) {
-        (CreateClaimApproval memory approvals,,,,,) = approvalRegistry.getApprovals(user, controller);
+        CreateClaimApproval memory approvals = approvalRegistry.getApprovals(user, controller);
 
         return keccak256(
             abi.encode(
@@ -93,100 +93,6 @@ contract EIP712Helper {
         );
     }
 
-    // computes the hash of the fully encoded EIP-712 message for the domain, which can be used to recover the signer
-    function getPermitPayClaimDigest(
-        address user,
-        address controller,
-        PayClaimApprovalType approvalType,
-        uint256 approvalDeadline,
-        ClaimPaymentApprovalParam[] calldata paymentApprovals
-    ) public view returns (bytes32) {
-        (, PayClaimApproval memory approval,,,,) = approvalRegistry.getApprovals(user, controller);
-        return keccak256(
-            abi.encodePacked(
-                "\x19\x01",
-                DOMAIN_SEPARATOR,
-                BullaClaimPermitLib.getPermitPayClaimDigest(
-                    controllerRegistry,
-                    user,
-                    controller,
-                    approvalType,
-                    approvalDeadline,
-                    paymentApprovals,
-                    approval.nonce
-                )
-            )
-        );
-    }
-
-    function getPermitUpdateBindingDigest(address user, address controller, uint64 approvalCount)
-        public
-        view
-        returns (bytes32)
-    {
-        (,, UpdateBindingApproval memory approval,,,) = approvalRegistry.getApprovals(user, controller);
-        return keccak256(
-            abi.encodePacked(
-                "\x19\x01",
-                DOMAIN_SEPARATOR,
-                BullaClaimPermitLib.getPermitUpdateBindingDigest(
-                    controllerRegistry, user, controller, approvalCount, approval.nonce
-                )
-            )
-        );
-    }
-
-    function getPermitCancelClaimDigest(address user, address controller, uint64 approvalCount)
-        public
-        view
-        returns (bytes32)
-    {
-        (,,, CancelClaimApproval memory approval,,) = approvalRegistry.getApprovals(user, controller);
-        return keccak256(
-            abi.encodePacked(
-                "\x19\x01",
-                DOMAIN_SEPARATOR,
-                BullaClaimPermitLib.getPermitCancelClaimDigest(
-                    controllerRegistry, user, controller, approvalCount, approval.nonce
-                )
-            )
-        );
-    }
-
-    function getPermitImpairClaimDigest(address user, address controller, uint64 approvalCount)
-        public
-        view
-        returns (bytes32)
-    {
-        (,,,, ImpairClaimApproval memory approval,) = approvalRegistry.getApprovals(user, controller);
-        return keccak256(
-            abi.encodePacked(
-                "\x19\x01",
-                DOMAIN_SEPARATOR,
-                BullaClaimPermitLib.getPermitImpairClaimDigest(
-                    controllerRegistry, user, controller, approvalCount, approval.nonce
-                )
-            )
-        );
-    }
-
-    function getPermitMarkAsPaidDigest(address user, address controller, uint64 approvalCount)
-        public
-        view
-        returns (bytes32)
-    {
-        (,,,,, MarkAsPaidApproval memory approval) = approvalRegistry.getApprovals(user, controller);
-        return keccak256(
-            abi.encodePacked(
-                "\x19\x01",
-                DOMAIN_SEPARATOR,
-                BullaClaimPermitLib.getPermitMarkAsPaidDigest(
-                    controllerRegistry, user, controller, approvalCount, approval.nonce
-                )
-            )
-        );
-    }
-
     function signCreateClaimPermit(
         uint256 pk,
         address user,
@@ -197,59 +103,6 @@ contract EIP712Helper {
     ) public returns (bytes memory) {
         bytes32 digest = getPermitCreateClaimDigest(user, controller, approvalType, approvalCount, isBindingAllowed);
 
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
-        return abi.encodePacked(r, s, v);
-    }
-
-    function signPayClaimPermit(
-        uint256 pk,
-        address user,
-        address controller,
-        PayClaimApprovalType approvalType,
-        uint256 approvalDeadline,
-        ClaimPaymentApprovalParam[] calldata paymentApprovals
-    ) public returns (bytes memory) {
-        bytes32 digest = getPermitPayClaimDigest(user, controller, approvalType, approvalDeadline, paymentApprovals);
-
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
-        return abi.encodePacked(r, s, v);
-    }
-
-    function signUpdateBindingPermit(uint256 pk, address user, address controller, uint64 approvalCount)
-        public
-        returns (bytes memory)
-    {
-        bytes32 digest = getPermitUpdateBindingDigest(user, controller, approvalCount);
-
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
-        return abi.encodePacked(r, s, v);
-    }
-
-    function signCancelClaimPermit(uint256 pk, address user, address controller, uint64 approvalCount)
-        public
-        returns (bytes memory)
-    {
-        bytes32 digest = getPermitCancelClaimDigest(user, controller, approvalCount);
-
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
-        return abi.encodePacked(r, s, v);
-    }
-
-    function signImpairClaimPermit(uint256 pk, address user, address controller, uint64 approvalCount)
-        public
-        returns (bytes memory)
-    {
-        bytes32 digest = getPermitImpairClaimDigest(user, controller, approvalCount);
-
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
-        return abi.encodePacked(r, s, v);
-    }
-
-    function signMarkAsPaidPermit(uint256 pk, address user, address controller, uint64 approvalCount)
-        public
-        returns (bytes memory)
-    {
-        bytes32 digest = getPermitMarkAsPaidDigest(user, controller, approvalCount);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
         return abi.encodePacked(r, s, v);
     }

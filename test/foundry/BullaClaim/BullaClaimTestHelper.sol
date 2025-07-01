@@ -87,67 +87,8 @@ contract BullaClaimTestHelper is Test {
         );
     }
 
-    function _permitPayClaim(
-        uint256 _userPK,
-        address _controller,
-        PayClaimApprovalType _approvalType,
-        uint256 _approvalDeadline,
-        ClaimPaymentApprovalParam[] memory _paymentApprovals
-    ) internal {
-        address user = vm.addr(_userPK);
-
-        approvalRegistry.permitPayClaim({
-            user: user,
-            controller: _controller,
-            approvalType: _approvalType,
-            approvalDeadline: _approvalDeadline,
-            paymentApprovals: _paymentApprovals,
-            signature: sigHelper.signPayClaimPermit({
-                pk: _userPK,
-                user: user,
-                controller: _controller,
-                approvalType: _approvalType,
-                approvalDeadline: _approvalDeadline,
-                paymentApprovals: _paymentApprovals
-            })
-        });
-    }
-
-    function _generateClaimPaymentApprovals(uint8 count, address _creditor, address _debtor)
-        internal
-        returns (ClaimPaymentApprovalParam[] memory)
-    {
-        ClaimPaymentApprovalParam[] memory paymentApprovals = new ClaimPaymentApprovalParam[](count);
-        for (uint256 i = 0; i < count; i++) {
-            uint256 claimId = _newClaim({_creator: _creditor, _creditor: _creditor, _debtor: _debtor});
-            paymentApprovals[i] =
-                ClaimPaymentApprovalParam({claimId: claimId, approvedAmount: 1 ether, approvalDeadline: 0});
-        }
-        return paymentApprovals;
-    }
-
     function _permitCreateClaim(uint256 _userPK, address _controller, uint64 _approvalCount) internal {
         _permitCreateClaim(_userPK, _controller, _approvalCount, CreateClaimApprovalType.Approved, true);
-    }
-
-    function _permitUpdateBinding(uint256 _userPK, address _controller, uint64 _approvalCount) internal {
-        bytes memory sig = sigHelper.signUpdateBindingPermit(_userPK, vm.addr(_userPK), _controller, _approvalCount);
-        approvalRegistry.permitUpdateBinding(vm.addr(_userPK), _controller, _approvalCount, sig);
-    }
-
-    function _permitCancelClaim(uint256 _userPK, address _controller, uint64 _approvalCount) internal {
-        bytes memory sig = sigHelper.signCancelClaimPermit(_userPK, vm.addr(_userPK), _controller, _approvalCount);
-        approvalRegistry.permitCancelClaim(vm.addr(_userPK), _controller, _approvalCount, sig);
-    }
-
-    function _permitImpairClaim(uint256 _userPK, address _controller, uint64 _approvalCount) internal {
-        bytes memory sig = sigHelper.signImpairClaimPermit(_userPK, vm.addr(_userPK), _controller, _approvalCount);
-        approvalRegistry.permitImpairClaim(vm.addr(_userPK), _controller, _approvalCount, sig);
-    }
-
-    function _permitMarkAsPaid(uint256 _userPK, address _controller, uint64 _approvalCount) internal {
-        bytes memory sig = sigHelper.signMarkAsPaidPermit(_userPK, vm.addr(_userPK), _controller, _approvalCount);
-        approvalRegistry.permitMarkAsPaid(vm.addr(_userPK), _controller, _approvalCount, sig);
     }
 
     function _permitERC20Token(uint256 _ownerPK, address _token, address _spender, uint256 _amount, uint256 _deadline)

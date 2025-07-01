@@ -13,9 +13,7 @@ import {
     CreateClaimParams,
     LockState,
     ClaimMetadata,
-    CreateClaimApprovalType,
-    PayClaimApprovalType,
-    ClaimPaymentApprovalParam
+    CreateClaimApprovalType
 } from "contracts/types/Types.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {BullaFrendLend, LoanRequestParams, Loan, LoanOffer} from "src/BullaFrendLend.sol";
@@ -474,23 +472,6 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         uint256 claimId3 = bullaFrendLend.acceptLoan{value: FEE}(loanId3);
         vm.stopPrank();
 
-        // Setup payment permissions
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaFrendLend),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaFrendLend),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
         // Approve tokens for batch payment
         vm.prank(debtor);
         weth.approve(address(bullaFrendLend), 3 ether);
@@ -573,19 +554,6 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         // Move time forward past due date and grace period
         vm.warp(block.timestamp + 2 days + 2 hours);
 
-        // Setup impair permissions
-        bullaClaim.approvalRegistry().permitImpairClaim({
-            user: creditor,
-            controller: address(bullaFrendLend),
-            approvalCount: 2,
-            signature: sigHelper.signImpairClaimPermit({
-                pk: creditorPK,
-                user: creditor,
-                controller: address(bullaFrendLend),
-                approvalCount: 2
-            })
-        });
-
         bytes[] memory calls = new bytes[](2);
 
         calls[0] = abi.encodeCall(BullaFrendLend.impairLoan, (claimId1));
@@ -654,19 +622,6 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
 
         vm.prank(charlie);
         uint256 claimId2 = bullaFrendLend.acceptLoan{value: FEE}(loanId2);
-
-        // Setup mark as paid permissions
-        bullaClaim.approvalRegistry().permitMarkAsPaid({
-            user: creditor,
-            controller: address(bullaFrendLend),
-            approvalCount: 2,
-            signature: sigHelper.signMarkAsPaidPermit({
-                pk: creditorPK,
-                user: creditor,
-                controller: address(bullaFrendLend),
-                approvalCount: 2
-            })
-        });
 
         bytes[] memory calls = new bytes[](2);
 

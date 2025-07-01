@@ -106,7 +106,7 @@ contract TestPermitCreateClaim is Test {
             signature: signature
         });
 
-        (CreateClaimApproval memory approval,,,,,) = approvalRegistry.getApprovals(alice, bob);
+        CreateClaimApproval memory approval = approvalRegistry.getApprovals(alice, bob);
 
         assertEq(approval.isBindingAllowed, isBindingAllowed, "isBindingAllowed");
         assertTrue(approval.approvalType == approvalType, "approvalType");
@@ -143,7 +143,7 @@ contract TestPermitCreateClaim is Test {
             signature: bytes("")
         });
 
-        (CreateClaimApproval memory approval,,,,,) = approvalRegistry.getApprovals(alice, bob);
+        CreateClaimApproval memory approval = approvalRegistry.getApprovals(alice, bob);
 
         assertEq(approval.isBindingAllowed, isBindingAllowed, "isBindingAllowed");
         assertTrue(approval.approvalType == approvalType, "approvalType");
@@ -200,7 +200,7 @@ contract TestPermitCreateClaim is Test {
             signature: signature
         });
 
-        (CreateClaimApproval memory approval,,,,,) = approvalRegistry.getApprovals(alice, bob);
+        CreateClaimApproval memory approval = approvalRegistry.getApprovals(alice, bob);
         assertEq(approval.approvalCount, 0, "approvalCount");
         assertTrue(approval.approvalType == CreateClaimApprovalType.Unapproved, "approvalType");
     }
@@ -258,7 +258,7 @@ contract TestPermitCreateClaim is Test {
             signature: bytes("")
         });
 
-        (CreateClaimApproval memory approval,,,,,) = approvalRegistry.getApprovals(alice, bob);
+        CreateClaimApproval memory approval = approvalRegistry.getApprovals(alice, bob);
         assertEq(approval.approvalCount, 0, "approvalCount");
         assertTrue(approval.approvalType == CreateClaimApprovalType.Unapproved, "approvalType");
         assertTrue(approval.isBindingAllowed == false, "bindingAllowed");
@@ -705,7 +705,7 @@ contract TestPermitCreateClaim is Test {
             signature: sig
         });
 
-        (CreateClaimApproval memory approval,,,,,) = approvalRegistry.getApprovals(user, controller);
+        CreateClaimApproval memory approval = approvalRegistry.getApprovals(user, controller);
 
         assertEq(approval.nonce, 1, "nonce");
         assertEq(approval.approvalCount, approvalCount, "approvalCount");
@@ -772,8 +772,8 @@ contract TestPermitCreateClaim is Test {
         });
 
         // Verify both calls produced identical results
-        (CreateClaimApproval memory aliceApproval,,,,,) = approvalRegistry.getApprovals(alice, controller1);
-        (CreateClaimApproval memory charlieApproval,,,,,) = approvalRegistry.getApprovals(charlie, controller2);
+        CreateClaimApproval memory aliceApproval = approvalRegistry.getApprovals(alice, controller1);
+        CreateClaimApproval memory charlieApproval = approvalRegistry.getApprovals(charlie, controller2);
 
         // Both should have identical state
         assertEq(aliceApproval.nonce, charlieApproval.nonce, "nonce should be equal");
@@ -870,8 +870,8 @@ contract TestPermitCreateClaim is Test {
         });
 
         // Verify both revocations produced identical results
-        (CreateClaimApproval memory aliceApproval,,,,,) = approvalRegistry.getApprovals(alice, controller1);
-        (CreateClaimApproval memory charlieApproval,,,,,) = approvalRegistry.getApprovals(charlie, controller2);
+        CreateClaimApproval memory aliceApproval = approvalRegistry.getApprovals(alice, controller1);
+        CreateClaimApproval memory charlieApproval = approvalRegistry.getApprovals(charlie, controller2);
 
         // Both should be revoked (approvalCount = 0, approvalType = Unapproved)
         assertEq(aliceApproval.nonce, 2, "alice nonce should be 2 after revocation");

@@ -5,17 +5,8 @@ import "forge-std/Test.sol";
 import "forge-std/Vm.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
-import {
-    Claim,
-    Status,
-    ClaimBinding,
-    CreateClaimParams,
-    ClaimMetadata,
-    LockState,
-    CancelClaimApproval,
-    ImpairClaimApproval
-} from "contracts/types/Types.sol";
-import {BullaClaim, CreateClaimApprovalType} from "contracts/BullaClaim.sol";
+import {Claim, Status, ClaimBinding, CreateClaimParams, ClaimMetadata, LockState} from "contracts/types/Types.sol";
+import {BullaClaim} from "contracts/BullaClaim.sol";
 import {PenalizedClaim} from "contracts/mocks/PenalizedClaim.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
@@ -113,36 +104,6 @@ contract TestImpairClaim is BullaClaimTestHelper {
         assertEq(uint256(claimAfter.status), uint256(Status.Impaired), "Claim should be impaired");
     }
 
-    function testImpairClaimFrom_Success() public {
-        // Create claim with due date and grace period
-        CreateClaimParams memory params = new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor)
-            .withToken(address(weth)).withDueBy(block.timestamp + 30 days).build();
-
-        vm.prank(creditor);
-        uint256 claimId = bullaClaim.createClaim(params);
-
-        // Setup approval for controller to cancel claims (reuses same approval)
-        _permitImpairClaim(creditorPK, controller, 1);
-
-        (,,,, ImpairClaimApproval memory approval,) = bullaClaim.approvalRegistry().getApprovals(creditor, controller);
-        uint256 approvalCountBefore = approval.approvalCount;
-
-        // Move past due date + grace period
-        vm.warp(block.timestamp + 38 days);
-
-        vm.expectEmit(true, true, false, true);
-        emit ClaimImpaired(claimId);
-
-        vm.prank(controller);
-        bullaClaim.impairClaimFrom(creditor, claimId);
-
-        Claim memory claim = bullaClaim.getClaim(claimId);
-        assertEq(uint256(claim.status), uint256(Status.Impaired), "Claim should be impaired");
-
-        (,,,, approval,) = bullaClaim.approvalRegistry().getApprovals(creditor, controller);
-        assertEq(approval.approvalCount, approvalCountBefore - 1, "Approval count should decrement");
-    }
-
     function testImpairClaimFrom_WithController() public {
         PenalizedClaim penalizedClaim = new PenalizedClaim(address(bullaClaim));
 
@@ -159,9 +120,6 @@ contract TestImpairClaim is BullaClaimTestHelper {
 
         Claim memory claimBefore = bullaClaim.getClaim(claimId);
         assertEq(claimBefore.controller, address(penalizedClaim), "Controller should be set");
-
-        // Setup approval for controller to impair claims
-        _permitImpairClaim(creditorPK, address(penalizedClaim), 1);
 
         vm.warp(block.timestamp + 38 days);
 
@@ -215,7 +173,7 @@ contract TestImpairClaim is BullaClaimTestHelper {
         uint256 claimId = _newClaim(creditor, creditor, debtor);
 
         vm.prank(controller);
-        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotApproved.selector));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.MustBeControlledClaim.selector));
         bullaClaim.impairClaimFrom(creditor, claimId);
     }
 
@@ -423,77 +381,19 @@ contract TestImpairClaim is BullaClaimTestHelper {
         CreateClaimParams memory params = new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor)
             .withToken(address(weth)).withDueBy(block.timestamp + 30 days).build();
 
-        vm.prank(creditor);
-        uint256 claimId = bullaClaim.createClaim(params);
+        _permitCreateClaim(creditorPK, controller, 1);
+
+        vm.prank(controller);
+        uint256 claimId = bullaClaim.createClaimFrom(creditor, params);
 
         // Move past due date + grace period
         vm.warp(block.timestamp + 38 days);
-
-        _permitImpairClaim(creditorPK, controller, 1);
 
         vm.expectEmit(true, true, false, true);
         emit ClaimImpaired(claimId);
 
         vm.prank(controller);
         bullaClaim.impairClaimFrom(creditor, claimId);
-    }
-
-    /*///////////////////////////////////////////////////////////////
-                        APPROVAL MANAGEMENT TESTS
-    //////////////////////////////////////////////////////////////*/
-
-    function testImpairClaimFrom_ApprovalSpending() public {
-        // Create claim with due date and grace period
-        CreateClaimParams memory params = new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor)
-            .withToken(address(weth)).withDueBy(block.timestamp + 30 days).build();
-
-        vm.prank(creditor);
-        uint256 claimId = bullaClaim.createClaim(params);
-
-        // Move past due date + grace period
-        vm.warp(block.timestamp + 38 days);
-
-        // Setup limited approvals
-        _permitImpairClaim(creditorPK, controller, 2);
-
-        (,,,, ImpairClaimApproval memory approvalBefore,) =
-            bullaClaim.approvalRegistry().getApprovals(creditor, controller);
-        assertEq(approvalBefore.approvalCount, 2, "Should have 2 approvals");
-
-        // Use first approval
-        vm.prank(controller);
-        bullaClaim.impairClaimFrom(creditor, claimId);
-
-        (,,,, ImpairClaimApproval memory approvalAfter,) =
-            bullaClaim.approvalRegistry().getApprovals(creditor, controller);
-        assertEq(approvalAfter.approvalCount, 1, "Should have 1 approval remaining");
-    }
-
-    function testImpairClaimFrom_UnlimitedApprovals() public {
-        // Create claim with due date and grace period
-        CreateClaimParams memory params = new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor)
-            .withToken(address(weth)).withDueBy(block.timestamp + 30 days).build();
-
-        vm.prank(creditor);
-        uint256 claimId = bullaClaim.createClaim(params);
-
-        // Move past due date + grace period
-        vm.warp(block.timestamp + 38 days);
-
-        // Setup unlimited approvals
-        _permitImpairClaim(creditorPK, controller, type(uint64).max);
-
-        (,,,, ImpairClaimApproval memory approvalBefore,) =
-            bullaClaim.approvalRegistry().getApprovals(creditor, controller);
-        assertEq(approvalBefore.approvalCount, type(uint64).max, "Should have unlimited approvals");
-
-        // Use approval
-        vm.prank(controller);
-        bullaClaim.impairClaimFrom(creditor, claimId);
-
-        (,,,, ImpairClaimApproval memory approvalAfter,) =
-            bullaClaim.approvalRegistry().getApprovals(creditor, controller);
-        assertEq(approvalAfter.approvalCount, type(uint64).max, "Should still have unlimited approvals");
     }
 
     /*///////////////////////////////////////////////////////////////

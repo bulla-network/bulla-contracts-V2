@@ -11,9 +11,7 @@ import {
     CreateClaimParams,
     LockState,
     ClaimMetadata,
-    CreateClaimApprovalType,
-    PayClaimApprovalType,
-    ClaimPaymentApprovalParam
+    CreateClaimApprovalType
 } from "contracts/types/Types.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {

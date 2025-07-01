@@ -104,23 +104,6 @@ contract TestBullaInvoiceOrigination is Test {
                 isBindingAllowed: false
             })
         });
-
-        // Setup pay claim permissions
-        _bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: invoiceContract,
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: _sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: invoiceContract,
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
     }
 
     // ==================== CORE FEE PAYMENT TESTS ====================

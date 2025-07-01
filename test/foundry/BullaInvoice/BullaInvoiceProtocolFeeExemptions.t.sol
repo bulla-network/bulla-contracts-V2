@@ -12,9 +12,7 @@ import {
     CreateClaimParams,
     LockState,
     ClaimMetadata,
-    CreateClaimApprovalType,
-    PayClaimApprovalType,
-    ClaimPaymentApprovalParam
+    CreateClaimApprovalType
 } from "contracts/types/Types.sol";
 import {
     CreateInvoiceParams,
@@ -117,22 +115,6 @@ contract TestBullaInvoiceProtocolFeeExemptions is Test {
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: type(uint64).max,
                 isBindingAllowed: false
-            })
-        });
-
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: user,
-            controller: address(bullaInvoice),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: userPK,
-                user: user,
-                controller: address(bullaInvoice),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
             })
         });
     }
@@ -346,7 +328,6 @@ contract TestBullaInvoiceProtocolFeeExemptions is Test {
         Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
         uint256 accruedInterest = invoice.interestComputationState.accruedInterest;
 
-        uint256 creditorBalanceBefore = _nonExemptUser.balance;
         uint256 contractBalanceBefore = address(bullaInvoice).balance;
 
         // Pay interest

@@ -85,20 +85,6 @@ contract TestBullaFrendLend is Test {
         dai.mint(debtor, 10_000 ether);
     }
 
-    function _permitImpairClaim(uint256 pk, address controller, uint64 approvalCount) internal {
-        bullaClaim.approvalRegistry().permitImpairClaim({
-            user: vm.addr(pk),
-            controller: controller,
-            approvalCount: approvalCount,
-            signature: sigHelper.signImpairClaimPermit({
-                pk: pk,
-                user: vm.addr(pk),
-                controller: controller,
-                approvalCount: approvalCount
-            })
-        });
-    }
-
     function testOfferLoanByCreditor() public {
         // Approve WETH for transfer
         vm.prank(creditor);
@@ -430,22 +416,6 @@ contract TestBullaFrendLend is Test {
         );
         assertEq(weth.balanceOf(address(bullaFrendLend)), 0, "BullaFrendLend WETH balance should be 0 after transfer");
 
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaFrendLend),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaFrendLend),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
         // Advance time by 15 days to generate some interest
         vm.warp(block.timestamp + 15 days);
 
@@ -532,22 +502,6 @@ contract TestBullaFrendLend is Test {
             weth.balanceOf(debtor), initialDebtorWeth + 1 ether, "Debtor WETH balance after loan acceptance incorrect"
         );
         assertEq(weth.balanceOf(address(bullaFrendLend)), 0, "BullaFrendLend WETH balance should be 0 after transfer");
-
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaFrendLend),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaFrendLend),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
 
         // Advance time by 15 days to generate some interest
         vm.warp(block.timestamp + 15 days);
@@ -664,22 +618,6 @@ contract TestBullaFrendLend is Test {
             weth.balanceOf(debtor), initialDebtorWeth + 1 ether, "Debtor WETH balance after loan acceptance incorrect"
         );
 
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaFrendLend),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaFrendLend),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
         // Advance time by 10 days to generate some interest
         vm.warp(block.timestamp + 10 days);
 
@@ -781,22 +719,6 @@ contract TestBullaFrendLend is Test {
         vm.prank(debtor);
         uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
 
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaFrendLend),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaFrendLend),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
         // Check interest after exactly 1/4 year
         vm.warp(acceptTime + 10 * 365 days);
         (, uint256 interest1) = bullaFrendLend.getTotalAmountDue(claimId);
@@ -847,22 +769,6 @@ contract TestBullaFrendLend is Test {
 
         vm.prank(debtor);
         uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
-
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaFrendLend),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaFrendLend),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
 
         vm.warp(block.timestamp + 15 days);
 
@@ -996,22 +902,6 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaFrendLend),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaFrendLend),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
         LoanRequestParams memory wethOffer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
             .withDescription("WETH Loan").withToken(address(weth)).withNumberOfPeriodsPerYear(365).build();
 
@@ -1142,22 +1032,6 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaFrendLend),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaFrendLend),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
         LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
             .withToken(address(weth)).withInterestRateBps(1000).withNumberOfPeriodsPerYear(12).build();
 
@@ -1213,22 +1087,6 @@ contract TestBullaFrendLend is Test {
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 3,
                 isBindingAllowed: true
-            })
-        });
-
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaFrendLend),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaFrendLend),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
             })
         });
 
@@ -1339,22 +1197,6 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaFrendLend),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaFrendLend),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
         LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
             .withToken(address(weth)).withInterestRateBps(1000).withNumberOfPeriodsPerYear(12).build();
 
@@ -1422,22 +1264,6 @@ contract TestBullaFrendLend is Test {
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 2,
                 isBindingAllowed: true
-            })
-        });
-
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaFrendLend),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaFrendLend),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
             })
         });
 
@@ -1520,22 +1346,6 @@ contract TestBullaFrendLend is Test {
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 3,
                 isBindingAllowed: true
-            })
-        });
-
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaFrendLend),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaFrendLend),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
             })
         });
 
@@ -1661,30 +1471,6 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.approvalRegistry().permitCancelClaim({
-            user: creditor,
-            controller: address(bullaFrendLend),
-            approvalCount: 1,
-            signature: sigHelper.signCancelClaimPermit({
-                pk: creditorPK,
-                user: creditor,
-                controller: address(bullaFrendLend),
-                approvalCount: 1
-            })
-        });
-
-        bullaClaim.approvalRegistry().permitImpairClaim({
-            user: creditor,
-            controller: address(bullaFrendLend),
-            approvalCount: 1,
-            signature: sigHelper.signImpairClaimPermit({
-                pk: creditorPK,
-                user: creditor,
-                controller: address(bullaFrendLend),
-                approvalCount: 1
-            })
-        });
-
         LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
             .withToken(address(weth)).withTermLength(30 days).build();
 
@@ -1731,46 +1517,6 @@ contract TestBullaFrendLend is Test {
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
                 isBindingAllowed: true
-            })
-        });
-
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaFrendLend),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaFrendLend),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
-        bullaClaim.approvalRegistry().permitCancelClaim({
-            user: creditor,
-            controller: address(bullaFrendLend),
-            approvalCount: 1,
-            signature: sigHelper.signCancelClaimPermit({
-                pk: creditorPK,
-                user: creditor,
-                controller: address(bullaFrendLend),
-                approvalCount: 1
-            })
-        });
-
-        bullaClaim.approvalRegistry().permitImpairClaim({
-            user: creditor,
-            controller: address(bullaFrendLend),
-            approvalCount: 1,
-            signature: sigHelper.signImpairClaimPermit({
-                pk: creditorPK,
-                user: creditor,
-                controller: address(bullaFrendLend),
-                approvalCount: 1
             })
         });
 
@@ -1835,9 +1581,6 @@ contract TestBullaFrendLend is Test {
         vm.prank(debtor);
         uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
 
-        _permitImpairClaim(debtorPK, address(bullaFrendLend), 1);
-        _permitImpairClaim(adminPK, address(bullaFrendLend), 1);
-
         // Debtor cannot impair loan
         vm.prank(debtor);
         vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.NotCreditor.selector));
@@ -1856,8 +1599,6 @@ contract TestBullaFrendLend is Test {
 
         vm.prank(creditor);
         uint256 claimId = bullaClaim.createClaim{value: FEE}(params);
-
-        _permitImpairClaim(creditorPK, address(bullaFrendLend), 1);
 
         // Try to impair via BullaFrendLend - should fail since it's not the controller
         vm.prank(creditor);
@@ -1885,31 +1626,6 @@ contract TestBullaFrendLend is Test {
                 isBindingAllowed: true
             })
         });
-
-        bullaClaim.approvalRegistry().permitCancelClaim({
-            user: creditor,
-            controller: address(bullaFrendLend),
-            approvalCount: 1,
-            signature: sigHelper.signCancelClaimPermit({
-                pk: creditorPK,
-                user: creditor,
-                controller: address(bullaFrendLend),
-                approvalCount: 1
-            })
-        });
-
-        bullaClaim.approvalRegistry().permitImpairClaim({
-            user: creditor,
-            controller: address(bullaFrendLend),
-            approvalCount: 1,
-            signature: sigHelper.signImpairClaimPermit({
-                pk: creditorPK,
-                user: creditor,
-                controller: address(bullaFrendLend),
-                approvalCount: 1
-            })
-        });
-
         LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
             .withToken(address(weth)).withInterestRateBps(1000).withNumberOfPeriodsPerYear(365) // 10% annual interest
             .build();
@@ -1964,47 +1680,6 @@ contract TestBullaFrendLend is Test {
                 isBindingAllowed: true
             })
         });
-
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaFrendLend),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaFrendLend),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
-        bullaClaim.approvalRegistry().permitCancelClaim({
-            user: creditor,
-            controller: address(bullaFrendLend),
-            approvalCount: 1,
-            signature: sigHelper.signCancelClaimPermit({
-                pk: creditorPK,
-                user: creditor,
-                controller: address(bullaFrendLend),
-                approvalCount: 1
-            })
-        });
-
-        bullaClaim.approvalRegistry().permitImpairClaim({
-            user: creditor,
-            controller: address(bullaFrendLend),
-            approvalCount: 1,
-            signature: sigHelper.signImpairClaimPermit({
-                pk: creditorPK,
-                user: creditor,
-                controller: address(bullaFrendLend),
-                approvalCount: 1
-            })
-        });
-
         LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
             .withToken(address(weth)).withInterestRateBps(1000).build();
 
@@ -2070,30 +1745,6 @@ contract TestBullaFrendLend is Test {
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 2,
                 isBindingAllowed: true
-            })
-        });
-
-        bullaClaim.approvalRegistry().permitCancelClaim({
-            user: creditor,
-            controller: address(bullaFrendLend),
-            approvalCount: 2,
-            signature: sigHelper.signCancelClaimPermit({
-                pk: creditorPK,
-                user: creditor,
-                controller: address(bullaFrendLend),
-                approvalCount: 2
-            })
-        });
-
-        bullaClaim.approvalRegistry().permitImpairClaim({
-            user: creditor,
-            controller: address(bullaFrendLend),
-            approvalCount: 2,
-            signature: sigHelper.signImpairClaimPermit({
-                pk: creditorPK,
-                user: creditor,
-                controller: address(bullaFrendLend),
-                approvalCount: 2
             })
         });
 
@@ -2164,30 +1815,6 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.approvalRegistry().permitCancelClaim({
-            user: creditor,
-            controller: address(bullaFrendLend),
-            approvalCount: 2,
-            signature: sigHelper.signCancelClaimPermit({
-                pk: creditorPK,
-                user: creditor,
-                controller: address(bullaFrendLend),
-                approvalCount: 2
-            })
-        });
-
-        bullaClaim.approvalRegistry().permitImpairClaim({
-            user: creditor,
-            controller: address(bullaFrendLend),
-            approvalCount: 2,
-            signature: sigHelper.signImpairClaimPermit({
-                pk: creditorPK,
-                user: creditor,
-                controller: address(bullaFrendLend),
-                approvalCount: 2
-            })
-        });
-
         // Create WETH loan
         LoanRequestParams memory wethOffer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
             .withToken(address(weth)).withDescription("WETH Loan").build();
@@ -2231,20 +1858,6 @@ contract TestBullaFrendLend is Test {
                     MARK LOAN AS PAID TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function _permitMarkAsPaid(uint256 pk, address controller, uint64 approvalCount) internal {
-        bullaClaim.approvalRegistry().permitMarkAsPaid({
-            user: vm.addr(pk),
-            controller: controller,
-            approvalCount: approvalCount,
-            signature: sigHelper.signMarkAsPaidPermit({
-                pk: pk,
-                user: vm.addr(pk),
-                controller: controller,
-                approvalCount: approvalCount
-            })
-        });
-    }
-
     function testMarkLoanAsPaid_Success() public {
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 2 ether);
@@ -2264,8 +1877,6 @@ contract TestBullaFrendLend is Test {
                 isBindingAllowed: true
             })
         });
-
-        _permitMarkAsPaid(creditorPK, address(bullaFrendLend), 1);
 
         LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
             .withToken(address(weth)).withTermLength(30 days).build();
@@ -2320,24 +1931,6 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaFrendLend),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaFrendLend),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
-        _permitMarkAsPaid(creditorPK, address(bullaFrendLend), 1);
-
         LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
             .withToken(address(weth)).withInterestRateBps(1000).build();
 
@@ -2387,10 +1980,6 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        _permitMarkAsPaid(creditorPK, address(bullaFrendLend), 1);
-        _permitMarkAsPaid(debtorPK, address(bullaFrendLend), 1);
-        _permitMarkAsPaid(adminPK, address(bullaFrendLend), 1);
-
         LoanRequestParams memory offer =
             new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
 
@@ -2419,8 +2008,6 @@ contract TestBullaFrendLend is Test {
         vm.prank(creditor);
         uint256 claimId = bullaClaim.createClaim{value: FEE}(params);
 
-        _permitMarkAsPaid(creditorPK, address(bullaFrendLend), 1);
-
         // Try to mark as paid via BullaFrendLend - should fail since it's not the controller
         vm.prank(creditor);
         vm.expectRevert(abi.encodeWithSelector(IBullaClaim.NotController.selector, address(creditor)));
@@ -2446,20 +2033,6 @@ contract TestBullaFrendLend is Test {
                 isBindingAllowed: true
             })
         });
-
-        bullaClaim.approvalRegistry().permitImpairClaim({
-            user: creditor,
-            controller: address(bullaFrendLend),
-            approvalCount: 1,
-            signature: sigHelper.signImpairClaimPermit({
-                pk: creditorPK,
-                user: creditor,
-                controller: address(bullaFrendLend),
-                approvalCount: 1
-            })
-        });
-
-        _permitMarkAsPaid(creditorPK, address(bullaFrendLend), 1);
 
         LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
             .withToken(address(weth)).withTermLength(30 days).build();
@@ -2649,22 +2222,6 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaFrendLend),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaFrendLend),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
         vm.prank(debtor);
         uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
 
@@ -2728,22 +2285,6 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaFrendLend),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaFrendLend),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
         vm.prank(debtor);
         uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
 
@@ -2799,22 +2340,6 @@ contract TestBullaFrendLend is Test {
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
                 isBindingAllowed: true
-            })
-        });
-
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaFrendLend),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaFrendLend),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
             })
         });
 
@@ -2882,22 +2407,6 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaFrendLend),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaFrendLend),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
         vm.prank(debtor);
         uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
 
@@ -2954,22 +2463,6 @@ contract TestBullaFrendLend is Test {
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 1,
                 isBindingAllowed: true
-            })
-        });
-
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaFrendLend),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaFrendLend),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
             })
         });
 
@@ -3059,22 +2552,6 @@ contract TestBullaFrendLend is Test {
             })
         });
 
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaFrendLend),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaFrendLend),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
         vm.prank(debtor);
         uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
 
@@ -3127,22 +2604,6 @@ contract TestBullaFrendLend is Test {
                 approvalType: CreateClaimApprovalType.Approved,
                 approvalCount: 2,
                 isBindingAllowed: true
-            })
-        });
-
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(bullaFrendLend),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaFrendLend),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
             })
         });
 

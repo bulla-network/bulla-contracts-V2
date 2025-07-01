@@ -4,7 +4,7 @@ pragma solidity ^0.8.30;
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {BullaFrendLend, LoanRequestParams} from "src/BullaFrendLend.sol";
 import {LoanRequestParamsBuilder} from "test/foundry/BullaFrendLend/LoanRequestParamsBuilder.t.sol";
-import {CreateClaimApprovalType, PayClaimApprovalType, ClaimPaymentApprovalParam} from "contracts/types/Types.sol";
+import {CreateClaimApprovalType} from "contracts/types/Types.sol";
 
 /**
  * @title BullaFrendLendTestHelper
@@ -43,54 +43,6 @@ contract BullaFrendLendTestHelper is BullaClaimTestHelper {
         _permitAcceptLoan(userPK, 1, true);
     }
 
-    /**
-     * @notice Set up pay loan permissions for a user (approve all)
-     * @param userPK The private key of the user
-     */
-    function _permitPayLoan(uint256 userPK) internal {
-        _permitPayClaim(
-            userPK,
-            address(bullaFrendLend),
-            PayClaimApprovalType.IsApprovedForAll,
-            0,
-            new ClaimPaymentApprovalParam[](0)
-        );
-    }
-
-    /**
-     * @notice Set up impair loan permissions for a user
-     * @param userPK The private key of the user
-     * @param count Number of impairments allowed
-     */
-    function _permitImpairLoan(uint256 userPK, uint64 count) internal {
-        _permitImpairClaim(userPK, address(bullaFrendLend), count);
-    }
-
-    /**
-     * @notice Set up impair loan permissions for a user (single impairment)
-     * @param userPK The private key of the user
-     */
-    function _permitImpairLoan(uint256 userPK) internal {
-        _permitImpairLoan(userPK, 1);
-    }
-
-    /**
-     * @notice Set up mark as paid permissions for a user
-     * @param userPK The private key of the user
-     * @param count Number of mark-as-paid operations allowed
-     */
-    function _permitMarkLoanAsPaid(uint256 userPK, uint64 count) internal {
-        _permitMarkAsPaid(userPK, address(bullaFrendLend), count);
-    }
-
-    /**
-     * @notice Set up mark as paid permissions for a user (single operation)
-     * @param userPK The private key of the user
-     */
-    function _permitMarkLoanAsPaid(uint256 userPK) internal {
-        _permitMarkLoanAsPaid(userPK, 1);
-    }
-
     /*///////////////////// CONVENIENCE METHODS FOR COMMON PATTERNS /////////////////////*/
 
     /**
@@ -100,8 +52,6 @@ contract BullaFrendLendTestHelper is BullaClaimTestHelper {
      */
     function _permitCreditorLoanOperations(uint256 creditorPK, uint64 count) internal {
         _permitAcceptLoan(creditorPK, count);
-        _permitImpairLoan(creditorPK, count);
-        _permitMarkLoanAsPaid(creditorPK, count);
     }
 
     /**
@@ -110,7 +60,6 @@ contract BullaFrendLendTestHelper is BullaClaimTestHelper {
      * @param count Number of operations allowed for each permission type
      */
     function _permitDebtorLoanOperations(uint256 debtorPK, uint64 count) internal {
-        _permitPayLoan(debtorPK);
         _permitAcceptLoan(debtorPK, count);
     }
 

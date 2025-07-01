@@ -133,22 +133,6 @@ contract TestBullaInvoiceProtocolFee is Test {
             })
         });
 
-        bullaClaim.approvalRegistry().permitPayClaim({
-            user: debtor,
-            controller: address(invoice),
-            approvalType: PayClaimApprovalType.IsApprovedForAll,
-            approvalDeadline: 0,
-            paymentApprovals: new ClaimPaymentApprovalParam[](0),
-            signature: sigHelper.signPayClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(invoice),
-                approvalType: PayClaimApprovalType.IsApprovedForAll,
-                approvalDeadline: 0,
-                paymentApprovals: new ClaimPaymentApprovalParam[](0)
-            })
-        });
-
         // Create invoice with interest
         CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
             .withToken(token).withClaimAmount(amount).withLateFeeConfig(interestConfig).build();
