@@ -20,7 +20,7 @@ import {IPermissions} from "./interfaces/IPermissions.sol";
 import {IBullaClaim} from "./interfaces/IBullaClaim.sol";
 import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import {IBullaClaimAdmin} from "./interfaces/IBullaClaimAdmin.sol";
-import {ERC721Utils} from "openzeppelin-contracts/contracts/token/ERC721/utils/ERC721Utils.sol";
+import {ERC721Utils} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Utils.sol";
 
 contract BullaClaim is ERC721, Ownable, BoringBatchable, IBullaClaim {
     using SafeTransferLib for ERC20;

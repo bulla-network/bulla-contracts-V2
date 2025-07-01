@@ -6,7 +6,7 @@ import {BullaClaim} from "contracts/BullaClaim.sol";
 import {Claim, Status, ClaimBinding, LockState, CreateClaimParams} from "contracts/types/Types.sol";
 import {Deployer} from "script/Deployment.s.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
-import {IERC721Errors} from "openzeppelin-contracts/contracts/interfaces/draft-IERC6093.sol";
+import {IERC721Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {IBullaClaim} from "contracts/interfaces/IBullaClaim.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {EIP712Helper} from "test/foundry/BullaClaim/EIP712/Utils.sol";
