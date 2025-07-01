@@ -1,3 +1,10 @@
+## [1.9.1](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.9.0...v1.9.1) (2025-07-01)
+
+
+### Bug Fixes
+
+* open oz towards node_modules ([#73](https://github.com/bulla-network/bulla-contracts-V2/issues/73)) ([0383d2e](https://github.com/bulla-network/bulla-contracts-V2/commit/0383d2e49952999d095a36e5060ff2adb1ab2cb6))
+
 # [1.9.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.8.1...v1.9.0) (2025-07-01)
 
 
