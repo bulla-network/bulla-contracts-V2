@@ -1,3 +1,10 @@
+# [1.9.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.8.1...v1.9.0) (2025-07-01)
+
+
+### Features
+
+* delete all approvals except create claim ([#72](https://github.com/bulla-network/bulla-contracts-V2/issues/72)) ([0452ed8](https://github.com/bulla-network/bulla-contracts-V2/commit/0452ed8a61d5aa9097756cc01e25f6746afe6165))
+
 ## [1.8.1](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.8.0...v1.8.1) (2025-07-01)
 
 
