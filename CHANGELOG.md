@@ -1,3 +1,10 @@
+## [1.8.1](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.8.0...v1.8.1) (2025-07-01)
+
+
+### Bug Fixes
+
+* remove custom oz import ([a6e4730](https://github.com/bulla-network/bulla-contracts-V2/commit/a6e47301677e4c28de141d7638bbc8ea1c10871d))
+
 # [1.8.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.7.0...v1.8.0) (2025-06-30)
 
 
