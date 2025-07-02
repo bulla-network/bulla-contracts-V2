@@ -1,3 +1,10 @@
+## [1.9.2](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.9.1...v1.9.2) (2025-07-02)
+
+
+### Bug Fixes
+
+* review events and add PurchaseOrderAcccepted ([#74](https://github.com/bulla-network/bulla-contracts-V2/issues/74)) ([b0ce134](https://github.com/bulla-network/bulla-contracts-V2/commit/b0ce13492e0f22e976ae4c27861dd0e6347fea9b))
+
 ## [1.9.1](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.9.0...v1.9.1) (2025-07-01)
 
 
