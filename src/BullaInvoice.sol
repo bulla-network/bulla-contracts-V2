@@ -436,7 +436,7 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
             _invoiceDetailsByClaimId[claimId].interestComputationState = interestComputationState;
         }
 
-        bool wasBound = false;
+        bool isBound = false;
 
         // Pay the deposit amount if any
         if (depositAmount > 0) {
@@ -466,7 +466,7 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
 
             if (totalAmountNeeded == 0) {
                 _bullaClaim.updateBindingFrom(msg.sender, claimId, ClaimBinding.Bound);
-                wasBound = true;
+                isBound = true;
             }
         } else {
             // If no payment needed, msg.value should be 0
@@ -480,11 +480,11 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
 
             if (totalAmountNeeded == 0) {
                 _bullaClaim.updateBindingFrom(msg.sender, claimId, ClaimBinding.Bound);
-                wasBound = true;
+                isBound = true;
             }
         }
 
-        emit PurchaseOrderAccepted(claimId, msg.sender, depositAmount, wasBound);
+        emit PurchaseOrderAccepted(claimId, msg.sender, depositAmount, isBound);
     }
 
     /**
