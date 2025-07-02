@@ -12,15 +12,6 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {BoringBatchable} from "./libraries/BoringBatchable.sol";
 
-// Data specific to invoices and not claims
-struct InvoiceDetails {
-    bool requestedByCreditor;
-    bool isProtocolFeeExempt;
-    PurchaseOrderState purchaseOrder;
-    InterestConfig lateFeeConfig;
-    InterestComputationState interestComputationState;
-}
-
 error InvalidDeliveryDate();
 error NotOriginalCreditor();
 error PurchaseOrderAlreadyDelivered();
@@ -61,18 +52,12 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
     // Track if we're currently in a batch operation to skip individual fee validation
     bool private _inBatchOperation;
 
-    event InvoiceCreated(uint256 indexed claimId, InvoiceDetails invoiceDetails);
-    event InvoicePaid(uint256 indexed claimId, uint256 grossInterestPaid, uint256 principalPaid, uint256 protocolFee);
-    event ProtocolFeeUpdated(uint16 oldFee, uint16 newFee);
-    event PurchaseOrderDelivered(uint256 indexed claimId);
-    event FeeWithdrawn(address indexed admin, address indexed token, uint256 amount);
     /**
      * @notice Constructor
      * @param bullaClaim Address of the IBullaClaim contract to delegate calls to
      * @param _admin Address of the contract administrator
      * @param _protocolFeeBPS Protocol fee in basis points taken from interest payments
      */
-
     constructor(address bullaClaim, address _admin, uint16 _protocolFeeBPS) BullaClaimControllerBase(bullaClaim) {
         admin = _admin;
         if (_protocolFeeBPS > MAX_BPS) revert InvalidProtocolFee();
@@ -242,7 +227,7 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
 
         _invoiceDetailsByClaimId[claimId] = invoiceDetails;
 
-        emit InvoiceCreated(claimId, invoiceDetails);
+        emit InvoiceCreated(claimId, invoiceDetails, fee, metadata);
 
         return claimId;
     }
@@ -451,6 +436,8 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
             _invoiceDetailsByClaimId[claimId].interestComputationState = interestComputationState;
         }
 
+        bool isBound = false;
+
         // Pay the deposit amount if any
         if (depositAmount > 0) {
             // Validate msg.value based on token type
@@ -479,6 +466,7 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
 
             if (totalAmountNeeded == 0) {
                 _bullaClaim.updateBindingFrom(msg.sender, claimId, ClaimBinding.Bound);
+                isBound = true;
             }
         } else {
             // If no payment needed, msg.value should be 0
@@ -492,8 +480,11 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
 
             if (totalAmountNeeded == 0) {
                 _bullaClaim.updateBindingFrom(msg.sender, claimId, ClaimBinding.Bound);
+                isBound = true;
             }
         }
+
+        emit PurchaseOrderAccepted(claimId, msg.sender, depositAmount, isBound);
     }
 
     /**

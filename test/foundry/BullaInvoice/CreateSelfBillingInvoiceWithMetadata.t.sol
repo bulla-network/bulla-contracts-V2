@@ -47,7 +47,7 @@ contract TestCreateSelfBillingInvoiceWithMetadata is Test {
     address creditor = vm.addr(creditorPK);
     address admin = vm.addr(adminPK);
 
-    event InvoiceCreated(uint256 indexed claimId, InvoiceDetails invoiceDetails);
+    event InvoiceCreated(uint256 indexed claimId, InvoiceDetails invoiceDetails, uint256 fee, ClaimMetadata metadata);
     event ClaimCreated(
         uint256 indexed claimId,
         address from,
@@ -146,7 +146,7 @@ contract TestCreateSelfBillingInvoiceWithMetadata is Test {
 
         // Expect InvoiceCreated event
         vm.expectEmit(true, false, false, true);
-        emit InvoiceCreated(1, expectedInvoiceDetails);
+        emit InvoiceCreated(1, expectedInvoiceDetails, CORE_PROTOCOL_FEE, metadata);
 
         // Debtor creates self-billing invoice with metadata
         vm.prank(debtor);
@@ -339,7 +339,7 @@ contract TestCreateSelfBillingInvoiceWithMetadata is Test {
 
         // Expect InvoiceCreated event
         vm.expectEmit(true, false, false, true);
-        emit InvoiceCreated(1, expectedInvoiceDetails);
+        emit InvoiceCreated(1, expectedInvoiceDetails, CORE_PROTOCOL_FEE, metadata);
 
         // Debtor creates self-billing purchase order with metadata
         vm.prank(debtor);

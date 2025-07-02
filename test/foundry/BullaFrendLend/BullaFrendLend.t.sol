@@ -42,7 +42,9 @@ contract TestBullaFrendLend is Test {
 
     // Events for testing
     event FeeWithdrawn(address indexed admin, address indexed token, uint256 amount);
-    event LoanOffered(uint256 indexed loanId, address indexed offeredBy, LoanRequestParams loanOffer);
+    event LoanOffered(
+        uint256 indexed loanId, address indexed offeredBy, LoanRequestParams loanOffer, ClaimMetadata metadata
+    );
 
     uint256 creditorPK = uint256(0x01);
     uint256 debtorPK = uint256(0x02);
@@ -298,7 +300,7 @@ contract TestBullaFrendLend is Test {
 
         // Expect the LoanOffered event to be emitted with the correct parameters
         vm.expectEmit(true, true, false, true);
-        emit LoanOffered(1, creditor, offer);
+        emit LoanOffered(1, creditor, offer, ClaimMetadata({tokenURI: "", attachmentURI: ""}));
 
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan(offer);
@@ -312,7 +314,7 @@ contract TestBullaFrendLend is Test {
 
         // Expect the LoanOffered event to be emitted with the correct parameters (by debtor)
         vm.expectEmit(true, true, false, true);
-        emit LoanOffered(1, debtor, request);
+        emit LoanOffered(1, debtor, request, ClaimMetadata({tokenURI: "", attachmentURI: ""}));
 
         vm.prank(debtor);
         uint256 requestId = bullaFrendLend.offerLoan(request);
