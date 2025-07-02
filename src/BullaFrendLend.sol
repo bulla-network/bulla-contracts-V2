@@ -54,14 +54,6 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
     // Track if we're currently in a batch operation to skip individual fee validation
     bool private _inBatchOperation;
 
-    event LoanOffered(uint256 indexed loanId, address indexed offeredBy, LoanRequestParams loanOffer);
-    event LoanOfferAccepted(uint256 indexed loanId, uint256 indexed claimId);
-    event LoanOfferRejected(uint256 indexed loanId, address indexed rejectedBy);
-    /// @notice grossInterestPaid = interest received by creditor + protocolFee
-    event LoanPayment(uint256 indexed claimId, uint256 grossInterestPaid, uint256 principalPaid, uint256 protocolFee);
-    event ProtocolFeeUpdated(uint16 oldFee, uint16 newFee);
-    event FeeWithdrawn(address indexed admin, address indexed token, uint256 amount);
-
     ClaimMetadata private _emptyMetadata;
 
     /**
@@ -206,7 +198,7 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
             _loanOfferMetadata[offerId] = metadata;
         }
 
-        emit LoanOffered(offerId, msg.sender, offer);
+        emit LoanOffered(offerId, msg.sender, offer, metadata);
 
         return offerId;
     }
@@ -338,7 +330,7 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
             _executeCallback(offer.params.callbackContract, offer.params.callbackSelector, offerId, claimId);
         }
 
-        emit LoanOfferAccepted(offerId, claimId);
+        emit LoanOfferAccepted(offerId, claimId, fee, metadata);
 
         return claimId;
     }

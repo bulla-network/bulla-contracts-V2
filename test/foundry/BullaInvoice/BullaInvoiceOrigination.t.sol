@@ -51,7 +51,7 @@ contract TestBullaInvoiceOrigination is Test {
     address admin = vm.addr(adminPK);
 
     // Events for testing
-    event InvoiceCreated(uint256 indexed claimId, InvoiceDetails invoiceDetails);
+    event InvoiceCreated(uint256 indexed claimId, InvoiceDetails invoiceDetails, uint256 fee, ClaimMetadata metadata);
     event FeeWithdrawn(address indexed admin, address indexed token, uint256 amount);
 
     function setUp() public {
@@ -120,9 +120,12 @@ contract TestBullaInvoiceOrigination is Test {
         // Expected InvoiceDetails struct
         InvoiceDetails memory expectedInvoiceDetails = new InvoiceDetailsBuilder().build();
 
+        // Expected empty metadata
+        ClaimMetadata memory expectedMetadata = ClaimMetadata({tokenURI: "", attachmentURI: ""});
+
         // Expect InvoiceCreated event
         vm.expectEmit(true, false, false, true);
-        emit InvoiceCreated(1, expectedInvoiceDetails);
+        emit InvoiceCreated(1, expectedInvoiceDetails, expectedFee, expectedMetadata);
 
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice{value: expectedFee}(params);
@@ -149,9 +152,12 @@ contract TestBullaInvoiceOrigination is Test {
         InvoiceDetails memory expectedInvoiceDetails =
             new InvoiceDetailsBuilder().withDeliveryDate(block.timestamp + 1 days).build();
 
+        // Expected empty metadata
+        ClaimMetadata memory expectedMetadata = ClaimMetadata({tokenURI: "", attachmentURI: ""});
+
         // Expect InvoiceCreated event
         vm.expectEmit(true, false, false, true);
-        emit InvoiceCreated(1, expectedInvoiceDetails);
+        emit InvoiceCreated(1, expectedInvoiceDetails, expectedFee, expectedMetadata);
 
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice{value: expectedFee}(params);
@@ -215,9 +221,12 @@ contract TestBullaInvoiceOrigination is Test {
         InvoiceDetails memory expectedInvoiceDetails =
             new InvoiceDetailsBuilder().withDeliveryDate(block.timestamp).build();
 
+        // Expected empty metadata
+        ClaimMetadata memory expectedMetadata = ClaimMetadata({tokenURI: "", attachmentURI: ""});
+
         // Expect InvoiceCreated event
         vm.expectEmit(true, false, false, true);
-        emit InvoiceCreated(1, expectedInvoiceDetails);
+        emit InvoiceCreated(1, expectedInvoiceDetails, expectedFee, expectedMetadata);
 
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice{value: expectedFee}(params);
@@ -234,9 +243,12 @@ contract TestBullaInvoiceOrigination is Test {
         // Expected InvoiceDetails struct
         InvoiceDetails memory expectedInvoiceDetails = new InvoiceDetailsBuilder().build();
 
+        // Expected empty metadata
+        ClaimMetadata memory expectedMetadata = ClaimMetadata({tokenURI: "", attachmentURI: ""});
+
         // Expect InvoiceCreated event with zero fee
         vm.expectEmit(true, false, false, true);
-        emit InvoiceCreated(1, expectedInvoiceDetails);
+        emit InvoiceCreated(1, expectedInvoiceDetails, 0, expectedMetadata);
 
         vm.prank(creditor);
         uint256 invoiceId = zeroFeeInvoice.createInvoice{value: 0}(params);
@@ -258,9 +270,12 @@ contract TestBullaInvoiceOrigination is Test {
         // Expected InvoiceDetails struct
         InvoiceDetails memory expectedInvoiceDetails = new InvoiceDetailsBuilder().build();
 
+        // Expected empty metadata
+        ClaimMetadata memory expectedMetadata = ClaimMetadata({tokenURI: "", attachmentURI: ""});
+
         // Expect InvoiceCreated event
         vm.expectEmit(true, false, false, true);
-        emit InvoiceCreated(1, expectedInvoiceDetails);
+        emit InvoiceCreated(1, expectedInvoiceDetails, fee, expectedMetadata);
 
         vm.prank(creditor);
         bullaInvoice.createInvoice{value: fee}(params);

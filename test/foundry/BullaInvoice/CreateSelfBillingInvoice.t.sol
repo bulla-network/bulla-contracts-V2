@@ -47,7 +47,7 @@ contract TestCreateSelfBillingInvoice is Test {
     address creditor = vm.addr(creditorPK);
     address admin = vm.addr(adminPK);
 
-    event InvoiceCreated(uint256 indexed claimId, InvoiceDetails invoiceDetails);
+    event InvoiceCreated(uint256 indexed claimId, InvoiceDetails invoiceDetails, uint256 fee, ClaimMetadata metadata);
     event ClaimCreated(
         uint256 indexed claimId,
         address from,
@@ -138,7 +138,9 @@ contract TestCreateSelfBillingInvoice is Test {
 
         // Expect InvoiceCreated event
         vm.expectEmit(true, false, false, true);
-        emit InvoiceCreated(1, expectedInvoiceDetails);
+        emit InvoiceCreated(
+            1, expectedInvoiceDetails, CORE_PROTOCOL_FEE, ClaimMetadata({tokenURI: "", attachmentURI: ""})
+        );
 
         // Debtor creates self-billing invoice
         vm.prank(debtor);
@@ -262,7 +264,9 @@ contract TestCreateSelfBillingInvoice is Test {
 
         // Expect InvoiceCreated event
         vm.expectEmit(true, false, false, true);
-        emit InvoiceCreated(1, expectedInvoiceDetails);
+        emit InvoiceCreated(
+            1, expectedInvoiceDetails, CORE_PROTOCOL_FEE, ClaimMetadata({tokenURI: "", attachmentURI: ""})
+        );
 
         // Debtor creates self-billing purchase order
         vm.prank(debtor);
