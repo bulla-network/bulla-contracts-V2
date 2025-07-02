@@ -36,6 +36,10 @@ contract TestBullaInvoice is Test {
     EIP712Helper public sigHelper;
     BullaInvoice public bullaInvoice;
 
+    // Events for testing
+    event PurchaseOrderDelivered(uint256 indexed claimId);
+    event PurchaseOrderAccepted(uint256 indexed claimId, address indexed debtor, uint256 depositAmount, bool bound);
+
     uint256 creditorPK = uint256(0x01);
     uint256 debtorPK = uint256(0x02);
     uint256 adminPK = uint256(0x03);
@@ -1872,7 +1876,7 @@ contract TestBullaInvoice is Test {
 
         // Approve WETH spending for BullaClaim
         vm.prank(debtor);
-        weth.approve(address(bullaClaim), 2 ether);
+        weth.approve(address(bullaInvoice), 2 ether);
 
         // Approve WETH spending for BullaInvoice
         vm.prank(debtor);
@@ -2818,5 +2822,150 @@ contract TestBullaInvoice is Test {
             currentInterest,
             "Total gross interest paid should equal current interest for ERC20 token"
         );
+    }
+
+    function testPurchaseOrderDeliveredEventEmission() public {
+        // Setup permissions
+        bullaClaim.approvalRegistry().permitCreateClaim({
+            user: creditor,
+            controller: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        // Create invoice params with delivery date (making it a purchase order)
+        uint256 deliveryDate = block.timestamp + 7 days;
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withDeliveryDate(deliveryDate).build();
+
+        // Create an invoice as creditor
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Expect the PurchaseOrderDelivered event to be emitted
+        vm.expectEmit(true, false, false, true);
+        emit PurchaseOrderDelivered(invoiceId);
+
+        // Mark the purchase order as delivered
+        vm.prank(creditor);
+        bullaInvoice.deliverPurchaseOrder(invoiceId);
+    }
+
+    function testPurchaseOrderAcceptedEventEmission() public {
+        // Setup permissions
+        bullaClaim.approvalRegistry().permitCreateClaim({
+            user: creditor,
+            controller: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        // Create purchase order with deposit amount
+        uint256 deliveryDate = block.timestamp + 7 days;
+        uint256 depositAmount = 0.3 ether;
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withClaimAmount(1 ether).withDeliveryDate(deliveryDate).withDepositAmount(depositAmount).build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Expect the PurchaseOrderAccepted event to be emitted
+        // Parameters: claimId, debtor, depositAmount, bound (should be true when full deposit is paid)
+        vm.expectEmit(true, true, false, true);
+        emit PurchaseOrderAccepted(invoiceId, debtor, depositAmount, true);
+
+        // Accept purchase order by paying full deposit
+        vm.prank(debtor);
+        bullaInvoice.acceptPurchaseOrder{value: depositAmount}(invoiceId, depositAmount);
+    }
+
+    function testPurchaseOrderAcceptedEventEmission_PartialDeposit() public {
+        // Setup permissions
+        bullaClaim.approvalRegistry().permitCreateClaim({
+            user: creditor,
+            controller: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        // Create purchase order with deposit amount
+        uint256 deliveryDate = block.timestamp + 7 days;
+        uint256 totalDepositAmount = 0.5 ether;
+        uint256 partialDepositAmount = 0.3 ether;
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withClaimAmount(1 ether).withDeliveryDate(deliveryDate).withDepositAmount(totalDepositAmount).build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Expect the PurchaseOrderAccepted event to be emitted with bound=false for partial deposit
+        vm.expectEmit(true, true, false, true);
+        emit PurchaseOrderAccepted(invoiceId, debtor, partialDepositAmount, false);
+
+        // Accept purchase order by paying partial deposit
+        vm.prank(debtor);
+        bullaInvoice.acceptPurchaseOrder{value: partialDepositAmount}(invoiceId, partialDepositAmount);
+    }
+
+    function testPurchaseOrderAcceptedEventEmission_ZeroDeposit() public {
+        // Setup permissions
+        bullaClaim.approvalRegistry().permitCreateClaim({
+            user: creditor,
+            controller: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: false,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: false
+            })
+        });
+
+        // Create purchase order with zero deposit amount
+        uint256 deliveryDate = block.timestamp + 7 days;
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withClaimAmount(1 ether).withDeliveryDate(deliveryDate).withDepositAmount(0).build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Expect the PurchaseOrderAccepted event to be emitted with bound=true for zero deposit
+        vm.expectEmit(true, true, false, true);
+        emit PurchaseOrderAccepted(invoiceId, debtor, 0, true);
+
+        // Accept purchase order with zero deposit
+        vm.prank(debtor);
+        bullaInvoice.acceptPurchaseOrder{value: 0}(invoiceId, 0);
     }
 }
