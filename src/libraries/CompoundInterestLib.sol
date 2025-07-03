@@ -33,7 +33,8 @@ library CompoundInterestLib {
             return;
         }
 
-        if (config.numberOfPeriodsPerYear == 0 || config.numberOfPeriodsPerYear > MAX_DAYS_PER_YEAR) {
+        // Allow numberOfPeriodsPerYear to be 0 (simple interest) or up to MAX_DAYS_PER_YEAR
+        if (config.numberOfPeriodsPerYear > MAX_DAYS_PER_YEAR) {
             revert InvalidPeriodsPerYear();
         }
     }
@@ -42,6 +43,7 @@ library CompoundInterestLib {
      * @notice Computes the interest for a given principal, dueBy date, and interest configuration
      * @dev An implication is made that if remainingPrincipal is 0, there cannot be any interest accrued
      * @dev The protocolFeeBps is added to the interestRateBps to get the gross interest rate
+     * @dev When numberOfPeriodsPerYear is 0, simple interest is calculated (no compounding)
      * @param state The current interest computation state
      * @param remainingPrincipal The remaining principal to compute interest for
      * @param dueBy The dueBy date
@@ -56,11 +58,15 @@ library CompoundInterestLib {
         uint256 currentTimestamp = block.timestamp;
 
         if (
-            config.interestRateBps == 0 || config.numberOfPeriodsPerYear == 0
-                || config.numberOfPeriodsPerYear > MAX_DAYS_PER_YEAR || dueBy == 0 || dueBy >= currentTimestamp
-                || remainingPrincipal == 0
+            config.interestRateBps == 0 || config.numberOfPeriodsPerYear > MAX_DAYS_PER_YEAR || dueBy == 0
+                || dueBy >= currentTimestamp || remainingPrincipal == 0
         ) {
             return state;
+        }
+
+        // Handle simple interest case (numberOfPeriodsPerYear == 0)
+        if (config.numberOfPeriodsPerYear == 0) {
+            return _computeSimpleInterest(remainingPrincipal, dueBy, config, state, currentTimestamp);
         }
 
         uint256 numberOfPeriodsPerYear = uint256(config.numberOfPeriodsPerYear);
@@ -94,6 +100,52 @@ library CompoundInterestLib {
         return InterestComputationState({
             accruedInterest: totalAccruedInterest,
             latestPeriodNumber: currentPeriodNumber,
+            protocolFeeBps: state.protocolFeeBps,
+            totalGrossInterestPaid: state.totalGrossInterestPaid
+        });
+    }
+
+    /**
+     * @dev Compute simple interest when numberOfPeriodsPerYear is 0 (no compounding)
+     * Simple Interest = Principal × Rate × Time (in days)
+     * Interest accrues daily, not continuously
+     * @param remainingPrincipal The remaining principal to compute interest for
+     * @param dueBy The dueBy date
+     * @param config The interest configuration
+     * @param state The current interest computation state
+     * @param currentTimestamp The current timestamp
+     */
+    function _computeSimpleInterest(
+        uint256 remainingPrincipal,
+        uint256 dueBy,
+        InterestConfig memory config,
+        InterestComputationState memory state,
+        uint256 currentTimestamp
+    ) private pure returns (InterestComputationState memory) {
+        // Calculate elapsed time in seconds since due date
+        uint256 secondsElapsed = currentTimestamp - dueBy;
+
+        // Calculate complete days elapsed (interest only accrues on complete days)
+        uint256 daysElapsed = secondsElapsed / 1 days;
+
+        // If no complete days have elapsed, return the current state
+        if (daysElapsed == 0) {
+            return state;
+        }
+
+        // Convert days to years (scaled by ONE for precision)
+        uint256 yearsElapsedScaled = Math.mulDiv(daysElapsed, ONE, MAX_DAYS_PER_YEAR);
+
+        // Calculate the annual interest rate (including protocol fee)
+        uint256 annualRateScaled = Math.mulDiv(uint256(config.interestRateBps + state.protocolFeeBps), ONE, MAX_BPS);
+
+        // Calculate total simple interest for the complete days: Principal × Rate × Time
+        uint256 totalSimpleInterest =
+            Math.mulDiv(Math.mulDiv(remainingPrincipal, annualRateScaled, ONE), yearsElapsedScaled, ONE);
+
+        return InterestComputationState({
+            accruedInterest: totalSimpleInterest,
+            latestPeriodNumber: 0, // No periods for simple interest
             protocolFeeBps: state.protocolFeeBps,
             totalGrossInterestPaid: state.totalGrossInterestPaid
         });
