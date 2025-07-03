@@ -2066,13 +2066,13 @@ contract TestBullaFrendLend is Test {
     // CompoundInterestLib Test Cases
     // ========================================
 
-    function testCompoundInterestLib_ValidateInterestConfig_ZeroPeriodsPerYear() public {
+    function testCompoundInterestLib_ValidateInterestConfig_ZeroPeriodsPerYear() public pure {
         InterestConfig memory config = InterestConfig({
             interestRateBps: 1000,
-            numberOfPeriodsPerYear: 0 // Invalid - should revert
+            numberOfPeriodsPerYear: 0 // Valid - means simple interest (no compounding)
         });
 
-        vm.expectRevert(CompoundInterestLib.InvalidPeriodsPerYear.selector);
+        // Should not revert - zero periods per year is now valid for simple interest
         CompoundInterestLib.validateInterestConfig(config);
     }
 
@@ -2190,6 +2190,94 @@ contract TestBullaFrendLend is Test {
         // Should return unchanged state since we're before due date
         assertEq(result.latestPeriodNumber, 0, "Period number should remain 0");
         assertEq(result.accruedInterest, 0, "No interest should accrue before due date");
+    }
+
+    function testCompoundInterestLib_ComputeSimpleInterest() public {
+        InterestConfig memory config = InterestConfig({
+            interestRateBps: 1000, // 10% annual interest
+            numberOfPeriodsPerYear: 0 // Simple interest (no compounding)
+        });
+
+        InterestComputationState memory state = InterestComputationState({
+            accruedInterest: 0,
+            latestPeriodNumber: 0,
+            protocolFeeBps: 0,
+            totalGrossInterestPaid: 0
+        });
+
+        uint256 remainingPrincipal = 1 ether;
+        uint256 dueBy = 1000000; // Fixed timestamp in the past
+
+        // Warp to 1 year after due date
+        vm.warp(dueBy + 365 days);
+
+        InterestComputationState memory result =
+            CompoundInterestLib.computeInterest(remainingPrincipal, dueBy, config, state);
+
+        // For simple interest: Interest = Principal × Rate × Time
+        // Expected: 1 ether × 10% × 1 year = 0.1 ether
+        assertEq(result.accruedInterest, 0.1 ether, "Simple interest should be 10% of principal for 1 year");
+        assertEq(result.latestPeriodNumber, 0, "Period number should remain 0 for simple interest");
+    }
+
+    function testCompoundInterestLib_ComputeSimpleInterest_PartialDay() public {
+        InterestConfig memory config = InterestConfig({
+            interestRateBps: 1000, // 10% annual interest
+            numberOfPeriodsPerYear: 0 // Simple interest (no compounding)
+        });
+
+        InterestComputationState memory state = InterestComputationState({
+            accruedInterest: 0,
+            latestPeriodNumber: 0,
+            protocolFeeBps: 0,
+            totalGrossInterestPaid: 0
+        });
+
+        uint256 remainingPrincipal = 1 ether;
+        uint256 dueBy = 1000000; // Fixed timestamp in the past
+
+        // Warp to 12 hours after due date (partial day)
+        vm.warp(dueBy + 12 hours);
+
+        InterestComputationState memory result =
+            CompoundInterestLib.computeInterest(remainingPrincipal, dueBy, config, state);
+
+        // For simple interest with daily accrual: no interest should accrue for partial days
+        assertEq(result.accruedInterest, 0, "No interest should accrue for partial days");
+        assertEq(result.latestPeriodNumber, 0, "Period number should be 0 for partial days");
+    }
+
+    function testCompoundInterestLib_ComputeSimpleInterest_MultipleDays() public {
+        InterestConfig memory config = InterestConfig({
+            interestRateBps: 3650, // 36.5% annual interest for easy calculation (0.1% per day)
+            numberOfPeriodsPerYear: 0 // Simple interest (no compounding)
+        });
+
+        InterestComputationState memory state = InterestComputationState({
+            accruedInterest: 0,
+            latestPeriodNumber: 0,
+            protocolFeeBps: 0,
+            totalGrossInterestPaid: 0
+        });
+
+        uint256 remainingPrincipal = 1 ether;
+        uint256 dueBy = 1000000; // Fixed timestamp in the past
+
+        // Warp to 10 complete days after due date
+        vm.warp(dueBy + 10 days);
+
+        InterestComputationState memory result =
+            CompoundInterestLib.computeInterest(remainingPrincipal, dueBy, config, state);
+
+        // For simple interest: Interest = Principal × Rate × Time
+        // Expected: 1 ether × 36.5% × (10/365) year ≈ 0.01 ether (1% total)
+        assertApproxEqAbs(
+            result.accruedInterest,
+            0.01 ether,
+            1,
+            "Simple interest should be approximately 1% of principal for 10 days at 36.5% annual rate"
+        );
+        assertEq(result.latestPeriodNumber, 0, "Period number should remain 0 for simple interest");
     }
 
     // ========================================
@@ -2649,5 +2737,203 @@ contract TestBullaFrendLend is Test {
         );
 
         assertGt(interest2, interest1, "Loan 2 should have higher interest due to higher rate and amount");
+    }
+
+    // ========================================
+    // Simple Interest Test Cases
+    // ========================================
+
+    function testLoanSimpleInterest() public {
+        // Set protocol fee to 0 for cleaner calculations
+        vm.prank(admin);
+        bullaFrendLend.setProtocolFee(0);
+
+        // Setup loan with simple interest (numberOfPeriodsPerYear = 0)
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 1 ether);
+
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withLoanAmount(1 ether).withTermLength(30 days).withInterestRateBps(1000)
+            .withNumberOfPeriodsPerYear(0) // 10% annual simple interest
+            .build();
+
+        vm.prank(creditor);
+        uint256 loanId = bullaFrendLend.offerLoan(offer);
+
+        bullaClaim.approvalRegistry().permitCreateClaim({
+            user: debtor,
+            controller: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
+        });
+
+        vm.prank(debtor);
+        uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
+
+        // Get the acceptance date for calculations
+        Loan memory initialLoan = bullaFrendLend.getLoan(claimId);
+        uint256 acceptedAt = initialLoan.acceptedAt;
+
+        // Test 1: Right after acceptance - should have no interest
+        Loan memory loanAtAcceptance = bullaFrendLend.getLoan(claimId);
+        assertEq(
+            loanAtAcceptance.interestComputationState.accruedInterest,
+            0,
+            "No interest should accrue immediately after acceptance"
+        );
+
+        // Test 2: Partial day should not accrue interest
+        vm.warp(acceptedAt + 12 hours); // 12 hours after acceptance
+
+        Loan memory loanPartialDay = bullaFrendLend.getLoan(claimId);
+        assertEq(
+            loanPartialDay.interestComputationState.accruedInterest, 0, "No interest should accrue for partial days"
+        );
+        assertEq(
+            loanPartialDay.interestComputationState.latestPeriodNumber, 0, "Period number should be 0 for partial days"
+        );
+
+        // Test 3: 10 complete days should accrue interest
+        vm.warp(acceptedAt + 10 days);
+
+        Loan memory loan10Days = bullaFrendLend.getLoan(claimId);
+
+        // For simple interest: Interest = Principal × Rate × Time
+        // Expected: 1 ether × 10% × (10/365) year ≈ 0.00274 ether
+        assertApproxEqAbs(
+            loan10Days.interestComputationState.accruedInterest,
+            2739726027397260, // Expected value in wei
+            10000, // Allow for rounding errors
+            "Simple interest should be calculated correctly for 10 days"
+        );
+        assertEq(
+            loan10Days.interestComputationState.latestPeriodNumber,
+            0,
+            "Period number should remain 0 for simple interest"
+        );
+
+        // Test 4: 365 days (1 year) should accrue 10% interest
+        vm.warp(acceptedAt + 365 days);
+
+        Loan memory loan1Year = bullaFrendLend.getLoan(claimId);
+        assertEq(
+            loan1Year.interestComputationState.accruedInterest,
+            0.1 ether,
+            "Simple interest should be exactly 10% for 1 year"
+        );
+        assertEq(
+            loan1Year.interestComputationState.latestPeriodNumber,
+            0,
+            "Period number should remain 0 for simple interest"
+        );
+
+        // Test 5: 730 days (2 years) should accrue 20% interest (linear growth)
+        vm.warp(acceptedAt + 730 days);
+
+        Loan memory loan2Years = bullaFrendLend.getLoan(claimId);
+        assertEq(
+            loan2Years.interestComputationState.accruedInterest,
+            0.2 ether,
+            "Simple interest should be exactly 20% for 2 years (linear growth)"
+        );
+        assertEq(
+            loan2Years.interestComputationState.latestPeriodNumber,
+            0,
+            "Period number should remain 0 for simple interest"
+        );
+
+        // Test 6: Verify simple interest behavior is linear
+        assertEq(
+            loan2Years.interestComputationState.accruedInterest,
+            2 * loan1Year.interestComputationState.accruedInterest,
+            "Simple interest should be linear - 2 years should be exactly double 1 year"
+        );
+    }
+
+    function testLoanSimpleVsCompoundInterest() public {
+        // Set protocol fee to 0 for cleaner calculations
+        vm.prank(admin);
+        bullaFrendLend.setProtocolFee(0);
+
+        // Setup two identical loans, one with simple interest, one with compound
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 2 ether);
+
+        // Simple interest loan (numberOfPeriodsPerYear = 0)
+        LoanRequestParams memory simpleOffer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withLoanAmount(1 ether).withTermLength(30 days).withInterestRateBps(1200)
+            .withNumberOfPeriodsPerYear(0).withDescription("Simple Interest Loan") // 12% annual simple interest
+            .build();
+
+        // Compound interest loan (numberOfPeriodsPerYear = 12)
+        LoanRequestParams memory compoundOffer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(
+            debtor
+        ).withToken(address(weth)).withLoanAmount(1 ether).withTermLength(30 days).withInterestRateBps(1200)
+            .withNumberOfPeriodsPerYear(12).withDescription("Compound Interest Loan") // 12% annual compound interest, monthly
+            .build();
+
+        vm.prank(creditor);
+        uint256 simpleLoanId = bullaFrendLend.offerLoan(simpleOffer);
+
+        vm.prank(creditor);
+        uint256 compoundLoanId = bullaFrendLend.offerLoan(compoundOffer);
+
+        bullaClaim.approvalRegistry().permitCreateClaim({
+            user: debtor,
+            controller: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 2,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 2,
+                isBindingAllowed: true
+            })
+        });
+
+        vm.prank(debtor);
+        uint256 simpleClaimId = bullaFrendLend.acceptLoan{value: FEE}(simpleLoanId);
+
+        vm.prank(debtor);
+        uint256 compoundClaimId = bullaFrendLend.acceptLoan{value: FEE}(compoundLoanId);
+
+        // Fast forward to 1 year after loan acceptance
+        Loan memory simpleLoanInitial = bullaFrendLend.getLoan(simpleClaimId);
+        vm.warp(simpleLoanInitial.acceptedAt + 365 days);
+
+        Loan memory simpleLoan = bullaFrendLend.getLoan(simpleClaimId);
+        Loan memory compoundLoan = bullaFrendLend.getLoan(compoundClaimId);
+
+        // Simple interest should be exactly 12% (linear)
+        assertEq(
+            simpleLoan.interestComputationState.accruedInterest,
+            0.12 ether,
+            "Simple interest should be exactly 12% for 1 year"
+        );
+        assertEq(
+            simpleLoan.interestComputationState.latestPeriodNumber, 0, "Simple interest should have period number 0"
+        );
+
+        // Compound interest should be higher than simple interest
+        assertTrue(
+            compoundLoan.interestComputationState.accruedInterest > simpleLoan.interestComputationState.accruedInterest,
+            "Compound interest should be higher than simple interest over time"
+        );
+        assertTrue(
+            compoundLoan.interestComputationState.latestPeriodNumber > 0,
+            "Compound interest should have period number > 0"
+        );
     }
 }
