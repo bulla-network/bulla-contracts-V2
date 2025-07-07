@@ -1,3 +1,10 @@
+# [1.10.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.9.2...v1.10.0) (2025-07-07)
+
+
+### Features
+
+* implement simple interest ([#75](https://github.com/bulla-network/bulla-contracts-V2/issues/75)) ([6adf21c](https://github.com/bulla-network/bulla-contracts-V2/commit/6adf21c65bb4c57f12685da7f9f68f4136432ab5))
+
 ## [1.9.2](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.9.1...v1.9.2) (2025-07-02)
 
 
