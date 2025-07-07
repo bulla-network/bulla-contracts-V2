@@ -368,6 +368,62 @@ contract TestBullaInvoiceInterest is Test {
         assertEq(invoice.interestComputationState.accruedInterest, 0, "No interest should accrue with 0% interest rate");
     }
 
+    // Test simple interest configuration (numberOfPeriodsPerYear = 0)
+    function testSimpleInterestConfig() public {
+        uint256 dueBy = block.timestamp + 30 days;
+
+        // Create invoice with simple interest configuration
+        InterestConfig memory simpleInterestConfig = InterestConfig({
+            interestRateBps: 1000, // 10% interest
+            numberOfPeriodsPerYear: 0 // Simple interest (no compounding)
+        });
+
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withToken(address(token)).withDueBy(dueBy).withLateFeeConfig(simpleInterestConfig).build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Test partial day doesn't accrue interest
+        vm.warp(dueBy + 12 hours); // Only half a day
+        Invoice memory invoicePartialDay = bullaInvoice.getInvoice(invoiceId);
+        assertEq(
+            invoicePartialDay.interestComputationState.accruedInterest, 0, "No interest should accrue for partial days"
+        );
+
+        // Warp to 365 complete days (1 year) after due date
+        vm.warp(dueBy + 365 days);
+
+        // Check that simple interest accrued
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+
+        // For simple interest: Interest = Principal × Rate × Time
+        // Expected: 1 ether × 10% × 1 year = 0.1 ether
+        assertEq(
+            invoice.interestComputationState.accruedInterest,
+            0.1 ether,
+            "Simple interest should be 10% of principal for 1 year"
+        );
+        assertEq(
+            invoice.interestComputationState.latestPeriodNumber, 0, "Period number should remain 0 for simple interest"
+        );
+
+        // Test that exactly 730 days (2 years) gives double interest
+        vm.warp(dueBy + 730 days);
+
+        Invoice memory invoiceAfter2Years = bullaInvoice.getInvoice(invoiceId);
+        assertEq(
+            invoiceAfter2Years.interestComputationState.accruedInterest,
+            0.2 ether,
+            "Simple interest should be 20% of principal for 2 years"
+        );
+        assertEq(
+            invoiceAfter2Years.interestComputationState.latestPeriodNumber,
+            0,
+            "Period number should remain 0 for simple interest"
+        );
+    }
+
     // Test paying principal and interest together
     function testPayingPrincipalAndInterest() public {
         uint256 dueBy = block.timestamp + 30 days;
