@@ -24,7 +24,7 @@ import {
     InvalidMsgValue,
     NotAuthorizedForBinding
 } from "contracts/BullaInvoice.sol";
-import {Deployer} from "script/Deployment.s.sol";
+import {DeployContracts} from "script/DeployContracts.s.sol";
 import {CreateInvoiceParamsBuilder} from "test/foundry/BullaInvoice/CreateInvoiceParamsBuilder.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
@@ -50,11 +50,15 @@ contract TestBullaInvoice is Test {
     function setUp() public {
         weth = new WETH();
 
-        bullaClaim = (new Deployer()).deploy_test({
-            _deployer: address(this),
-            _initialLockState: LockState.Unlocked,
-            _coreProtocolFee: 0
-        });
+        DeployContracts.DeploymentResult memory deploymentResult = (new DeployContracts()).deployForTest(
+            address(this), // deployer
+            LockState.Unlocked, // initialLockState
+            0, // coreProtocolFee
+            0, // invoiceProtocolFeeBPS
+            0, // frendLendProtocolFeeBPS
+            address(this) // admin
+        );
+        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
         bullaInvoice = new BullaInvoice(address(bullaClaim), admin, 0);
 

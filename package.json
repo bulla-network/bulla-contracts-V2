@@ -49,9 +49,11 @@
     "coverage": "forge coverage --report lcov && node -e \"const fs=require('fs'); const data=fs.readFileSync('lcov.info','utf8'); fs.writeFileSync('lcov.info', data.split('\\n').filter(line => !line.includes('SF:src/mocks/')).join('\\n'));\"",
     "prepare": "husky install",
     "prepublishOnly": "yarn build && yarn test",
-    "semantic-release": "semantic-release"
+    "semantic-release": "semantic-release",
+    "deploy:sepolia": "cross-env NETWORK=sepolia forge script script/DeployContracts.s.sol:DeployContracts --rpc-url $SEPOLIA_RPC_URL --broadcast --private-key $PRIVATE_KEY --ffi"
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "husky": "^7.0.0",
     "solidity-coverage": "^0.8.2",
     "toml": "^3.0.0",

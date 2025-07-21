@@ -21,7 +21,7 @@ import {
     LoanOfferNotFound,
     NotCreditorOrDebtor
 } from "contracts/BullaFrendLend.sol";
-import {Deployer} from "script/Deployment.s.sol";
+import {DeployContracts} from "script/DeployContracts.s.sol";
 import {MockERC20} from "contracts/mocks/MockERC20.sol";
 import {LoanRequestParamsBuilder} from "./LoanRequestParamsBuilder.t.sol";
 import {
@@ -60,11 +60,15 @@ contract TestBullaFrendLend is Test {
         usdc = new MockERC20("USD Coin", "USDC", 6);
         dai = new MockERC20("Dai Stablecoin", "DAI", 18);
 
-        bullaClaim = (new Deployer()).deploy_test({
-            _deployer: address(this),
-            _initialLockState: LockState.Unlocked,
-            _coreProtocolFee: FEE
-        });
+        DeployContracts.DeploymentResult memory deploymentResult = (new DeployContracts()).deployForTest(
+            address(this), // deployer
+            LockState.Unlocked, // initialLockState
+            FEE, // coreProtocolFee
+            PROTOCOL_FEE_BPS, // invoiceProtocolFeeBPS
+            PROTOCOL_FEE_BPS, // frendLendProtocolFeeBPS
+            address(this) // admin
+        );
+        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
         bullaFrendLend = new BullaFrendLend(address(bullaClaim), admin, PROTOCOL_FEE_BPS);
 

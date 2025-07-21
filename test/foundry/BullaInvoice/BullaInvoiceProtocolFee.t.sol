@@ -24,7 +24,7 @@ import {
     WithdrawalFailed,
     IncorrectMsgValue
 } from "contracts/BullaInvoice.sol";
-import {Deployer} from "script/Deployment.s.sol";
+import {DeployContracts} from "script/DeployContracts.s.sol";
 import {CreateInvoiceParamsBuilder} from "test/foundry/BullaInvoice/CreateInvoiceParamsBuilder.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
@@ -62,11 +62,9 @@ contract TestBullaInvoiceProtocolFee is Test {
         token1 = new ERC20Mock("Token1", "TK1", debtor, 1000 ether);
         token2 = new ERC20Mock("Token2", "TK2", debtor, 1000 ether);
 
-        bullaClaim = (new Deployer()).deploy_test({
-            _deployer: address(this),
-            _initialLockState: LockState.Unlocked,
-            _coreProtocolFee: 0 ether
-        });
+        DeployContracts.DeploymentResult memory deploymentResult =
+            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0 ether, 0, 0, address(this));
+        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
 
         // Start with 10% protocol fee for mathematical simplicity (interest % = protocol fee %)

@@ -4,7 +4,7 @@ import "forge-std/Test.sol";
 import "contracts/BullaFrendLend.sol";
 import "contracts/interfaces/IBullaFrendLend.sol";
 import {EIP712Helper} from "test/foundry/BullaClaim/EIP712/Utils.sol";
-import {Deployer} from "script/Deployment.s.sol";
+import {DeployContracts} from "script/DeployContracts.s.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
@@ -17,7 +17,9 @@ contract BullaFrendLendERC165Test is Test {
     uint16 constant PROTOCOL_FEE_BPS = 1000; // 10%
 
     function setUp() public {
-        bullaClaim = (new Deployer()).deploy_test(address(this), LockState.Unlocked, FEE);
+        DeployContracts.DeploymentResult memory deploymentResult =
+            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, FEE, 0, 0, address(this));
+        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
         bullaFrendLend = new BullaFrendLend(address(bullaClaim), admin, PROTOCOL_FEE_BPS);
     }
 

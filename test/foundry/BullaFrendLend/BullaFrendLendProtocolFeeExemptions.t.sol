@@ -25,7 +25,7 @@ import {
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {BullaFrendLend} from "contracts/BullaFrendLend.sol";
 import {WhitelistPermissions} from "contracts/WhitelistPermissions.sol";
-import {Deployer} from "script/Deployment.s.sol";
+import {DeployContracts} from "script/DeployContracts.s.sol";
 import {LoanRequestParamsBuilder} from "test/foundry/BullaFrendLend/LoanRequestParamsBuilder.t.sol";
 import {EIP712Helper} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 
@@ -76,11 +76,9 @@ contract TestBullaFrendLendProtocolFeeExemptions is Test {
 
         // Deploy BullaClaim with fee exemptions
         vm.prank(_owner);
-        bullaClaim = (new Deployer()).deploy_test({
-            _deployer: _owner,
-            _initialLockState: LockState.Unlocked,
-            _coreProtocolFee: _CORE_PROTOCOL_FEE
-        });
+        DeployContracts.DeploymentResult memory deploymentResult =
+            (new DeployContracts()).deployForTest(_owner, LockState.Unlocked, _CORE_PROTOCOL_FEE, 0, 0, _owner);
+        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
 
         // Set fee exemptions contract on BullaClaim
         vm.prank(_owner);

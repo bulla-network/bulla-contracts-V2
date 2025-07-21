@@ -15,7 +15,7 @@ import {
 } from "contracts/types/Types.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {PenalizedClaim} from "contracts/mocks/PenalizedClaim.sol";
-import {Deployer} from "script/Deployment.s.sol";
+import {DeployContracts} from "script/DeployContracts.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {ClaimMetadataGenerator} from "contracts/ClaimMetadataGenerator.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
@@ -42,11 +42,15 @@ contract TestCreateClaim is BullaClaimTestHelper {
     function setUp() public {
         weth = new WETH();
 
-        bullaClaim = (new Deployer()).deploy_test({
-            _deployer: address(this),
-            _initialLockState: LockState.Unlocked,
-            _coreProtocolFee: 0
-        });
+        DeployContracts.DeploymentResult memory deploymentResult = (new DeployContracts()).deployForTest(
+            address(this), // deployer
+            LockState.Unlocked, // initialLockState
+            0, // coreProtocolFee
+            0, // invoiceProtocolFeeBPS
+            0, // frendLendProtocolFeeBPS
+            address(this) // admin
+        );
+        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
         approvalRegistry = bullaClaim.approvalRegistry();
         _newClaim(creditor, creditor, debtor);
     }

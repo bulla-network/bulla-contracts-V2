@@ -5,7 +5,7 @@ import {DSTestPlus} from "solmate/test/utils/DSTestPlus.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {IBullaClaim} from "contracts/interfaces/IBullaClaim.sol";
 import {Claim, Status, ClaimBinding, LockState, CreateClaimParams} from "contracts/types/Types.sol";
-import {Deployer} from "script/Deployment.s.sol";
+import {DeployContracts} from "script/DeployContracts.s.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "src/libraries/BullaClaimValidationLib.sol";
 import {IERC721Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
@@ -19,11 +19,9 @@ contract ERC721Test is DSTestPlus {
     address debtor = address(0x02);
 
     function setUp() public {
-        token = (new Deployer()).deploy_test({
-            _deployer: address(this),
-            _initialLockState: LockState.Unlocked,
-            _coreProtocolFee: 0
-        });
+        DeployContracts.DeploymentResult memory deploymentResult =
+            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
+        token = BullaClaim(deploymentResult.bullaClaim);
     }
 
     function _mint() private returns (uint256 claimId) {

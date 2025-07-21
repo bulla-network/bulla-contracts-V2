@@ -17,7 +17,7 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {FeeOnTransferToken} from "contracts/mocks/FeeOnTransferToken.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {Claim, Status, ClaimBinding, CreateClaimParams, LockState} from "contracts/types/Types.sol";
-import {Deployer} from "script/Deployment.s.sol";
+import {DeployContracts} from "script/DeployContracts.s.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 
 contract TestPayClaimWithWeirdTokens is Test {
@@ -42,7 +42,9 @@ contract TestPayClaimWithWeirdTokens is Test {
         vm.label(debtor, "DEBTOR");
         vm.label(address(this), "TEST_CONTRACT");
 
-        bullaClaim = (new Deployer()).deploy_test(address(this), LockState.Unlocked, 0);
+        DeployContracts.DeploymentResult memory deploymentResult =
+            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
+        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
 
         reverting = new RevertingToken();
         returnsTwo = new ReturnsTwoToken();

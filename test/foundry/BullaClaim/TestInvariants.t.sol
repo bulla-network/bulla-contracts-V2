@@ -8,7 +8,7 @@ import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {BullaHelpers} from "contracts/libraries/BullaHelpers.sol";
-import {Deployer} from "script/Deployment.s.sol";
+import {DeployContracts} from "script/DeployContracts.s.sol";
 import {Claim, Status, ClaimBinding, LockState, CreateClaimParams} from "contracts/types/Types.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 
@@ -59,11 +59,9 @@ contract TestInvariants is Test {
         vm.label(alice, "ALICE");
 
         vm.prank(contractOwner);
-        bullaClaim = (new Deployer()).deploy_test({
-            _deployer: contractOwner,
-            _initialLockState: LockState.Unlocked,
-            _coreProtocolFee: 0
-        });
+        DeployContracts.DeploymentResult memory deploymentResult =
+            (new DeployContracts()).deployForTest(contractOwner, LockState.Unlocked, 0, 0, 0, contractOwner);
+        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
 
         weth.transferFrom(address(this), creditor, type(uint136).max);
         weth.transferFrom(address(this), debtor, type(uint136).max);

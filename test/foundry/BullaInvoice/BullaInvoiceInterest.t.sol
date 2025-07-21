@@ -20,7 +20,7 @@ import {
     InvoiceDetails,
     NotPurchaseOrder
 } from "contracts/BullaInvoice.sol";
-import {Deployer} from "script/Deployment.s.sol";
+import {DeployContracts} from "script/DeployContracts.s.sol";
 import {CreateInvoiceParamsBuilder} from "test/foundry/BullaInvoice/CreateInvoiceParamsBuilder.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {
@@ -49,11 +49,9 @@ contract TestBullaInvoiceInterest is Test {
         weth = new WETH();
         token = new ERC20Mock("Test Token", "TST", debtor, 10 ether);
 
-        bullaClaim = (new Deployer()).deploy_test({
-            _deployer: address(this),
-            _initialLockState: LockState.Unlocked,
-            _coreProtocolFee: 0
-        });
+        DeployContracts.DeploymentResult memory deploymentResult =
+            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
+        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
         bullaInvoice = new BullaInvoice(address(bullaClaim), admin, 0);
 

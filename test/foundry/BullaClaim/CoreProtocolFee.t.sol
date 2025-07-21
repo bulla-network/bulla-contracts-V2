@@ -15,7 +15,7 @@ import {
     CreateClaimApprovalType
 } from "contracts/types/Types.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
-import {Deployer} from "script/Deployment.s.sol";
+import {DeployContracts} from "script/DeployContracts.s.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {IBullaClaim} from "contracts/interfaces/IBullaClaim.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -57,18 +57,14 @@ contract TestCoreProtocolFee is Test {
 
         // Deploy BullaClaim with standard fee
         vm.startPrank(_owner);
-        bullaClaim = (new Deployer()).deploy_test({
-            _deployer: _owner,
-            _initialLockState: LockState.Unlocked,
-            _coreProtocolFee: _STANDARD_FEE
-        });
+        DeployContracts.DeploymentResult memory deploymentResult =
+            (new DeployContracts()).deployForTest(_owner, LockState.Unlocked, _STANDARD_FEE, 0, 0, _owner);
+        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
 
         // Deploy BullaClaim with zero fee for comparison tests
-        zeroFeeBullaClaim = (new Deployer()).deploy_test({
-            _deployer: _owner,
-            _initialLockState: LockState.Unlocked,
-            _coreProtocolFee: 0
-        });
+        DeployContracts.DeploymentResult memory deploymentResult2 =
+            (new DeployContracts()).deployForTest(_owner, LockState.Unlocked, 0, 0, 0, _owner);
+        zeroFeeBullaClaim = BullaClaim(deploymentResult2.bullaClaim);
         vm.stopPrank();
 
         // Setup balances
