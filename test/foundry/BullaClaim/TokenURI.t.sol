@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 import {Claim, Status, ClaimBinding, LockState, CreateClaimParams, ClaimMetadata} from "contracts/types/Types.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {ClaimMetadataGenerator} from "contracts/ClaimMetadataGenerator.sol";
-import {Deployer} from "script/Deployment.s.sol";
+import {DeployContracts} from "script/DeployContracts.s.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -23,11 +23,9 @@ contract TestTokenURI is Test {
         vm.label(debtor, "DEBTOR");
         vm.label(alice, "ALICE");
 
-        bullaClaim = (new Deployer()).deploy_test({
-            _deployer: address(this),
-            _initialLockState: LockState.Unlocked,
-            _coreProtocolFee: 0
-        });
+        DeployContracts.DeploymentResult memory deploymentResult =
+            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
+        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
     }
 
     function testTokenURIReturnsSetMetadata() public {

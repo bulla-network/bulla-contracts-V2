@@ -45,5 +45,5 @@ Example:
 ```bash
 anvil
 source .env.development # for a local anvil server # $ source .env for prod
-LOCK_STATE=$LOCK_STATE forge script script/Deployment.s.sol:Deployment --fork-url $RPC_URL --private-key $PRIVATE_KEY --broadcast -vvvvv
+yarn deploy:sepolia
 ```

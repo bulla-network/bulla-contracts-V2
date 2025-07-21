@@ -16,7 +16,7 @@ import {
     CreateClaimApprovalType
 } from "contracts/types/Types.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
-import {Deployer} from "script/Deployment.s.sol";
+import {DeployContracts} from "script/DeployContracts.s.sol";
 import {BullaClaimTestHelper, EIP712Helper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 
@@ -38,11 +38,9 @@ contract TestBatchFunctionality is BullaClaimTestHelper {
         vm.label(charlie, "CHARLIE");
         vm.label(alice, "ALICE");
 
-        bullaClaim = (new Deployer()).deploy_test({
-            _deployer: address(this),
-            _initialLockState: LockState.Unlocked,
-            _coreProtocolFee: 0
-        });
+        DeployContracts.DeploymentResult memory deploymentResult =
+            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
+        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
         approvalRegistry = bullaClaim.approvalRegistry();
 

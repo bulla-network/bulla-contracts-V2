@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 import {Claim, Status, ClaimBinding, LockState, CreateClaimParams, ClaimMetadata} from "contracts/types/Types.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {ClaimMetadataGenerator} from "contracts/ClaimMetadataGenerator.sol";
-import {Deployer} from "script/Deployment.s.sol";
+import {DeployContracts} from "script/DeployContracts.s.sol";
 import {IBullaApprovalRegistry} from "contracts/interfaces/IBullaApprovalRegistry.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -17,11 +17,9 @@ contract TestTokenURI is Test {
     address charlie = address(0xC44511E);
 
     function setUp() public {
-        bullaClaim = (new Deployer()).deploy_test({
-            _deployer: address(this),
-            _initialLockState: LockState.Unlocked,
-            _coreProtocolFee: 0
-        });
+        DeployContracts.DeploymentResult memory deploymentResult =
+            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
+        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
         approvalRegistry = bullaClaim.approvalRegistry();
     }
 

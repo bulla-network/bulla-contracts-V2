@@ -7,7 +7,7 @@ import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/U
 import {Claim, Status, ClaimBinding, CreateClaimParams, ClaimMetadata, LockState} from "contracts/types/Types.sol";
 import {BullaClaim, CreateClaimApprovalType} from "contracts/BullaClaim.sol";
 import {PenalizedClaim} from "contracts/mocks/PenalizedClaim.sol";
-import {Deployer} from "script/Deployment.s.sol";
+import {DeployContracts} from "script/DeployContracts.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
@@ -26,11 +26,9 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
     event MetadataAdded(uint256 indexed claimId, string tokenURI, string attachmentURI);
 
     function setUp() public {
-        bullaClaim = (new Deployer()).deploy_test({
-            _deployer: address(this),
-            _initialLockState: LockState.Unlocked,
-            _coreProtocolFee: 0
-        });
+        DeployContracts.DeploymentResult memory deploymentResult =
+            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
+        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
         approvalRegistry = bullaClaim.approvalRegistry();
     }

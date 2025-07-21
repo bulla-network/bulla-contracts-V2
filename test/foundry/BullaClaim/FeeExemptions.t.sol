@@ -18,7 +18,7 @@ import {BullaClaim} from "contracts/BullaClaim.sol";
 import {WhitelistPermissions} from "contracts/WhitelistPermissions.sol";
 import {Permissions} from "contracts/Permissions.sol";
 import {IPermissions} from "contracts/interfaces/IPermissions.sol";
-import {Deployer} from "script/Deployment.s.sol";
+import {DeployContracts} from "script/DeployContracts.s.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
@@ -35,6 +35,7 @@ contract MockERC165Contract is ERC165 {
 
 contract TestFeeExemptions is Test {
     BullaClaim public bullaClaim;
+    BullaClaim public zeroFeeClaim;
     WhitelistPermissions public feeExemptions;
     WETH public weth;
     MockERC20 public token;
@@ -75,11 +76,9 @@ contract TestFeeExemptions is Test {
 
         // Deploy BullaClaim
         vm.prank(_owner);
-        bullaClaim = (new Deployer()).deploy_test({
-            _deployer: _owner,
-            _initialLockState: LockState.Unlocked,
-            _coreProtocolFee: _STANDARD_FEE
-        });
+        DeployContracts.DeploymentResult memory deploymentResult =
+            (new DeployContracts()).deployForTest(_owner, LockState.Unlocked, _STANDARD_FEE, 0, 0, _owner);
+        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
 
         // Set fee exemptions contract
         vm.prank(_owner);
@@ -398,11 +397,9 @@ contract TestFeeExemptions is Test {
     function testFeeExemptionWithZeroProtocolFee() public {
         // Deploy claim with zero fee
         vm.prank(_owner);
-        BullaClaim zeroFeeClaim = (new Deployer()).deploy_test({
-            _deployer: _owner,
-            _initialLockState: LockState.Unlocked,
-            _coreProtocolFee: 0
-        });
+        DeployContracts.DeploymentResult memory deploymentResult =
+            (new DeployContracts()).deployForTest(_owner, LockState.Unlocked, 0, 0, 0, _owner);
+        zeroFeeClaim = BullaClaim(deploymentResult.bullaClaim);
 
         vm.prank(_owner);
         zeroFeeClaim.setFeeExemptions(address(feeExemptions));

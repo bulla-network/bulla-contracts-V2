@@ -26,7 +26,7 @@ import {
     InvalidDepositAmount
 } from "contracts/BullaInvoice.sol";
 import {InvoiceDetailsBuilder} from "test/foundry/BullaInvoice/InvoiceDetailsBuilder.t.sol";
-import {Deployer} from "script/Deployment.s.sol";
+import {DeployContracts} from "script/DeployContracts.s.sol";
 import {CreateInvoiceParamsBuilder} from "test/foundry/BullaInvoice/CreateInvoiceParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
 import {InterestConfig, InterestComputationState} from "contracts/libraries/CompoundInterestLib.sol";
@@ -65,11 +65,10 @@ contract TestCreateSelfBillingInvoiceWithMetadata is Test {
         weth = new WETH();
         testToken = new ERC20Mock("Test Token", "TEST", address(this), 1000000 ether);
 
-        bullaClaim = (new Deployer()).deploy_test({
-            _deployer: address(this),
-            _initialLockState: LockState.Unlocked,
-            _coreProtocolFee: CORE_PROTOCOL_FEE
-        });
+        DeployContracts.DeploymentResult memory deploymentResult = (new DeployContracts()).deployForTest(
+            address(this), LockState.Unlocked, CORE_PROTOCOL_FEE, 0, 0, address(this)
+        );
+        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
 
         // Main invoice contract with origination fees

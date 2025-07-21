@@ -2,7 +2,7 @@
 pragma solidity ^0.8.30;
 
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
-import {Deployer} from "script/Deployment.s.sol";
+import {DeployContracts} from "script/DeployContracts.s.sol";
 import "contracts/BullaClaim.sol";
 import "contracts/mocks/PenalizedClaim.sol";
 import "contracts/mocks/ERC1271Wallet.sol";
@@ -26,11 +26,9 @@ contract TestGnosisSafeSignatures is Test {
     SignMessageLib internal signMessageLib;
 
     function _setup(address[] memory _owners) internal {
-        bullaClaim = (new Deployer()).deploy_test({
-            _deployer: address(this),
-            _initialLockState: LockState.Unlocked,
-            _coreProtocolFee: 0
-        });
+        DeployContracts.DeploymentResult memory deploymentResult =
+            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
+        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
 
         sigHelper = new EIP712Helper(address(bullaClaim));
         CompatibilityFallbackHandler_patch handler = new CompatibilityFallbackHandler_patch();

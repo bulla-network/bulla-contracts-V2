@@ -4,7 +4,7 @@ import "forge-std/Test.sol";
 import "contracts/BullaInvoice.sol";
 // Note: We're testing interface detection without importing IBullaInvoice to avoid conflicts
 import {EIP712Helper} from "test/foundry/BullaClaim/EIP712/Utils.sol";
-import {Deployer} from "script/Deployment.s.sol";
+import {DeployContracts} from "script/DeployContracts.s.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
@@ -16,11 +16,9 @@ contract BullaInvoiceERC165Test is Test {
     uint16 constant PROTOCOL_FEE_BPS = 1000; // 10%
 
     function setUp() public {
-        bullaClaim = (new Deployer()).deploy_test({
-            _deployer: address(this),
-            _initialLockState: LockState.Unlocked,
-            _coreProtocolFee: 0
-        });
+        DeployContracts.DeploymentResult memory deploymentResult =
+            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
+        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
         bullaInvoice = new BullaInvoice(address(bullaClaim), admin, PROTOCOL_FEE_BPS);
     }
 

@@ -4,7 +4,7 @@ pragma solidity ^0.8.15;
 import {BullaClaimTestHelper} from "./BullaClaimTestHelper.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {Claim, Status, ClaimBinding, LockState, CreateClaimParams} from "contracts/types/Types.sol";
-import {Deployer} from "script/Deployment.s.sol";
+import {DeployContracts} from "script/DeployContracts.s.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {IERC721Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {IBullaClaim} from "contracts/interfaces/IBullaClaim.sol";
@@ -148,11 +148,9 @@ contract ControlledClaimTransferTest is BullaClaimTestHelper {
 
     function setUp() public {
         weth = new WETH();
-        bullaClaim = (new Deployer()).deploy_test({
-            _deployer: address(this),
-            _initialLockState: LockState.Unlocked,
-            _coreProtocolFee: 0
-        });
+        DeployContracts.DeploymentResult memory deploymentResult =
+            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
+        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
         approvalRegistry = bullaClaim.approvalRegistry();
         sigHelper = new EIP712Helper(address(bullaClaim));
 

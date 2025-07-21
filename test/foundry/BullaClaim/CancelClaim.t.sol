@@ -7,7 +7,7 @@ import "contracts/types/Types.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
-import {Deployer} from "script/Deployment.s.sol";
+import {DeployContracts} from "script/DeployContracts.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
@@ -33,7 +33,9 @@ contract TestCancelClaim is BullaClaimTestHelper {
         vm.label(creditor, "CREDITOR");
         vm.label(debtor, "DEBTOR");
 
-        bullaClaim = (new Deployer()).deploy_test(deployer, LockState.Unlocked, 0);
+        DeployContracts.DeploymentResult memory deploymentResult =
+            (new DeployContracts()).deployForTest(deployer, LockState.Unlocked, 0, 0, 0, deployer);
+        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
         approvalRegistry = bullaClaim.approvalRegistry();
         mockController = new MockController(address(bullaClaim));

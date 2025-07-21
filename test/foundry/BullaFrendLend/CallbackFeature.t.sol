@@ -17,7 +17,7 @@ import {BullaClaim} from "contracts/BullaClaim.sol";
 import {
     BullaFrendLend, LoanRequestParams, Loan, LoanOffer, InvalidCallback, CallbackFailed
 } from "src/BullaFrendLend.sol";
-import {Deployer} from "script/Deployment.s.sol";
+import {DeployContracts} from "script/DeployContracts.s.sol";
 import {BullaFrendLendTestHelper} from "test/foundry/BullaFrendLend/BullaFrendLendTestHelper.sol";
 import {EIP712Helper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {LoanRequestParamsBuilder} from "test/foundry/BullaFrendLend/LoanRequestParamsBuilder.t.sol";
@@ -87,11 +87,9 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
         debtor = vm.addr(debtorPK);
 
         // Initialize the base contracts
-        bullaClaim = (new Deployer()).deploy_test({
-            _deployer: address(this),
-            _initialLockState: LockState.Unlocked,
-            _coreProtocolFee: FEE
-        });
+        DeployContracts.DeploymentResult memory deploymentResult =
+            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, FEE, 0, 0, address(this));
+        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
         approvalRegistry = bullaClaim.approvalRegistry();
 
