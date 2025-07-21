@@ -1,3 +1,15 @@
+# [1.11.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.10.0...v1.11.0) (2025-07-21)
+
+
+### Bug Fixes
+
+* run yarn ([6f44c66](https://github.com/bulla-network/bulla-contracts-V2/commit/6f44c66bb5c91703382c594dedbdb23de00a597e))
+
+
+### Features
+
+* update deployment scripts for v2 protocol ([#77](https://github.com/bulla-network/bulla-contracts-V2/issues/77)) ([6bcb8d6](https://github.com/bulla-network/bulla-contracts-V2/commit/6bcb8d60203f314532cc6fbb5fbad644434b3e57))
+
 # [1.10.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.9.2...v1.10.0) (2025-07-07)
 
 
