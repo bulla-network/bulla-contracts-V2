@@ -23,7 +23,7 @@ AVALANCHE_RPC_URL=https://api.avax.network/ext/bc/C/rpc
 
 # ===== PRIVATE KEY =====
 # Private key for deployment (without 0x prefix)
-PRIVATE_KEY=your_private_key_here
+PRIVATE_KEY=
 
 # ===== ETHERSCAN API KEYS =====
 # For contract verification
