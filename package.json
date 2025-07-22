@@ -50,16 +50,19 @@
     "prepare": "husky install",
     "prepublishOnly": "yarn build && yarn test",
     "semantic-release": "semantic-release",
-    "deploy:sepolia": "cross-env NETWORK=sepolia forge script script/DeployContracts.s.sol:DeployContracts --rpc-url $SEPOLIA_RPC_URL --broadcast --private-key $PRIVATE_KEY --ffi"
+    "deploy:sepolia": "dotenv -e .env -- cross-env NETWORK=sepolia node script/deploy.js",
+    "verify:sepolia": "dotenv -e .env -- cross-env NETWORK=sepolia node script/verify-broadcast.js",
+    "verify": "dotenv -e .env -- node script/verify-broadcast.js"
   },
   "devDependencies": {
-    "cross-env": "^7.0.3",
-    "husky": "^7.0.0",
-    "solidity-coverage": "^0.8.2",
-    "toml": "^3.0.0",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
-    "semantic-release": "^21.0.7"
+    "cross-env": "^7.0.3",
+    "dotenv-cli": "^8.0.0",
+    "husky": "^7.0.0",
+    "semantic-release": "^21.0.7",
+    "solidity-coverage": "^0.8.2",
+    "toml": "^3.0.0"
   },
   "release": {
     "branches": [

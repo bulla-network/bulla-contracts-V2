@@ -8,6 +8,7 @@ optimizer = true
 optimizer_runs = 2_000_000
 fuzz_runs = 256
 gas_reports = ['BullaClaim']
+fs_permissions = [{ access = "read-write", path = "./deployments" }]
 remappings = [
     'contracts/=src/',
     'scripts/=scripts/',
@@ -21,3 +22,14 @@ remappings = [
 [profile.ci]
 fuzz_runs = 1_000
 fuzz_max_global_rejects = 1_500_000
+
+# Network configurations
+[rpc_endpoints]
+sepolia = "${SEPOLIA_RPC_URL}"
+mainnet = "${MAINNET_RPC_URL}"
+arbitrum = "${ARBITRUM_RPC_URL}"
+polygon = "${POLYGON_RPC_URL}"
+base = "${BASE_RPC_URL}"
+optimism = "${OPTIMISM_RPC_URL}"
+bsc = "${BSC_RPC_URL}"
+avalanche = "${AVALANCHE_RPC_URL}"
