@@ -32,6 +32,8 @@
   "files": [
     "src/**/*.sol",
     "out/**/*.json",
+    "typechain-types/**/*.ts",
+    "typechain-types/**/*.d.ts",
     "!src/mocks/**",
     "!**/*.t.sol",
     "!**/*.s.sol"
@@ -39,16 +41,19 @@
   "exports": {
     "./contracts/*": "./src/*",
     "./artifacts/*": "./out/*",
+    "./types/*": "./typechain-types/*",
+    "./types": "./typechain-types/index.ts",
     "./package.json": "./package.json"
   },
   "scripts": {
     "build": "forge build",
+    "typechain": "typechain --target ethers-v5 --out-dir typechain-types \"out/foundry/**.sol/*.json\" \"!out/foundry/**.t.sol/*.json\"",
     "test": "forge test --gas-report",
     "dev": "forge test -vvv -w --run-all --gas-report",
     "gas": "forge snapshot && forge build --sizes",
     "coverage": "forge coverage --report lcov && node -e \"const fs=require('fs'); const data=fs.readFileSync('lcov.info','utf8'); fs.writeFileSync('lcov.info', data.split('\\n').filter(line => !line.includes('SF:src/mocks/')).join('\\n'));\"",
     "prepare": "husky install",
-    "prepublishOnly": "yarn build && yarn test",
+    "prepublishOnly": "yarn build && yarn typechain && yarn test",
     "semantic-release": "semantic-release",
     "deploy:sepolia": "dotenv -e .env -- cross-env NETWORK=sepolia node script/deploy.js",
     "verify:sepolia": "dotenv -e .env -- cross-env NETWORK=sepolia node script/verify-broadcast.js",
@@ -59,10 +64,14 @@
     "@semantic-release/git": "^10.0.1",
     "cross-env": "^7.0.3",
     "dotenv-cli": "^8.0.0",
+    "ethers": "^5.4.0",
+    "@typechain/ethers-v5": "^11.1.2",
     "husky": "^7.0.0",
     "semantic-release": "^21.0.7",
     "solidity-coverage": "^0.8.2",
-    "toml": "^3.0.0"
+    "toml": "^3.0.0",
+    "typechain": "^8.3.0",
+    "typescript": "^5.0.0"
   },
   "release": {
     "branches": [
