@@ -1,3 +1,10 @@
+# [1.13.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.12.0...v1.13.0) (2025-07-23)
+
+
+### Features
+
+* add typechain types to npm package ([#79](https://github.com/bulla-network/bulla-contracts-V2/issues/79)) ([95dd22e](https://github.com/bulla-network/bulla-contracts-V2/commit/95dd22e24f974dca3708244b0eaca1a4ff60f06d))
+
 # [1.12.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.11.0...v1.12.0) (2025-07-23)
 
 
