@@ -8,7 +8,28 @@ cache/
 .github/
 
 # Build artifacts we don't want to publish
-typechain-types/
+typechain-types/**.t.sol/
+typechain-types/**.s.sol/
+typechain-types/Std**.sol/
+typechain-types/lib/
+typechain-types/Mock*.sol/
+typechain-types/test.sol/
+typechain-types/Vm.sol/
+typechain-types/weth.sol/
+typechain-types/test.sol/
+typechain-types/Hevm.sol/
+
+typechain-types/factories/**.t.sol/
+typechain-types/factories/**.s.sol/
+typechain-types/factories/Std**.sol/
+typechain-types/factories/lib/
+typechain-types/factories/Mock*.sol/
+typechain-types/factories/test.sol/
+typechain-types/factories/Vm.sol/
+typechain-types/factories/weth.sol/
+typechain-types/factories/test.sol/
+typechain-types/factories/Hevm.sol/
+
 coverage/
 *.log
 npm-debug.log*

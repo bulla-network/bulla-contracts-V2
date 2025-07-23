@@ -91,6 +91,9 @@ jobs:
       - name: Build contracts
         run: forge build
 
+      - name: Generate TypeChain types
+        run: yarn typechain
+
       - name: Verify package can be packed
         run: yarn pack --dry-run
 
