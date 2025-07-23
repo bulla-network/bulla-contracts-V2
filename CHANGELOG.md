@@ -1,3 +1,10 @@
+# [1.12.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.11.0...v1.12.0) (2025-07-23)
+
+
+### Features
+
+* deploy on Sepolia, upgrade deploy/verify scripts ([#78](https://github.com/bulla-network/bulla-contracts-V2/issues/78)) ([934c980](https://github.com/bulla-network/bulla-contracts-V2/commit/934c980684ff262977311477b226ad1267c031c9))
+
 # [1.11.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.10.0...v1.11.0) (2025-07-21)
 
 
