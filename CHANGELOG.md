@@ -1,3 +1,10 @@
+# [1.14.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.13.0...v1.14.0) (2025-07-25)
+
+
+### Features
+
+* pre-audit spec, add interface to metadata gen, remove unused so… ([#80](https://github.com/bulla-network/bulla-contracts-V2/issues/80)) ([5d4dcae](https://github.com/bulla-network/bulla-contracts-V2/commit/5d4dcaec4a08ca9d36359accc9e33d77a55edb5e))
+
 # [1.13.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.12.0...v1.13.0) (2025-07-23)
 
 
