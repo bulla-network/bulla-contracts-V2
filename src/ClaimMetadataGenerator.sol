@@ -4,9 +4,10 @@ pragma solidity ^0.8.30;
 import {Claim, Status} from "./types/Types.sol";
 import {Base64} from "./libraries/Base64.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
+import {IClaimMetadataGenerator} from "./interfaces/IClaimMetadataGenerator.sol";
 
 /// @notice a barebones on-chain svg generator showing a claim's status
-contract ClaimMetadataGenerator {
+contract ClaimMetadataGenerator is IClaimMetadataGenerator {
     function getStatusText(Status status) internal pure returns (string memory) {
         if (status == Status.Pending) {
             return "Pending";

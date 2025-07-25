@@ -7,7 +7,6 @@ import {MockERC20} from "solmate/test/utils/mocks/MockERC20.sol";
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {BullaClaim} from "contracts/BullaClaim.sol";
-import {BullaHelpers} from "contracts/libraries/BullaHelpers.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
 import {Claim, Status, ClaimBinding, LockState, CreateClaimParams} from "contracts/types/Types.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
@@ -202,8 +201,7 @@ contract TestInvariants is Test {
 
             uint256 creditorBalanceBefore = weth.balanceOf(charlie);
             uint256 debtorBalanceBefore = weth.balanceOf(debtor);
-
-            uint256 paymentAmount = BullaHelpers.getRemainingPrincipalAmount(bullaClaim, claimId);
+            uint256 paymentAmount = claim.claimAmount - claim.paidAmount;
 
             vm.startPrank(debtor);
             weth.approve(address(bullaClaim), paymentAmount);

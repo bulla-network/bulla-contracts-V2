@@ -15,7 +15,7 @@ import {BoringBatchable} from "./libraries/BoringBatchable.sol";
 import {BullaClaimValidationLib} from "./libraries/BullaClaimValidationLib.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
-import {ClaimMetadataGenerator} from "./ClaimMetadataGenerator.sol";
+import {IClaimMetadataGenerator} from "./interfaces/IClaimMetadataGenerator.sol";
 import {IPermissions} from "./interfaces/IPermissions.sol";
 import {IBullaClaim} from "./interfaces/IBullaClaim.sol";
 import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
@@ -42,7 +42,7 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, IBullaClaim {
     /// approval registry for managing user approvals
     IBullaApprovalRegistry public approvalRegistry;
     /// a contract to generate an on-chain SVG with a claim's status
-    ClaimMetadataGenerator public claimMetadataGenerator;
+    IClaimMetadataGenerator public claimMetadataGenerator;
     /// Core protocol fee for creating claims
     uint256 public CORE_PROTOCOL_FEE;
     IPermissions public feeExemptions;
@@ -599,7 +599,7 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, IBullaClaim {
     }
 
     function setClaimMetadataGenerator(address _metadataGenerator) external onlyOwner {
-        claimMetadataGenerator = ClaimMetadataGenerator(_metadataGenerator);
+        claimMetadataGenerator = IClaimMetadataGenerator(_metadataGenerator);
     }
 
     function setLockState(LockState _lockState) external onlyOwner {
