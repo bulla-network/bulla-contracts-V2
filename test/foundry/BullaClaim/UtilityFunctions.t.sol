@@ -82,4 +82,22 @@ contract TestTokenURI is Test {
         bullaClaim.setLockState(LockState.Locked);
         bullaClaim.setLockState(LockState.Unlocked);
     }
+
+    function testIsAuthorizedContract() public {
+        // Test that an unauthorized contract returns false
+        address testContract = address(0x1234);
+        assertFalse(approvalRegistry.isAuthorizedContract(testContract));
+
+        // Authorize the contract
+        approvalRegistry.setAuthorizedContract(testContract, true);
+
+        // Test that the authorized contract returns true
+        assertTrue(approvalRegistry.isAuthorizedContract(testContract));
+
+        // Deauthorize the contract
+        approvalRegistry.setAuthorizedContract(testContract, false);
+
+        // Test that the deauthorized contract returns false again
+        assertFalse(approvalRegistry.isAuthorizedContract(testContract));
+    }
 }
