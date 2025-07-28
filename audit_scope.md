@@ -34,7 +34,6 @@ This protocol serves as the foundational layer for a broader financial ecosystem
 1. **Credit Marketplace** - Trading of receivables and credit instruments as liquid NFTs
 2. **Factoring Services** - Immediate liquidity for businesses by selling receivables at a discount
 3. **Receivables Financing** - Using existing receivables as collateral to access immediate funding
-4. **Cross-chain Credit** - Standardized credit instruments that can operate across different blockchains
 
 ### Current Audit Scope
 
@@ -72,16 +71,11 @@ This audit encompasses the core protocol infrastructure and primary controllers.
 - `src/interfaces/IBullaClaimAdmin.sol` - Admin functions interface
 - `src/interfaces/IClaimMetadataGenerator.sol` - Claim metadata generator interface
 - `src/interfaces/IPermissions.sol` - Permissions interface
-- `src/interfaces/IERC1271.sol` - ERC1271 signature validation interface
 
 ### Types
 
 - `src/types/Types.sol` - Struct definitions and enums
-
-### Documentation
-
-- `src/BullaClaimSpec.md` - Protocol invariants and specifications
-
+- 
 ## Total Scope
 
 - **Core contracts, libraries, interfaces, and type definitions**
