@@ -7,7 +7,7 @@ import "contracts/types/Types.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {ERC20MockLegacy as ERC20Mock} from "contracts/mocks/ERC20MockLegacy.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
-import {BullaClaim} from "contracts/BullaClaim.sol";
+import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
 import {
     BullaInvoice,
     CreateInvoiceParams,
@@ -30,7 +30,7 @@ import {
 contract TestBullaInvoiceInterest is Test {
     WETH public weth;
     ERC20Mock public token;
-    BullaClaim public bullaClaim;
+    BullaClaimV2 public bullaClaim;
     EIP712Helper public sigHelper;
     BullaInvoice public bullaInvoice;
 
@@ -51,7 +51,7 @@ contract TestBullaInvoiceInterest is Test {
 
         DeployContracts.DeploymentResult memory deploymentResult =
             (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
-        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
+        bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
         bullaInvoice = new BullaInvoice(address(bullaClaim), admin, 0);
 

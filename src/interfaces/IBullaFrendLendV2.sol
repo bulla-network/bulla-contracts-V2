@@ -48,10 +48,10 @@ struct Loan {
 }
 
 /**
- * @title IBullaFrendLend
- * @notice Interface for BullaFrendLend contract functionality
+ * @title IBullaFrendLendV2
+ * @notice Interface for BullaFrendLendV2 contract functionality
  */
-interface IBullaFrendLend {
+interface IBullaFrendLendV2 {
     // View functions
     function getTotalAmountDue(uint256 claimId) external view returns (uint256 remainingPrincipal, uint256 interest);
     function getLoan(uint256 claimId) external view returns (Loan memory);

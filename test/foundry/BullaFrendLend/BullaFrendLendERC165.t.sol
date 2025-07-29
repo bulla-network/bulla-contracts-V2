@@ -1,16 +1,16 @@
 pragma solidity ^0.8.30;
 
 import "forge-std/Test.sol";
-import "contracts/BullaFrendLend.sol";
-import "contracts/interfaces/IBullaFrendLend.sol";
+import "contracts/BullaFrendLendV2.sol";
+import "contracts/interfaces/IBullaFrendLendV2.sol";
 import {EIP712Helper} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
-import {BullaClaim} from "contracts/BullaClaim.sol";
+import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 contract BullaFrendLendERC165Test is Test {
-    BullaClaim public bullaClaim;
-    BullaFrendLend public bullaFrendLend;
+    BullaClaimV2 public bullaClaim;
+    BullaFrendLendV2 public bullaFrendLend;
 
     address admin = makeAddr("admin");
     uint256 constant FEE = 0.01 ether;
@@ -19,8 +19,8 @@ contract BullaFrendLendERC165Test is Test {
     function setUp() public {
         DeployContracts.DeploymentResult memory deploymentResult =
             (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, FEE, 0, 0, address(this));
-        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
-        bullaFrendLend = new BullaFrendLend(address(bullaClaim), admin, PROTOCOL_FEE_BPS);
+        bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
+        bullaFrendLend = new BullaFrendLendV2(address(bullaClaim), admin, PROTOCOL_FEE_BPS);
     }
 
     function testSupportsERC165Interface() public {
@@ -30,9 +30,9 @@ contract BullaFrendLendERC165Test is Test {
     }
 
     function testSupportsIBullaFrendLendInterface() public {
-        // IBullaFrendLend interface ID
-        bytes4 bullaFrendLendInterfaceId = type(IBullaFrendLend).interfaceId;
-        assertTrue(bullaFrendLend.supportsInterface(bullaFrendLendInterfaceId), "Should support IBullaFrendLend");
+        // IBullaFrendLendV2 interface ID
+        bytes4 bullaFrendLendInterfaceId = type(IBullaFrendLendV2).interfaceId;
+        assertTrue(bullaFrendLend.supportsInterface(bullaFrendLendInterfaceId), "Should support IBullaFrendLendV2");
     }
 
     function testDoesNotSupportRandomInterface() public {
@@ -43,18 +43,18 @@ contract BullaFrendLendERC165Test is Test {
 
     function testInterfaceIdCalculation() public {
         // Test that we can calculate the interface ID correctly
-        bytes4 expectedInterfaceId = IBullaFrendLend.getTotalAmountDue.selector ^ IBullaFrendLend.getLoan.selector
-            ^ IBullaFrendLend.offerLoanWithMetadata.selector ^ IBullaFrendLend.offerLoan.selector
-            ^ IBullaFrendLend.rejectLoanOffer.selector ^ IBullaFrendLend.acceptLoan.selector
-            ^ IBullaFrendLend.acceptLoanWithReceiver.selector ^ IBullaFrendLend.batchAcceptLoans.selector
-            ^ IBullaFrendLend.payLoan.selector ^ IBullaFrendLend.impairLoan.selector
-            ^ IBullaFrendLend.markLoanAsPaid.selector ^ IBullaFrendLend.withdrawAllFees.selector
-            ^ IBullaFrendLend.setProtocolFee.selector ^ IBullaFrendLend.admin.selector
-            ^ IBullaFrendLend.loanOfferCount.selector ^ IBullaFrendLend.protocolFeeBPS.selector
-            ^ IBullaFrendLend.getLoanOffer.selector ^ IBullaFrendLend.getLoanOfferMetadata.selector
-            ^ IBullaFrendLend.protocolFeesByToken.selector;
+        bytes4 expectedInterfaceId = IBullaFrendLendV2.getTotalAmountDue.selector ^ IBullaFrendLendV2.getLoan.selector
+            ^ IBullaFrendLendV2.offerLoanWithMetadata.selector ^ IBullaFrendLendV2.offerLoan.selector
+            ^ IBullaFrendLendV2.rejectLoanOffer.selector ^ IBullaFrendLendV2.acceptLoan.selector
+            ^ IBullaFrendLendV2.acceptLoanWithReceiver.selector ^ IBullaFrendLendV2.batchAcceptLoans.selector
+            ^ IBullaFrendLendV2.payLoan.selector ^ IBullaFrendLendV2.impairLoan.selector
+            ^ IBullaFrendLendV2.markLoanAsPaid.selector ^ IBullaFrendLendV2.withdrawAllFees.selector
+            ^ IBullaFrendLendV2.setProtocolFee.selector ^ IBullaFrendLendV2.admin.selector
+            ^ IBullaFrendLendV2.loanOfferCount.selector ^ IBullaFrendLendV2.protocolFeeBPS.selector
+            ^ IBullaFrendLendV2.getLoanOffer.selector ^ IBullaFrendLendV2.getLoanOfferMetadata.selector
+            ^ IBullaFrendLendV2.protocolFeesByToken.selector;
 
-        bytes4 actualInterfaceId = type(IBullaFrendLend).interfaceId;
+        bytes4 actualInterfaceId = type(IBullaFrendLendV2).interfaceId;
         assertEq(actualInterfaceId, expectedInterfaceId, "Interface ID calculation should match");
     }
 
@@ -64,7 +64,7 @@ contract BullaFrendLendERC165Test is Test {
 
         assertTrue(detector.detectsERC165(address(bullaFrendLend)), "External contract should detect ERC165");
         assertTrue(
-            detector.detectsBullaFrendLend(address(bullaFrendLend)), "External contract should detect IBullaFrendLend"
+            detector.detectsBullaFrendLend(address(bullaFrendLend)), "External contract should detect IBullaFrendLendV2"
         );
     }
 }
@@ -79,7 +79,7 @@ contract MockERC165Detector {
     }
 
     function detectsBullaFrendLend(address contractAddress) external view returns (bool) {
-        return IERC165(contractAddress).supportsInterface(type(IBullaFrendLend).interfaceId);
+        return IERC165(contractAddress).supportsInterface(type(IBullaFrendLendV2).interfaceId);
     }
 
     function detectsERC721(address contractAddress) external view returns (bool) {

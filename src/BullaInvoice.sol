@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.30;
 
-import "./interfaces/IBullaClaim.sol";
+import "./interfaces/IBullaClaimV2.sol";
 import "./interfaces/IBullaInvoice.sol";
 import "./BullaClaimControllerBase.sol";
 import "./types/Types.sol";

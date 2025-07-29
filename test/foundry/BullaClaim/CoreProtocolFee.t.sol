@@ -14,15 +14,15 @@ import {
     ClaimMetadata,
     CreateClaimApprovalType
 } from "contracts/types/Types.sol";
-import {BullaClaim} from "contracts/BullaClaim.sol";
+import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
-import {IBullaClaim} from "contracts/interfaces/IBullaClaim.sol";
+import {IBullaClaimV2} from "contracts/interfaces/IBullaClaimV2.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract TestCoreProtocolFee is Test {
-    BullaClaim public bullaClaim;
-    BullaClaim public zeroFeeBullaClaim;
+    BullaClaimV2 public bullaClaim;
+    BullaClaimV2 public zeroFeeBullaClaim;
     WETH public weth;
     MockERC20 public token;
 
@@ -59,12 +59,12 @@ contract TestCoreProtocolFee is Test {
         vm.startPrank(_owner);
         DeployContracts.DeploymentResult memory deploymentResult =
             (new DeployContracts()).deployForTest(_owner, LockState.Unlocked, _STANDARD_FEE, 0, 0, _owner);
-        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
+        bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
 
         // Deploy BullaClaim with zero fee for comparison tests
         DeployContracts.DeploymentResult memory deploymentResult2 =
             (new DeployContracts()).deployForTest(_owner, LockState.Unlocked, 0, 0, 0, _owner);
-        zeroFeeBullaClaim = BullaClaim(deploymentResult2.bullaClaim);
+        zeroFeeBullaClaim = BullaClaimV2(deploymentResult2.bullaClaim);
         vm.stopPrank();
 
         // Setup balances
@@ -112,17 +112,17 @@ contract TestCoreProtocolFee is Test {
 
         // Test with too little fee
         vm.prank(_creditor);
-        vm.expectRevert(IBullaClaim.IncorrectFee.selector);
+        vm.expectRevert(IBullaClaimV2.IncorrectFee.selector);
         bullaClaim.createClaim{value: _STANDARD_FEE - 1}(params);
 
         // Test with too much fee
         vm.prank(_creditor);
-        vm.expectRevert(IBullaClaim.IncorrectFee.selector);
+        vm.expectRevert(IBullaClaimV2.IncorrectFee.selector);
         bullaClaim.createClaim{value: _STANDARD_FEE + 1}(params);
 
         // Test with zero fee when fee is required
         vm.prank(_creditor);
-        vm.expectRevert(IBullaClaim.IncorrectFee.selector);
+        vm.expectRevert(IBullaClaimV2.IncorrectFee.selector);
         bullaClaim.createClaim{value: 0}(params);
     }
 
@@ -150,7 +150,7 @@ contract TestCoreProtocolFee is Test {
             ClaimMetadata({tokenURI: "https://example.com/token", attachmentURI: "https://example.com/attachment"});
 
         vm.prank(_creditor);
-        vm.expectRevert(IBullaClaim.IncorrectFee.selector);
+        vm.expectRevert(IBullaClaimV2.IncorrectFee.selector);
         bullaClaim.createClaimWithMetadata{value: _STANDARD_FEE - 1}(params, metadata);
     }
 
@@ -313,7 +313,7 @@ contract TestCoreProtocolFee is Test {
             new CreateClaimParamsBuilder().withCreditor(_creditor).withDebtor(_debtor).withClaimAmount(1 ether).build();
 
         vm.prank(_creditor);
-        vm.expectRevert(IBullaClaim.Locked.selector);
+        vm.expectRevert(IBullaClaimV2.Locked.selector);
         bullaClaim.createClaim{value: _STANDARD_FEE}(params);
     }
 
@@ -325,7 +325,7 @@ contract TestCoreProtocolFee is Test {
             new CreateClaimParamsBuilder().withCreditor(_creditor).withDebtor(_debtor).withClaimAmount(1 ether).build();
 
         vm.prank(_creditor);
-        vm.expectRevert(IBullaClaim.Locked.selector);
+        vm.expectRevert(IBullaClaimV2.Locked.selector);
         bullaClaim.createClaim{value: _STANDARD_FEE}(params);
     }
 

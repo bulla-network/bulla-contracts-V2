@@ -6,7 +6,7 @@ import "forge-std/Vm.sol";
 import {MockERC20} from "solmate/test/utils/mocks/MockERC20.sol";
 import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 import {WETH} from "contracts/mocks/weth.sol";
-import {BullaClaim} from "contracts/BullaClaim.sol";
+import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
 import {Claim, Status, ClaimBinding, LockState, CreateClaimParams} from "contracts/types/Types.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
@@ -22,7 +22,7 @@ enum BullaClaimState {
 ///     3. Once the user fully pays a claim, it should go to the payer and the claim being marked as paid.
 contract TestInvariants is Test {
     WETH public weth;
-    BullaClaim public bullaClaim;
+    BullaClaimV2 public bullaClaim;
 
     address alice = address(0xA11cE);
     address charlie = address(0xC44511E);
@@ -60,7 +60,7 @@ contract TestInvariants is Test {
         vm.prank(contractOwner);
         DeployContracts.DeploymentResult memory deploymentResult =
             (new DeployContracts()).deployForTest(contractOwner, LockState.Unlocked, 0, 0, 0, contractOwner);
-        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
+        bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
 
         weth.transferFrom(address(this), creditor, type(uint136).max);
         weth.transferFrom(address(this), debtor, type(uint136).max);

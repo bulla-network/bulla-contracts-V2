@@ -13,14 +13,14 @@ import {
     ClaimMetadata,
     CreateClaimApprovalType
 } from "contracts/types/Types.sol";
-import {BullaClaim} from "contracts/BullaClaim.sol";
+import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
 import {PenalizedClaim} from "contracts/mocks/PenalizedClaim.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {ClaimMetadataGenerator} from "contracts/ClaimMetadataGenerator.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
-import {IBullaClaim} from "contracts/interfaces/IBullaClaim.sol";
+import {IBullaClaimV2} from "contracts/interfaces/IBullaClaimV2.sol";
 
 contract TestCreateClaim is BullaClaimTestHelper {
     address creditor = address(0x01);
@@ -50,7 +50,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
             0, // frendLendProtocolFeeBPS
             address(this) // admin
         );
-        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
+        bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
         approvalRegistry = bullaClaim.approvalRegistry();
         _newClaim(creditor, creditor, debtor);
     }
@@ -76,11 +76,11 @@ contract TestCreateClaim is BullaClaimTestHelper {
     function testCannotCreateClaimWhenContractIsLocked() public {
         bullaClaim.setLockState(LockState.Locked);
 
-        vm.expectRevert(IBullaClaim.Locked.selector);
+        vm.expectRevert(IBullaClaimV2.Locked.selector);
         _newClaim(creditor, creditor, debtor);
 
         bullaClaim.setLockState(LockState.NoNewClaims);
-        vm.expectRevert(IBullaClaim.Locked.selector);
+        vm.expectRevert(IBullaClaimV2.Locked.selector);
         _newClaim(creditor, creditor, debtor);
     }
 

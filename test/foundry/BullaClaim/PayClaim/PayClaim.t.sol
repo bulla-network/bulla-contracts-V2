@@ -5,12 +5,12 @@ import "forge-std/Vm.sol";
 import "forge-std/Test.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import "contracts/types/Types.sol";
-import {BullaClaim} from "contracts/BullaClaim.sol";
+import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
 import {BullaClaimTestHelper, EIP712Helper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
-import {IBullaClaim} from "contracts/interfaces/IBullaClaim.sol";
+import {IBullaClaimV2} from "contracts/interfaces/IBullaClaimV2.sol";
 
 contract TestPayClaimWithFee is BullaClaimTestHelper {
     address creditor = address(0xA11c3);
@@ -28,7 +28,7 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
 
         DeployContracts.DeploymentResult memory deploymentResult =
             (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
-        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
+        bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
         approvalRegistry = bullaClaim.approvalRegistry();
 
@@ -129,7 +129,7 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
 
     function testCannotPayAClaimThatDoesntExist() public {
         vm.prank(debtor);
-        vm.expectRevert(IBullaClaim.NotMinted.selector);
+        vm.expectRevert(IBullaClaimV2.NotMinted.selector);
         bullaClaim.payClaim{value: 1 ether}(1, 1 ether);
     }
 
@@ -150,7 +150,7 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
         vm.stopPrank();
 
         vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.NotController.selector, debtor));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.NotController.selector, debtor));
         bullaClaim.payClaim{value: 1 ether}(1, 1 ether);
     }
 
@@ -169,7 +169,7 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
         bullaClaim.setLockState(LockState.Locked);
 
         vm.prank(debtor);
-        vm.expectRevert(IBullaClaim.Locked.selector);
+        vm.expectRevert(IBullaClaimV2.Locked.selector);
         bullaClaim.payClaim{value: CLAIM_AMOUNT}(claimId, CLAIM_AMOUNT);
     }
 

@@ -3,14 +3,14 @@ pragma solidity ^0.8.30;
 
 import "forge-std/Test.sol";
 import {Claim, Status, ClaimBinding, LockState, CreateClaimParams, ClaimMetadata} from "contracts/types/Types.sol";
-import {BullaClaim} from "contracts/BullaClaim.sol";
+import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
 import {ClaimMetadataGenerator} from "contracts/ClaimMetadataGenerator.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract TestTokenURI is Test {
-    BullaClaim public bullaClaim;
+    BullaClaimV2 public bullaClaim;
 
     address alice = address(0xA11cE);
     address charlie = address(0xC44511E);
@@ -25,7 +25,7 @@ contract TestTokenURI is Test {
 
         DeployContracts.DeploymentResult memory deploymentResult =
             (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
-        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
+        bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
     }
 
     function testTokenURIReturnsSetMetadata() public {

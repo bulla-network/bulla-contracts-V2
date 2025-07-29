@@ -5,12 +5,12 @@ import "forge-std/Vm.sol";
 import "contracts/types/Types.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {EIP712Helper} from "test/foundry/BullaClaim/EIP712/Utils.sol";
-import {BullaClaim} from "contracts/BullaClaim.sol";
+import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
-import {IBullaClaim} from "contracts/interfaces/IBullaClaim.sol";
+import {IBullaClaimV2} from "contracts/interfaces/IBullaClaimV2.sol";
 
 /// @notice SPEC:
 /// A function can call this internal function to verify and "spend" `from`'s approval of `controller` to pay a claim under the following circumstances:
@@ -52,7 +52,7 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
 
         DeployContracts.DeploymentResult memory deploymentResult =
             (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
-        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
+        bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
         approvalRegistry = bullaClaim.approvalRegistry();
 
@@ -77,7 +77,7 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
 
         // user 2 tries to pull user's funds
         vm.prank(user2);
-        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.MustBeControlledClaim.selector));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.MustBeControlledClaim.selector));
         bullaClaim.payClaimFrom(user, claimId, 1 ether);
     }
 
@@ -109,7 +109,7 @@ contract TestPayClaimFrom is BullaClaimTestHelper {
         weth.approve(address(bullaClaim), 1 ether);
 
         vm.prank(controller);
-        vm.expectRevert(IBullaClaim.Locked.selector);
+        vm.expectRevert(IBullaClaimV2.Locked.selector);
         bullaClaim.payClaimFrom(user, claimId, 1 ether);
     }
 

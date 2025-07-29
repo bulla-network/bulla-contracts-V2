@@ -13,10 +13,15 @@ import {
     ClaimMetadata,
     CreateClaimApprovalType
 } from "contracts/types/Types.sol";
-import {BullaClaim} from "contracts/BullaClaim.sol";
+import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
 import {
-    BullaFrendLend, LoanRequestParams, Loan, LoanOffer, InvalidCallback, CallbackFailed
-} from "src/BullaFrendLend.sol";
+    BullaFrendLendV2,
+    LoanRequestParams,
+    Loan,
+    LoanOffer,
+    InvalidCallback,
+    CallbackFailed
+} from "src/BullaFrendLendV2.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
 import {BullaFrendLendTestHelper} from "test/foundry/BullaFrendLend/BullaFrendLendTestHelper.sol";
 import {EIP712Helper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
@@ -89,12 +94,12 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
         // Initialize the base contracts
         DeployContracts.DeploymentResult memory deploymentResult =
             (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, FEE, 0, 0, address(this));
-        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
+        bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
         approvalRegistry = bullaClaim.approvalRegistry();
 
         // Initialize the BullaFrendLend contract
-        bullaFrendLend = new BullaFrendLend(address(bullaClaim), creditor, 1000); // 10% protocol fee
+        bullaFrendLend = new BullaFrendLendV2(address(bullaClaim), creditor, 1000); // 10% protocol fee
 
         mockCallback = new MockCallbackContract();
 

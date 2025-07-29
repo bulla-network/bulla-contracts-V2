@@ -17,18 +17,18 @@ import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {IClaimMetadataGenerator} from "./interfaces/IClaimMetadataGenerator.sol";
 import {IPermissions} from "./interfaces/IPermissions.sol";
-import {IBullaClaim} from "./interfaces/IBullaClaim.sol";
+import {IBullaClaimV2} from "./interfaces/IBullaClaimV2.sol";
 import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import {IBullaClaimAdmin} from "./interfaces/IBullaClaimAdmin.sol";
 import {ERC721Utils} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Utils.sol";
 
-contract BullaClaim is ERC721, Ownable, BoringBatchable, IBullaClaim {
+contract BullaClaimV2 is ERC721, Ownable, BoringBatchable, IBullaClaimV2 {
     using SafeTransferLib for ERC20;
     using SafeTransferLib for address;
     using SafeCastLib for uint256;
 
     /*///////////////////////////////////////////////////////////////
-                                 STORAGE
+                                STORAGE
     //////////////////////////////////////////////////////////////*/
 
     /// a mapping of claimId to a packed struct
@@ -48,7 +48,7 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, IBullaClaim {
     IPermissions public feeExemptions;
 
     /*///////////////////////////////////////////////////////////////
-                            MODIFIERS
+                           MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
     function _notLocked() internal view {
@@ -56,7 +56,7 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, IBullaClaim {
     }
 
     constructor(address _approvalRegistry, LockState _lockState, uint256 _coreProtocolFee, address _feeExemptions)
-        ERC721("BullaClaim", "CLAIM")
+        ERC721("BullaClaimV2", "CLAIM")
         Ownable(msg.sender)
     {
         approvalRegistry = IBullaApprovalRegistry(_approvalRegistry);
@@ -66,7 +66,7 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, IBullaClaim {
     }
 
     /*///////////////////////////////////////////////////////////////
-                    CLAIM CREATION / UPDATE FUNCTIONS
+                   CLAIM CREATION / UPDATE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
     /**
@@ -453,7 +453,7 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, IBullaClaim {
     }
 
     /*///////////////////////////////////////////////////////////////
-                        VIEW / UTILITY FUNCTIONS
+                       VIEW / UTILITY FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
     function getClaim(uint256 claimId) public view returns (Claim memory claim) {
@@ -477,7 +477,7 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, IBullaClaim {
     }
 
     /*///////////////////////////////////////////////////////////////
-                            ERC721 FUNCTIONS
+                           ERC721 FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
     /// @notice get the tokenURI generated for this claim
@@ -591,7 +591,7 @@ contract BullaClaim is ERC721, Ownable, BoringBatchable, IBullaClaim {
     }
 
     /*///////////////////////////////////////////////////////////////
-                            OWNER FUNCTIONS
+                           OWNER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
     function owner() public view override(Ownable, IBullaClaimAdmin) returns (address) {

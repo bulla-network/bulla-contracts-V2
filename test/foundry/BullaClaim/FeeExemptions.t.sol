@@ -14,7 +14,7 @@ import {
     ClaimMetadata,
     CreateClaimApprovalType
 } from "contracts/types/Types.sol";
-import {BullaClaim} from "contracts/BullaClaim.sol";
+import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
 import {WhitelistPermissions} from "contracts/WhitelistPermissions.sol";
 import {Permissions} from "contracts/Permissions.sol";
 import {IPermissions} from "contracts/interfaces/IPermissions.sol";
@@ -22,7 +22,7 @@ import {DeployContracts} from "script/DeployContracts.s.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
-import {IBullaClaim} from "contracts/interfaces/IBullaClaim.sol";
+import {IBullaClaimV2} from "contracts/interfaces/IBullaClaimV2.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 // Mock contract that implements ERC165 but NOT IPermissions
@@ -34,8 +34,8 @@ contract MockERC165Contract is ERC165 {
 }
 
 contract TestFeeExemptions is Test {
-    BullaClaim public bullaClaim;
-    BullaClaim public zeroFeeClaim;
+    BullaClaimV2 public bullaClaim;
+    BullaClaimV2 public zeroFeeClaim;
     WhitelistPermissions public feeExemptions;
     WETH public weth;
     MockERC20 public token;
@@ -78,7 +78,7 @@ contract TestFeeExemptions is Test {
         vm.prank(_owner);
         DeployContracts.DeploymentResult memory deploymentResult =
             (new DeployContracts()).deployForTest(_owner, LockState.Unlocked, _STANDARD_FEE, 0, 0, _owner);
-        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
+        bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
 
         // Set fee exemptions contract
         vm.prank(_owner);
@@ -211,7 +211,7 @@ contract TestFeeExemptions is Test {
 
         // Should fail without fee
         vm.prank(_nonExemptUser);
-        vm.expectRevert(IBullaClaim.IncorrectFee.selector);
+        vm.expectRevert(IBullaClaimV2.IncorrectFee.selector);
         bullaClaim.createClaim{value: 0}(params);
 
         // Should succeed with fee
@@ -231,12 +231,12 @@ contract TestFeeExemptions is Test {
 
         // Too little fee
         vm.prank(_nonExemptUser);
-        vm.expectRevert(IBullaClaim.IncorrectFee.selector);
+        vm.expectRevert(IBullaClaimV2.IncorrectFee.selector);
         bullaClaim.createClaim{value: _STANDARD_FEE - 1}(params);
 
         // Too much fee
         vm.prank(_nonExemptUser);
-        vm.expectRevert(IBullaClaim.IncorrectFee.selector);
+        vm.expectRevert(IBullaClaimV2.IncorrectFee.selector);
         bullaClaim.createClaim{value: _STANDARD_FEE + 1}(params);
     }
 
@@ -249,7 +249,7 @@ contract TestFeeExemptions is Test {
 
         // Initially not exempt - should fail without fee
         vm.prank(_nonExemptUser);
-        vm.expectRevert(IBullaClaim.IncorrectFee.selector);
+        vm.expectRevert(IBullaClaimV2.IncorrectFee.selector);
         bullaClaim.createClaim{value: 0}(params);
 
         // Add exemption
@@ -273,7 +273,7 @@ contract TestFeeExemptions is Test {
 
         // No longer exempt - should fail without fee
         vm.prank(_nonExemptUser);
-        vm.expectRevert(IBullaClaim.IncorrectFee.selector);
+        vm.expectRevert(IBullaClaimV2.IncorrectFee.selector);
         bullaClaim.createClaim{value: 0}(params);
 
         // Should work with fee
@@ -316,7 +316,7 @@ contract TestFeeExemptions is Test {
         // User3 (not exempt) - should fail without fee
         params.creditor = user3;
         vm.prank(user3);
-        vm.expectRevert(IBullaClaim.IncorrectFee.selector);
+        vm.expectRevert(IBullaClaimV2.IncorrectFee.selector);
         bullaClaim.createClaim{value: 0}(params);
 
         // User3 with fee - should work
@@ -370,7 +370,7 @@ contract TestFeeExemptions is Test {
         // _exemptUser should no longer be exempt (not in new contract)
         params.creditor = _exemptUser;
         vm.prank(_exemptUser);
-        vm.expectRevert(IBullaClaim.IncorrectFee.selector);
+        vm.expectRevert(IBullaClaimV2.IncorrectFee.selector);
         bullaClaim.createClaim{value: 0}(params);
     }
 
@@ -390,7 +390,7 @@ contract TestFeeExemptions is Test {
 
         // Should fail due to lock, not fee
         vm.prank(_exemptUser);
-        vm.expectRevert(IBullaClaim.Locked.selector);
+        vm.expectRevert(IBullaClaimV2.Locked.selector);
         bullaClaim.createClaim{value: 0}(params);
     }
 
@@ -399,7 +399,7 @@ contract TestFeeExemptions is Test {
         vm.prank(_owner);
         DeployContracts.DeploymentResult memory deploymentResult =
             (new DeployContracts()).deployForTest(_owner, LockState.Unlocked, 0, 0, 0, _owner);
-        zeroFeeClaim = BullaClaim(deploymentResult.bullaClaim);
+        zeroFeeClaim = BullaClaimV2(deploymentResult.bullaClaim);
 
         vm.prank(_owner);
         zeroFeeClaim.setFeeExemptions(address(feeExemptions));
@@ -481,7 +481,7 @@ contract TestFeeExemptions is Test {
 
         // 5. User no longer exempt - fee required again
         vm.prank(_nonExemptUser);
-        vm.expectRevert(IBullaClaim.IncorrectFee.selector);
+        vm.expectRevert(IBullaClaimV2.IncorrectFee.selector);
         bullaClaim.createClaim{value: 0}(params);
 
         vm.prank(_nonExemptUser);
@@ -501,7 +501,7 @@ contract TestFeeExemptions is Test {
 
         // Should fail without exemption and fee
         vm.prank(randomUser);
-        vm.expectRevert(IBullaClaim.IncorrectFee.selector);
+        vm.expectRevert(IBullaClaimV2.IncorrectFee.selector);
         bullaClaim.createClaim{value: 0}(params);
 
         // Add to exemptions

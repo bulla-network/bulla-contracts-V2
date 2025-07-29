@@ -6,9 +6,9 @@ import "forge-std/Vm.sol";
 import "contracts/types/Types.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
-import {BullaClaim} from "contracts/BullaClaim.sol";
+import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
 import {
-    BullaFrendLend,
+    BullaFrendLendV2,
     LoanRequestParams,
     Loan,
     IncorrectFee,
@@ -20,7 +20,7 @@ import {
     NotAdmin,
     LoanOfferNotFound,
     NotCreditorOrDebtor
-} from "contracts/BullaFrendLend.sol";
+} from "contracts/BullaFrendLendV2.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
 import {MockERC20} from "contracts/mocks/MockERC20.sol";
 import {LoanRequestParamsBuilder} from "./LoanRequestParamsBuilder.t.sol";
@@ -29,16 +29,16 @@ import {
 } from "contracts/libraries/CompoundInterestLib.sol";
 import "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
-import "contracts/interfaces/IBullaFrendLend.sol";
-import {IBullaClaim} from "contracts/interfaces/IBullaClaim.sol";
+import "contracts/interfaces/IBullaFrendLendV2.sol";
+import {IBullaClaimV2} from "contracts/interfaces/IBullaClaimV2.sol";
 
 contract TestBullaFrendLend is Test {
     WETH public weth;
     MockERC20 public usdc;
     MockERC20 public dai;
-    BullaClaim public bullaClaim;
+    BullaClaimV2 public bullaClaim;
     EIP712Helper public sigHelper;
-    BullaFrendLend public bullaFrendLend;
+    BullaFrendLendV2 public bullaFrendLend;
 
     // Events for testing
     event FeeWithdrawn(address indexed admin, address indexed token, uint256 amount);
@@ -68,9 +68,9 @@ contract TestBullaFrendLend is Test {
             PROTOCOL_FEE_BPS, // frendLendProtocolFeeBPS
             address(this) // admin
         );
-        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
+        bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
-        bullaFrendLend = new BullaFrendLend(address(bullaClaim), admin, PROTOCOL_FEE_BPS);
+        bullaFrendLend = new BullaFrendLendV2(address(bullaClaim), admin, PROTOCOL_FEE_BPS);
 
         vm.deal(creditor, 10 ether);
         vm.deal(debtor, 10 ether);
@@ -803,7 +803,7 @@ contract TestBullaFrendLend is Test {
 
         // Attempt to pay a non-existent loan
         vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.NotMinted.selector));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.NotMinted.selector));
         bullaFrendLend.payLoan(nonExistentClaimId, 1 ether);
     }
 
@@ -1608,7 +1608,7 @@ contract TestBullaFrendLend is Test {
 
         // Try to impair via BullaFrendLend - should fail since it's not the controller
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.NotController.selector, address(creditor)));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.NotController.selector, address(creditor)));
         bullaFrendLend.impairLoan(claimId);
     }
 
@@ -2016,7 +2016,7 @@ contract TestBullaFrendLend is Test {
 
         // Try to mark as paid via BullaFrendLend - should fail since it's not the controller
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.NotController.selector, address(creditor)));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.NotController.selector, address(creditor)));
         bullaFrendLend.markLoanAsPaid(claimId);
     }
 

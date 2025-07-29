@@ -2,19 +2,19 @@
 pragma solidity ^0.8.30;
 
 import {BullaClaimTestHelper} from "./BullaClaimTestHelper.sol";
-import {BullaClaim} from "contracts/BullaClaim.sol";
+import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
 import {Claim, Status, ClaimBinding, LockState, CreateClaimParams} from "contracts/types/Types.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {IERC721Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
-import {IBullaClaim} from "contracts/interfaces/IBullaClaim.sol";
+import {IBullaClaimV2} from "contracts/interfaces/IBullaClaimV2.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {EIP712Helper} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {BullaClaimControllerBase} from "contracts/BullaClaimControllerBase.sol";
 import {BullaInvoice} from "contracts/BullaInvoice.sol";
-import {BullaFrendLend} from "contracts/BullaFrendLend.sol";
+import {BullaFrendLendV2} from "contracts/BullaFrendLendV2.sol";
 import {CreateInvoiceParams, InterestConfig, PurchaseOrderState} from "contracts/interfaces/IBullaInvoice.sol";
-import {LoanRequestParams} from "contracts/interfaces/IBullaFrendLend.sol";
+import {LoanRequestParams} from "contracts/interfaces/IBullaFrendLendV2.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {CreateClaimApprovalType} from "contracts/types/Types.sol";
 import {CreateInvoiceParamsBuilder} from "test/foundry/BullaInvoice/CreateInvoiceParamsBuilder.sol";
@@ -97,11 +97,11 @@ contract InvoiceAdapter is IControllerAdapter {
 
 // FrendLend adapter
 contract FrendLendAdapter is IControllerAdapter {
-    BullaFrendLend public frendLend;
+    BullaFrendLendV2 public frendLend;
     MockERC20 public claimToken;
 
     constructor(address _frendLend) {
-        frendLend = BullaFrendLend(_frendLend);
+        frendLend = BullaFrendLendV2(_frendLend);
         claimToken = new MockERC20("Claim Token", "CTK", 18);
     }
 
@@ -144,20 +144,20 @@ contract ControlledClaimTransferTest is BullaClaimTestHelper {
     // Three controllers
     MockController mockController;
     BullaInvoice invoice;
-    BullaFrendLend frendLend;
+    BullaFrendLendV2 frendLend;
 
     function setUp() public {
         weth = new WETH();
         DeployContracts.DeploymentResult memory deploymentResult =
             (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
-        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
+        bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
         approvalRegistry = bullaClaim.approvalRegistry();
         sigHelper = new EIP712Helper(address(bullaClaim));
 
         // Deploy controllers
         mockController = new MockController(address(bullaClaim));
         invoice = new BullaInvoice(address(bullaClaim), address(this), 250);
-        frendLend = new BullaFrendLend(address(bullaClaim), address(this), 100);
+        frendLend = new BullaFrendLendV2(address(bullaClaim), address(this), 100);
 
         vm.deal(creditor, 10 ether);
         vm.deal(debtor, 10 ether);
@@ -187,7 +187,7 @@ contract ControlledClaimTransferTest is BullaClaimTestHelper {
 
         // Direct ERC721 transfers should fail for controlled claims
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.NotController.selector, creditor));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.NotController.selector, creditor));
         bullaClaim.transferFrom(creditor, newOwner, claimId);
     }
 
@@ -196,7 +196,7 @@ contract ControlledClaimTransferTest is BullaClaimTestHelper {
 
         // Direct ERC721 approvals should fail for controlled claims
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.NotController.selector, creditor));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.NotController.selector, creditor));
         bullaClaim.approve(newOwner, claimId);
     }
 
@@ -205,7 +205,7 @@ contract ControlledClaimTransferTest is BullaClaimTestHelper {
 
         // Direct ERC721 safe transfers should fail for controlled claims
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.NotController.selector, creditor));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.NotController.selector, creditor));
         bullaClaim.safeTransferFrom(creditor, newOwner, claimId);
     }
 
@@ -251,7 +251,7 @@ contract ControlledClaimTransferTest is BullaClaimTestHelper {
 
         // Direct ERC721 setApprovalForAll should fail - it's not supported
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.NotSupported.selector));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.NotSupported.selector));
         bullaClaim.setApprovalForAll(newOwner, true);
     }
 
@@ -288,27 +288,27 @@ contract ControlledClaimTransferTest is BullaClaimTestHelper {
 
         // Try to pay the claim directly (should fail)
         vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.NotController.selector, debtor));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.NotController.selector, debtor));
         bullaClaim.payClaim{value: 0.5 ether}(claimId, 0.5 ether);
 
         // Try to update binding directly (should fail)
         vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.NotController.selector, debtor));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.NotController.selector, debtor));
         bullaClaim.updateBinding(claimId, ClaimBinding.Bound);
 
         // Try to cancel directly (should fail)
         vm.prank(newOwner); // Now the creditor is newOwner
-        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.NotController.selector, newOwner));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.NotController.selector, newOwner));
         bullaClaim.cancelClaim(claimId, "Not allowed");
 
         // Try to impair directly (should fail)
         vm.prank(newOwner);
-        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.NotController.selector, newOwner));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.NotController.selector, newOwner));
         bullaClaim.impairClaim(claimId);
 
         // Try to mark as paid directly (should fail)
         vm.prank(newOwner);
-        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.NotController.selector, newOwner));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.NotController.selector, newOwner));
         bullaClaim.markClaimAsPaid(claimId);
     }
 

@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.30;
 
-import {IBullaClaim} from "../interfaces/IBullaClaim.sol";
+import {IBullaClaimV2} from "../interfaces/IBullaClaimV2.sol";
 import {ClaimBinding, CreateClaimParams} from "../types/Types.sol";
 
 contract MockController {
-    IBullaClaim public bullaClaim;
+    IBullaClaimV2 public bullaClaim;
 
     // For testing: allows specifying who the controller is acting on behalf of
     address public currentUser;
 
     constructor(address _bullaClaim) {
-        bullaClaim = IBullaClaim(_bullaClaim);
+        bullaClaim = IBullaClaimV2(_bullaClaim);
     }
 
     function setCurrentUser(address user) external {

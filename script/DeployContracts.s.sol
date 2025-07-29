@@ -3,9 +3,9 @@ pragma solidity ^0.8.30;
 
 import "forge-std/Script.sol";
 import "forge-std/console.sol";
-import {BullaClaim} from "contracts/BullaClaim.sol";
+import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
 import {BullaInvoice} from "contracts/BullaInvoice.sol";
-import {BullaFrendLend} from "contracts/BullaFrendLend.sol";
+import {BullaFrendLendV2} from "contracts/BullaFrendLendV2.sol";
 import "contracts/BullaControllerRegistry.sol";
 import "contracts/WhitelistPermissions.sol";
 import "contracts/BullaApprovalRegistry.sol";
@@ -23,9 +23,9 @@ contract DeployContracts is Script {
     }
 
     // Deployed contracts
-    BullaClaim public bullaClaim;
+    BullaClaimV2 public bullaClaim;
     BullaInvoice public bullaInvoice;
-    BullaFrendLend public bullaFrendLend;
+    BullaFrendLendV2 public bullaFrendLend;
     BullaControllerRegistry public controllerRegistry;
     WhitelistPermissions public whitelistPermissions;
     BullaApprovalRegistry public approvalRegistry;
@@ -129,7 +129,7 @@ contract DeployContracts is Script {
 
         // Deploy BullaClaim
         console.log("Deploying BullaClaim...");
-        bullaClaim = new BullaClaim(
+        bullaClaim = new BullaClaimV2(
             address(approvalRegistry), config.initialLockState, config.coreProtocolFee, address(whitelistPermissions)
         );
         console.log("BullaClaim deployed at:", address(bullaClaim));
@@ -145,7 +145,7 @@ contract DeployContracts is Script {
 
         // Deploy BullaFrendLend
         console.log("Deploying BullaFrendLend...");
-        bullaFrendLend = new BullaFrendLend(address(bullaClaim), config.admin, config.frendLendProtocolFeeBPS);
+        bullaFrendLend = new BullaFrendLendV2(address(bullaClaim), config.admin, config.frendLendProtocolFeeBPS);
         console.log("BullaFrendLend deployed at:", address(bullaFrendLend));
 
         console.log("");

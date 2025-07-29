@@ -5,8 +5,8 @@ import "forge-std/Vm.sol";
 import "contracts/types/Types.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
-import {BullaClaim} from "contracts/BullaClaim.sol";
-import {IBullaClaim} from "contracts/interfaces/IBullaClaim.sol";
+import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
+import {IBullaClaimV2} from "contracts/interfaces/IBullaClaimV2.sol";
 import {
     BullaInvoice,
     CreateInvoiceParams,
@@ -35,8 +35,8 @@ import {ERC20MockLegacy as ERC20Mock} from "contracts/mocks/ERC20MockLegacy.sol"
 
 contract TestBullaInvoiceOrigination is Test {
     WETH public weth;
-    BullaClaim public bullaClaim;
-    BullaClaim public zeroFeeBullaClaim;
+    BullaClaimV2 public bullaClaim;
+    BullaClaimV2 public zeroFeeBullaClaim;
     EIP712Helper public sigHelper;
     EIP712Helper public zeroFeeSigHelper;
     BullaInvoice public bullaInvoice;
@@ -60,10 +60,10 @@ contract TestBullaInvoiceOrigination is Test {
         DeployContracts.DeploymentResult memory deploymentResult = (new DeployContracts()).deployForTest(
             address(this), LockState.Unlocked, CORE_PROTOCOL_FEE, 0, 0, address(this)
         );
-        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
+        bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
         DeployContracts.DeploymentResult memory deploymentResult2 =
             (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
-        zeroFeeBullaClaim = BullaClaim(deploymentResult2.bullaClaim);
+        zeroFeeBullaClaim = BullaClaimV2(deploymentResult2.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
         zeroFeeSigHelper = new EIP712Helper(address(zeroFeeBullaClaim));
 
@@ -84,7 +84,7 @@ contract TestBullaInvoiceOrigination is Test {
     }
 
     function _setupPermissions(EIP712Helper _sigHelper, address invoiceContract) internal {
-        IBullaClaim _bullaClaim = IBullaClaim(BullaInvoice(invoiceContract)._bullaClaim());
+        IBullaClaimV2 _bullaClaim = IBullaClaimV2(BullaInvoice(invoiceContract)._bullaClaim());
         // Setup create claim permissions
         _bullaClaim.approvalRegistry().permitCreateClaim({
             user: creditor,

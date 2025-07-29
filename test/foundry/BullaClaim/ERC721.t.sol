@@ -2,8 +2,8 @@
 pragma solidity ^0.8.30;
 
 import {DSTestPlus} from "solmate/test/utils/DSTestPlus.sol";
-import {BullaClaim} from "contracts/BullaClaim.sol";
-import {IBullaClaim} from "contracts/interfaces/IBullaClaim.sol";
+import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
+import {IBullaClaimV2} from "contracts/interfaces/IBullaClaimV2.sol";
 import {Claim, Status, ClaimBinding, LockState, CreateClaimParams} from "contracts/types/Types.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
@@ -13,7 +13,7 @@ import {IERC721Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.s
 // run the solmate ERC721 spec against bulla claim to ensure functionality
 
 contract ERC721Test is DSTestPlus {
-    BullaClaim token;
+    BullaClaimV2 token;
 
     address creditor = address(0x01);
     address debtor = address(0x02);
@@ -21,7 +21,7 @@ contract ERC721Test is DSTestPlus {
     function setUp() public {
         DeployContracts.DeploymentResult memory deploymentResult =
             (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
-        token = BullaClaim(deploymentResult.bullaClaim);
+        token = BullaClaimV2(deploymentResult.bullaClaim);
     }
 
     function _mint() private returns (uint256 claimId) {
@@ -54,7 +54,7 @@ contract ERC721Test is DSTestPlus {
     }
 
     function testApproveAll() public {
-        hevm.expectRevert(IBullaClaim.NotSupported.selector);
+        hevm.expectRevert(IBullaClaimV2.NotSupported.selector);
         token.setApprovalForAll(address(0xBEEF), true);
     }
 
@@ -110,7 +110,7 @@ contract ERC721Test is DSTestPlus {
     }
 
     function test_RevertWhen_ApproveUnMinted() public {
-        hevm.expectRevert(IBullaClaim.NotMinted.selector);
+        hevm.expectRevert(IBullaClaimV2.NotMinted.selector);
         token.approve(address(0xBEEF), 1);
     }
 
@@ -122,7 +122,7 @@ contract ERC721Test is DSTestPlus {
     }
 
     function test_RevertWhen_TransferFromUnOwned() public {
-        hevm.expectRevert(IBullaClaim.NotMinted.selector);
+        hevm.expectRevert(IBullaClaimV2.NotMinted.selector);
         token.transferFrom(address(0xFEED), address(0xBEEF), 1);
     }
 

@@ -5,13 +5,13 @@ import "forge-std/Test.sol";
 import "forge-std/Vm.sol";
 import "contracts/types/Types.sol";
 import {WETH} from "contracts/mocks/weth.sol";
-import {BullaClaim} from "contracts/BullaClaim.sol";
+import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
-import {IBullaClaim} from "contracts/interfaces/IBullaClaim.sol";
+import {IBullaClaimV2} from "contracts/interfaces/IBullaClaimV2.sol";
 import {MockController} from "contracts/mocks/MockController.sol";
 
 /// @notice covers test cases for cancelClaim() and cancelClaimFrom()
@@ -35,7 +35,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
 
         DeployContracts.DeploymentResult memory deploymentResult =
             (new DeployContracts()).deployForTest(deployer, LockState.Unlocked, 0, 0, 0, deployer);
-        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
+        bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
         approvalRegistry = bullaClaim.approvalRegistry();
         mockController = new MockController(address(bullaClaim));
@@ -109,7 +109,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
 
         // Test that cancelClaimFrom requires controlled claim
         vm.prank(controller);
-        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.MustBeControlledClaim.selector));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.MustBeControlledClaim.selector));
         bullaClaim.cancelClaimFrom(debtor, claimId, note);
 
         // test with controlled claim - should work
@@ -151,7 +151,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
 
         // Test that cancelClaimFrom requires controlled claim
         vm.prank(controller);
-        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.MustBeControlledClaim.selector));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.MustBeControlledClaim.selector));
         bullaClaim.cancelClaimFrom(creditor, claimId, note);
 
         // test with controlled claim - should work
@@ -182,7 +182,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
 
         // Test that cancelClaimFrom requires controlled claim for random address (uncontrolled claim)
         vm.prank(controller);
-        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.MustBeControlledClaim.selector));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.MustBeControlledClaim.selector));
         bullaClaim.cancelClaimFrom(randomAddress, claimId, note);
 
         // Test with controlled claim - should still fail for random address
@@ -200,16 +200,16 @@ contract TestCancelClaim is BullaClaimTestHelper {
 
         _setLockState(LockState.Locked);
 
-        vm.expectRevert(IBullaClaim.Locked.selector);
+        vm.expectRevert(IBullaClaimV2.Locked.selector);
         vm.prank(debtor);
         bullaClaim.cancelClaim(claimId, "No thanks");
 
-        vm.expectRevert(IBullaClaim.Locked.selector);
+        vm.expectRevert(IBullaClaimV2.Locked.selector);
         vm.prank(creditor);
         bullaClaim.cancelClaim(claimId, "No thanks");
 
         // Test that cancelClaimFrom also reverts when locked (first for uncontrolled claim)
-        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.MustBeControlledClaim.selector));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.MustBeControlledClaim.selector));
         vm.prank(controller);
         bullaClaim.cancelClaimFrom(debtor, claimId, "nah");
 
@@ -219,7 +219,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
         _setLockState(LockState.Locked);
 
         mockController.setCurrentUser(debtor);
-        vm.expectRevert(IBullaClaim.Locked.selector);
+        vm.expectRevert(IBullaClaimV2.Locked.selector);
         mockController.cancelClaim(controlledClaimId, "nah");
     }
 
@@ -259,7 +259,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
 
         // controller cannot cancel uncontrolled claim
         vm.prank(controller);
-        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.MustBeControlledClaim.selector));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.MustBeControlledClaim.selector));
         bullaClaim.cancelClaimFrom(debtor, claimId, "No thanks");
     }
 
@@ -286,7 +286,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
 
         // controller cannot cancel uncontrolled claim
         vm.prank(controller);
-        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.MustBeControlledClaim.selector));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.MustBeControlledClaim.selector));
         bullaClaim.cancelClaimFrom(debtor, claimId, note);
 
         // test with controlled claim
@@ -322,7 +322,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
 
         // controller cannot cancel uncontrolled claim
         vm.prank(controller);
-        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.MustBeControlledClaim.selector));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.MustBeControlledClaim.selector));
         bullaClaim.cancelClaimFrom(creditor, claimId, note);
 
         // test with controlled claim
@@ -340,7 +340,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
 
     function testCannotCancelIfNotMinted() public {
         vm.prank(debtor);
-        vm.expectRevert(IBullaClaim.NotMinted.selector);
+        vm.expectRevert(IBullaClaimV2.NotMinted.selector);
         bullaClaim.cancelClaim(1, "Reject");
     }
 
@@ -358,7 +358,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
 
         // test with controller - should revert with MustBeControlledClaim for uncontrolled claim
         vm.prank(controller);
-        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.MustBeControlledClaim.selector));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.MustBeControlledClaim.selector));
         bullaClaim.cancelClaimFrom(debtor, claimId, note);
 
         // test with controlled claim - should still fail because claim is bound
@@ -415,7 +415,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
         uint256 claimId = bullaClaim.createClaimFrom(creditor, params);
 
         vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.NotController.selector, debtor));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.NotController.selector, debtor));
         bullaClaim.cancelClaim(claimId, "No thanks");
     }
 

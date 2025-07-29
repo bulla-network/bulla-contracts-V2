@@ -5,9 +5,9 @@ import "forge-std/Vm.sol";
 import "contracts/types/Types.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {EIP712Helper} from "test/foundry/BullaClaim/EIP712/Utils.sol";
-import {BullaClaim} from "contracts/BullaClaim.sol";
+import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
 import {
-    BullaFrendLend,
+    BullaFrendLendV2,
     LoanRequestParams,
     Loan,
     LoanOffer,
@@ -16,7 +16,7 @@ import {
     NotCreditor,
     NotDebtor,
     LoanOfferNotFound
-} from "src/BullaFrendLend.sol";
+} from "src/BullaFrendLendV2.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
 import {LoanRequestParamsBuilder} from "./LoanRequestParamsBuilder.t.sol";
 import {BullaFrendLendTestHelper} from "./BullaFrendLendTestHelper.sol";
@@ -43,10 +43,10 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
 
         DeployContracts.DeploymentResult memory deploymentResult =
             (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, FEE, 0, 0, address(this));
-        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
+        bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
         approvalRegistry = bullaClaim.approvalRegistry();
-        bullaFrendLend = new BullaFrendLend(address(bullaClaim), admin, PROTOCOL_FEE_BPS);
+        bullaFrendLend = new BullaFrendLendV2(address(bullaClaim), admin, PROTOCOL_FEE_BPS);
 
         vm.deal(creditor, 10 ether);
         vm.deal(debtor, 10 ether);
@@ -337,7 +337,7 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
         bytes[] memory calls = new bytes[](2);
 
         calls[0] = abi.encodeCall(
-            BullaFrendLend.offerLoan,
+            BullaFrendLendV2.offerLoan,
             (
                 new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth))
                     .withLoanAmount(1 ether).withExpiresAt(futureExpiry).build()
@@ -345,7 +345,7 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
         );
 
         calls[1] = abi.encodeCall(
-            BullaFrendLend.offerLoan,
+            BullaFrendLendV2.offerLoan,
             (
                 new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth))
                     .withLoanAmount(2 ether).withExpiresAt(futureExpiry + 1 days).build()
@@ -372,7 +372,7 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
         bytes[] memory calls = new bytes[](2);
 
         calls[0] = abi.encodeCall(
-            BullaFrendLend.offerLoan,
+            BullaFrendLendV2.offerLoan,
             (
                 new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth))
                     .withExpiresAt(futureExpiry).build()
@@ -380,7 +380,7 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
         );
 
         calls[1] = abi.encodeCall(
-            BullaFrendLend.offerLoan,
+            BullaFrendLendV2.offerLoan,
             (
                 new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth))
                     .withExpiresAt(pastExpiry) // This should cause failure

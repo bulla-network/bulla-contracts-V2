@@ -2,7 +2,7 @@
 pragma solidity ^0.8.30;
 
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
-import {BullaFrendLend, LoanRequestParams} from "src/BullaFrendLend.sol";
+import {BullaFrendLendV2, LoanRequestParams} from "src/BullaFrendLendV2.sol";
 import {LoanRequestParamsBuilder} from "test/foundry/BullaFrendLend/LoanRequestParamsBuilder.t.sol";
 import {CreateClaimApprovalType} from "contracts/types/Types.sol";
 
@@ -12,7 +12,7 @@ import {CreateClaimApprovalType} from "contracts/types/Types.sol";
  * @dev Provides convenience methods for setting up permits and creating loans in tests
  */
 contract BullaFrendLendTestHelper is BullaClaimTestHelper {
-    BullaFrendLend public bullaFrendLend;
+    BullaFrendLendV2 public bullaFrendLend;
 
     /*///////////////////// FRENDLEND-SPECIFIC PERMIT HELPERS /////////////////////*/
 

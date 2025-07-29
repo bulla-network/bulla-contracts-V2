@@ -1,6 +1,6 @@
 pragma solidity ^0.8.30;
 
-import {LoanRequestParams} from "contracts/BullaFrendLend.sol";
+import {LoanRequestParams} from "contracts/BullaFrendLendV2.sol";
 import {InterestConfig} from "contracts/libraries/CompoundInterestLib.sol";
 
 contract LoanRequestParamsBuilder {

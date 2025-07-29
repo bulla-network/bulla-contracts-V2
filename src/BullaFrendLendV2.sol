@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.30;
 
-import "./interfaces/IBullaClaim.sol";
-import "./interfaces/IBullaFrendLend.sol";
+import "./interfaces/IBullaClaimV2.sol";
+import "./interfaces/IBullaFrendLendV2.sol";
 import "./BullaClaimControllerBase.sol";
 import "./types/Types.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
@@ -31,11 +31,11 @@ error CallbackFailed(bytes data);
 error InvalidCallback();
 
 /**
- * @title BullaFrendLend
+ * @title BullaFrendLendV2
  * @notice A wrapper contract for IBullaClaim that allows both creditors to offer loans that debtors can accept,
  *         and debtors to request loans that creditors can accept
  */
-contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IBullaFrendLend {
+contract BullaFrendLendV2 is BullaClaimControllerBase, BoringBatchable, ERC165, IBullaFrendLendV2 {
     using SafeTransferLib for ERC20;
     using SafeTransferLib for address;
 
@@ -586,7 +586,7 @@ contract BullaFrendLend is BullaClaimControllerBase, BoringBatchable, ERC165, IB
      * @return True if the contract implements interfaceId
      */
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165, IERC165) returns (bool) {
-        return interfaceId == type(IBullaFrendLend).interfaceId || _supportsERC721Interface(interfaceId)
+        return interfaceId == type(IBullaFrendLendV2).interfaceId || _supportsERC721Interface(interfaceId)
             || super.supportsInterface(interfaceId);
     }
 }

@@ -15,8 +15,8 @@ import {
     ClaimMetadata,
     CreateClaimApprovalType
 } from "contracts/types/Types.sol";
-import {BullaClaim} from "contracts/BullaClaim.sol";
-import {BullaFrendLend, LoanRequestParams, Loan, LoanOffer} from "src/BullaFrendLend.sol";
+import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
+import {BullaFrendLendV2, LoanRequestParams, Loan, LoanOffer} from "src/BullaFrendLendV2.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
 import {BullaFrendLendTestHelper} from "test/foundry/BullaFrendLend/BullaFrendLendTestHelper.sol";
 import {EIP712Helper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
@@ -50,10 +50,10 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
 
         DeployContracts.DeploymentResult memory deploymentResult =
             (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, FEE, 0, 0, address(this));
-        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
+        bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
         approvalRegistry = bullaClaim.approvalRegistry();
-        bullaFrendLend = new BullaFrendLend(address(bullaClaim), admin, PROTOCOL_FEE_BPS);
+        bullaFrendLend = new BullaFrendLendV2(address(bullaClaim), admin, PROTOCOL_FEE_BPS);
 
         // Setup ETH balances for fees and WETH deposits
         vm.deal(creditor, 10000 ether);
@@ -101,7 +101,7 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
 
         // Create a single loan offer via batch
         calls[0] = abi.encodeCall(
-            BullaFrendLend.offerLoan,
+            BullaFrendLendV2.offerLoan,
             (new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build())
         );
 
@@ -121,13 +121,13 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
 
         // First call succeeds
         calls[0] = abi.encodeCall(
-            BullaFrendLend.offerLoan,
+            BullaFrendLendV2.offerLoan,
             (new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build())
         );
 
         // Second call fails (invalid term length)
         calls[1] = abi.encodeCall(
-            BullaFrendLend.offerLoan,
+            BullaFrendLendV2.offerLoan,
             (
                 new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth))
                     .withTermLength(0).build()
@@ -167,13 +167,13 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         bytes[] memory calls = new bytes[](3);
 
         // First call is valid (creditor rejecting their own offer)
-        calls[0] = abi.encodeCall(BullaFrendLend.rejectLoanOffer, (validOfferId1));
+        calls[0] = abi.encodeCall(BullaFrendLendV2.rejectLoanOffer, (validOfferId1));
 
         // Second call is invalid (trying to reject non-existent offer)
-        calls[1] = abi.encodeCall(BullaFrendLend.rejectLoanOffer, (999));
+        calls[1] = abi.encodeCall(BullaFrendLendV2.rejectLoanOffer, (999));
 
         // Third call is valid (creditor rejecting their other offer)
-        calls[2] = abi.encodeCall(BullaFrendLend.rejectLoanOffer, (validOfferId2));
+        calls[2] = abi.encodeCall(BullaFrendLendV2.rejectLoanOffer, (validOfferId2));
 
         vm.prank(creditor);
         bullaFrendLend.batch(calls, false); // revertOnFail = false
@@ -212,8 +212,8 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
 
         bytes[] memory calls = new bytes[](2);
 
-        calls[0] = abi.encodeCall(BullaFrendLend.rejectLoanOffer, (loanId1));
-        calls[1] = abi.encodeCall(BullaFrendLend.rejectLoanOffer, (loanId2));
+        calls[0] = abi.encodeCall(BullaFrendLendV2.rejectLoanOffer, (loanId1));
+        calls[1] = abi.encodeCall(BullaFrendLendV2.rejectLoanOffer, (loanId2));
 
         vm.prank(creditor);
         bullaFrendLend.batch(calls, true);
@@ -330,7 +330,7 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         bytes[] memory calls = new bytes[](numRejects);
 
         for (uint256 i = 0; i < numRejects; i++) {
-            calls[i] = abi.encodeCall(BullaFrendLend.rejectLoanOffer, (offerIds[i]));
+            calls[i] = abi.encodeCall(BullaFrendLendV2.rejectLoanOffer, (offerIds[i]));
         }
 
         vm.prank(creditor);
@@ -476,9 +476,9 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
 
         bytes[] memory calls = new bytes[](3);
 
-        calls[0] = abi.encodeCall(BullaFrendLend.payLoan, (claimId1, 1 ether));
-        calls[1] = abi.encodeCall(BullaFrendLend.payLoan, (claimId2, 1 ether));
-        calls[2] = abi.encodeCall(BullaFrendLend.payLoan, (claimId3, 1 ether));
+        calls[0] = abi.encodeCall(BullaFrendLendV2.payLoan, (claimId1, 1 ether));
+        calls[1] = abi.encodeCall(BullaFrendLendV2.payLoan, (claimId2, 1 ether));
+        calls[2] = abi.encodeCall(BullaFrendLendV2.payLoan, (claimId3, 1 ether));
 
         vm.prank(debtor);
         bullaFrendLend.batch(calls, true);
@@ -554,8 +554,8 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
 
         bytes[] memory calls = new bytes[](2);
 
-        calls[0] = abi.encodeCall(BullaFrendLend.impairLoan, (claimId1));
-        calls[1] = abi.encodeCall(BullaFrendLend.impairLoan, (claimId2));
+        calls[0] = abi.encodeCall(BullaFrendLendV2.impairLoan, (claimId1));
+        calls[1] = abi.encodeCall(BullaFrendLendV2.impairLoan, (claimId2));
 
         vm.prank(creditor);
         bullaFrendLend.batch(calls, true);
@@ -623,8 +623,8 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
 
         bytes[] memory calls = new bytes[](2);
 
-        calls[0] = abi.encodeCall(BullaFrendLend.markLoanAsPaid, (claimId1));
-        calls[1] = abi.encodeCall(BullaFrendLend.markLoanAsPaid, (claimId2));
+        calls[0] = abi.encodeCall(BullaFrendLendV2.markLoanAsPaid, (claimId1));
+        calls[1] = abi.encodeCall(BullaFrendLendV2.markLoanAsPaid, (claimId2));
 
         vm.prank(creditor);
         bullaFrendLend.batch(calls, true);
@@ -647,11 +647,11 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         bytes[] memory calls = new bytes[](2);
 
         calls[0] = abi.encodeCall(
-            BullaFrendLend.offerLoan,
+            BullaFrendLendV2.offerLoan,
             (new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build())
         );
         calls[1] = abi.encodeCall(
-            BullaFrendLend.offerLoan,
+            BullaFrendLendV2.offerLoan,
             (new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(charlie).withToken(address(weth)).build())
         );
 
@@ -687,7 +687,7 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         bytes[] memory calls = new bytes[](numOffers);
 
         for (uint256 i = 0; i < numOffers; i++) {
-            calls[i] = abi.encodeCall(BullaFrendLend.rejectLoanOffer, (offerIds[i]));
+            calls[i] = abi.encodeCall(BullaFrendLendV2.rejectLoanOffer, (offerIds[i]));
         }
 
         vm.prank(creditor);
@@ -723,7 +723,7 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         bytes[] memory calls = new bytes[](numOffers);
 
         for (uint256 i = 0; i < numOffers; i++) {
-            calls[i] = abi.encodeCall(BullaFrendLend.rejectLoanOffer, (offerIds[i]));
+            calls[i] = abi.encodeCall(BullaFrendLendV2.rejectLoanOffer, (offerIds[i]));
         }
 
         vm.prank(creditor);
@@ -751,21 +751,21 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         bytes[] memory calls = new bytes[](3);
 
         calls[0] = abi.encodeCall(
-            BullaFrendLend.offerLoan,
+            BullaFrendLendV2.offerLoan,
             (
                 new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth))
                     .withLoanAmount(1 ether).build()
             )
         );
         calls[1] = abi.encodeCall(
-            BullaFrendLend.offerLoan,
+            BullaFrendLendV2.offerLoan,
             (
                 new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(charlie).withToken(address(weth))
                     .withLoanAmount(2 ether).build()
             )
         );
         calls[2] = abi.encodeCall(
-            BullaFrendLend.offerLoanWithMetadata,
+            BullaFrendLendV2.offerLoanWithMetadata,
             (
                 new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(permitToken))
                     .withLoanAmount(3 ether).build(),

@@ -4,7 +4,7 @@ pragma solidity ^0.8.30;
 import "./IBullaClaimCore.sol";
 import "./IBullaClaimAdmin.sol";
 
-interface IBullaClaim is IBullaClaimCore, IBullaClaimAdmin {
+interface IBullaClaimV2 is IBullaClaimCore, IBullaClaimAdmin {
     /*///////////////////////////////////////////////////////////////
                             ERRORS
     //////////////////////////////////////////////////////////////*/

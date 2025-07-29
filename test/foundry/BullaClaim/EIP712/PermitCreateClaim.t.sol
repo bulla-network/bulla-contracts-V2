@@ -3,8 +3,8 @@ pragma solidity ^0.8.30;
 
 import {EIP712Helper, privateKeyValidity, splitSig} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
-import "contracts/BullaClaim.sol";
-import "contracts/interfaces/IBullaClaim.sol";
+import "contracts/BullaClaimV2.sol";
+import "contracts/interfaces/IBullaClaimV2.sol";
 import "contracts/mocks/PenalizedClaim.sol";
 import "contracts/mocks/ERC1271Wallet.sol";
 import {console} from "forge-std/console.sol";
@@ -51,7 +51,7 @@ import {BullaApprovalRegistry} from "contracts/BullaApprovalRegistry.sol";
 ///     S7: The `isBindingAllowed` boolean flag
 ///     S8: The stored signing nonce found in `user`'s CreateClaimApproval struct for `controller`
 contract TestPermitCreateClaim is Test {
-    BullaClaim internal bullaClaim;
+    BullaClaimV2 internal bullaClaim;
     IBullaApprovalRegistry internal approvalRegistry;
     EIP712Helper internal sigHelper;
     ERC1271WalletMock internal eip1271Wallet;
@@ -67,7 +67,7 @@ contract TestPermitCreateClaim is Test {
     function setUp() public {
         DeployContracts.DeploymentResult memory deploymentResult =
             (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
-        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
+        bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
         approvalRegistry = bullaClaim.approvalRegistry();
         sigHelper = new EIP712Helper(address(bullaClaim));
         eip1271Wallet = new ERC1271WalletMock();
@@ -715,7 +715,7 @@ contract TestPermitCreateClaim is Test {
         }
     }
 
-    /// @notice Test that IBullaClaim.permitCreateClaim works identically to BullaClaim.permitCreateClaim
+    /// @notice Test that IBullaClaimV2.permitCreateClaim works identically to BullaClaim.permitCreateClaim
     /// @dev This test ensures the interface version (using uint8) produces the same results as the direct implementation (using enum)
     function testInterfaceVsImplementationEquivalence() public {
         uint256 alicePK = uint256(0xA11c3);
@@ -759,7 +759,7 @@ contract TestPermitCreateClaim is Test {
             signature: aliceSignature
         });
 
-        // Call via interface (IBullaClaim.permitCreateClaim with uint8)
+        // Call via interface (IBullaClaimV2.permitCreateClaim with uint8)
         BullaApprovalRegistry(address(approvalRegistry)).permitCreateClaim({
             user: charlie,
             controller: controller2,

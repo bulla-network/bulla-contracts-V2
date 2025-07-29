@@ -15,7 +15,7 @@ import {
     ClaimMetadata,
     CreateClaimApprovalType
 } from "contracts/types/Types.sol";
-import {BullaClaim} from "contracts/BullaClaim.sol";
+import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
 import {BullaClaimTestHelper, EIP712Helper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
@@ -40,7 +40,7 @@ contract TestBatchFunctionality is BullaClaimTestHelper {
 
         DeployContracts.DeploymentResult memory deploymentResult =
             (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
-        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
+        bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
         approvalRegistry = bullaClaim.approvalRegistry();
 
@@ -77,7 +77,7 @@ contract TestBatchFunctionality is BullaClaimTestHelper {
 
         // Create a single claim via batch
         calls[0] = abi.encodeCall(
-            BullaClaim.createClaim, (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).build())
+            BullaClaimV2.createClaim, (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).build())
         );
 
         vm.prank(creditor);
@@ -94,18 +94,19 @@ contract TestBatchFunctionality is BullaClaimTestHelper {
 
         // First call succeeds
         calls[0] = abi.encodeCall(
-            BullaClaim.createClaim, (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).build())
+            BullaClaimV2.createClaim, (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).build())
         );
 
         // Second call fails (invalid claim amount)
         calls[1] = abi.encodeCall(
-            BullaClaim.createClaim,
+            BullaClaimV2.createClaim,
             (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withClaimAmount(0).build())
         );
 
         // Third call would succeed but won't be reached
         calls[2] = abi.encodeCall(
-            BullaClaim.createClaim, (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(charlie).build())
+            BullaClaimV2.createClaim,
+            (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(charlie).build())
         );
 
         vm.prank(creditor);
@@ -128,11 +129,11 @@ contract TestBatchFunctionality is BullaClaimTestHelper {
         bytes[] memory calls = new bytes[](2);
 
         calls[0] = abi.encodeCall(
-            BullaClaim.createClaimWithMetadata,
+            BullaClaimV2.createClaimWithMetadata,
             (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).build(), metadata1)
         );
         calls[1] = abi.encodeCall(
-            BullaClaim.createClaimWithMetadata,
+            BullaClaimV2.createClaimWithMetadata,
             (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(charlie).build(), metadata2)
         );
 
@@ -159,11 +160,11 @@ contract TestBatchFunctionality is BullaClaimTestHelper {
         bytes[] memory calls = new bytes[](2);
 
         calls[0] = abi.encodeCall(
-            BullaClaim.createClaimFrom,
+            BullaClaimV2.createClaimFrom,
             (user, new CreateClaimParamsBuilder().withCreditor(user).withDebtor(debtor).build())
         );
         calls[1] = abi.encodeCall(
-            BullaClaim.createClaimFrom,
+            BullaClaimV2.createClaimFrom,
             (user, new CreateClaimParamsBuilder().withCreditor(user).withDebtor(charlie).build())
         );
 
@@ -189,9 +190,9 @@ contract TestBatchFunctionality is BullaClaimTestHelper {
 
         bytes[] memory calls = new bytes[](3);
 
-        calls[0] = abi.encodeCall(BullaClaim.payClaim, (claimId1, 1 ether));
-        calls[1] = abi.encodeCall(BullaClaim.payClaim, (claimId2, 1 ether));
-        calls[2] = abi.encodeCall(BullaClaim.payClaim, (claimId3, 1 ether));
+        calls[0] = abi.encodeCall(BullaClaimV2.payClaim, (claimId1, 1 ether));
+        calls[1] = abi.encodeCall(BullaClaimV2.payClaim, (claimId2, 1 ether));
+        calls[2] = abi.encodeCall(BullaClaimV2.payClaim, (claimId3, 1 ether));
 
         // Approve tokens for batch payment
         vm.prank(debtor);
@@ -228,8 +229,8 @@ contract TestBatchFunctionality is BullaClaimTestHelper {
 
         bytes[] memory calls = new bytes[](2);
 
-        calls[0] = abi.encodeCall(BullaClaim.payClaim, (claimId1, 1 ether));
-        calls[1] = abi.encodeCall(BullaClaim.payClaim, (claimId2, 1 ether));
+        calls[0] = abi.encodeCall(BullaClaimV2.payClaim, (claimId1, 1 ether));
+        calls[1] = abi.encodeCall(BullaClaimV2.payClaim, (claimId2, 1 ether));
 
         vm.prank(debtor);
         bullaClaim.batch{value: 2 ether}(calls, true);
@@ -250,8 +251,8 @@ contract TestBatchFunctionality is BullaClaimTestHelper {
 
         bytes[] memory calls = new bytes[](2);
 
-        calls[0] = abi.encodeCall(BullaClaim.updateBinding, (claimId1, ClaimBinding.BindingPending));
-        calls[1] = abi.encodeCall(BullaClaim.updateBinding, (claimId2, ClaimBinding.BindingPending));
+        calls[0] = abi.encodeCall(BullaClaimV2.updateBinding, (claimId1, ClaimBinding.BindingPending));
+        calls[1] = abi.encodeCall(BullaClaimV2.updateBinding, (claimId2, ClaimBinding.BindingPending));
 
         vm.prank(creditor);
         bullaClaim.batch(calls, true);
@@ -269,8 +270,8 @@ contract TestBatchFunctionality is BullaClaimTestHelper {
 
         bytes[] memory calls = new bytes[](2);
 
-        calls[0] = abi.encodeCall(BullaClaim.cancelClaim, (claimId1, "Rescinding claim 1"));
-        calls[1] = abi.encodeCall(BullaClaim.cancelClaim, (claimId2, "Rescinding claim 2"));
+        calls[0] = abi.encodeCall(BullaClaimV2.cancelClaim, (claimId1, "Rescinding claim 1"));
+        calls[1] = abi.encodeCall(BullaClaimV2.cancelClaim, (claimId2, "Rescinding claim 2"));
 
         vm.prank(creditor);
         bullaClaim.batch(calls, true);
@@ -303,8 +304,8 @@ contract TestBatchFunctionality is BullaClaimTestHelper {
 
         bytes[] memory calls = new bytes[](2);
 
-        calls[0] = abi.encodeCall(BullaClaim.impairClaim, (claimId1));
-        calls[1] = abi.encodeCall(BullaClaim.impairClaim, (claimId2));
+        calls[0] = abi.encodeCall(BullaClaimV2.impairClaim, (claimId1));
+        calls[1] = abi.encodeCall(BullaClaimV2.impairClaim, (claimId2));
 
         vm.prank(creditor);
         bullaClaim.batch(calls, true);
@@ -323,8 +324,8 @@ contract TestBatchFunctionality is BullaClaimTestHelper {
 
         bytes[] memory calls = new bytes[](2);
 
-        calls[0] = abi.encodeCall(BullaClaim.markClaimAsPaid, (claimId1));
-        calls[1] = abi.encodeCall(BullaClaim.markClaimAsPaid, (claimId2));
+        calls[0] = abi.encodeCall(BullaClaimV2.markClaimAsPaid, (claimId1));
+        calls[1] = abi.encodeCall(BullaClaimV2.markClaimAsPaid, (claimId2));
 
         vm.prank(creditor);
         bullaClaim.batch(calls, true);
@@ -404,7 +405,7 @@ contract TestBatchFunctionality is BullaClaimTestHelper {
 
         // Second call: create claim that would use the permitted tokens
         calls[1] = abi.encodeCall(
-            BullaClaim.createClaim,
+            BullaClaimV2.createClaim,
             (
                 new CreateClaimParamsBuilder().withCreditor(owner).withDebtor(debtor).withToken(address(permitToken))
                     .withClaimAmount(amount).build()
@@ -432,7 +433,7 @@ contract TestBatchFunctionality is BullaClaimTestHelper {
 
         for (uint256 i = 0; i < numClaims; i++) {
             calls[i] = abi.encodeCall(
-                BullaClaim.createClaim,
+                BullaClaimV2.createClaim,
                 (new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(address(uint160(0x1000 + i))).build())
             );
         }
