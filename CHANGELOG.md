@@ -1,3 +1,10 @@
+# [1.15.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.14.0...v1.15.0) (2025-07-29)
+
+
+### Features
+
+* rename BulllaClaim and BullaFrendLend contracts V2 ([#81](https://github.com/bulla-network/bulla-contracts-V2/issues/81)) ([34f9138](https://github.com/bulla-network/bulla-contracts-V2/commit/34f9138be4e2a0cd9f0fcfa2383149917b8a4be8))
+
 # [1.14.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.13.0...v1.14.0) (2025-07-25)
 
 
