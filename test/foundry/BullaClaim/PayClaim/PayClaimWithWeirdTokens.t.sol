@@ -15,7 +15,7 @@ import {ReturnsGarbageToken} from "solmate/test/utils/weird-tokens/ReturnsGarbag
 import {ReturnsTooLittleToken} from "solmate/test/utils/weird-tokens/ReturnsTooLittleToken.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {FeeOnTransferToken} from "contracts/mocks/FeeOnTransferToken.sol";
-import {BullaClaim} from "contracts/BullaClaim.sol";
+import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
 import {Claim, Status, ClaimBinding, CreateClaimParams, LockState} from "contracts/types/Types.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
@@ -32,7 +32,7 @@ contract TestPayClaimWithWeirdTokens is Test {
     ReturnsGarbageToken returnsGarbage;
     ReturnsTooLittleToken returnsTooLittle;
 
-    BullaClaim bullaClaim;
+    BullaClaimV2 bullaClaim;
 
     address creditor = address(0xA11c3);
     address debtor = address(0xB0b);
@@ -44,7 +44,7 @@ contract TestPayClaimWithWeirdTokens is Test {
 
         DeployContracts.DeploymentResult memory deploymentResult =
             (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
-        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
+        bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
 
         reverting = new RevertingToken();
         returnsTwo = new ReturnsTwoToken();

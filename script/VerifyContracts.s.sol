@@ -113,7 +113,7 @@ contract VerifyContracts is Script {
     }
 
     function _verifyBullaClaim(VerificationConfig memory config) internal {
-        console.log("Verifying BullaClaim...");
+        console.log("Verifying BullaClaimV2...");
 
         // Encode constructor args: (address,uint8,uint256,address)
         bytes memory constructorArgs = abi.encode(
@@ -125,11 +125,11 @@ contract VerifyContracts is Script {
         args[0] = "forge";
         args[1] = "verify-contract";
         args[2] = vm.toString(config.bullaClaim);
-        args[3] = string.concat("src/BullaClaim.sol:BullaClaim --chain ", config.network);
+        args[3] = string.concat("src/BullaClaimV2.sol:BullaClaimV2 --chain ", config.network);
         args[4] = "--constructor-args";
         args[5] = encodedArgs;
 
-        _executeVerification("BullaClaim", args);
+        _executeVerification("BullaClaimV2", args);
     }
 
     function _verifyBullaInvoice(VerificationConfig memory config) internal {
@@ -152,7 +152,7 @@ contract VerifyContracts is Script {
     }
 
     function _verifyBullaFrendLend(VerificationConfig memory config) internal {
-        console.log("Verifying BullaFrendLend...");
+        console.log("Verifying BullaFrendLendV2...");
 
         // Encode constructor args: (address,address,uint16)
         bytes memory constructorArgs =
@@ -163,11 +163,11 @@ contract VerifyContracts is Script {
         args[0] = "forge";
         args[1] = "verify-contract";
         args[2] = vm.toString(config.bullaFrendLend);
-        args[3] = string.concat("src/BullaFrendLend.sol:BullaFrendLend --chain ", config.network);
+        args[3] = string.concat("src/BullaFrendLendV2.sol:BullaFrendLendV2 --chain ", config.network);
         args[4] = "--constructor-args";
         args[5] = encodedArgs;
 
-        _executeVerification("BullaFrendLend", args);
+        _executeVerification("BullaFrendLendV2", args);
     }
 
     function _executeVerification(string memory contractName, string[] memory args) internal {

@@ -6,13 +6,13 @@ import "forge-std/Vm.sol";
 import "contracts/types/Types.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
-import {BullaClaim, CreateClaimApprovalType} from "contracts/BullaClaim.sol";
+import {BullaClaimV2, CreateClaimApprovalType} from "contracts/BullaClaimV2.sol";
 import {PenalizedClaim} from "contracts/mocks/PenalizedClaim.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
-import {IBullaClaim} from "contracts/interfaces/IBullaClaim.sol";
+import {IBullaClaimV2} from "contracts/interfaces/IBullaClaimV2.sol";
 
 /// @notice SPEC:
 /// A function can call this function to verify and "spend" `from`'s approval of `controller` to create a claim given the following:
@@ -53,7 +53,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
 
         DeployContracts.DeploymentResult memory deploymentResult =
             (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
-        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
+        bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
         approvalRegistry = bullaClaim.approvalRegistry();
         _newClaim(creditor, creditor, debtor);
@@ -66,17 +66,17 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
 
         _permitCreateClaim({_userPK: userPK, _controller: address(this), _approvalCount: type(uint64).max});
 
-        vm.expectRevert(IBullaClaim.Locked.selector);
+        vm.expectRevert(IBullaClaimV2.Locked.selector);
         _newClaim(creditor, creditor, debtor);
 
-        vm.expectRevert(IBullaClaim.Locked.selector);
+        vm.expectRevert(IBullaClaimV2.Locked.selector);
         _newClaimFrom(user, creditor, debtor);
 
         bullaClaim.setLockState(LockState.NoNewClaims);
-        vm.expectRevert(IBullaClaim.Locked.selector);
+        vm.expectRevert(IBullaClaimV2.Locked.selector);
         _newClaim(creditor, creditor, debtor);
 
-        vm.expectRevert(IBullaClaim.Locked.selector);
+        vm.expectRevert(IBullaClaimV2.Locked.selector);
         _newClaimFrom(user, creditor, debtor);
     }
 

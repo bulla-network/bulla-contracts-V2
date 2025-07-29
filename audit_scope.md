@@ -8,8 +8,8 @@ Bulla Protocol V2 is a decentralized claims protocol that represents credit rela
 
 ### Architecture
 
-**BullaClaim as Foundation**
-`BullaClaim.sol` serves as the core contract that implements the fundamental claim lifecycle and ERC721 functionality. This contract is designed as a foundation that other specialized contracts (called "controllers") can build upon to create domain-specific credit instruments.
+**BullaClaimV2 as Foundation**
+`BullaClaimV2.sol` serves as the core contract that implements the fundamental claim lifecycle and ERC721 functionality. This contract is designed as a foundation that other specialized contracts (called "controllers") can build upon to create domain-specific credit instruments.
 
 **Controller Pattern**
 Controllers are specialized contracts that fully control claims they create, enabling:
@@ -21,7 +21,7 @@ Controllers are specialized contracts that fully control claims they create, ena
 
 Controllers include:
 
-- `BullaFrendLend.sol` - Peer-to-peer lending with compound/simple interest
+- `BullaFrendLendV2.sol` - Peer-to-peer lending with compound/simple interest
 - `BullaInvoice.sol` - Invoice and purchase order management
 
 **Permission System**
@@ -43,8 +43,8 @@ This audit encompasses the core protocol infrastructure and primary controllers.
 
 ### Core Contracts
 
-- `src/BullaClaim.sol` - Main claim NFT contract implementing ERC721
-- `src/BullaFrendLend.sol` - Peer-to-peer lending functionality
+- `src/BullaClaimV2.sol` - Main claim NFT contract implementing ERC721
+- `src/BullaFrendLendV2.sol` - Peer-to-peer lending functionality
 - `src/BullaInvoice.sol` - Invoice and purchase order management
 - `src/BullaClaimControllerBase.sol` - Base contract for claim controllers
 - `src/BullaApprovalRegistry.sol` - Manages user approvals for claim operations
@@ -62,8 +62,8 @@ This audit encompasses the core protocol infrastructure and primary controllers.
 
 ### Interfaces
 
-- `src/interfaces/IBullaClaim.sol` - Main claim contract interface
-- `src/interfaces/IBullaFrendLend.sol` - Lending contract interface
+- `src/interfaces/IBullaClaimV2.sol` - Main claim contract interface
+- `src/interfaces/IBullaFrendLendV2.sol` - Lending contract interface
 - `src/interfaces/IBullaInvoice.sol` - Invoice contract interface
 - `src/interfaces/IBullaClaimCore.sol` - Core claim functionality interface
 - `src/interfaces/IBullaApprovalRegistry.sol` - Approval registry interface

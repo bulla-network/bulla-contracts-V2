@@ -3,13 +3,13 @@ pragma solidity ^0.8.30;
 
 import "forge-std/Test.sol";
 import {WETH} from "contracts/mocks/weth.sol";
-import "contracts/BullaClaim.sol";
+import "contracts/BullaClaimV2.sol";
 import {EIP712Helper} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 
 contract BullaClaimTestHelper is Test {
     WETH public weth;
-    BullaClaim internal bullaClaim;
+    BullaClaimV2 internal bullaClaim;
     IBullaApprovalRegistry internal approvalRegistry;
     EIP712Helper internal sigHelper;
 

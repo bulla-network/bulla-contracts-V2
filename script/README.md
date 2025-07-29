@@ -1,14 +1,14 @@
 # Bulla Contracts V2 Deployment Guide
 
-This guide explains how to deploy BullaClaim, BullaInvoice, and BullaFrendLend contracts using the provided deployment scripts.
+This guide explains how to deploy BullaClaimV2, BullaInvoice, and BullaFrendLendV2 contracts using the provided deployment scripts.
 
 ## Overview
 
 The deployment process includes:
 
-1. **BullaClaim** - Core claim management contract
+1. **BullaClaimV2** - Core claim management contract
 2. **BullaInvoice** - Invoice-specific functionality wrapper
-3. **BullaFrendLend** - P2P lending functionality wrapper
+3. **BullaFrendLendV2** - P2P lending functionality wrapper
 4. **Dependencies** - Required supporting contracts (BullaControllerRegistry, WhitelistPermissions, BullaApprovalRegistry)
 
 ## Prerequisites
@@ -86,7 +86,7 @@ Verification happens automatically during deployment. If automatic verification 
 
 ```bash
 # Example output if automatic verification fails:
-forge verify-contract 0x123... src/BullaClaim.sol:BullaClaim --chain sepolia --constructor-args $(cast abi-encode "constructor(address,uint8,uint256,address)" ...)
+forge verify-contract 0x123... src/BullaClaimV2.sol:BullaClaimV2 --chain sepolia --constructor-args $(cast abi-encode "constructor(address,uint8,uint256,address)" ...)
 ```
 
 You can also use the dedicated verification script:
@@ -100,7 +100,7 @@ forge script script/VerifyContracts.s.sol:VerifyContracts --rpc-url $SEPOLIA_RPC
 The deployment script outputs verification commands. Example:
 
 ```bash
-forge verify-contract 0x123... src/BullaClaim.sol:BullaClaim \
+forge verify-contract 0x123... src/BullaClaimV2.sol:BullaClaimV2 \
   --chain mainnet \
   --constructor-args $(cast abi-encode "constructor(address,uint8,uint256,address)" 0x... 0 0 0x...)
 ```
@@ -126,16 +126,16 @@ Deploying BullaControllerRegistry...
 BullaControllerRegistry deployed at: 0x...
 
 === Deploying Main Contracts ===
-Deploying BullaClaim...
-BullaClaim deployed at: 0x...
+Deploying BullaClaimV2...
+BullaClaimV2 deployed at: 0x...
 
 === Setting up Authorizations ===
 Authorizing BullaInvoice in ApprovalRegistry...
 
 === Deployment Complete ===
-BullaClaim: 0x...
+BullaClaimV2: 0x...
 BullaInvoice: 0x...
-BullaFrendLend: 0x...
+BullaFrendLendV2: 0x...
 ```
 
 ## Contract Addresses Storage
@@ -161,9 +161,9 @@ The deployment script automatically saves all deployment information to JSON fil
   "invoiceProtocolFeeBPS": 0,
   "frendLendProtocolFeeBPS": 0,
   "adminAddress": "0x1234...",
-  "bullaClaim": "0xabc123...",
+  "bullaClaimV2": "0xabc123...",
   "bullaInvoice": "0xdef456...",
-  "bullaFrendLend": "0x789ghi...",
+  "bullaFrendLendV2": "0x789ghi...",
   "controllerRegistry": "0xjkl012...",
   "whitelistPermissions": "0xmno345...",
   "approvalRegistry": "0xpqr678..."
@@ -173,13 +173,13 @@ The deployment script automatically saves all deployment information to JSON fil
 ### Using Deployment Data
 
 ```bash
-# Get BullaClaim address from latest deployment
-cat deployments/sepolia-latest.json | jq '.bullaClaim'
+# Get BullaClaimV2 address from latest deployment
+cat deployments/sepolia-latest.json | jq '.bullaClaimV2'
 
 # Generate .env variables
 node -e "
 const d = require('./deployments/sepolia-latest.json');
-console.log(\`BULLA_CLAIM_ADDRESS=\${d.bullaClaim}\`);
+console.log(\`BULLA_CLAIM_ADDRESS=\${d.bullaClaimV2}\`);
 console.log(\`BULLA_INVOICE_ADDRESS=\${d.bullaInvoice}\`);
 "
 ```

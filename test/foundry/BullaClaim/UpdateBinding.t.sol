@@ -5,13 +5,13 @@ import "forge-std/Test.sol";
 import "forge-std/Vm.sol";
 import "contracts/types/Types.sol";
 import {WETH} from "contracts/mocks/weth.sol";
-import {BullaClaim} from "contracts/BullaClaim.sol";
+import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
 import {EIP712Helper} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
-import {IBullaClaim} from "contracts/interfaces/IBullaClaim.sol";
+import {IBullaClaimV2} from "contracts/interfaces/IBullaClaimV2.sol";
 
 /// @notice covers test cases for updateBinding() and updateBindingFrom()
 /// @notice SPEC: updateBinding() TODO
@@ -37,7 +37,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
 
         DeployContracts.DeploymentResult memory deploymentResult =
             (new DeployContracts()).deployForTest(address(0xB0b), LockState.Unlocked, 0, 0, 0, address(0xB0b));
-        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
+        bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
         approvalRegistry = bullaClaim.approvalRegistry();
 
@@ -205,7 +205,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
 
     function testCannotUpdateBindingIfNotMinted() public {
         vm.prank(debtor);
-        vm.expectRevert(IBullaClaim.NotMinted.selector);
+        vm.expectRevert(IBullaClaimV2.NotMinted.selector);
         bullaClaim.updateBinding(1, ClaimBinding.Unbound);
     }
 
@@ -386,12 +386,12 @@ contract TestUpdateBinding is BullaClaimTestHelper {
 
         // creditor can't update the binding directly
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.NotController.selector, creditor));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.NotController.selector, creditor));
         bullaClaim.updateBinding(claimId, ClaimBinding.Unbound);
 
         // neither can the debtor
         vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.NotController.selector, debtor));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.NotController.selector, debtor));
         bullaClaim.updateBinding(claimId, ClaimBinding.Bound);
 
         vm.prank(controllerAddress);

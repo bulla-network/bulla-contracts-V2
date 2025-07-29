@@ -14,7 +14,7 @@ import {
     ClaimMetadata,
     CreateClaimApprovalType
 } from "contracts/types/Types.sol";
-import {BullaClaim} from "contracts/BullaClaim.sol";
+import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
 import {BullaInvoice, CreateInvoiceParams, Invoice} from "src/BullaInvoice.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
 import {BullaInvoiceTestHelper} from "test/foundry/BullaInvoice/BullaInvoiceTestHelper.sol";
@@ -48,7 +48,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
 
         DeployContracts.DeploymentResult memory deploymentResult =
             (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, FEE, 0, 0, address(this));
-        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
+        bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
         approvalRegistry = bullaClaim.approvalRegistry();
         bullaInvoice = new BullaInvoice(address(bullaClaim), address(this), 0);

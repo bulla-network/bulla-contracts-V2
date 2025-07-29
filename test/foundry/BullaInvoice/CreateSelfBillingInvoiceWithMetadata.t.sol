@@ -5,7 +5,7 @@ import "forge-std/Vm.sol";
 import "contracts/types/Types.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
-import {BullaClaim} from "contracts/BullaClaim.sol";
+import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
 import {
     BullaInvoice,
     CreateInvoiceParams,
@@ -34,7 +34,7 @@ import {ERC20MockLegacy as ERC20Mock} from "contracts/mocks/ERC20MockLegacy.sol"
 
 contract TestCreateSelfBillingInvoiceWithMetadata is Test {
     WETH public weth;
-    BullaClaim public bullaClaim;
+    BullaClaimV2 public bullaClaim;
     EIP712Helper public sigHelper;
     BullaInvoice public bullaInvoice;
     ERC20Mock public testToken;
@@ -68,7 +68,7 @@ contract TestCreateSelfBillingInvoiceWithMetadata is Test {
         DeployContracts.DeploymentResult memory deploymentResult = (new DeployContracts()).deployForTest(
             address(this), LockState.Unlocked, CORE_PROTOCOL_FEE, 0, 0, address(this)
         );
-        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
+        bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
 
         // Main invoice contract with origination fees

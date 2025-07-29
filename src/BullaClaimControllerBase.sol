@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.30;
 
-import "./interfaces/IBullaClaim.sol";
+import "./interfaces/IBullaClaimV2.sol";
 import "./types/Types.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 abstract contract BullaClaimControllerBase is IERC721 {
-    IBullaClaim public immutable _bullaClaim;
+    IBullaClaimV2 public immutable _bullaClaim;
 
     constructor(address bullaClaimAddress) {
-        _bullaClaim = IBullaClaim(bullaClaimAddress);
+        _bullaClaim = IBullaClaimV2(bullaClaimAddress);
     }
 
     function _checkController(address controller) internal view {
         if (controller != address(this)) {
-            revert IBullaClaim.NotController(msg.sender);
+            revert IBullaClaimV2.NotController(msg.sender);
         }
     }
 

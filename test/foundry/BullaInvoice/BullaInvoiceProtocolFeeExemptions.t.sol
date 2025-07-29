@@ -24,7 +24,7 @@ import {
     IncorrectFee,
     InvoiceBatchInvalidMsgValue
 } from "contracts/BullaInvoice.sol";
-import {BullaClaim} from "contracts/BullaClaim.sol";
+import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
 import {BullaInvoice} from "contracts/BullaInvoice.sol";
 import {WhitelistPermissions} from "contracts/WhitelistPermissions.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
@@ -32,7 +32,7 @@ import {CreateInvoiceParamsBuilder} from "test/foundry/BullaInvoice/CreateInvoic
 import {EIP712Helper} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 
 contract TestBullaInvoiceProtocolFeeExemptions is Test {
-    BullaClaim public bullaClaim;
+    BullaClaimV2 public bullaClaim;
     BullaInvoice public bullaInvoice;
     WhitelistPermissions public feeExemptions;
     MockERC20 public token;
@@ -75,7 +75,7 @@ contract TestBullaInvoiceProtocolFeeExemptions is Test {
         vm.prank(_owner);
         DeployContracts.DeploymentResult memory deploymentResult =
             (new DeployContracts()).deployForTest(_owner, LockState.Unlocked, _CORE_PROTOCOL_FEE, 0, 0, _owner);
-        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
+        bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
 
         // Set fee exemptions contract on BullaClaim
         vm.prank(_owner);

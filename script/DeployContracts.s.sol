@@ -3,9 +3,9 @@ pragma solidity ^0.8.30;
 
 import "forge-std/Script.sol";
 import "forge-std/console.sol";
-import {BullaClaim} from "contracts/BullaClaim.sol";
+import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
 import {BullaInvoice} from "contracts/BullaInvoice.sol";
-import {BullaFrendLend} from "contracts/BullaFrendLend.sol";
+import {BullaFrendLendV2} from "contracts/BullaFrendLendV2.sol";
 import "contracts/BullaControllerRegistry.sol";
 import "contracts/WhitelistPermissions.sol";
 import "contracts/BullaApprovalRegistry.sol";
@@ -23,9 +23,9 @@ contract DeployContracts is Script {
     }
 
     // Deployed contracts
-    BullaClaim public bullaClaim;
+    BullaClaimV2 public bullaClaim;
     BullaInvoice public bullaInvoice;
-    BullaFrendLend public bullaFrendLend;
+    BullaFrendLendV2 public bullaFrendLend;
     BullaControllerRegistry public controllerRegistry;
     WhitelistPermissions public whitelistPermissions;
     BullaApprovalRegistry public approvalRegistry;
@@ -129,7 +129,7 @@ contract DeployContracts is Script {
 
         // Deploy BullaClaim
         console.log("Deploying BullaClaim...");
-        bullaClaim = new BullaClaim(
+        bullaClaim = new BullaClaimV2(
             address(approvalRegistry), config.initialLockState, config.coreProtocolFee, address(whitelistPermissions)
         );
         console.log("BullaClaim deployed at:", address(bullaClaim));
@@ -145,7 +145,7 @@ contract DeployContracts is Script {
 
         // Deploy BullaFrendLend
         console.log("Deploying BullaFrendLend...");
-        bullaFrendLend = new BullaFrendLend(address(bullaClaim), config.admin, config.frendLendProtocolFeeBPS);
+        bullaFrendLend = new BullaFrendLendV2(address(bullaClaim), config.admin, config.frendLendProtocolFeeBPS);
         console.log("BullaFrendLend deployed at:", address(bullaFrendLend));
 
         console.log("");
@@ -165,7 +165,7 @@ contract DeployContracts is Script {
         // Register controllers in the registry with descriptive names
         console.log("Registering controllers in ControllerRegistry...");
         controllerRegistry.setControllerName(address(bullaInvoice), "BullaInvoice");
-        controllerRegistry.setControllerName(address(bullaFrendLend), "BullaFrendLend");
+        controllerRegistry.setControllerName(address(bullaFrendLend), "BullaFrendLendV2");
 
         console.log("Authorizations setup complete!");
         console.log("");
@@ -173,9 +173,9 @@ contract DeployContracts is Script {
 
     function _logDeploymentResults(DeploymentResult memory result) internal view {
         console.log("=== Deployment Complete ===");
-        console.log("BullaClaim:", result.bullaClaim);
+        console.log("BullaClaimV2:", result.bullaClaim);
         console.log("BullaInvoice:", result.bullaInvoice);
-        console.log("BullaFrendLend:", result.bullaFrendLend);
+        console.log("BullaFrendLendV2:", result.bullaFrendLend);
         console.log("BullaControllerRegistry:", result.controllerRegistry);
         console.log("WhitelistPermissions:", result.whitelistPermissions);
         console.log("BullaApprovalRegistry:", result.approvalRegistry);
@@ -203,9 +203,9 @@ contract DeployContracts is Script {
         vm.serializeAddress(json, "adminAddress", config.admin);
 
         // Add contract addresses
-        vm.serializeAddress(json, "bullaClaim", result.bullaClaim);
+        vm.serializeAddress(json, "bullaClaimV2", result.bullaClaim);
         vm.serializeAddress(json, "bullaInvoice", result.bullaInvoice);
-        vm.serializeAddress(json, "bullaFrendLend", result.bullaFrendLend);
+        vm.serializeAddress(json, "bullaFrendLendV2", result.bullaFrendLend);
         vm.serializeAddress(json, "controllerRegistry", result.controllerRegistry);
         vm.serializeAddress(json, "whitelistPermissions", result.whitelistPermissions);
         string memory finalJson = vm.serializeAddress(json, "approvalRegistry", result.approvalRegistry);
@@ -267,9 +267,9 @@ contract DeployContracts is Script {
         );
 
         _verifyContract(
-            "BullaClaim",
+            "BullaClaimV2",
             result.bullaClaim,
-            "src/BullaClaim.sol:BullaClaim",
+            "src/BullaClaimV2.sol:BullaClaimV2",
             _encodeConstructorArgs(
                 abi.encode(
                     result.approvalRegistry,
@@ -290,9 +290,9 @@ contract DeployContracts is Script {
         );
 
         _verifyContract(
-            "BullaFrendLend",
+            "BullaFrendLendV2",
             result.bullaFrendLend,
-            "src/BullaFrendLend.sol:BullaFrendLend",
+            "src/BullaFrendLendV2.sol:BullaFrendLendV2",
             _encodeConstructorArgs(abi.encode(result.bullaClaim, config.admin, config.frendLendProtocolFeeBPS)),
             networkName
         );

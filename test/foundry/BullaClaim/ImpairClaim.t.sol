@@ -6,13 +6,13 @@ import "forge-std/Vm.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {EIP712Helper, privateKeyValidity} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {Claim, Status, ClaimBinding, CreateClaimParams, ClaimMetadata, LockState} from "contracts/types/Types.sol";
-import {BullaClaim} from "contracts/BullaClaim.sol";
+import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
 import {PenalizedClaim} from "contracts/mocks/PenalizedClaim.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
 import {BullaClaimTestHelper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
 import {BullaClaimValidationLib} from "contracts/libraries/BullaClaimValidationLib.sol";
-import {IBullaClaim} from "contracts/interfaces/IBullaClaim.sol";
+import {IBullaClaimV2} from "contracts/interfaces/IBullaClaimV2.sol";
 
 contract TestImpairClaim is BullaClaimTestHelper {
     uint256 creditorPK = uint256(0x01);
@@ -31,7 +31,7 @@ contract TestImpairClaim is BullaClaimTestHelper {
         weth = new WETH();
         DeployContracts.DeploymentResult memory deploymentResult =
             (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
-        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
+        bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
         approvalRegistry = bullaClaim.approvalRegistry();
 
@@ -163,7 +163,7 @@ contract TestImpairClaim is BullaClaimTestHelper {
 
         // Direct call should fail when controller is set
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.NotController.selector, creditor));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.NotController.selector, creditor));
         bullaClaim.impairClaim(claimId);
     }
 
@@ -171,7 +171,7 @@ contract TestImpairClaim is BullaClaimTestHelper {
         uint256 claimId = _newClaim(creditor, creditor, debtor);
 
         vm.prank(controller);
-        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.MustBeControlledClaim.selector));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.MustBeControlledClaim.selector));
         bullaClaim.impairClaimFrom(creditor, claimId);
     }
 
@@ -260,7 +260,7 @@ contract TestImpairClaim is BullaClaimTestHelper {
         bullaClaim.setLockState(LockState.Locked);
 
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.Locked.selector));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.Locked.selector));
         bullaClaim.impairClaim(claimId);
     }
 
@@ -268,7 +268,7 @@ contract TestImpairClaim is BullaClaimTestHelper {
         uint256 nonExistentClaimId = 999;
 
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(IBullaClaim.NotMinted.selector));
+        vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.NotMinted.selector));
         bullaClaim.impairClaim(nonExistentClaimId);
     }
 

@@ -5,11 +5,11 @@ import "contracts/BullaInvoice.sol";
 // Note: We're testing interface detection without importing IBullaInvoice to avoid conflicts
 import {EIP712Helper} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
-import {BullaClaim} from "contracts/BullaClaim.sol";
+import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 contract BullaInvoiceERC165Test is Test {
-    BullaClaim public bullaClaim;
+    BullaClaimV2 public bullaClaim;
     BullaInvoice public bullaInvoice;
 
     address admin = makeAddr("admin");
@@ -18,7 +18,7 @@ contract BullaInvoiceERC165Test is Test {
     function setUp() public {
         DeployContracts.DeploymentResult memory deploymentResult =
             (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
-        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
+        bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
         bullaInvoice = new BullaInvoice(address(bullaClaim), admin, PROTOCOL_FEE_BPS);
     }
 

@@ -4,7 +4,7 @@ pragma solidity ^0.8.30;
 import "../types/Types.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
-import {BullaClaim, CreateClaimParams, BullaClaim} from "../BullaClaim.sol";
+import {BullaClaimV2, CreateClaimParams, BullaClaimV2} from "../BullaClaimV2.sol";
 import "../BullaClaimControllerBase.sol";
 // naive implementation of a bullaExtension and a controller that penalizes users for paying late:
 //   note: all claim creation / mutation methods like createClaim, payClaim, acceptClaim,

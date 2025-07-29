@@ -20,18 +20,18 @@ import {
     LoanDetails,
     Loan,
     IncorrectFee,
-    FrendLendBatchInvalidMsgValue
-} from "contracts/BullaFrendLend.sol";
-import {BullaClaim} from "contracts/BullaClaim.sol";
-import {BullaFrendLend} from "contracts/BullaFrendLend.sol";
+    FrendLendBatchInvalidMsgValue,
+    BullaFrendLendV2
+} from "contracts/BullaFrendLendV2.sol";
+import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
 import {WhitelistPermissions} from "contracts/WhitelistPermissions.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
 import {LoanRequestParamsBuilder} from "test/foundry/BullaFrendLend/LoanRequestParamsBuilder.t.sol";
 import {EIP712Helper} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 
 contract TestBullaFrendLendProtocolFeeExemptions is Test {
-    BullaClaim public bullaClaim;
-    BullaFrendLend public bullaFrendLend;
+    BullaClaimV2 public bullaClaim;
+    BullaFrendLendV2 public bullaFrendLend;
     WhitelistPermissions public feeExemptions;
     MockERC20 public token;
     EIP712Helper public sigHelper;
@@ -78,14 +78,14 @@ contract TestBullaFrendLendProtocolFeeExemptions is Test {
         vm.prank(_owner);
         DeployContracts.DeploymentResult memory deploymentResult =
             (new DeployContracts()).deployForTest(_owner, LockState.Unlocked, _CORE_PROTOCOL_FEE, 0, 0, _owner);
-        bullaClaim = BullaClaim(deploymentResult.bullaClaim);
+        bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
 
         // Set fee exemptions contract on BullaClaim
         vm.prank(_owner);
         bullaClaim.setFeeExemptions(address(feeExemptions));
 
         // Deploy BullaFrendLend
-        bullaFrendLend = new BullaFrendLend(address(bullaClaim), _admin, _PROTOCOL_FEE_BPS);
+        bullaFrendLend = new BullaFrendLendV2(address(bullaClaim), _admin, _PROTOCOL_FEE_BPS);
 
         sigHelper = new EIP712Helper(address(bullaClaim));
 
