@@ -51,9 +51,9 @@ const DEPLOYMENTS_TO_VERIFY = [
   "BullaControllerRegistry",
   "WhitelistPermissions",
   "BullaApprovalRegistry",
-  "BullaClaim",
+  "BullaClaimV2",
   "BullaInvoice",
-  "BullaFrendLend",
+  "BullaFrendLendV2",
 ];
 
 async function loadBroadcastArtifact(network) {
@@ -143,7 +143,7 @@ function getConstructorSignatureFromBroadcast(contractName, args) {
   // Only override for the few contracts that need specific types
   const typeOverrides = {
     BullaInvoice: "constructor(address,address,uint16)", // Third param is uint16, not inferred uint256
-    BullaFrendLend: "constructor(address,address,uint16)", // Third param is uint16, not inferred uint256
+    BullaFrendLendV2: "constructor(address,address,uint16)", // Third param is uint16, not inferred uint256
   };
 
   if (typeOverrides[contractName]) {
@@ -185,9 +185,9 @@ function getLibrariesForContract(contractName, libraryAddresses) {
     BullaControllerRegistry: [], // No libraries
     WhitelistPermissions: [], // No libraries
     BullaApprovalRegistry: ["BullaClaimPermitLib", "BullaClaimValidationLib"],
-    BullaClaim: ["BullaClaimPermitLib", "BullaClaimValidationLib"],
+    BullaClaimV2: ["BullaClaimPermitLib", "BullaClaimValidationLib"],
     BullaInvoice: ["CompoundInterestLib"],
-    BullaFrendLend: ["CompoundInterestLib"],
+    BullaFrendLendV2: ["CompoundInterestLib"],
   };
 
   const requiredLibraryNames = contractLibraryNames[contractName] || [];
