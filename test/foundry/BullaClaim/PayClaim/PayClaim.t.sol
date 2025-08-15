@@ -151,7 +151,7 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
 
         vm.prank(debtor);
         vm.expectRevert(abi.encodeWithSelector(IBullaClaimV2.NotController.selector, debtor));
-        bullaClaim.payClaim{value: 1 ether}(1, 1 ether);
+        bullaClaim.payClaim{value: 1 ether}(0, 1 ether);
     }
 
     function testCannotPayZero() public {

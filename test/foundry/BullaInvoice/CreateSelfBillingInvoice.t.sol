@@ -123,7 +123,7 @@ contract TestCreateSelfBillingInvoice is Test {
         // Expect ClaimCreated event with debtor as creator and creditor as recipient
         vm.expectEmit(true, true, true, true);
         emit ClaimCreated(
-            1,
+            0,
             debtor, // from (creator)
             creditor, // creditor (who will receive the NFT)
             debtor, // debtor (who owes the payment)
@@ -138,7 +138,7 @@ contract TestCreateSelfBillingInvoice is Test {
         // Expect InvoiceCreated event
         vm.expectEmit(true, false, false, true);
         emit InvoiceCreated(
-            1, expectedInvoiceDetails, CORE_PROTOCOL_FEE, ClaimMetadata({tokenURI: "", attachmentURI: ""})
+            0, expectedInvoiceDetails, CORE_PROTOCOL_FEE, ClaimMetadata({tokenURI: "", attachmentURI: ""})
         );
 
         // Debtor creates self-billing invoice
@@ -153,7 +153,7 @@ contract TestCreateSelfBillingInvoice is Test {
         );
 
         // Verify invoice was created successfully
-        assertTrue(invoiceId > 0, "Invoice should be created");
+        assertTrue(bullaClaim.currentClaimId() > 0, "Invoice should be created");
 
         // Verify the claim structure
         Claim memory claim = bullaClaim.getClaim(invoiceId);
@@ -187,7 +187,7 @@ contract TestCreateSelfBillingInvoice is Test {
         uint256 invoiceId = bullaInvoice.createInvoice{value: CORE_PROTOCOL_FEE}(params);
 
         // Verify invoice was created successfully
-        assertTrue(invoiceId > 0, "Invoice should be created");
+        assertTrue(bullaClaim.currentClaimId() > 0, "Invoice should be created");
 
         // Verify the claim structure for ERC20
         Claim memory claim = bullaClaim.getClaim(invoiceId);
@@ -236,7 +236,7 @@ contract TestCreateSelfBillingInvoice is Test {
         uint256 invoiceId = bullaInvoice.createInvoice{value: CORE_PROTOCOL_FEE}(params);
 
         // Verify invoice was created successfully
-        assertTrue(invoiceId > 0, "Invoice should be created");
+        assertTrue(bullaClaim.currentClaimId() > 0, "Invoice should be created");
 
         // Verify the invoice details
         Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
@@ -264,7 +264,7 @@ contract TestCreateSelfBillingInvoice is Test {
         // Expect InvoiceCreated event
         vm.expectEmit(true, false, false, true);
         emit InvoiceCreated(
-            1, expectedInvoiceDetails, CORE_PROTOCOL_FEE, ClaimMetadata({tokenURI: "", attachmentURI: ""})
+            0, expectedInvoiceDetails, CORE_PROTOCOL_FEE, ClaimMetadata({tokenURI: "", attachmentURI: ""})
         );
 
         // Debtor creates self-billing purchase order
@@ -272,7 +272,7 @@ contract TestCreateSelfBillingInvoice is Test {
         uint256 invoiceId = bullaInvoice.createInvoice{value: CORE_PROTOCOL_FEE}(params);
 
         // Verify purchase order was created
-        assertTrue(invoiceId > 0, "Purchase order should be created");
+        assertTrue(bullaClaim.currentClaimId() > 0, "Purchase order should be created");
 
         // Verify the invoice details
         Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);

@@ -86,7 +86,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         (claimId, claim) = _newClaimFrom(creditor, ClaimBinding.Unbound);
         vm.stopPrank();
 
-        assertTrue(claimId == 2 && claim.binding == ClaimBinding.Unbound);
+        assertTrue(claimId == 1 && claim.binding == ClaimBinding.Unbound);
 
         vm.prank(controller);
         vm.expectEmit(true, true, true, true);
@@ -121,7 +121,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         (claimId, claim) = _newClaimFrom(creditor, ClaimBinding.BindingPending);
         vm.stopPrank();
 
-        assertTrue(claimId == 2 && claim.binding == ClaimBinding.BindingPending);
+        assertTrue(claimId == 1 && claim.binding == ClaimBinding.BindingPending);
 
         vm.prank(controller);
         vm.expectEmit(true, true, true, true);

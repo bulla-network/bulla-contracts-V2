@@ -128,7 +128,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
     function testCreateEdgeCase_ZeroDebtor() public {
         uint256 beforeClaimCreation = bullaClaim.currentClaimId();
         uint256 claimId = _newClaim(creditor, creditor, address(0));
-        assertEq(bullaClaim.currentClaimId(), claimId);
+        assertEq(bullaClaim.currentClaimId(), claimId + 1);
         assertEq(bullaClaim.currentClaimId(), beforeClaimCreation + 1);
     }
 
@@ -240,7 +240,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
         vm.assume(binding <= 1); // assumes a fuzz can only produce unbound or binding pending claims
         vm.warp(block.timestamp + 6 days);
         vm.roll(10_000);
-        uint256 expectedClaimId = bullaClaim.currentClaimId() + 1;
+        uint256 expectedClaimId = bullaClaim.currentClaimId();
 
         uint256 creditorBalanceBefore = bullaClaim.balanceOf(_creditor);
 
@@ -270,7 +270,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
         vm.stopPrank();
 
         {
-            assertEq(bullaClaim.currentClaimId(), claimId);
+            assertEq(bullaClaim.currentClaimId(), claimId + 1);
             Claim memory claim = bullaClaim.getClaim(claimId);
             assertEq(claim.originalCreditor, _creditor);
             assertEq(bullaClaim.ownerOf(claimId), _creditor);

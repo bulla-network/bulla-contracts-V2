@@ -413,9 +413,9 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         // Verify all loans were accepted and claims created
         assertEq(bullaClaim.currentClaimId(), 3);
 
-        Claim memory claim1 = bullaClaim.getClaim(1);
-        Claim memory claim2 = bullaClaim.getClaim(2);
-        Claim memory claim3 = bullaClaim.getClaim(3);
+        Claim memory claim1 = bullaClaim.getClaim(0);
+        Claim memory claim2 = bullaClaim.getClaim(1);
+        Claim memory claim3 = bullaClaim.getClaim(2);
 
         assertEq(claim1.debtor, debtor); // First accepted loan (offer 1)
         assertEq(claim2.debtor, debtor); // Second accepted loan (offer 3)
@@ -842,8 +842,8 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         assertEq(weth.balanceOf(receiver2), receiver2InitialBalance + 2 ether);
 
         // Verify claims were created with debtor as the actual debtor
-        Claim memory claim1 = bullaClaim.getClaim(1);
-        Claim memory claim2 = bullaClaim.getClaim(2);
+        Claim memory claim1 = bullaClaim.getClaim(0);
+        Claim memory claim2 = bullaClaim.getClaim(1);
         assertEq(claim1.debtor, debtor);
         assertEq(claim2.debtor, debtor);
     }

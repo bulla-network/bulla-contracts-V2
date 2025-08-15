@@ -58,7 +58,7 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
             new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withToken(address(weth)).build();
 
         vm.expectEmit(true, true, true, true);
-        emit MetadataAdded(1, tokenURI, attachmentURI);
+        emit MetadataAdded(0, tokenURI, attachmentURI);
 
         vm.prank(creditor);
         uint256 claimId = bullaClaim.createClaimWithMetadata(
@@ -75,11 +75,11 @@ contract TestCreateClaimWithMetadata is BullaClaimTestHelper {
         _permitCreateClaim({_userPK: userPK, _controller: address(this), _approvalCount: type(uint64).max});
 
         vm.expectEmit(true, true, true, true);
-        emit MetadataAdded(1, tokenURI, attachmentURI);
+        emit MetadataAdded(0, tokenURI, attachmentURI);
         uint256 claimId = _newClaimWithMetadataFrom(user, user, debtor);
 
         (string memory _tokenURI, string memory _attachmentURI) = bullaClaim.claimMetadata(claimId);
-        assertEq(claimId, 1);
+        assertEq(claimId, 0);
         assertEq(_tokenURI, tokenURI);
         assertEq(_attachmentURI, attachmentURI);
         assertEq(bullaClaim.tokenURI(claimId), tokenURI);

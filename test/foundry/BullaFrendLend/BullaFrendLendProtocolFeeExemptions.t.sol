@@ -149,7 +149,7 @@ contract TestBullaFrendLendProtocolFeeExemptions is Test {
         vm.prank(_exemptUser);
         uint256 claimId = bullaFrendLend.acceptLoan{value: 0}(offerId);
 
-        assertEq(claimId, 1, "Loan should be accepted successfully");
+        assertEq(claimId, 0, "Loan should be accepted successfully");
         assertEq(address(bullaClaim).balance, contractBalanceBefore, "No core fee should be collected from exempt user");
         assertEq(token.balanceOf(_exemptUser) - debtorBalanceBefore, _LOAN_AMOUNT, "Debtor should receive loan amount");
     }
@@ -174,7 +174,7 @@ contract TestBullaFrendLendProtocolFeeExemptions is Test {
         vm.prank(_nonExemptUser);
         uint256 claimId = bullaFrendLend.acceptLoan{value: _CORE_PROTOCOL_FEE}(offerId);
 
-        assertEq(claimId, 1, "Loan should be accepted successfully with fee");
+        assertEq(claimId, 0, "Loan should be accepted successfully with fee");
         assertEq(
             address(bullaClaim).balance, contractBalanceBefore + _CORE_PROTOCOL_FEE, "Core fee should be collected"
         );
@@ -278,8 +278,8 @@ contract TestBullaFrendLendProtocolFeeExemptions is Test {
         assertEq(address(bullaClaim).balance, contractBalanceBefore, "No fees should be charged for exempt user");
 
         // Verify both loans were accepted
-        Loan memory loan1 = bullaFrendLend.getLoan(1);
-        Loan memory loan2 = bullaFrendLend.getLoan(2);
+        Loan memory loan1 = bullaFrendLend.getLoan(0);
+        Loan memory loan2 = bullaFrendLend.getLoan(1);
         assertEq(loan1.claimAmount, _LOAN_AMOUNT, "First loan should be accepted");
         assertEq(loan2.claimAmount, _LOAN_AMOUNT, "Second loan should be accepted");
     }
@@ -415,7 +415,7 @@ contract TestBullaFrendLendProtocolFeeExemptions is Test {
         vm.prank(_creditor);
         uint256 claimId = bullaFrendLend.acceptLoan{value: _CORE_PROTOCOL_FEE}(offerId);
 
-        assertEq(claimId, 1, "Loan should be accepted successfully");
+        assertEq(claimId, 0, "Loan should be accepted successfully");
         assertEq(
             address(bullaClaim).balance,
             contractBalanceBefore + _CORE_PROTOCOL_FEE,

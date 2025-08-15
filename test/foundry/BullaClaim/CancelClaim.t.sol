@@ -105,7 +105,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
         // make a new claim
         (claimId, claim) = _newClaim(ClaimBinding.Unbound);
         vm.stopPrank();
-        assertTrue(claimId == 2);
+        assertTrue(claimId == 1);
 
         // Test that cancelClaimFrom requires controlled claim
         vm.prank(controller);
@@ -114,7 +114,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
 
         // test with controlled claim - should work
         (claimId, claim) = _newControlledClaim(ClaimBinding.Unbound);
-        assertTrue(claimId == 3);
+        assertTrue(claimId == 2);
 
         mockController.setCurrentUser(debtor);
 
@@ -147,7 +147,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
         // make a new claim
         (claimId, claim) = _newClaim(ClaimBinding.Unbound);
         vm.stopPrank();
-        assertTrue(claimId == 2);
+        assertTrue(claimId == 1);
 
         // Test that cancelClaimFrom requires controlled claim
         vm.prank(controller);

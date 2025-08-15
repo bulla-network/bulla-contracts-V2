@@ -145,7 +145,7 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
 
         // Expect callback event to be emitted
         vm.expectEmit(true, true, true, true);
-        emit CallbackExecuted(mockCallback.onLoanAccepted.selector, loanOfferId, 1);
+        emit CallbackExecuted(mockCallback.onLoanAccepted.selector, loanOfferId, 0);
 
         // Accept the loan
         vm.prank(debtor);
@@ -290,7 +290,7 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
 
         // Expect callback event to be emitted when creditor accepts
         vm.expectEmit(true, true, true, true);
-        emit CallbackExecuted(mockCallback.onLoanAccepted.selector, requestId, 1);
+        emit CallbackExecuted(mockCallback.onLoanAccepted.selector, requestId, 0);
 
         // Creditor accepts the loan request
         vm.prank(creditor);

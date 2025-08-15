@@ -132,7 +132,7 @@ contract TestBullaInvoiceProtocolFeeExemptions is Test {
         vm.prank(_exemptUser);
         uint256 invoiceId = bullaInvoice.createInvoice{value: 0}(params);
 
-        assertEq(invoiceId, 1, "Invoice should be created successfully");
+        assertEq(invoiceId, 0, "Invoice should be created successfully");
         assertEq(address(bullaClaim).balance, contractBalanceBefore, "No core fee should be collected from exempt user");
     }
 
@@ -153,7 +153,7 @@ contract TestBullaInvoiceProtocolFeeExemptions is Test {
         vm.prank(_nonExemptUser);
         uint256 invoiceId = bullaInvoice.createInvoice{value: _CORE_PROTOCOL_FEE}(params);
 
-        assertEq(invoiceId, 1, "Invoice should be created successfully with fee");
+        assertEq(invoiceId, 0, "Invoice should be created successfully with fee");
         assertEq(
             address(bullaClaim).balance, contractBalanceBefore + _CORE_PROTOCOL_FEE, "Core fee should be collected"
         );
@@ -215,7 +215,7 @@ contract TestBullaInvoiceProtocolFeeExemptions is Test {
         vm.prank(_nonExemptUser);
         uint256 invoiceId = bullaInvoice.createInvoice{value: 0}(params);
 
-        assertEq(invoiceId, 1, "Invoice should be created successfully");
+        assertEq(invoiceId, 0, "Invoice should be created successfully");
         assertEq(
             address(bullaClaim).balance, contractBalanceBefore, "No core fee should be collected when debtor is exempt"
         );
@@ -278,26 +278,26 @@ contract TestBullaInvoiceProtocolFeeExemptions is Test {
         assertEq(address(bullaClaim).balance, contractBalanceBefore, "No fees should be charged when debtor is exempt");
 
         // Verify both invoices were created
-        Invoice memory invoice1 = bullaInvoice.getInvoice(1);
-        Invoice memory invoice2 = bullaInvoice.getInvoice(2);
+        Invoice memory invoice1 = bullaInvoice.getInvoice(0);
+        Invoice memory invoice2 = bullaInvoice.getInvoice(1);
         assertEq(invoice1.claimAmount, 1 ether, "First invoice should be created");
         assertEq(invoice2.claimAmount, 2 ether, "Second invoice should be created");
 
         // Fast forward to accrue interest
         vm.warp(block.timestamp + 90 days);
 
-        Invoice memory invoice1After = bullaInvoice.getInvoice(1);
+        Invoice memory invoice1After = bullaInvoice.getInvoice(0);
 
         uint256 accruedInterest1 = invoice1After.interestComputationState.accruedInterest;
 
         uint256 creditorBalanceBefore = _nonExemptUser.balance;
 
         vm.expectEmit(true, false, false, true);
-        emit InvoicePaid(1, accruedInterest1, 0, 0); // No protocol fee
+        emit InvoicePaid(0, accruedInterest1, 0, 0); // No protocol fee
 
         // Pay interest
         vm.prank(_debtor);
-        bullaInvoice.payInvoice{value: accruedInterest1}(1, accruedInterest1);
+        bullaInvoice.payInvoice{value: accruedInterest1}(0, accruedInterest1);
 
         // Verify no protocol fee was charged on interest
         assertEq(
@@ -364,8 +364,8 @@ contract TestBullaInvoiceProtocolFeeExemptions is Test {
         assertEq(address(bullaClaim).balance, contractBalanceBefore, "No fees should be charged for exempt user");
 
         // Verify both invoices were created
-        Invoice memory invoice1 = bullaInvoice.getInvoice(1);
-        Invoice memory invoice2 = bullaInvoice.getInvoice(2);
+        Invoice memory invoice1 = bullaInvoice.getInvoice(0);
+        Invoice memory invoice2 = bullaInvoice.getInvoice(1);
         assertEq(invoice1.claimAmount, 1 ether, "First invoice should be created");
         assertEq(invoice2.claimAmount, 2 ether, "Second invoice should be created");
     }

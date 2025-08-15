@@ -147,7 +147,7 @@ contract BullaClaimV2 is ERC721, Ownable, BoringBatchable, IBullaClaimV2 {
         address controller = msg.sender == from ? address(0) : msg.sender;
         {
             unchecked {
-                claimId = ++currentClaimId;
+                claimId = currentClaimId++;
             }
 
             ClaimStorage storage claim = claims[claimId];
@@ -457,7 +457,7 @@ contract BullaClaimV2 is ERC721, Ownable, BoringBatchable, IBullaClaimV2 {
     //////////////////////////////////////////////////////////////*/
 
     function getClaim(uint256 claimId) public view returns (Claim memory claim) {
-        if (claimId > currentClaimId) revert NotMinted();
+        if (claimId >= currentClaimId) revert NotMinted();
 
         ClaimStorage memory claimStorage = claims[claimId];
         claim = Claim({
