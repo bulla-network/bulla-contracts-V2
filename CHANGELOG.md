@@ -1,3 +1,10 @@
+## [1.16.1](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.16.0...v1.16.1) (2025-08-15)
+
+
+### Bug Fixes
+
+* 1. [LOW] BullaClaimValidationLib::validateClaimImpairment(): inc… ([#83](https://github.com/bulla-network/bulla-contracts-V2/issues/83)) ([f24b6c1](https://github.com/bulla-network/bulla-contracts-V2/commit/f24b6c112413b994a796d8b66b72c5302ec025e2))
+
 # [1.16.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.15.0...v1.16.0) (2025-08-15)
 
 
