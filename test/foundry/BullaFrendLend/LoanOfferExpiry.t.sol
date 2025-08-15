@@ -356,8 +356,8 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
         bullaFrendLend.batch(calls, true);
 
         // Verify both offers were created with correct expiry times
-        LoanOffer memory offer1 = bullaFrendLend.getLoanOffer(1);
-        LoanOffer memory offer2 = bullaFrendLend.getLoanOffer(2);
+        LoanOffer memory offer1 = bullaFrendLend.getLoanOffer(0);
+        LoanOffer memory offer2 = bullaFrendLend.getLoanOffer(1);
 
         assertEq(offer1.params.expiresAt, futureExpiry, "First offer should have correct expiry");
         assertEq(offer2.params.expiresAt, futureExpiry + 1 days, "Second offer should have correct expiry");

@@ -109,7 +109,7 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         bullaFrendLend.batch(calls, true);
 
         // Verify loan offer was created
-        LoanOffer memory loanOffer = bullaFrendLend.getLoanOffer(1);
+        LoanOffer memory loanOffer = bullaFrendLend.getLoanOffer(0);
         assertEq(loanOffer.params.creditor, creditor);
         assertEq(loanOffer.params.debtor, debtor);
         assertTrue(loanOffer.requestedByCreditor);
@@ -779,9 +779,9 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         // Verify all loan offers were created
         assertEq(bullaFrendLend.loanOfferCount(), 3);
 
-        LoanOffer memory offer1 = bullaFrendLend.getLoanOffer(1);
-        LoanOffer memory offer2 = bullaFrendLend.getLoanOffer(2);
-        LoanOffer memory offer3 = bullaFrendLend.getLoanOffer(3);
+        LoanOffer memory offer1 = bullaFrendLend.getLoanOffer(0);
+        LoanOffer memory offer2 = bullaFrendLend.getLoanOffer(1);
+        LoanOffer memory offer3 = bullaFrendLend.getLoanOffer(2);
 
         assertEq(offer1.params.loanAmount, 1 ether);
         assertEq(offer1.params.debtor, debtor);
@@ -791,7 +791,7 @@ contract TestBullaFrendLendBatchFunctionality is BullaFrendLendTestHelper {
         assertEq(offer3.params.token, address(permitToken));
 
         // Check metadata for the third offer
-        ClaimMetadata memory metadata = bullaFrendLend.getLoanOfferMetadata(3);
+        ClaimMetadata memory metadata = bullaFrendLend.getLoanOfferMetadata(2);
         assertEq(metadata.tokenURI, "test-uri");
         assertEq(metadata.attachmentURI, "test-attachment");
     }
