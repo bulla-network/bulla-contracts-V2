@@ -590,4 +590,36 @@ contract TestImpairClaim is BullaClaimTestHelper {
         Claim memory claim = bullaClaim.getClaim(claimId);
         assertEq(uint256(claim.status), uint256(Status.Impaired), "Claim should be impaired");
     }
+
+    function testCannotImpairClaim_ExactlyAtGracePeriodEnd() public {
+        // Create claim with due date and grace period
+        uint256 dueBy = block.timestamp + 30 days;
+        uint256 gracePeriod = 7 days;
+
+        CreateClaimParams memory params = new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withDueBy(dueBy).withImpairmentGracePeriod(gracePeriod).build();
+
+        vm.prank(creditor);
+        uint256 claimId = bullaClaim.createClaim(params);
+
+        // Move to exactly dueBy + gracePeriod (still within grace period)
+        vm.warp(dueBy + gracePeriod);
+
+        // Should still revert with StillInGracePeriod at the exact boundary
+        vm.prank(creditor);
+        vm.expectRevert(abi.encodeWithSelector(BullaClaimValidationLib.StillInGracePeriod.selector));
+        bullaClaim.impairClaim(claimId);
+
+        // Move 1 second past the grace period - now impairment should succeed
+        vm.warp(dueBy + gracePeriod + 1);
+
+        vm.expectEmit(true, true, false, true);
+        emit ClaimImpaired(claimId);
+
+        vm.prank(creditor);
+        bullaClaim.impairClaim(claimId);
+
+        Claim memory claim = bullaClaim.getClaim(claimId);
+        assertEq(uint256(claim.status), uint256(Status.Impaired), "Claim should be impaired after grace period");
+    }
 }

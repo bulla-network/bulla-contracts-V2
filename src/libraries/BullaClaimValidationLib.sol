@@ -140,7 +140,7 @@ library BullaClaimValidationLib {
 
         // Validate grace period requirements
         if (claim.dueBy == 0) revert NoDueBy();
-        if (block.timestamp < claim.dueBy + claim.impairmentGracePeriod) revert StillInGracePeriod();
+        if (block.timestamp <= claim.dueBy + claim.impairmentGracePeriod) revert StillInGracePeriod();
     }
 
     /// @notice Validates mark as paid parameters
