@@ -191,7 +191,8 @@ contract BullaClaimV2 is ERC721, Ownable, BoringBatchable, IBullaClaimV2 {
     /// @notice SPEC:
     ///     1. call payClaim on behalf of the msg.sender
     function payClaim(uint256 claimId, uint256 amount) external payable {
-        _payClaim(msg.sender, claimId, amount);
+        Claim memory claim = getClaim(claimId);
+        _payClaim(msg.sender, claimId, claim, amount);
     }
 
     /// @notice allows a controller to pay a claim on behalf of a user
@@ -199,9 +200,10 @@ contract BullaClaimV2 is ERC721, Ownable, BoringBatchable, IBullaClaimV2 {
     ///     1. verify the claim is controlled
     ///     2. call payClaim on `from`'s behalf
     function payClaimFrom(address from, uint256 claimId, uint256 amount) external payable {
-        if (getClaim(claimId).controller == address(0)) revert MustBeControlledClaim();
+        Claim memory claim = getClaim(claimId);
+        if (claim.controller == address(0)) revert MustBeControlledClaim();
 
-        _payClaim(from, claimId, amount);
+        _payClaim(from, claimId, claim, amount);
     }
 
     /// @notice Allows a controller to pay a claim without transferring tokens
@@ -218,7 +220,7 @@ contract BullaClaimV2 is ERC721, Ownable, BoringBatchable, IBullaClaimV2 {
         // Only the controller can call this function
         if (claim.controller != msg.sender) revert NotController(msg.sender);
 
-        _updateClaimPaymentState(from, claimId, amount);
+        _updateClaimPaymentState(from, claimId, claim, amount);
     }
 
     /// @notice Allows any user to pay a claim with the token the claim is denominated in
@@ -229,32 +231,30 @@ contract BullaClaimV2 is ERC721, Ownable, BoringBatchable, IBullaClaimV2 {
     ///         1. The contract is not locked
     ///         2. The claim is minted and not burned
     ///         ... TODO
-    function _payClaim(address from, uint256 claimId, uint256 paymentAmount) internal {
-        Claim memory claim = getClaim(claimId);
-        address creditor = _ownerOf(claimId);
-
+    function _payClaim(address from, uint256 claimId, Claim memory claim, uint256 paymentAmount) internal {
         // We allow for claims to be "controlled". Meaning, it is another smart contract's responsibility to implement
         //      custom logic, then call these functions. We check the msg.sender against the controller to make sure a user
         //      isn't trying to bypass controller specific logic (eg: late fees) and by going to this contract directly.
         if (claim.controller != address(0) && msg.sender != claim.controller) revert NotController(msg.sender);
 
         // Update payment state first to follow checks-effects-interactions pattern
-        _updateClaimPaymentState(from, claimId, paymentAmount);
+        _updateClaimPaymentState(from, claimId, claim, paymentAmount);
 
         // Process token transfer after state is updated
         claim.token == address(0)
-            ? creditor.safeTransferETH(paymentAmount)
-            : ERC20(claim.token).safeTransferFrom(from, creditor, paymentAmount);
+            ? claim.creditor.safeTransferETH(paymentAmount)
+            : ERC20(claim.token).safeTransferFrom(from, claim.creditor, paymentAmount);
     }
 
     /// @notice Updates claim payment state without transferring tokens
     /// @param from The address that is paying the claim
     /// @param claimId The ID of the claim to pay
+    /// @param claim The claim to pay
     /// @param paymentAmount The amount to pay
-    function _updateClaimPaymentState(address from, uint256 claimId, uint256 paymentAmount) internal {
+    function _updateClaimPaymentState(address from, uint256 claimId, Claim memory claim, uint256 paymentAmount)
+        internal
+    {
         _notLocked();
-        Claim memory claim = getClaim(claimId);
-        address creditor = _ownerOf(claimId);
 
         // Use validation library for payment validation and calculation
         (uint256 totalPaidAmount, bool claimPaid) =
@@ -270,7 +270,7 @@ contract BullaClaimV2 is ERC721, Ownable, BoringBatchable, IBullaClaimV2 {
         emit ClaimPayment(claimId, from, paymentAmount, totalPaidAmount);
 
         // transfer the ownership of the claim NFT to the payee as a receipt of their completed payment
-        if (claim.payerReceivesClaimOnPayment && claimPaid) _transfer(creditor, from, claimId);
+        if (claim.payerReceivesClaimOnPayment && claimPaid) _transfer(claim.creditor, from, claimId);
     }
 
     /**
