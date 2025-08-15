@@ -304,12 +304,12 @@ contract TestBullaFrendLend is Test {
 
         // Expect the LoanOffered event to be emitted with the correct parameters
         vm.expectEmit(true, true, false, true);
-        emit LoanOffered(1, creditor, offer, ClaimMetadata({tokenURI: "", attachmentURI: ""}));
+        emit LoanOffered(0, creditor, offer, ClaimMetadata({tokenURI: "", attachmentURI: ""}));
 
         vm.prank(creditor);
         uint256 loanId = bullaFrendLend.offerLoan(offer);
 
-        assertEq(loanId, 1, "Loan ID should be 1");
+        assertEq(loanId, 0, "Loan ID should be 0");
     }
 
     function testLoanOfferedEventEmittedByDebtorWithOriginationFee() public {
@@ -318,12 +318,12 @@ contract TestBullaFrendLend is Test {
 
         // Expect the LoanOffered event to be emitted with the correct parameters (by debtor)
         vm.expectEmit(true, true, false, true);
-        emit LoanOffered(1, debtor, request, ClaimMetadata({tokenURI: "", attachmentURI: ""}));
+        emit LoanOffered(0, debtor, request, ClaimMetadata({tokenURI: "", attachmentURI: ""}));
 
         vm.prank(debtor);
         uint256 requestId = bullaFrendLend.offerLoan(request);
 
-        assertEq(requestId, 1, "Request ID should be 1");
+        assertEq(requestId, 0, "Request ID should be 0");
     }
 
     function testCannotAcceptCreditorOfferIfNotDebtor() public {

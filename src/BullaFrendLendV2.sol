@@ -146,6 +146,7 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, BoringBatchable, ERC165, 
      * @return The loan offer details
      */
     function getLoanOffer(uint256 offerId) public view returns (LoanOffer memory) {
+        if (offerId >= loanOfferCount) revert LoanOfferNotFound();
         return _loanOffers[offerId];
     }
 
@@ -155,6 +156,7 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, BoringBatchable, ERC165, 
      * @return The metadata for the loan offer
      */
     function getLoanOfferMetadata(uint256 offerId) public view returns (ClaimMetadata memory) {
+        if (offerId >= loanOfferCount) revert LoanOfferNotFound();
         return _loanOfferMetadata[offerId];
     }
 
@@ -191,7 +193,7 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, BoringBatchable, ERC165, 
 
         _validateLoanOffer(offer, requestedByCreditor);
 
-        uint256 offerId = ++loanOfferCount;
+        uint256 offerId = loanOfferCount++;
         _loanOffers[offerId] = LoanOffer({params: offer, requestedByCreditor: requestedByCreditor});
 
         if (bytes(metadata.tokenURI).length > 0 || bytes(metadata.attachmentURI).length > 0) {
