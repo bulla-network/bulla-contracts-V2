@@ -104,7 +104,7 @@ contract TestInvariants is Test {
 
         vm.expectEmit(true, true, true, true);
         emit ClaimCreated(
-            bullaClaim.currentClaimId() + 1,
+            bullaClaim.currentClaimId(),
             creditor,
             creditor,
             debtor,
@@ -133,7 +133,7 @@ contract TestInvariants is Test {
 
             assertEq(bullaClaim.balanceOf(creditor), 1);
             assertEq(bullaClaim.ownerOf(claimId), creditor);
-            assertEq(bullaClaim.currentClaimId(), claimId);
+            assertEq(bullaClaim.currentClaimId(), claimId + 1);
         }
 
         state = BullaClaimState(_bullaClaimState2 % 2);
@@ -184,7 +184,7 @@ contract TestInvariants is Test {
             assertEq(weth.balanceOf(debtor), debtorBalanceBefore - paymentAmount);
             assertEq(bullaClaim.balanceOf(alice), 1);
             assertEq(bullaClaim.ownerOf(claimId), alice);
-            assertEq(bullaClaim.currentClaimId(), claimId);
+            assertEq(bullaClaim.currentClaimId(), claimId + 1);
         }
 
         vm.prank(alice);
@@ -224,7 +224,7 @@ contract TestInvariants is Test {
             assertEq(bullaClaim.balanceOf(alice), 0);
             assertEq(bullaClaim.ownerOf(claimId), debtor);
             assertEq(bullaClaim.balanceOf(debtor), 1);
-            assertEq(bullaClaim.currentClaimId(), claimId);
+            assertEq(bullaClaim.currentClaimId(), claimId + 1);
         }
     }
 }

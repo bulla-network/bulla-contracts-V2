@@ -122,7 +122,7 @@ contract TestBullaInvoiceOrigination is Test {
 
         // Expect InvoiceCreated event
         vm.expectEmit(true, false, false, true);
-        emit InvoiceCreated(1, expectedInvoiceDetails, expectedFee, expectedMetadata);
+        emit InvoiceCreated(0, expectedInvoiceDetails, expectedFee, expectedMetadata);
 
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice{value: expectedFee}(params);
@@ -133,7 +133,7 @@ contract TestBullaInvoiceOrigination is Test {
         );
 
         // Verify invoice was created successfully
-        assertTrue(invoiceId > 0, "Invoice should be created");
+        assertTrue(bullaClaim.currentClaimId() > 0, "Invoice should be created");
     }
 
     function testCreatePurchaseOrderWithCorrectFee() public {
@@ -154,7 +154,7 @@ contract TestBullaInvoiceOrigination is Test {
 
         // Expect InvoiceCreated event
         vm.expectEmit(true, false, false, true);
-        emit InvoiceCreated(1, expectedInvoiceDetails, expectedFee, expectedMetadata);
+        emit InvoiceCreated(0, expectedInvoiceDetails, expectedFee, expectedMetadata);
 
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice{value: expectedFee}(params);
@@ -165,7 +165,7 @@ contract TestBullaInvoiceOrigination is Test {
             expectedFee,
             "Contract should hold the purchase order fee"
         );
-        assertTrue(invoiceId > 0, "Purchase order should be created");
+        assertTrue(bullaClaim.currentClaimId() > 0, "Purchase order should be created");
     }
 
     // ==================== FEE VALIDATION ERROR TESTS ====================
@@ -223,12 +223,12 @@ contract TestBullaInvoiceOrigination is Test {
 
         // Expect InvoiceCreated event
         vm.expectEmit(true, false, false, true);
-        emit InvoiceCreated(1, expectedInvoiceDetails, expectedFee, expectedMetadata);
+        emit InvoiceCreated(0, expectedInvoiceDetails, expectedFee, expectedMetadata);
 
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice{value: expectedFee}(params);
 
-        assertTrue(invoiceId > 0, "Should create as purchase order");
+        assertTrue(bullaClaim.currentClaimId() > 0, "Should create as purchase order");
     }
 
     function testCreateInvoiceWithZeroConfiguredFees() public {
@@ -245,12 +245,12 @@ contract TestBullaInvoiceOrigination is Test {
 
         // Expect InvoiceCreated event with zero fee
         vm.expectEmit(true, false, false, true);
-        emit InvoiceCreated(1, expectedInvoiceDetails, 0, expectedMetadata);
+        emit InvoiceCreated(0, expectedInvoiceDetails, 0, expectedMetadata);
 
         vm.prank(creditor);
         uint256 invoiceId = zeroFeeInvoice.createInvoice{value: 0}(params);
 
-        assertTrue(invoiceId > 0, "Should create invoice with zero fees");
+        assertTrue(zeroFeeBullaClaim.currentClaimId() > 0, "Should create invoice with zero fees");
         assertEq(address(zeroFeeInvoice).balance, 0, "No ETH should be in contract");
     }
 
@@ -272,7 +272,7 @@ contract TestBullaInvoiceOrigination is Test {
 
         // Expect InvoiceCreated event
         vm.expectEmit(true, false, false, true);
-        emit InvoiceCreated(1, expectedInvoiceDetails, fee, expectedMetadata);
+        emit InvoiceCreated(0, expectedInvoiceDetails, fee, expectedMetadata);
 
         vm.prank(creditor);
         bullaInvoice.createInvoice{value: fee}(params);

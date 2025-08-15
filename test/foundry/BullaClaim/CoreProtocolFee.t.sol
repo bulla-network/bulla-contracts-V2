@@ -91,7 +91,7 @@ contract TestCoreProtocolFee is Test {
         vm.prank(_creditor);
         uint256 claimId = bullaClaim.createClaim{value: _STANDARD_FEE}(params);
 
-        assertEq(claimId, 1, "Claim should be created successfully");
+        assertEq(claimId, 0, "Claim should be created successfully");
         assertEq(address(bullaClaim).balance, initialBalance + _STANDARD_FEE, "Fee should be collected");
     }
 
@@ -102,7 +102,7 @@ contract TestCoreProtocolFee is Test {
         vm.prank(_creditor);
         uint256 claimId = zeroFeeBullaClaim.createClaim{value: 0}(params);
 
-        assertEq(claimId, 1, "Claim should be created successfully with zero fee");
+        assertEq(claimId, 0, "Claim should be created successfully with zero fee");
         assertEq(address(zeroFeeBullaClaim).balance, 0, "No fee should be collected");
     }
 
@@ -138,7 +138,7 @@ contract TestCoreProtocolFee is Test {
         vm.prank(_creditor);
         uint256 claimId = bullaClaim.createClaimWithMetadata{value: _STANDARD_FEE}(params, metadata);
 
-        assertEq(claimId, 1, "Claim with metadata should be created successfully");
+        assertEq(claimId, 0, "Claim with metadata should be created successfully");
         assertEq(address(bullaClaim).balance, initialBalance + _STANDARD_FEE, "Fee should be collected");
     }
 
@@ -261,7 +261,7 @@ contract TestCoreProtocolFee is Test {
         vm.prank(_creditor);
         uint256 claimId = bullaClaim.createClaim{value: 0}(params);
 
-        assertEq(claimId, 1, "Claim should be created with zero fee");
+        assertEq(claimId, 0, "Claim should be created with zero fee");
     }
 
     function testSetCoreProtocolFeeToMaxValue() public {
@@ -365,7 +365,7 @@ contract TestCoreProtocolFee is Test {
         vm.prank(_creditor);
         uint256 claimId = bullaClaim.createClaim{value: feeAmount}(params);
 
-        assertEq(claimId, 1, "Claim should be created with any valid fee");
+        assertEq(claimId, 0, "Claim should be created with any valid fee");
         assertEq(address(bullaClaim).balance, feeAmount, "Contract should receive the fee");
     }
 

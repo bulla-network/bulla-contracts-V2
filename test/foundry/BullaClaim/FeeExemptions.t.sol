@@ -111,7 +111,7 @@ contract TestFeeExemptions is Test {
 
         vm.expectEmit(true, true, true, true);
         emit ClaimCreated(
-            1,
+            0,
             _exemptUser,
             _exemptUser,
             _debtor,
@@ -126,7 +126,7 @@ contract TestFeeExemptions is Test {
         vm.prank(_exemptUser);
         uint256 claimId = bullaClaim.createClaim{value: 0}(params);
 
-        assertEq(claimId, 1, "Claim should be created successfully");
+        assertEq(claimId, 0, "Claim should be created successfully");
         assertEq(address(bullaClaim).balance, initialBalance, "No fee should be collected from exempt user");
     }
 
@@ -146,7 +146,7 @@ contract TestFeeExemptions is Test {
         vm.prank(_exemptUser);
         uint256 claimId = bullaClaim.createClaimWithMetadata{value: 0}(params, metadata);
 
-        assertEq(claimId, 1, "Claim with metadata should be created successfully");
+        assertEq(claimId, 0, "Claim with metadata should be created successfully");
         assertEq(address(bullaClaim).balance, initialBalance, "No fee should be collected from exempt user");
     }
 
@@ -164,7 +164,7 @@ contract TestFeeExemptions is Test {
         vm.prank(_exemptUser);
         uint256 claimId = bullaClaim.createClaim{value: _STANDARD_FEE}(params);
 
-        assertEq(claimId, 1, "Claim should be created successfully");
+        assertEq(claimId, 0, "Claim should be created successfully");
         assertEq(address(bullaClaim).balance, initialBalance + _STANDARD_FEE, "Fee should still be collected if sent");
     }
 
@@ -182,7 +182,7 @@ contract TestFeeExemptions is Test {
 
         vm.expectEmit(true, true, true, true);
         emit ClaimCreated(
-            1,
+            0,
             _nonExemptUser,
             _nonExemptUser,
             _debtor,
@@ -198,7 +198,7 @@ contract TestFeeExemptions is Test {
         vm.prank(_nonExemptUser);
         uint256 claimId = bullaClaim.createClaim{value: 0}(params);
 
-        assertEq(claimId, 1, "Claim should be created successfully");
+        assertEq(claimId, 0, "Claim should be created successfully");
         assertEq(address(bullaClaim).balance, initialBalance, "No fee should be collected when debtor is exempt");
     }
 
@@ -220,7 +220,7 @@ contract TestFeeExemptions is Test {
         vm.prank(_nonExemptUser);
         uint256 claimId = bullaClaim.createClaim{value: _STANDARD_FEE}(params);
 
-        assertEq(claimId, 1, "Claim should be created successfully with fee");
+        assertEq(claimId, 0, "Claim should be created successfully with fee");
         assertEq(address(bullaClaim).balance, initialBalance + _STANDARD_FEE, "Fee should be collected");
     }
 
@@ -262,7 +262,7 @@ contract TestFeeExemptions is Test {
         // Now exempt - should work without fee
         vm.prank(_nonExemptUser);
         uint256 claimId1 = bullaClaim.createClaim{value: 0}(params);
-        assertEq(claimId1, 1, "First claim should be created without fee");
+        assertEq(claimId1, 0, "First claim should be created without fee");
 
         // Remove exemption
         vm.expectEmit(true, false, false, false);
@@ -279,7 +279,7 @@ contract TestFeeExemptions is Test {
         // Should work with fee
         vm.prank(_nonExemptUser);
         uint256 claimId2 = bullaClaim.createClaim{value: _STANDARD_FEE}(params);
-        assertEq(claimId2, 2, "Second claim should be created with fee");
+        assertEq(claimId2, 1, "Second claim should be created with fee");
     }
 
     function testMultipleExemptUsers() public {
@@ -305,13 +305,13 @@ contract TestFeeExemptions is Test {
         params.creditor = user1;
         vm.prank(user1);
         uint256 claimId1 = bullaClaim.createClaim{value: 0}(params);
-        assertEq(claimId1, 1, "User1 claim should be created without fee");
+        assertEq(claimId1, 0, "User1 claim should be created without fee");
 
         // User2 (exempt) - should work without fee
         params.creditor = user2;
         vm.prank(user2);
         uint256 claimId2 = bullaClaim.createClaim{value: 0}(params);
-        assertEq(claimId2, 2, "User2 claim should be created without fee");
+        assertEq(claimId2, 1, "User2 claim should be created without fee");
 
         // User3 (not exempt) - should fail without fee
         params.creditor = user3;
@@ -322,7 +322,7 @@ contract TestFeeExemptions is Test {
         // User3 with fee - should work
         vm.prank(user3);
         uint256 claimId3 = bullaClaim.createClaim{value: _STANDARD_FEE}(params);
-        assertEq(claimId3, 3, "User3 claim should be created with fee");
+        assertEq(claimId3, 2, "User3 claim should be created with fee");
     }
 
     // ==================== FEE EXEMPTIONS CONTRACT MANAGEMENT TESTS ====================
@@ -365,7 +365,7 @@ contract TestFeeExemptions is Test {
         // _creditor should now be exempt in new contract
         vm.prank(_creditor);
         uint256 claimId = bullaClaim.createClaim{value: 0}(params);
-        assertEq(claimId, 1, "Claim should be created without fee with new exemptions contract");
+        assertEq(claimId, 0, "Claim should be created without fee with new exemptions contract");
 
         // _exemptUser should no longer be exempt (not in new contract)
         params.creditor = _exemptUser;
@@ -411,7 +411,7 @@ contract TestFeeExemptions is Test {
         // Non-exempt user should be able to create claims with zero fee when protocol fee is zero
         vm.prank(_nonExemptUser);
         uint256 claimId = zeroFeeClaim.createClaim{value: 0}(params);
-        assertEq(claimId, 1, "Claim should be created with zero fee when protocol fee is zero");
+        assertEq(claimId, 0, "Claim should be created with zero fee when protocol fee is zero");
     }
 
     function testFeeExemptionWithDifferentTokens() public {
@@ -426,7 +426,7 @@ contract TestFeeExemptions is Test {
 
         vm.prank(_exemptUser);
         uint256 claimId1 = bullaClaim.createClaim{value: 0}(ethParams);
-        assertEq(claimId1, 1, "ETH claim should be created without fee");
+        assertEq(claimId1, 0, "ETH claim should be created without fee");
 
         // Test with ERC20 token
         CreateClaimParams memory tokenParams = new CreateClaimParamsBuilder().withCreditor(_exemptUser).withDebtor(
@@ -435,7 +435,7 @@ contract TestFeeExemptions is Test {
 
         vm.prank(_exemptUser);
         uint256 claimId2 = bullaClaim.createClaim{value: 0}(tokenParams);
-        assertEq(claimId2, 2, "Token claim should be created without fee");
+        assertEq(claimId2, 1, "Token claim should be created without fee");
 
         assertEq(address(bullaClaim).balance, 0, "No fees should be collected for exempt user");
     }
@@ -511,7 +511,7 @@ contract TestFeeExemptions is Test {
         // Should work without fee
         vm.prank(randomUser);
         uint256 claimId = bullaClaim.createClaim{value: 0}(params);
-        assertEq(claimId, 1, "Random user should be able to create claim without fee when exempt");
+        assertEq(claimId, 0, "Random user should be able to create claim without fee when exempt");
     }
 
     function testFuzzFeeExemptionWithVaryingFees(uint256 feeAmount) public {
@@ -530,7 +530,7 @@ contract TestFeeExemptions is Test {
         // Non-exempt user should need to pay the fee
         vm.prank(_nonExemptUser);
         uint256 claimId1 = bullaClaim.createClaim{value: feeAmount}(params);
-        assertEq(claimId1, 1, "Non-exempt user should pay fee");
+        assertEq(claimId1, 0, "Non-exempt user should pay fee");
 
         // Add to exemptions
         vm.prank(_admin);
@@ -539,7 +539,7 @@ contract TestFeeExemptions is Test {
         // Exempt user should not need to pay fee
         vm.prank(_nonExemptUser);
         uint256 claimId2 = bullaClaim.createClaim{value: 0}(params);
-        assertEq(claimId2, 2, "Exempt user should not pay fee regardless of fee amount");
+        assertEq(claimId2, 1, "Exempt user should not pay fee regardless of fee amount");
     }
 
     // ==================== VIEW FUNCTION TESTS ====================

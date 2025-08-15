@@ -84,7 +84,7 @@ contract TestBatchFunctionality is BullaClaimTestHelper {
         bullaClaim.batch(calls, true);
 
         // Verify claim was created
-        Claim memory claim = bullaClaim.getClaim(1);
+        Claim memory claim = bullaClaim.getClaim(0);
         assertEq(claim.originalCreditor, creditor);
         assertEq(claim.debtor, debtor);
     }
@@ -141,8 +141,8 @@ contract TestBatchFunctionality is BullaClaimTestHelper {
         bullaClaim.batch(calls, true);
 
         // Verify metadata was set
-        (string memory tokenURI1, string memory attachmentURI1) = bullaClaim.claimMetadata(1);
-        (string memory tokenURI2, string memory attachmentURI2) = bullaClaim.claimMetadata(2);
+        (string memory tokenURI1, string memory attachmentURI1) = bullaClaim.claimMetadata(0);
+        (string memory tokenURI2, string memory attachmentURI2) = bullaClaim.claimMetadata(1);
 
         assertEq(tokenURI1, "https://example.com/1");
         assertEq(attachmentURI1, "https://attachment.com/1");
@@ -171,13 +171,13 @@ contract TestBatchFunctionality is BullaClaimTestHelper {
         bullaClaim.batch(calls, true);
 
         // Verify claims were created with user as creditor
-        Claim memory claim1 = bullaClaim.getClaim(1);
-        Claim memory claim2 = bullaClaim.getClaim(2);
+        Claim memory claim1 = bullaClaim.getClaim(0);
+        Claim memory claim2 = bullaClaim.getClaim(1);
 
         assertEq(claim1.originalCreditor, user);
-        assertEq(claim2.originalCreditor, user);
+        assertEq(claim1.originalCreditor, user);
+        assertEq(bullaClaim.ownerOf(0), user);
         assertEq(bullaClaim.ownerOf(1), user);
-        assertEq(bullaClaim.ownerOf(2), user);
     }
 
     /*///////////////////// BATCH PAY CLAIM TESTS /////////////////////*/
@@ -418,7 +418,7 @@ contract TestBatchFunctionality is BullaClaimTestHelper {
         // Verify both permit and claim creation worked
         assertEq(permitToken.allowance(owner, address(bullaClaim)), amount);
 
-        Claim memory claim = bullaClaim.getClaim(1);
+        Claim memory claim = bullaClaim.getClaim(0);
         assertEq(claim.originalCreditor, owner);
         assertEq(claim.token, address(permitToken));
         assertEq(claim.claimAmount, amount);

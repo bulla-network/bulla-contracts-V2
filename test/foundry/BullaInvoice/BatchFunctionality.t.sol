@@ -107,7 +107,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         bullaInvoice.batch{value: FEE}(calls, true);
 
         // Verify invoice was created
-        Claim memory claim = bullaClaim.getClaim(1);
+        Claim memory claim = bullaClaim.getClaim(0);
         assertEq(claim.originalCreditor, creditor);
         assertEq(claim.debtor, debtor);
     }
@@ -527,9 +527,9 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         // Verify all invoices were created
         assertEq(bullaClaim.currentClaimId(), 3);
 
-        Claim memory claim1 = bullaClaim.getClaim(1);
-        Claim memory claim2 = bullaClaim.getClaim(2);
-        Claim memory claim3 = bullaClaim.getClaim(3);
+        Claim memory claim1 = bullaClaim.getClaim(0);
+        Claim memory claim2 = bullaClaim.getClaim(1);
+        Claim memory claim3 = bullaClaim.getClaim(2);
 
         assertEq(claim1.claimAmount, 1 ether);
         assertEq(claim2.claimAmount, 2 ether);
@@ -576,7 +576,7 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         assertEq(bullaClaim.currentClaimId(), 3);
 
         // Verify the purchase order has delivery date
-        Invoice memory invoice2 = bullaInvoice.getInvoice(2);
+        Invoice memory invoice2 = bullaInvoice.getInvoice(1);
         assertEq(invoice2.purchaseOrder.deliveryDate, block.timestamp + 1 days);
         assertFalse(invoice2.purchaseOrder.isDelivered);
     }
@@ -610,8 +610,8 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         assertEq(bullaClaim.currentClaimId(), 2);
 
         // Verify metadata was set
-        (string memory tokenURI1, string memory attachmentURI1) = bullaClaim.claimMetadata(1);
-        (string memory tokenURI2, string memory attachmentURI2) = bullaClaim.claimMetadata(2);
+        (string memory tokenURI1, string memory attachmentURI1) = bullaClaim.claimMetadata(0);
+        (string memory tokenURI2, string memory attachmentURI2) = bullaClaim.claimMetadata(1);
 
         assertEq(tokenURI1, "https://example.com/1");
         assertEq(attachmentURI1, "https://attachment.com/1");
@@ -723,8 +723,8 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         assertEq(bullaClaim.currentClaimId(), numInvoices);
 
         // Verify a few invoices
-        Claim memory claim1 = bullaClaim.getClaim(1);
-        Claim memory claim10 = bullaClaim.getClaim(10);
+        Claim memory claim1 = bullaClaim.getClaim(0);
+        Claim memory claim10 = bullaClaim.getClaim(9);
 
         assertEq(claim1.claimAmount, 1 ether);
         assertEq(claim10.claimAmount, 10 ether);

@@ -124,19 +124,19 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
             .withToken(address(weth)).withExpiresAt(futureExpiry).build();
 
         vm.prank(creditor);
-        uint256 loanId = bullaFrendLend.offerLoan(offer);
+        uint256 loanOfferId = bullaFrendLend.offerLoan(offer);
 
         // Accept the loan before expiry
         _permitAcceptLoan(debtorPK);
 
         vm.prank(debtor);
-        uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
+        uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanOfferId);
 
         // Verify loan was accepted successfully
-        assertTrue(claimId > 0, "Claim should be created");
+        assertTrue(bullaClaim.currentClaimId() > 0, "Claim should be created");
 
         // Verify offer was deleted after acceptance
-        LoanOffer memory deletedOffer = bullaFrendLend.getLoanOffer(loanId);
+        LoanOffer memory deletedOffer = bullaFrendLend.getLoanOffer(loanOfferId);
         assertEq(deletedOffer.params.creditor, address(0), "Offer should be deleted");
     }
 
@@ -265,7 +265,7 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
         // Accept long offer (should succeed)
         vm.prank(debtor);
         uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(longLoanId);
-        assertTrue(claimId > 0, "Long offer should be accepted successfully");
+        assertTrue(bullaClaim.currentClaimId() > 0, "Long offer should be accepted successfully");
     }
 
     function testOfferWithMetadata_Expiry() public {
@@ -440,6 +440,6 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
 
         vm.prank(debtor);
         uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(loanId);
-        assertTrue(claimId > 0, "Should be able to accept with far future expiry");
+        assertTrue(bullaClaim.currentClaimId() > 0, "Should be able to accept with far future expiry");
     }
 }

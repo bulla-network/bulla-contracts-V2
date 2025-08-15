@@ -257,7 +257,7 @@ contract TestCreateClaimFrom is BullaClaimTestHelper {
         } else {
             vm.expectEmit(true, true, true, true);
             emit ClaimCreated(
-                bullaClaim.currentClaimId() + 1,
+                bullaClaim.currentClaimId(),
                 _user,
                 isInvoice ? _user : debtor,
                 isInvoice ? debtor : _user,
