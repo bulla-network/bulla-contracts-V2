@@ -1,3 +1,10 @@
+## [1.16.5](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.16.4...v1.16.5) (2025-08-15)
+
+
+### Bug Fixes
+
+* 6. Optimisation: _updateClaimPaymentState() makes a call to getC… ([#87](https://github.com/bulla-network/bulla-contracts-V2/issues/87)) ([e48f2c2](https://github.com/bulla-network/bulla-contracts-V2/commit/e48f2c27eb3ab48c3930e2d922de5fc0ef8a852f))
+
 ## [1.16.4](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.16.3...v1.16.4) (2025-08-15)
 
 
