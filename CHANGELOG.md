@@ -1,3 +1,10 @@
+# [1.16.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.15.0...v1.16.0) (2025-08-15)
+
+
+### Features
+
+* add direct approval if approving ([#82](https://github.com/bulla-network/bulla-contracts-V2/issues/82)) ([94c4c7c](https://github.com/bulla-network/bulla-contracts-V2/commit/94c4c7cfa982e6330dd09202f5e3082100ef898c))
+
 # [1.15.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.14.0...v1.15.0) (2025-07-29)
 
 
