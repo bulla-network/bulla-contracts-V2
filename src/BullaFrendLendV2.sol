@@ -547,6 +547,10 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, BoringBatchable, ERC165, 
         if (offer.callbackContract == address(0) && offer.callbackSelector != bytes4(0)) {
             revert InvalidCallback();
         }
+        // Ensure callback contract is either zero address or a smart contract
+        if (offer.callbackContract != address(0) && offer.callbackContract.code.length == 0) {
+            revert InvalidCallback();
+        }
 
         CompoundInterestLib.validateInterestConfig(offer.interestConfig);
     }
