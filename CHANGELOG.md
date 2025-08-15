@@ -1,3 +1,10 @@
+## [1.16.4](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.16.3...v1.16.4) (2025-08-15)
+
+
+### Bug Fixes
+
+* 4.  [INFO] BullaFrendLendV2::_executeCallback(): During _acceptL… ([#86](https://github.com/bulla-network/bulla-contracts-V2/issues/86)) ([0ccb6db](https://github.com/bulla-network/bulla-contracts-V2/commit/0ccb6dbccf65870c3536b6dd133fd89c1b8a037b))
+
 ## [1.16.3](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.16.2...v1.16.3) (2025-08-15)
 
 
