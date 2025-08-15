@@ -111,6 +111,28 @@ contract BullaApprovalRegistry is IBullaApprovalRegistry, Ownable, EIP712 {
     }
 
     /*///////////////////////////////////////////////////////////////
+                        APPROVE FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    function approveCreateClaim(
+        address controller,
+        CreateClaimApprovalType approvalType,
+        uint64 approvalCount,
+        bool isBindingAllowed
+    ) external {
+        BullaClaimPermitLib.approveCreateClaim(
+            approvals[msg.sender][controller],
+            controllerRegistry,
+            _domainSeparatorV4(),
+            msg.sender,
+            controller,
+            approvalType,
+            approvalCount,
+            isBindingAllowed
+        );
+    }
+
+    /*///////////////////////////////////////////////////////////////
                         ADMIN FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 

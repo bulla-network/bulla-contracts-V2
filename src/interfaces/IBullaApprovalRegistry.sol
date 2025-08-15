@@ -71,6 +71,17 @@ interface IBullaApprovalRegistry {
     ) external;
 
     /*///////////////////////////////////////////////////////////////
+                        APPROVE FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    function approveCreateClaim(
+        address controller,
+        CreateClaimApprovalType approvalType,
+        uint64 approvalCount,
+        bool isBindingAllowed
+    ) external;
+
+    /*///////////////////////////////////////////////////////////////
                         ADMIN FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
