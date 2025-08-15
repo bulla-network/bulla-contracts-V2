@@ -1,3 +1,10 @@
+## [1.16.2](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.16.1...v1.16.2) (2025-08-15)
+
+
+### Bug Fixes
+
+* 2. [LOW] BullaClaimV2::_createClaim(): Skips claimId == 0 throug… ([#84](https://github.com/bulla-network/bulla-contracts-V2/issues/84)) ([fb127e5](https://github.com/bulla-network/bulla-contracts-V2/commit/fb127e5c52ac3f32942860f4e7e4ab73fd3b0bb6))
+
 ## [1.16.1](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.16.0...v1.16.1) (2025-08-15)
 
 
