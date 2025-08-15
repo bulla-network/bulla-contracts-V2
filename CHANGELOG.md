@@ -1,3 +1,10 @@
+## [1.16.3](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.16.2...v1.16.3) (2025-08-15)
+
+
+### Bug Fixes
+
+* 3. [LOW] BullaFrendLendV2::_offerLoan(): Skips offerId ==  0 thr… ([#85](https://github.com/bulla-network/bulla-contracts-V2/issues/85)) ([532426d](https://github.com/bulla-network/bulla-contracts-V2/commit/532426d3d40c54caa9411c2b63d1ac64cbc368e8))
+
 ## [1.16.2](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.16.1...v1.16.2) (2025-08-15)
 
 
