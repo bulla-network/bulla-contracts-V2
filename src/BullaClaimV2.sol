@@ -159,7 +159,6 @@ contract BullaClaimV2 is ERC721, Ownable, BoringBatchable, IBullaClaimV2 {
             if (params.token != address(0)) claim.token = params.token;
             if (controller != address(0)) claim.controller = controller;
             if (params.binding != ClaimBinding.Unbound) claim.binding = params.binding;
-            if (params.payerReceivesClaimOnPayment) claim.payerReceivesClaimOnPayment = true;
             if (params.dueBy != 0) claim.dueBy = uint40(params.dueBy);
             if (params.impairmentGracePeriod != 0) claim.impairmentGracePeriod = uint40(params.impairmentGracePeriod);
         }
@@ -268,9 +267,6 @@ contract BullaClaimV2 is ERC721, Ownable, BoringBatchable, IBullaClaimV2 {
         claimStorage.status = claimPaid ? Status.Paid : Status.Repaying;
 
         emit ClaimPayment(claimId, from, paymentAmount, totalPaidAmount);
-
-        // transfer the ownership of the claim NFT to the payee as a receipt of their completed payment
-        if (claim.payerReceivesClaimOnPayment && claimPaid) _transfer(claim.creditor, from, claimId);
     }
 
     /**
@@ -465,7 +461,6 @@ contract BullaClaimV2 is ERC721, Ownable, BoringBatchable, IBullaClaimV2 {
             paidAmount: uint256(claimStorage.paidAmount),
             status: claimStorage.status,
             binding: claimStorage.binding,
-            payerReceivesClaimOnPayment: claimStorage.payerReceivesClaimOnPayment,
             debtor: claimStorage.debtor,
             creditor: _ownerOf(claimId),
             token: claimStorage.token,

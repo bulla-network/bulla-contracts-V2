@@ -219,10 +219,10 @@ contract TestBullaInvoiceBatchFunctionality is BullaInvoiceTestHelper {
         assertEq(uint256(claim2.status), uint256(Status.Paid));
         assertEq(uint256(claim3.status), uint256(Status.Paid));
 
-        // Verify NFT ownership transferred to payer
-        assertEq(bullaClaim.ownerOf(invoiceId1), debtor);
-        assertEq(bullaClaim.ownerOf(invoiceId2), debtor);
-        assertEq(bullaClaim.ownerOf(invoiceId3), debtor);
+        // Verify NFT ownership remains with creditor
+        assertEq(bullaClaim.ownerOf(invoiceId1), creditor);
+        assertEq(bullaClaim.ownerOf(invoiceId2), creditor);
+        assertEq(bullaClaim.ownerOf(invoiceId3), creditor);
     }
 
     /*///////////////////// BATCH MANAGEMENT TESTS /////////////////////*/

@@ -89,7 +89,6 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
             paidAmount: claim.paidAmount,
             status: claim.status,
             binding: claim.binding,
-            payerReceivesClaimOnPayment: claim.payerReceivesClaimOnPayment,
             debtor: claim.debtor,
             creditor: claim.creditor,
             token: claim.token,
@@ -199,7 +198,6 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
             description: params.description,
             token: params.token,
             binding: params.binding,
-            payerReceivesClaimOnPayment: params.payerReceivesClaimOnPayment,
             dueBy: params.dueBy,
             impairmentGracePeriod: params.impairmentGracePeriod
         });
@@ -286,7 +284,7 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
             revert PayingZero();
         }
 
-        // need to check this because calling bulla claim since it might transfer the claim to the creditor if `payerReceivesClaimOnPayment` is true
+        // Store the creditor address before making the payment
         address creditor = _bullaClaim.ownerOf(claimId);
 
         // Calculate protocol fee from interest only

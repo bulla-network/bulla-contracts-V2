@@ -222,8 +222,8 @@ contract TestInvariants is Test {
             assertEq(weth.balanceOf(charlie), creditorBalanceBefore + paymentAmount);
             assertEq(weth.balanceOf(debtor), debtorBalanceBefore - paymentAmount);
             assertEq(bullaClaim.balanceOf(alice), 0);
-            assertEq(bullaClaim.ownerOf(claimId), debtor);
-            assertEq(bullaClaim.balanceOf(debtor), 1);
+            assertEq(bullaClaim.ownerOf(claimId), charlie);
+            assertEq(bullaClaim.balanceOf(charlie), 1);
             assertEq(bullaClaim.currentClaimId(), claimId + 1);
         }
     }

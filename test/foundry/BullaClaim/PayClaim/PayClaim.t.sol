@@ -81,26 +81,10 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
         // assert the creditor received the full payment amount
         assertEq(weth.balanceOf(creditor), creditorBalanceBefore + paymentAmount);
 
-        // assert the NFT is transferred to the payer
-        assertEq(bullaClaim.ownerOf(claimId), address(debtor));
+        // assert the NFT remains with the creditor after payment
+        assertEq(bullaClaim.ownerOf(claimId), address(creditor));
         // assert we change the status to paid
         assertEq(uint256(claim.status), uint256(Status.Paid));
-    }
-
-    function testPayClaimWithNoTransferFlag() public {
-        vm.startPrank(creditor);
-        uint256 claimId = bullaClaim.createClaim(
-            new CreateClaimParamsBuilder().withCreditor(creditor).withDebtor(debtor).withPayerReceivesClaimOnPayment(
-                false
-            ).build()
-        );
-        vm.stopPrank();
-
-        vm.prank(debtor);
-        bullaClaim.payClaim{value: 1 ether}(claimId, 1 ether);
-
-        assertEq(bullaClaim.balanceOf(creditor), 1);
-        assertEq(bullaClaim.ownerOf(claimId), creditor);
     }
 
     // same as above but payable for native token transfers
@@ -123,7 +107,7 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
         assertEq(debtor.balance, debtorBalanceBefore - paymentAmount);
         assertEq(creditor.balance, creditorBalanceBefore + paymentAmount);
 
-        assertEq(bullaClaim.ownerOf(claimId), address(debtor));
+        assertEq(bullaClaim.ownerOf(claimId), address(creditor));
         assertEq(uint256(claim.status), uint256(Status.Paid));
     }
 
@@ -142,10 +126,7 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
 
         vm.startPrank(controller);
         bullaClaim.createClaimFrom(
-            userAddress,
-            new CreateClaimParamsBuilder().withCreditor(userAddress).withDebtor(debtor).withPayerReceivesClaimOnPayment(
-                false
-            ).build()
+            userAddress, new CreateClaimParamsBuilder().withCreditor(userAddress).withDebtor(debtor).build()
         );
         vm.stopPrank();
 
@@ -257,8 +238,8 @@ contract TestPayClaimWithFee is BullaClaimTestHelper {
         bullaClaim.payClaim(claimId, 1 ether);
         vm.stopPrank();
 
-        // Check ownership transferred but originalCreditor preserved
-        assertEq(bullaClaim.ownerOf(claimId), debtor);
+        // Check ownership remains with creditor and originalCreditor preserved
+        assertEq(bullaClaim.ownerOf(claimId), creditor);
         Claim memory claim = bullaClaim.getClaim(claimId);
         assertEq(claim.originalCreditor, creditor);
         assertTrue(claim.status == Status.Paid);

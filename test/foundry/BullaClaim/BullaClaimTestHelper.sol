@@ -26,7 +26,6 @@ contract BullaClaimTestHelper is Test {
                 description: "",
                 binding: ClaimBinding.Unbound,
                 claimAmount: 1 ether,
-                payerReceivesClaimOnPayment: true,
                 dueBy: 0,
                 impairmentGracePeriod: 0
             })
@@ -44,7 +43,6 @@ contract BullaClaimTestHelper is Test {
                 description: "",
                 binding: ClaimBinding.Unbound,
                 claimAmount: 1 ether,
-                payerReceivesClaimOnPayment: true,
                 dueBy: 0,
                 impairmentGracePeriod: 0
             })
@@ -64,7 +62,6 @@ contract BullaClaimTestHelper is Test {
                 description: "",
                 binding: ClaimBinding.Unbound,
                 claimAmount: 1 ether,
-                payerReceivesClaimOnPayment: true,
                 dueBy: 0,
                 impairmentGracePeriod: 0
             }),

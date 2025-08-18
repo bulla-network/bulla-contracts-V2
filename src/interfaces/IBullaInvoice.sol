@@ -14,7 +14,6 @@ struct Invoice {
     address token;
     Status status;
     ClaimBinding binding;
-    bool payerReceivesClaimOnPayment;
     PurchaseOrderState purchaseOrder;
     InterestConfig lateFeeConfig;
     InterestComputationState interestComputationState;
@@ -44,7 +43,6 @@ struct CreateInvoiceParams {
     string description;
     address token;
     ClaimBinding binding;
-    bool payerReceivesClaimOnPayment;
     InterestConfig lateFeeConfig;
     uint256 impairmentGracePeriod;
     uint256 depositAmount;

@@ -128,7 +128,6 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, BoringBatchable, ERC165, 
             paidAmount: claim.paidAmount,
             status: claim.status,
             binding: claim.binding,
-            payerReceivesClaimOnPayment: claim.payerReceivesClaimOnPayment,
             debtor: claim.debtor,
             creditor: claim.creditor,
             token: claim.token,
@@ -295,7 +294,6 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, BoringBatchable, ERC165, 
             description: offer.params.description,
             token: offer.params.token,
             binding: ClaimBinding.Bound, // Loans are bound claims, avoiding the 1 wei transfer used in V1
-            payerReceivesClaimOnPayment: true,
             dueBy: block.timestamp + offer.params.termLength,
             impairmentGracePeriod: offer.params.impairmentGracePeriod
         });
