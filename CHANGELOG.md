@@ -1,3 +1,10 @@
+# [1.17.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.16.5...v1.17.0) (2025-08-18)
+
+
+### Features
+
+* delete claim transfer param on payment ([#88](https://github.com/bulla-network/bulla-contracts-V2/issues/88)) ([d8d18e8](https://github.com/bulla-network/bulla-contracts-V2/commit/d8d18e810ea971787848791dd288b6619ceb0287))
+
 ## [1.16.5](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.16.4...v1.16.5) (2025-08-15)
 
 
