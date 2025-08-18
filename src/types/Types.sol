@@ -42,7 +42,6 @@ struct CreateClaimParams {
     string description;
     address token;
     ClaimBinding binding;
-    bool payerReceivesClaimOnPayment;
     uint256 dueBy;
     uint256 impairmentGracePeriod; // seconds after dueBy that claim cannot be impaired
 }
@@ -61,7 +60,6 @@ struct ClaimStorage {
     address controller;
     Status status;
     ClaimBinding binding; // the debtor can allow themselves to be bound to a claim, which makes a claim unrejectable
-    bool payerReceivesClaimOnPayment; // an optional flag which allows the token to be transferred to the payer, acting as a "receipt NFT"
     uint40 dueBy; // when the claim is due (0 means no due date)
     uint40 impairmentGracePeriod; // seconds after dueBy that claim cannot be impaired
 } // takes 5 storage slots
@@ -79,7 +77,6 @@ struct Claim {
     address controller;
     Status status;
     ClaimBinding binding;
-    bool payerReceivesClaimOnPayment;
 }
 
 ////// APPROVALS //////

@@ -36,7 +36,6 @@ struct Loan {
     uint256 paidAmount;
     Status status;
     ClaimBinding binding;
-    bool payerReceivesClaimOnPayment;
     address debtor;
     address creditor;
     address token;

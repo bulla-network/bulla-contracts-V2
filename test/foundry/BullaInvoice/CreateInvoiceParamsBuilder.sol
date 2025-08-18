@@ -12,7 +12,6 @@ contract CreateInvoiceParamsBuilder {
     string private _description;
     address private _token;
     ClaimBinding private _binding;
-    bool private _payerReceivesClaimOnPayment;
     InterestConfig private _lateFeeConfig;
     uint256 private _impairmentGracePeriod;
     uint256 private _depositAmount;
@@ -27,7 +26,6 @@ contract CreateInvoiceParamsBuilder {
         _description = "Test Invoice";
         _token = address(0); // ETH by default
         _binding = ClaimBinding.BindingPending;
-        _payerReceivesClaimOnPayment = true;
         _lateFeeConfig = InterestConfig({interestRateBps: 0, numberOfPeriodsPerYear: 0});
         _impairmentGracePeriod = 7 days; // 7 days grace period by default
         _depositAmount = 0; // No deposit by default
@@ -73,11 +71,6 @@ contract CreateInvoiceParamsBuilder {
         return this;
     }
 
-    function withPayerReceivesClaimOnPayment(bool payerReceivesClaim) public returns (CreateInvoiceParamsBuilder) {
-        _payerReceivesClaimOnPayment = payerReceivesClaim;
-        return this;
-    }
-
     function withLateFeeConfig(InterestConfig memory lateFeeConfig) public returns (CreateInvoiceParamsBuilder) {
         _lateFeeConfig = lateFeeConfig;
         return this;
@@ -103,7 +96,6 @@ contract CreateInvoiceParamsBuilder {
             description: _description,
             token: _token,
             binding: _binding,
-            payerReceivesClaimOnPayment: _payerReceivesClaimOnPayment,
             lateFeeConfig: _lateFeeConfig,
             impairmentGracePeriod: _impairmentGracePeriod,
             depositAmount: _depositAmount

@@ -154,7 +154,7 @@ contract TestPayClaimWithWeirdTokens is Test {
         assertEq(feeToken.balanceOf(debtor), debtorBalanceBefore - CLAIM_AMOUNT);
         assertEq(feeToken.balanceOf(creditor), creditorBalanceBefore + CLAIM_AMOUNT - tokenFeeAmount);
 
-        assertEq(bullaClaim.ownerOf(claimId_creditorFee), address(debtor));
+        assertEq(bullaClaim.ownerOf(claimId_creditorFee), address(creditor));
         assertEq(uint256(claim.status), uint256(Status.Paid));
 
         // ensure debtor fee
@@ -177,7 +177,7 @@ contract TestPayClaimWithWeirdTokens is Test {
         assertEq(feeToken.balanceOf(debtor), debtorBalanceBefore - CLAIM_AMOUNT);
         assertEq(feeToken.balanceOf(creditor), creditorBalanceBefore + CLAIM_AMOUNT - tokenFeeAmount);
 
-        assertEq(bullaClaim.ownerOf(claimId_debtorFee), address(debtor));
+        assertEq(bullaClaim.ownerOf(claimId_debtorFee), address(creditor));
         assertEq(uint256(claim.status), uint256(Status.Paid));
     }
 }

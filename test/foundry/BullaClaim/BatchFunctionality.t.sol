@@ -210,10 +210,10 @@ contract TestBatchFunctionality is BullaClaimTestHelper {
         assertEq(uint256(claim2.status), uint256(Status.Paid));
         assertEq(uint256(claim3.status), uint256(Status.Paid));
 
-        // Verify NFT ownership transferred to payer
-        assertEq(bullaClaim.ownerOf(claimId1), debtor);
-        assertEq(bullaClaim.ownerOf(claimId2), debtor);
-        assertEq(bullaClaim.ownerOf(claimId3), debtor);
+        // Verify NFT ownership remains with creditor
+        assertEq(bullaClaim.ownerOf(claimId1), creditor);
+        assertEq(bullaClaim.ownerOf(claimId2), creditor);
+        assertEq(bullaClaim.ownerOf(claimId3), creditor);
     }
 
     function testBatch_PayMultipleClaims_ETH() public {

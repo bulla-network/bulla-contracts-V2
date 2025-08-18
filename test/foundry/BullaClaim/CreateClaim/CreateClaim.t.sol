@@ -232,8 +232,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
         address _debtor,
         uint128 claimAmount,
         address token,
-        uint8 binding,
-        bool payerReceivesClaimOnPayment
+        uint8 binding
     ) public {
         vm.assume(_creditor != address(0));
         vm.assume(claimAmount > 0);
@@ -249,7 +248,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
         CreateClaimParams memory params = new CreateClaimParamsBuilder().withCreditor(_creditor).withDebtor(_debtor)
             .withClaimAmount(claimAmount).withToken(token).withDescription("test description").withBinding(
             ClaimBinding(binding)
-        ).withPayerReceivesClaimOnPayment(payerReceivesClaimOnPayment).build();
+        ).build();
 
         vm.startPrank(creator);
         vm.expectEmit(true, true, true, true);
@@ -278,7 +277,7 @@ contract TestCreateClaim is BullaClaimTestHelper {
             assertTrue(claim.status == Status.Pending);
             assertEq(claim.claimAmount, claimAmount);
             assertEq(claim.debtor, _debtor);
-            assertEq(claim.payerReceivesClaimOnPayment, payerReceivesClaimOnPayment);
+
             assertTrue(claim.binding == ClaimBinding(binding));
             assertEq(claim.token, token);
             assertEq(bullaClaim.balanceOf(_creditor), creditorBalanceBefore + 1);
