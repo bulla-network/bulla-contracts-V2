@@ -29,6 +29,7 @@ error WithdrawalFailed();
 error NotCreditorOrDebtor();
 error InvoiceBatchInvalidMsgValue();
 error InvoiceBatchInvalidCalldata();
+error TokenBlacklistedFromFees();
 
 /**
  * @title BullaInvoice
@@ -46,6 +47,9 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
     address[] public protocolFeeTokens;
     mapping(address => uint256) public protocolFeesByToken;
     mapping(address => bool) private _tokenExists;
+
+    // Blacklist for protocol fee tokens
+    mapping(address => bool) public protocolFeeTokenBlacklist;
 
     mapping(uint256 => InvoiceDetails) private _invoiceDetailsByClaimId;
 
@@ -328,7 +332,7 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
             } else {
                 // Track protocol fee for this token if any interest was paid
                 // No need to track gas fee as it is the balance of the contract
-                if (protocolFee > 0) {
+                if (protocolFee > 0 && !protocolFeeTokenBlacklist[claim.token]) {
                     if (!_tokenExists[claim.token]) {
                         protocolFeeTokens.push(claim.token);
                         _tokenExists[claim.token] = true;
@@ -523,6 +527,44 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
         protocolFeeBPS = _protocolFeeBPS;
 
         emit ProtocolFeeUpdated(oldFee, _protocolFeeBPS);
+    }
+
+    /**
+     * @notice Allows admin to add a token to the blacklist and remove it from protocol fee tokens
+     * @param token The token address to blacklist
+     */
+    function addToFeeTokenBlacklist(address token) external {
+        if (msg.sender != admin) revert NotAdmin();
+
+        protocolFeeTokenBlacklist[token] = true;
+
+        // Remove from protocolFeeTokens array if it exists
+        if (_tokenExists[token]) {
+            for (uint256 i = 0; i < protocolFeeTokens.length; i++) {
+                if (protocolFeeTokens[i] == token) {
+                    // Replace with last element and pop
+                    protocolFeeTokens[i] = protocolFeeTokens[protocolFeeTokens.length - 1];
+                    protocolFeeTokens.pop();
+                    break;
+                }
+            }
+            _tokenExists[token] = false;
+            protocolFeesByToken[token] = 0;
+        }
+
+        emit TokenAddedToFeesBlacklist(token);
+    }
+
+    /**
+     * @notice Allows admin to remove a token from the blacklist
+     * @param token The token address to remove from blacklist
+     */
+    function removeFromFeeTokenBlacklist(address token) external {
+        if (msg.sender != admin) revert NotAdmin();
+
+        protocolFeeTokenBlacklist[token] = false;
+
+        emit TokenRemovedFromFeesBlacklist(token);
     }
 
     /**

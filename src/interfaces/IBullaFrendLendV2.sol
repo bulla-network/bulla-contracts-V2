@@ -73,6 +73,8 @@ interface IBullaFrendLendV2 {
     // Admin functions
     function withdrawAllFees() external;
     function setProtocolFee(uint16 _protocolFeeBPS) external;
+    function addToFeeTokenBlacklist(address token) external;
+    function removeFromFeeTokenBlacklist(address token) external;
 
     // State variables
     function admin() external view returns (address);
@@ -96,4 +98,6 @@ interface IBullaFrendLendV2 {
     event LoanPayment(uint256 indexed claimId, uint256 grossInterestPaid, uint256 principalPaid, uint256 protocolFee);
     event ProtocolFeeUpdated(uint16 oldFee, uint16 newFee);
     event FeeWithdrawn(address indexed admin, address indexed token, uint256 amount);
+    event TokenAddedToFeesBlacklist(address indexed token);
+    event TokenRemovedFromFeesBlacklist(address indexed token);
 }
