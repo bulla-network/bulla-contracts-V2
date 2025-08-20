@@ -1,3 +1,10 @@
+# [1.19.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.18.0...v1.19.0) (2025-08-20)
+
+
+### Features
+
+* **loanOfferAccepted:** single transfer and add receiver to event ([#91](https://github.com/bulla-network/bulla-contracts-V2/issues/91)) ([1ed76a1](https://github.com/bulla-network/bulla-contracts-V2/commit/1ed76a1cb89a2c68ca0e400a554973262e83cf50))
+
 # [1.18.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.17.1...v1.18.0) (2025-08-20)
 
 
