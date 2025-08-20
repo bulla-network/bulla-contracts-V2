@@ -1,3 +1,10 @@
+# [1.18.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.17.1...v1.18.0) (2025-08-20)
+
+
+### Features
+
+* add protocol fee token whitelist ([#90](https://github.com/bulla-network/bulla-contracts-V2/issues/90)) ([2417b02](https://github.com/bulla-network/bulla-contracts-V2/commit/2417b02ee65f5e689a41b683fc8ec4e658699cd7))
+
 ## [1.17.1](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.17.0...v1.17.1) (2025-08-20)
 
 
