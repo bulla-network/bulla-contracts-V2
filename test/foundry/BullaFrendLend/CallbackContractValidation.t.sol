@@ -179,6 +179,31 @@ contract TestCallbackContractValidation is Test {
             loanParams, ClaimMetadata({tokenURI: "test-uri", attachmentURI: "test-attachment"})
         );
     }
+
+    /// @notice Test that loan offers cannot use the FrendLend contract itself as callback
+    function testCannotCreateLoanOfferWithSelfCallbackAddress() public {
+        LoanRequestParams memory loanParams = LoanRequestParams({
+            termLength: 30 days,
+            interestConfig: InterestConfig({
+                interestRateBps: 500, // 5%
+                numberOfPeriodsPerYear: 12
+            }),
+            loanAmount: 1 ether,
+            creditor: creditor,
+            debtor: debtor,
+            description: "Loan with self callback",
+            token: address(weth),
+            impairmentGracePeriod: 7 days,
+            expiresAt: 0,
+            callbackContract: address(bullaFrendLend), // Using the contract itself
+            callbackSelector: bytes4(keccak256("onLoanAccepted(uint256,uint256)"))
+        });
+
+        // Should revert with InvalidCallback because self-callbacks are not allowed
+        vm.prank(creditor);
+        vm.expectRevert(InvalidCallback.selector);
+        bullaFrendLend.offerLoan(loanParams);
+    }
 }
 
 /**
