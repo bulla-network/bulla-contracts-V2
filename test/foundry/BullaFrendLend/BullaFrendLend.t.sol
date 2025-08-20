@@ -45,6 +45,9 @@ contract TestBullaFrendLend is Test {
     event LoanOffered(
         uint256 indexed loanId, address indexed offeredBy, LoanRequestParams loanOffer, ClaimMetadata metadata
     );
+    event LoanOfferAccepted(
+        uint256 indexed offerId, uint256 indexed claimId, address indexed receiver, uint256 fee, ClaimMetadata metadata
+    );
 
     uint256 creditorPK = uint256(0x01);
     uint256 debtorPK = uint256(0x02);
@@ -196,6 +199,91 @@ contract TestBullaFrendLend is Test {
         Claim memory claim = bullaClaim.getClaim(claimId);
         assertEq(claim.debtor, debtor, "Claim debtor should be the original debtor");
         assertEq(claim.claimAmount, 1 ether, "Claim amount should be correct");
+    }
+
+    function testLoanOfferAcceptedEventEmittedWithDefaultReceiver() public {
+        // Setup: Creditor makes an offer
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 1 ether);
+
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withDescription("Test Loan for Event").build();
+
+        vm.prank(creditor);
+        uint256 offerId = bullaFrendLend.offerLoan(offer);
+
+        // Setup permits for debtor
+        bullaClaim.approvalRegistry().permitCreateClaim({
+            user: debtor,
+            controller: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
+        });
+
+        // Expect LoanOfferAccepted event with debtor as receiver (default behavior)
+        vm.expectEmit(true, true, true, true);
+        emit LoanOfferAccepted(offerId, 0, debtor, FEE, ClaimMetadata({tokenURI: "", attachmentURI: ""}));
+
+        // Debtor accepts the offer (no custom receiver specified)
+        vm.prank(debtor);
+        uint256 claimId = bullaFrendLend.acceptLoan{value: FEE}(offerId);
+
+        // Verify the claim ID in our event expectation was correct
+        assertEq(claimId, 0, "Claim ID should be 0 for first claim");
+    }
+
+    function testLoanOfferAcceptedEventEmittedWithCustomReceiver() public {
+        address customReceiver = address(0x9999999);
+
+        // Setup: Creditor makes an offer
+        vm.prank(creditor);
+        weth.approve(address(bullaFrendLend), 1 ether);
+
+        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
+            .withToken(address(weth)).withDescription("Test Loan for Custom Receiver Event").build();
+
+        vm.prank(creditor);
+        uint256 offerId = bullaFrendLend.offerLoan(offer);
+
+        // Setup permits for debtor
+        bullaClaim.approvalRegistry().permitCreateClaim({
+            user: debtor,
+            controller: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: debtorPK,
+                user: debtor,
+                controller: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
+        });
+
+        // Expect LoanOfferAccepted event with customReceiver as receiver
+        vm.expectEmit(true, true, true, true);
+        emit LoanOfferAccepted(offerId, 0, customReceiver, FEE, ClaimMetadata({tokenURI: "", attachmentURI: ""}));
+
+        // Debtor accepts the offer with custom receiver
+        vm.prank(debtor);
+        uint256 claimId = bullaFrendLend.acceptLoanWithReceiver{value: FEE}(offerId, customReceiver);
+
+        // Verify the claim ID in our event expectation was correct
+        assertEq(claimId, 0, "Claim ID should be 0 for first claim");
+
+        // Verify the funds went to the custom receiver
+        assertEq(weth.balanceOf(customReceiver), 1 ether, "Custom receiver should have received the loan funds");
     }
 
     function testCannotUseReceiverWhenCreditorAcceptsDebtorRequest() public {

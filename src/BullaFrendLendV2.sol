@@ -324,17 +324,14 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, BoringBatchable, ERC165, 
 
         // Transfer token from creditor to debtor via the contract
         // First, transfer from creditor to this contract
-        ERC20(offer.params.token).safeTransferFrom(offer.params.creditor, address(this), offer.params.loanAmount);
-
-        // Then transfer from this contract to the final receiver
-        ERC20(offer.params.token).safeTransfer(finalReceiver, offer.params.loanAmount);
+        ERC20(offer.params.token).safeTransferFrom(offer.params.creditor, finalReceiver, offer.params.loanAmount);
 
         // Execute callback if configured
         if (offer.params.callbackContract != address(0)) {
             _executeCallback(offer.params.callbackContract, offer.params.callbackSelector, offerId, claimId);
         }
 
-        emit LoanOfferAccepted(offerId, claimId, fee, metadata);
+        emit LoanOfferAccepted(offerId, claimId, finalReceiver, fee, metadata);
 
         return claimId;
     }
