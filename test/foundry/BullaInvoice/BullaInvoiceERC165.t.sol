@@ -48,8 +48,8 @@ contract BullaInvoiceERC165Test is Test {
             ^ IBullaInvoice.acceptPurchaseOrder.selector
             ^ IBullaInvoice.getTotalAmountNeededForPurchaseOrderDeposit.selector ^ IBullaInvoice.updateBinding.selector
             ^ IBullaInvoice.cancelInvoice.selector ^ IBullaInvoice.setProtocolFee.selector
-            ^ IBullaInvoice.withdrawAllFees.selector ^ IBullaInvoice.addToFeeTokenBlacklist.selector
-            ^ IBullaInvoice.removeFromFeeTokenBlacklist.selector ^ IBullaInvoice.admin.selector
+            ^ IBullaInvoice.withdrawAllFees.selector ^ IBullaInvoice.addToFeeTokenWhitelist.selector
+            ^ IBullaInvoice.removeFromFeeTokenWhitelist.selector ^ IBullaInvoice.admin.selector
             ^ IBullaInvoice.protocolFeeBPS.selector ^ IBullaInvoice.protocolFeesByToken.selector;
 
         bytes4 actualInterfaceId = type(IBullaInvoice).interfaceId;

@@ -13,7 +13,7 @@ import {InterestConfig} from "contracts/libraries/CompoundInterestLib.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
 import {EIP712Helper} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 
-contract TestBullaInvoiceTokenBlacklist is Test {
+contract TestBullaInvoiceTokenWhitelist is Test {
     WETH public weth;
     MockERC20 public token1;
     MockERC20 public token2;
@@ -76,71 +76,48 @@ contract TestBullaInvoiceTokenBlacklist is Test {
                           ACCESS CONTROL TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function test_addToFeeTokenBlacklist_OnlyAdmin() public {
+    function test_addToFeeTokenWhitelist_OnlyAdmin() public {
         vm.prank(nonAdmin);
         vm.expectRevert(NotAdmin.selector);
-        bullaInvoice.addToFeeTokenBlacklist(address(token1));
+        bullaInvoice.addToFeeTokenWhitelist(address(token1));
     }
 
-    function test_removeFromFeeTokenBlacklist_OnlyAdmin() public {
+    function test_removeFromFeeTokenWhitelist_OnlyAdmin() public {
         vm.prank(admin);
-        bullaInvoice.addToFeeTokenBlacklist(address(token1));
+        bullaInvoice.addToFeeTokenWhitelist(address(token1));
 
         vm.prank(nonAdmin);
         vm.expectRevert(NotAdmin.selector);
-        bullaInvoice.removeFromFeeTokenBlacklist(address(token1));
+        bullaInvoice.removeFromFeeTokenWhitelist(address(token1));
     }
 
-    function test_addToFeeTokenBlacklist_AdminCanAdd() public {
+    function test_addToFeeTokenWhitelist_AdminCanAdd() public {
         vm.prank(admin);
         vm.expectEmit(true, false, false, false);
-        emit TokenAddedToFeesBlacklist(address(token1));
-        bullaInvoice.addToFeeTokenBlacklist(address(token1));
+        emit TokenAddedToFeesWhitelist(address(token1));
+        bullaInvoice.addToFeeTokenWhitelist(address(token1));
 
-        assertTrue(bullaInvoice.protocolFeeTokenBlacklist(address(token1)));
+        assertTrue(bullaInvoice.protocolFeeTokenWhitelist(address(token1)));
     }
 
-    function test_removeFromFeeTokenBlacklist_AdminCanRemove() public {
+    function test_removeFromFeeTokenWhitelist_AdminCanRemove() public {
         vm.prank(admin);
-        bullaInvoice.addToFeeTokenBlacklist(address(token1));
+        bullaInvoice.addToFeeTokenWhitelist(address(token1));
 
         vm.prank(admin);
         vm.expectEmit(true, false, false, false);
-        emit TokenRemovedFromFeesBlacklist(address(token1));
-        bullaInvoice.removeFromFeeTokenBlacklist(address(token1));
+        emit TokenRemovedFromFeesWhitelist(address(token1));
+        bullaInvoice.removeFromFeeTokenWhitelist(address(token1));
 
-        assertFalse(bullaInvoice.protocolFeeTokenBlacklist(address(token1)));
+        assertFalse(bullaInvoice.protocolFeeTokenWhitelist(address(token1)));
     }
 
     /*//////////////////////////////////////////////////////////////
-                    BLACKLIST FUNCTIONALITY TESTS
+                    WHITELIST FUNCTIONALITY TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function test_blacklistedToken_NotAddedToProtocolFeeTokens() public {
-        // First blacklist the token
-        vm.prank(admin);
-        bullaInvoice.addToFeeTokenBlacklist(address(token1));
-
-        // Create invoice and pay with interest to generate protocol fees
-        uint256 invoiceId = _createInvoiceWithInterest(address(token1));
-
-        // Fast forward time to accrue interest
-        vm.warp(block.timestamp + 365 days);
-
-        // Pay the invoice
-        vm.prank(debtor);
-        bullaInvoice.payInvoice(invoiceId, PAYMENT_AMOUNT);
-
-        // Verify token was not added to protocol fee tracking
-        vm.expectRevert();
-        bullaInvoice.protocolFeeTokens(0);
-
-        // Verify no protocol fees accumulated for this token
-        assertEq(bullaInvoice.protocolFeesByToken(address(token1)), 0);
-    }
-
-    function test_nonBlacklistedToken_AddedToProtocolFeeTokens() public {
-        // Create invoice and pay with interest to generate protocol fees
+    function test_allTokens_AddedToProtocolFeeTokens() public {
+        // Create invoice and pay with interest to generate protocol fees (no whitelist needed for tracking)
         uint256 invoiceId = _createInvoiceWithInterest(address(token1));
 
         // Fast forward time to accrue interest
@@ -157,35 +134,46 @@ contract TestBullaInvoiceTokenBlacklist is Test {
         assertGt(bullaInvoice.protocolFeesByToken(address(token1)), 0);
     }
 
-    function test_addToFeeTokenBlacklist_RemovesExistingToken() public {
-        // First, create invoice and pay to add token to protocol fee tracking
+    function test_nonWhitelistedToken_CannotBeWithdrawn() public {
+        // Create and pay invoice to accumulate fees
         uint256 invoiceId = _createInvoiceWithInterest(address(token1));
-
-        // Fast forward time to accrue interest
         vm.warp(block.timestamp + 365 days);
-
-        // Pay the invoice to add token to protocol fee tracking
         vm.prank(debtor);
         bullaInvoice.payInvoice(invoiceId, PAYMENT_AMOUNT);
 
-        // Verify token was added and has fees
-        assertEq(bullaInvoice.protocolFeeTokens(0), address(token1));
+        // Verify fees accumulated
         uint256 feesBefore = bullaInvoice.protocolFeesByToken(address(token1));
         assertGt(feesBefore, 0);
 
-        // Now blacklist the token
+        // Try to withdraw all fees (token1 is not whitelisted)
         vm.prank(admin);
-        bullaInvoice.addToFeeTokenBlacklist(address(token1));
+        bullaInvoice.withdrawAllFees();
 
-        // Verify token was removed from protocol fee tracking
-        vm.expectRevert();
-        bullaInvoice.protocolFeeTokens(0);
+        // Verify fees were NOT withdrawn (still there)
+        assertEq(bullaInvoice.protocolFeesByToken(address(token1)), feesBefore);
+    }
 
-        // Verify fees were reset to 0
+    function test_whitelistedToken_CanBeWithdrawn() public {
+        // Whitelist the token first
+        vm.prank(admin);
+        bullaInvoice.addToFeeTokenWhitelist(address(token1));
+
+        // Create and pay invoice to accumulate fees
+        uint256 invoiceId = _createInvoiceWithInterest(address(token1));
+        vm.warp(block.timestamp + 365 days);
+        vm.prank(debtor);
+        bullaInvoice.payInvoice(invoiceId, PAYMENT_AMOUNT);
+
+        // Verify fees accumulated
+        uint256 feesBefore = bullaInvoice.protocolFeesByToken(address(token1));
+        assertGt(feesBefore, 0);
+
+        // Withdraw all fees (token1 is whitelisted)
+        vm.prank(admin);
+        bullaInvoice.withdrawAllFees();
+
+        // Verify fees were withdrawn (reset to 0)
         assertEq(bullaInvoice.protocolFeesByToken(address(token1)), 0);
-
-        // Verify blacklist status
-        assertTrue(bullaInvoice.protocolFeeTokenBlacklist(address(token1)));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -226,6 +214,6 @@ contract TestBullaInvoiceTokenBlacklist is Test {
                              EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event TokenAddedToFeesBlacklist(address indexed token);
-    event TokenRemovedFromFeesBlacklist(address indexed token);
+    event TokenAddedToFeesWhitelist(address indexed token);
+    event TokenRemovedFromFeesWhitelist(address indexed token);
 }

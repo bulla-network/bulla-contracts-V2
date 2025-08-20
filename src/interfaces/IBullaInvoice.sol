@@ -74,8 +74,8 @@ interface IBullaInvoice {
     // Admin functions
     function setProtocolFee(uint16 _protocolFeeBPS) external;
     function withdrawAllFees() external;
-    function addToFeeTokenBlacklist(address token) external;
-    function removeFromFeeTokenBlacklist(address token) external;
+    function addToFeeTokenWhitelist(address token) external;
+    function removeFromFeeTokenWhitelist(address token) external;
 
     // View functions
     function admin() external view returns (address);
@@ -92,6 +92,6 @@ interface IBullaInvoice {
     event PurchaseOrderDelivered(uint256 indexed claimId);
     event PurchaseOrderAccepted(uint256 indexed claimId, address indexed debtor, uint256 depositAmount, bool bound);
     event FeeWithdrawn(address indexed admin, address indexed token, uint256 amount);
-    event TokenAddedToFeesBlacklist(address indexed token);
-    event TokenRemovedFromFeesBlacklist(address indexed token);
+    event TokenAddedToFeesWhitelist(address indexed token);
+    event TokenRemovedFromFeesWhitelist(address indexed token);
 }

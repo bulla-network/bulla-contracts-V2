@@ -981,9 +981,15 @@ contract TestBullaFrendLend is Test {
         uint256 usdcFee = bullaFrendLend.protocolFeesByToken(address(usdc));
         uint256 daiFee = bullaFrendLend.protocolFeesByToken(address(dai));
 
+        // Admin adds tokens to whitelist before withdrawal
+        vm.startPrank(admin);
+        bullaFrendLend.addToFeeTokenWhitelist(address(weth));
+        bullaFrendLend.addToFeeTokenWhitelist(address(usdc));
+        bullaFrendLend.addToFeeTokenWhitelist(address(dai));
+
         // Admin withdraws fees
-        vm.prank(admin);
         bullaFrendLend.withdrawAllFees();
+        vm.stopPrank();
 
         // Verify ERC20 token fees were transferred
         assertEq(weth.balanceOf(admin), initialAdminWethBalance + wethFee, "WETH fees not transferred correctly");
@@ -1058,6 +1064,10 @@ contract TestBullaFrendLend is Test {
         uint256 tokenFees = bullaFrendLend.protocolFeesByToken(address(weth));
         assertTrue(tokenFees > 0, "Contract should have token fees");
 
+        // Add WETH to whitelist before withdrawal
+        vm.prank(admin);
+        bullaFrendLend.addToFeeTokenWhitelist(address(weth));
+
         // Expect FeeWithdrawn event for WETH
         vm.expectEmit(true, true, false, true);
         emit FeeWithdrawn(admin, address(weth), tokenFees);
@@ -1067,6 +1077,13 @@ contract TestBullaFrendLend is Test {
     }
 
     function testFeeWithdrawnEventEmittedForMultipleTokens() public {
+        // Add all tokens to whitelist before any setup
+        vm.startPrank(admin);
+        bullaFrendLend.addToFeeTokenWhitelist(address(weth));
+        bullaFrendLend.addToFeeTokenWhitelist(address(usdc));
+        bullaFrendLend.addToFeeTokenWhitelist(address(dai));
+        vm.stopPrank();
+
         // Setup similar to testProtocolFeeWithMultipleTokens but just focusing on events
         vm.startPrank(creditor);
         weth.approve(address(bullaFrendLend), 10 ether);
@@ -1222,6 +1239,10 @@ contract TestBullaFrendLend is Test {
 
         // First withdrawal - should emit event
         uint256 tokenFees = bullaFrendLend.protocolFeesByToken(address(weth));
+
+        // Add WETH to whitelist before withdrawal
+        vm.prank(admin);
+        bullaFrendLend.addToFeeTokenWhitelist(address(weth));
 
         vm.expectEmit(true, true, false, true);
         emit FeeWithdrawn(admin, address(weth), tokenFees);

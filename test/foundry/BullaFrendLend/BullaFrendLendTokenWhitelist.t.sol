@@ -13,7 +13,7 @@ import {InterestConfig} from "contracts/libraries/CompoundInterestLib.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
 import {EIP712Helper} from "test/foundry/BullaClaim/EIP712/Utils.sol";
 
-contract TestBullaFrendLendTokenBlacklist is Test {
+contract TestBullaFrendLendTokenWhitelist is Test {
     WETH public weth;
     MockERC20 public token1;
     MockERC20 public token2;
@@ -87,71 +87,48 @@ contract TestBullaFrendLendTokenBlacklist is Test {
                           ACCESS CONTROL TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function test_addToFeeTokenBlacklist_OnlyAdmin() public {
+    function test_addToFeeTokenWhitelist_OnlyAdmin() public {
         vm.prank(nonAdmin);
         vm.expectRevert(NotAdmin.selector);
-        bullaFrendLend.addToFeeTokenBlacklist(address(token1));
+        bullaFrendLend.addToFeeTokenWhitelist(address(token1));
     }
 
-    function test_removeFromFeeTokenBlacklist_OnlyAdmin() public {
+    function test_removeFromFeeTokenWhitelist_OnlyAdmin() public {
         vm.prank(admin);
-        bullaFrendLend.addToFeeTokenBlacklist(address(token1));
+        bullaFrendLend.addToFeeTokenWhitelist(address(token1));
 
         vm.prank(nonAdmin);
         vm.expectRevert(NotAdmin.selector);
-        bullaFrendLend.removeFromFeeTokenBlacklist(address(token1));
+        bullaFrendLend.removeFromFeeTokenWhitelist(address(token1));
     }
 
-    function test_addToFeeTokenBlacklist_AdminCanAdd() public {
+    function test_addToFeeTokenWhitelist_AdminCanAdd() public {
         vm.prank(admin);
         vm.expectEmit(true, false, false, false);
-        emit TokenAddedToFeesBlacklist(address(token1));
-        bullaFrendLend.addToFeeTokenBlacklist(address(token1));
+        emit TokenAddedToFeesWhitelist(address(token1));
+        bullaFrendLend.addToFeeTokenWhitelist(address(token1));
 
-        assertTrue(bullaFrendLend.protocolFeeTokenBlacklist(address(token1)));
+        assertTrue(bullaFrendLend.protocolFeeTokenWhitelist(address(token1)));
     }
 
-    function test_removeFromFeeTokenBlacklist_AdminCanRemove() public {
+    function test_removeFromFeeTokenWhitelist_AdminCanRemove() public {
         vm.prank(admin);
-        bullaFrendLend.addToFeeTokenBlacklist(address(token1));
+        bullaFrendLend.addToFeeTokenWhitelist(address(token1));
 
         vm.prank(admin);
         vm.expectEmit(true, false, false, false);
-        emit TokenRemovedFromFeesBlacklist(address(token1));
-        bullaFrendLend.removeFromFeeTokenBlacklist(address(token1));
+        emit TokenRemovedFromFeesWhitelist(address(token1));
+        bullaFrendLend.removeFromFeeTokenWhitelist(address(token1));
 
-        assertFalse(bullaFrendLend.protocolFeeTokenBlacklist(address(token1)));
+        assertFalse(bullaFrendLend.protocolFeeTokenWhitelist(address(token1)));
     }
 
     /*//////////////////////////////////////////////////////////////
-                    BLACKLIST FUNCTIONALITY TESTS
+                    WHITELIST FUNCTIONALITY TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function test_blacklistedToken_NotAddedToProtocolFeeTokens() public {
-        // First blacklist the token
-        vm.prank(admin);
-        bullaFrendLend.addToFeeTokenBlacklist(address(token1));
-
-        // Create and accept loan with interest to generate protocol fees
-        uint256 claimId = _createAndAcceptLoanWithInterest(address(token1));
-
-        // Fast forward time to accrue interest
-        vm.warp(block.timestamp + 180 days);
-
-        // Pay the loan
-        vm.prank(debtor);
-        bullaFrendLend.payLoan(claimId, PAYMENT_AMOUNT);
-
-        // Verify token was not added to protocol fee tracking
-        vm.expectRevert();
-        bullaFrendLend.protocolFeeTokens(0);
-
-        // Verify no protocol fees accumulated for this token
-        assertEq(bullaFrendLend.protocolFeesByToken(address(token1)), 0);
-    }
-
-    function test_nonBlacklistedToken_AddedToProtocolFeeTokens() public {
-        // Create and accept loan with interest to generate protocol fees
+    function test_allTokens_AddedToProtocolFeeTokens() public {
+        // Create and accept loan with interest to generate protocol fees (no whitelist needed for tracking)
         uint256 claimId = _createAndAcceptLoanWithInterest(address(token1));
 
         // Fast forward time to accrue interest
@@ -168,35 +145,46 @@ contract TestBullaFrendLendTokenBlacklist is Test {
         assertGt(bullaFrendLend.protocolFeesByToken(address(token1)), 0);
     }
 
-    function test_addToFeeTokenBlacklist_RemovesExistingToken() public {
-        // First, create and pay loan to add token to protocol fee tracking
+    function test_nonWhitelistedToken_CannotBeWithdrawn() public {
+        // Create and pay loan to accumulate fees
         uint256 claimId = _createAndAcceptLoanWithInterest(address(token1));
-
-        // Fast forward time to accrue interest
         vm.warp(block.timestamp + 180 days);
-
-        // Pay the loan to add token to protocol fee tracking
         vm.prank(debtor);
         bullaFrendLend.payLoan(claimId, PAYMENT_AMOUNT);
 
-        // Verify token was added and has fees
-        assertEq(bullaFrendLend.protocolFeeTokens(0), address(token1));
+        // Verify fees accumulated
         uint256 feesBefore = bullaFrendLend.protocolFeesByToken(address(token1));
         assertGt(feesBefore, 0);
 
-        // Now blacklist the token
+        // Try to withdraw all fees (token1 is not whitelisted)
         vm.prank(admin);
-        bullaFrendLend.addToFeeTokenBlacklist(address(token1));
+        bullaFrendLend.withdrawAllFees();
 
-        // Verify token was removed from protocol fee tracking
-        vm.expectRevert();
-        bullaFrendLend.protocolFeeTokens(0);
+        // Verify fees were NOT withdrawn (still there)
+        assertEq(bullaFrendLend.protocolFeesByToken(address(token1)), feesBefore);
+    }
 
-        // Verify fees were reset to 0
+    function test_whitelistedToken_CanBeWithdrawn() public {
+        // Whitelist the token first
+        vm.prank(admin);
+        bullaFrendLend.addToFeeTokenWhitelist(address(token1));
+
+        // Create and pay loan to accumulate fees
+        uint256 claimId = _createAndAcceptLoanWithInterest(address(token1));
+        vm.warp(block.timestamp + 180 days);
+        vm.prank(debtor);
+        bullaFrendLend.payLoan(claimId, PAYMENT_AMOUNT);
+
+        // Verify fees accumulated
+        uint256 feesBefore = bullaFrendLend.protocolFeesByToken(address(token1));
+        assertGt(feesBefore, 0);
+
+        // Withdraw all fees (token1 is whitelisted)
+        vm.prank(admin);
+        bullaFrendLend.withdrawAllFees();
+
+        // Verify fees were withdrawn (reset to 0)
         assertEq(bullaFrendLend.protocolFeesByToken(address(token1)), 0);
-
-        // Verify blacklist status
-        assertTrue(bullaFrendLend.protocolFeeTokenBlacklist(address(token1)));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -241,6 +229,6 @@ contract TestBullaFrendLendTokenBlacklist is Test {
                              EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event TokenAddedToFeesBlacklist(address indexed token);
-    event TokenRemovedFromFeesBlacklist(address indexed token);
+    event TokenAddedToFeesWhitelist(address indexed token);
+    event TokenRemovedFromFeesWhitelist(address indexed token);
 }

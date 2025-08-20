@@ -441,9 +441,12 @@ contract TestBullaInvoiceProtocolFee is Test {
         uint256 adminToken1Before = token1.balanceOf(admin);
         uint256 adminToken2Before = token2.balanceOf(admin);
 
-        // Admin withdraws all fees
-        vm.prank(admin);
+        // Admin adds tokens to whitelist and withdraws all fees
+        vm.startPrank(admin);
+        bullaInvoice.addToFeeTokenWhitelist(address(token1));
+        bullaInvoice.addToFeeTokenWhitelist(address(token2));
         bullaInvoice.withdrawAllFees();
+        vm.stopPrank();
 
         // Verify admin received both token fees
         assertGt(token1.balanceOf(admin) - adminToken1Before, 0, "Admin should receive token1 fees");
@@ -470,9 +473,11 @@ contract TestBullaInvoiceProtocolFee is Test {
         uint256 feeBeforeWithdrawal = bullaInvoice.protocolFeesByToken(address(token1));
         assertTrue(feeBeforeWithdrawal > 0, "Fee should be accumulated");
 
-        // Withdraw fees
-        vm.prank(admin);
+        // Add token to whitelist and withdraw fees
+        vm.startPrank(admin);
+        bullaInvoice.addToFeeTokenWhitelist(address(token1));
         bullaInvoice.withdrawAllFees();
+        vm.stopPrank();
 
         // Verify fee reset
         assertEq(bullaInvoice.protocolFeesByToken(address(token1)), 0, "Fee should be reset to 0");
@@ -661,10 +666,12 @@ contract TestBullaInvoiceProtocolFee is Test {
             bullaInvoice.protocolFeesByToken(address(token1)), expectedTotalProtocolFee, 3, "Protocol fees should match"
         );
 
-        // Admin withdraws fees
+        // Admin adds token to whitelist and withdraws fees
         uint256 adminBalanceBefore = token1.balanceOf(admin);
-        vm.prank(admin);
+        vm.startPrank(admin);
+        bullaInvoice.addToFeeTokenWhitelist(address(token1));
         bullaInvoice.withdrawAllFees();
+        vm.stopPrank();
 
         assertApproxEqAbs(
             token1.balanceOf(admin) - adminBalanceBefore,
@@ -812,6 +819,10 @@ contract TestBullaInvoiceProtocolFee is Test {
         uint256 tokenFees = bullaInvoice.protocolFeesByToken(address(token1));
         assertTrue(tokenFees > 0, "Contract should have token fees");
 
+        // Add token to whitelist before withdrawal
+        vm.prank(admin);
+        bullaInvoice.addToFeeTokenWhitelist(address(token1));
+
         // Expect FeeWithdrawn event for token1
         vm.expectEmit(true, true, false, true);
         emit FeeWithdrawn(admin, address(token1), tokenFees);
@@ -821,6 +832,12 @@ contract TestBullaInvoiceProtocolFee is Test {
     }
 
     function testFeeWithdrawnEventEmittedForMultipleTokens() public {
+        // Add all tokens to whitelist before any setup
+        vm.startPrank(admin);
+        bullaInvoice.addToFeeTokenWhitelist(address(token1));
+        bullaInvoice.addToFeeTokenWhitelist(address(token2));
+        vm.stopPrank();
+
         // Create invoices for ETH and multiple tokens
         uint256 ethInvoice = _createAndSetupInvoice(bullaInvoice, address(0), 1 ether, _getInterestConfig(1000, 12));
         uint256 token1Invoice =
@@ -912,6 +929,10 @@ contract TestBullaInvoiceProtocolFee is Test {
 
         // First withdrawal - should emit event
         uint256 tokenFees = bullaInvoice.protocolFeesByToken(address(token1));
+
+        // Add token to whitelist before withdrawal
+        vm.prank(admin);
+        bullaInvoice.addToFeeTokenWhitelist(address(token1));
 
         vm.expectEmit(true, true, false, true);
         emit FeeWithdrawn(admin, address(token1), tokenFees);
