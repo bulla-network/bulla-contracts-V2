@@ -1,3 +1,10 @@
+## [1.17.1](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.17.0...v1.17.1) (2025-08-20)
+
+
+### Bug Fixes
+
+* prevent self callbacks ([#89](https://github.com/bulla-network/bulla-contracts-V2/issues/89)) ([9dd571c](https://github.com/bulla-network/bulla-contracts-V2/commit/9dd571cf36af387df526dec146bbeeb926437d25))
+
 # [1.17.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.16.5...v1.17.0) (2025-08-18)
 
 
