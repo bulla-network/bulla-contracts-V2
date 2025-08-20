@@ -92,7 +92,9 @@ interface IBullaFrendLendV2 {
     event LoanOffered(
         uint256 indexed offerId, address indexed offeredBy, LoanRequestParams loanOffer, ClaimMetadata metadata
     );
-    event LoanOfferAccepted(uint256 indexed offerId, uint256 indexed claimId, uint256 fee, ClaimMetadata metadata);
+    event LoanOfferAccepted(
+        uint256 indexed offerId, uint256 indexed claimId, address indexed receiver, uint256 fee, ClaimMetadata metadata
+    );
     event LoanOfferRejected(uint256 indexed offerId, address indexed rejectedBy);
     /// @notice grossInterestPaid = interest received by creditor + protocolFee
     event LoanPayment(uint256 indexed claimId, uint256 grossInterestPaid, uint256 principalPaid, uint256 protocolFee);
