@@ -29,6 +29,7 @@ error FrendLendBatchInvalidCalldata();
 error LoanOfferExpired();
 error CallbackFailed(bytes data);
 error InvalidCallback();
+error TokenNotWhitelistedForFeeWithdrawal();
 
 /**
  * @title BullaFrendLendV2
@@ -46,6 +47,9 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, BoringBatchable, ERC165, 
     address[] public protocolFeeTokens;
     mapping(address => uint256) public protocolFeesByToken;
     mapping(address => bool) private _tokenExists;
+
+    // Whitelist for protocol fee token withdrawals
+    mapping(address => bool) public protocolFeeTokenWhitelist;
 
     mapping(uint256 => LoanOffer) private _loanOffers;
     mapping(uint256 => LoanDetails) private _loanDetailsByClaimId;
@@ -426,12 +430,12 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, BoringBatchable, ERC165, 
     function withdrawAllFees() external {
         if (msg.sender != admin) revert NotAdmin();
 
-        // Withdraw protocol fees in all tracked tokens
+        // Withdraw protocol fees in all tracked tokens that are whitelisted
         for (uint256 i = 0; i < protocolFeeTokens.length; i++) {
             address token = protocolFeeTokens[i];
             uint256 feeAmount = protocolFeesByToken[token];
 
-            if (feeAmount > 0) {
+            if (feeAmount > 0 && protocolFeeTokenWhitelist[token]) {
                 protocolFeesByToken[token] = 0; // Reset fee amount before transfer
                 ERC20(token).safeTransfer(admin, feeAmount);
                 emit FeeWithdrawn(admin, token, feeAmount);
@@ -451,6 +455,30 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, BoringBatchable, ERC165, 
         protocolFeeBPS = _protocolFeeBPS;
 
         emit ProtocolFeeUpdated(oldFee, _protocolFeeBPS);
+    }
+
+    /**
+     * @notice Allows admin to add a token to the withdrawal whitelist
+     * @param token The token address to whitelist for withdrawals
+     */
+    function addToFeeTokenWhitelist(address token) external {
+        if (msg.sender != admin) revert NotAdmin();
+
+        protocolFeeTokenWhitelist[token] = true;
+
+        emit TokenAddedToFeesWhitelist(token);
+    }
+
+    /**
+     * @notice Allows admin to remove a token from the withdrawal whitelist
+     * @param token The token address to remove from withdrawal whitelist
+     */
+    function removeFromFeeTokenWhitelist(address token) external {
+        if (msg.sender != admin) revert NotAdmin();
+
+        protocolFeeTokenWhitelist[token] = false;
+
+        emit TokenRemovedFromFeesWhitelist(token);
     }
 
     /**
