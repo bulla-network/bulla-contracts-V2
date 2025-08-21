@@ -1,3 +1,10 @@
+# [1.20.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.19.0...v1.20.0) (2025-08-21)
+
+
+### Features
+
+* delete batch ([#92](https://github.com/bulla-network/bulla-contracts-V2/issues/92)) ([a973af1](https://github.com/bulla-network/bulla-contracts-V2/commit/a973af15600a8c1c5fa84b25910523e78a14d28a))
+
 # [1.19.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.18.0...v1.19.0) (2025-08-20)
 
 
