@@ -46,14 +46,13 @@ contract BullaFrendLendERC165Test is Test {
         bytes4 expectedInterfaceId = IBullaFrendLendV2.getTotalAmountDue.selector ^ IBullaFrendLendV2.getLoan.selector
             ^ IBullaFrendLendV2.offerLoanWithMetadata.selector ^ IBullaFrendLendV2.offerLoan.selector
             ^ IBullaFrendLendV2.rejectLoanOffer.selector ^ IBullaFrendLendV2.acceptLoan.selector
-            ^ IBullaFrendLendV2.acceptLoanWithReceiver.selector ^ IBullaFrendLendV2.batchAcceptLoans.selector
-            ^ IBullaFrendLendV2.payLoan.selector ^ IBullaFrendLendV2.impairLoan.selector
-            ^ IBullaFrendLendV2.markLoanAsPaid.selector ^ IBullaFrendLendV2.withdrawAllFees.selector
-            ^ IBullaFrendLendV2.setProtocolFee.selector ^ IBullaFrendLendV2.addToFeeTokenWhitelist.selector
-            ^ IBullaFrendLendV2.removeFromFeeTokenWhitelist.selector ^ IBullaFrendLendV2.admin.selector
-            ^ IBullaFrendLendV2.loanOfferCount.selector ^ IBullaFrendLendV2.protocolFeeBPS.selector
-            ^ IBullaFrendLendV2.getLoanOffer.selector ^ IBullaFrendLendV2.getLoanOfferMetadata.selector
-            ^ IBullaFrendLendV2.protocolFeesByToken.selector;
+            ^ IBullaFrendLendV2.acceptLoanWithReceiver.selector ^ IBullaFrendLendV2.payLoan.selector
+            ^ IBullaFrendLendV2.impairLoan.selector ^ IBullaFrendLendV2.markLoanAsPaid.selector
+            ^ IBullaFrendLendV2.withdrawAllFees.selector ^ IBullaFrendLendV2.setProtocolFee.selector
+            ^ IBullaFrendLendV2.addToFeeTokenWhitelist.selector ^ IBullaFrendLendV2.removeFromFeeTokenWhitelist.selector
+            ^ IBullaFrendLendV2.admin.selector ^ IBullaFrendLendV2.loanOfferCount.selector
+            ^ IBullaFrendLendV2.protocolFeeBPS.selector ^ IBullaFrendLendV2.getLoanOffer.selector
+            ^ IBullaFrendLendV2.getLoanOfferMetadata.selector ^ IBullaFrendLendV2.protocolFeesByToken.selector;
 
         bytes4 actualInterfaceId = type(IBullaFrendLendV2).interfaceId;
         assertEq(actualInterfaceId, expectedInterfaceId, "Interface ID calculation should match");

@@ -10,7 +10,6 @@ import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
-import {BoringBatchable} from "./libraries/BoringBatchable.sol";
 
 error InvalidDeliveryDate();
 error NotOriginalCreditor();
@@ -27,15 +26,13 @@ error IncorrectFee();
 error NotAdmin();
 error WithdrawalFailed();
 error NotCreditorOrDebtor();
-error InvoiceBatchInvalidMsgValue();
-error InvoiceBatchInvalidCalldata();
 error TokenNotWhitelistedForFeeWithdrawal();
 
 /**
  * @title BullaInvoice
  * @notice A wrapper contract for IBullaClaim that delegates all calls to the provided contract instance
  */
-contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBullaInvoice {
+contract BullaInvoice is BullaClaimControllerBase, ERC165, IBullaInvoice {
     using SafeTransferLib for address;
     using SafeTransferLib for ERC20;
 
@@ -52,9 +49,6 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
     mapping(address => bool) public protocolFeeTokenWhitelist;
 
     mapping(uint256 => InvoiceDetails) private _invoiceDetailsByClaimId;
-
-    // Track if we're currently in a batch operation to skip individual fee validation
-    bool private _inBatchOperation;
 
     /**
      * @notice Constructor
@@ -553,61 +547,6 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
         emit TokenRemovedFromFeesWhitelist(token);
     }
 
-    /**
-     * @notice Batch create multiple invoices with proper msg.value handling
-     * @param calls Array of encoded createInvoice or createInvoiceWithMetadata calls
-     */
-    function batchCreateInvoices(bytes[] calldata calls) external payable {
-        if (calls.length == 0) return;
-
-        uint256 totalRequiredFee = 0;
-        uint256 baseFee = _bullaClaim.CORE_PROTOCOL_FEE();
-        CreateInvoiceParams memory params;
-
-        // Calculate total required fees by decoding each call and checking exemptions
-        for (uint256 i = 0; i < calls.length; i++) {
-            bytes4 selector = bytes4(calls[i][:4]);
-
-            if (selector == this.createInvoice.selector) {
-                // Decode CreateInvoiceParams from the call
-                (params) = abi.decode(calls[i][4:], (CreateInvoiceParams));
-            } else if (selector == this.createInvoiceWithMetadata.selector) {
-                // Decode CreateInvoiceParams and ClaimMetadata from the call
-                (params,) = abi.decode(calls[i][4:], (CreateInvoiceParams, ClaimMetadata));
-            } else {
-                revert InvoiceBatchInvalidCalldata();
-            }
-
-            // Check if either creditor or debtor is exempt
-            bool isExempt = _bullaClaim.feeExemptions().isAllowed(params.creditor)
-                || _bullaClaim.feeExemptions().isAllowed(params.debtor);
-
-            if (!isExempt) {
-                totalRequiredFee += baseFee;
-            }
-        }
-
-        // Validate total msg.value matches required fees
-        if (msg.value != totalRequiredFee) {
-            revert InvoiceBatchInvalidMsgValue();
-        }
-
-        // Set batch operation flag before executing calls
-        _inBatchOperation = true;
-
-        // Execute each call
-        for (uint256 i = 0; i < calls.length; i++) {
-            (bool success, bytes memory result) = address(this).delegatecall(calls[i]);
-            if (!success) {
-                _inBatchOperation = false; // Reset flag before reverting
-                revert(_getRevertMsg(result));
-            }
-        }
-
-        // Reset batch operation flag after successful execution
-        _inBatchOperation = false;
-    }
-
     /// PRIVATE FUNCTIONS ///
 
     /**
@@ -630,11 +569,8 @@ contract BullaInvoice is BullaClaimControllerBase, BoringBatchable, ERC165, IBul
             revert InvalidDepositAmount();
         }
 
-        // Skip fee validation when in batch operation (fees are validated at batch level)
-        if (!_inBatchOperation) {
-            if (msg.value != fee) {
-                revert IncorrectFee();
-            }
+        if (msg.value != fee) {
+            revert IncorrectFee();
         }
 
         CompoundInterestLib.validateInterestConfig(params.lateFeeConfig);

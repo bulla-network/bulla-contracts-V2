@@ -11,7 +11,7 @@ import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {SafeCastLib} from "solmate/utils/SafeCastLib.sol";
-import {BoringBatchable} from "./libraries/BoringBatchable.sol";
+
 import {BullaClaimValidationLib} from "./libraries/BullaClaimValidationLib.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
@@ -22,7 +22,7 @@ import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC2
 import {IBullaClaimAdmin} from "./interfaces/IBullaClaimAdmin.sol";
 import {ERC721Utils} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Utils.sol";
 
-contract BullaClaimV2 is ERC721, Ownable, BoringBatchable, IBullaClaimV2 {
+contract BullaClaimV2 is ERC721, Ownable, IBullaClaimV2 {
     using SafeTransferLib for ERC20;
     using SafeTransferLib for address;
     using SafeCastLib for uint256;

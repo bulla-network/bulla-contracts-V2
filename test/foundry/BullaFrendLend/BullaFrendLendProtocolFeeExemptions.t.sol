@@ -20,7 +20,6 @@ import {
     LoanDetails,
     Loan,
     IncorrectFee,
-    FrendLendBatchInvalidMsgValue,
     BullaFrendLendV2
 } from "contracts/BullaFrendLendV2.sol";
 import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
@@ -248,71 +247,6 @@ contract TestBullaFrendLendProtocolFeeExemptions is Test {
         bullaFrendLend.payLoan(claimId, accruedInterest);
 
         assertGt(token.balanceOf(address(bullaFrendLend)), contractBalanceBefore, "Protocol fee should be collected");
-    }
-
-    // Test batch loan acceptance with exemption
-    function testBatchAcceptLoansWithExemption() public {
-        // Add exempt user to whitelist
-        vm.prank(_admin);
-        feeExemptions.allow(_exemptUser);
-
-        // Create multiple loan offers
-        uint256 offerId1 = _createLoanOffer(_creditor, _exemptUser, _LOAN_AMOUNT);
-        uint256 offerId2 = _createLoanOffer(_creditor, _exemptUser, _LOAN_AMOUNT);
-
-        // Approve token transfers for loan funding
-        vm.prank(_creditor);
-        token.approve(address(bullaFrendLend), _LOAN_AMOUNT * 2);
-
-        uint256 contractBalanceBefore = address(bullaClaim).balance;
-
-        uint256[] memory offerIds = new uint256[](2);
-        offerIds[0] = offerId1;
-        offerIds[1] = offerId2;
-
-        // Should work with 0 msg.value for exempt user
-        vm.prank(_exemptUser);
-        bullaFrendLend.batchAcceptLoans{value: 0}(offerIds);
-
-        // Verify no fees were charged
-        assertEq(address(bullaClaim).balance, contractBalanceBefore, "No fees should be charged for exempt user");
-
-        // Verify both loans were accepted
-        Loan memory loan1 = bullaFrendLend.getLoan(0);
-        Loan memory loan2 = bullaFrendLend.getLoan(1);
-        assertEq(loan1.claimAmount, _LOAN_AMOUNT, "First loan should be accepted");
-        assertEq(loan2.claimAmount, _LOAN_AMOUNT, "Second loan should be accepted");
-    }
-
-    // Test batch loan acceptance without exemption
-    function testBatchAcceptLoansWithoutExemption() public {
-        // Create multiple loan offers
-        uint256 offerId1 = _createLoanOffer(_creditor, _nonExemptUser, _LOAN_AMOUNT);
-        uint256 offerId2 = _createLoanOffer(_creditor, _nonExemptUser, _LOAN_AMOUNT);
-
-        // Approve token transfers for loan funding
-        vm.prank(_creditor);
-        token.approve(address(bullaFrendLend), _LOAN_AMOUNT * 2);
-
-        uint256 expectedTotalFee = _CORE_PROTOCOL_FEE * 2;
-
-        uint256[] memory offerIds = new uint256[](2);
-        offerIds[0] = offerId1;
-        offerIds[1] = offerId2;
-
-        // Should fail with 0 msg.value
-        vm.prank(_nonExemptUser);
-        vm.expectRevert(FrendLendBatchInvalidMsgValue.selector);
-        bullaFrendLend.batchAcceptLoans{value: 0}(offerIds);
-
-        uint256 contractBalanceBefore = address(bullaClaim).balance;
-
-        // Should succeed with correct total fee
-        vm.prank(_nonExemptUser);
-        bullaFrendLend.batchAcceptLoans{value: expectedTotalFee}(offerIds);
-
-        // Verify fees were charged
-        assertEq(address(bullaClaim).balance - contractBalanceBefore, expectedTotalFee, "Total fees should be charged");
     }
 
     // Test that exemption status is locked at creation time
