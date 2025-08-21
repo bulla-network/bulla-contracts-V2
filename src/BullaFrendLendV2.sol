@@ -10,7 +10,6 @@ import {ERC20} from "solmate/tokens/ERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {InterestConfig, InterestComputationState, CompoundInterestLib} from "./libraries/CompoundInterestLib.sol";
-import {BoringBatchable} from "./libraries/BoringBatchable.sol";
 
 error IncorrectFee();
 error NotCreditor();
@@ -24,8 +23,6 @@ error LoanOfferNotFound();
 error NativeTokenNotSupported();
 error InvalidProtocolFee();
 error InvalidGracePeriod();
-error FrendLendBatchInvalidMsgValue();
-error FrendLendBatchInvalidCalldata();
 error LoanOfferExpired();
 error CallbackFailed(bytes data);
 error InvalidCallback();
@@ -36,7 +33,7 @@ error TokenNotWhitelistedForFeeWithdrawal();
  * @notice A wrapper contract for IBullaClaim that allows both creditors to offer loans that debtors can accept,
  *         and debtors to request loans that creditors can accept
  */
-contract BullaFrendLendV2 is BullaClaimControllerBase, BoringBatchable, ERC165, IBullaFrendLendV2 {
+contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, IBullaFrendLendV2 {
     using SafeTransferLib for ERC20;
     using SafeTransferLib for address;
 
@@ -54,9 +51,6 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, BoringBatchable, ERC165, 
     mapping(uint256 => LoanOffer) private _loanOffers;
     mapping(uint256 => LoanDetails) private _loanDetailsByClaimId;
     mapping(uint256 => ClaimMetadata) private _loanOfferMetadata;
-
-    // Track if we're currently in a batch operation to skip individual fee validation
-    bool private _inBatchOperation;
 
     ClaimMetadata private _emptyMetadata;
 
@@ -261,10 +255,7 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, BoringBatchable, ERC165, 
 
         uint256 fee = isProtocolFeeExempt ? 0 : _bullaClaim.CORE_PROTOCOL_FEE();
 
-        // Skip fee validation when in batch operation (fees are validated at batch level)
-        if (!_inBatchOperation) {
-            if (msg.value != fee) revert IncorrectFee();
-        }
+        if (msg.value != fee) revert IncorrectFee();
 
         // Check if offer has expired (only if expiresAt is set to a non-zero value)
         if (offer.params.expiresAt > 0 && block.timestamp > offer.params.expiresAt) {
@@ -476,74 +467,6 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, BoringBatchable, ERC165, 
         protocolFeeTokenWhitelist[token] = false;
 
         emit TokenRemovedFromFeesWhitelist(token);
-    }
-
-    /**
-     * @notice Batch create multiple loan offers with proper msg.value handling
-     * @param offerIds Array of offer IDs to accept
-     * @param receivers Array of receiver addresses for each loan (use address(0) for default behavior)
-     */
-    function batchAcceptLoans(uint256[] calldata offerIds, address[] calldata receivers) external payable {
-        if (offerIds.length == 0) return;
-        if (receivers.length != offerIds.length) revert FrendLendBatchInvalidCalldata();
-
-        _validateBatch(offerIds);
-
-        _inBatchOperation = true;
-
-        // Execute each call with custom receivers
-        for (uint256 i = 0; i < offerIds.length; i++) {
-            _acceptLoan(msg.sender, offerIds[i], receivers[i]);
-        }
-
-        // Reset batch operation flag after successful execution
-        _inBatchOperation = false;
-    }
-
-    /**
-     * @notice Batch create multiple loan offers with proper msg.value handling (legacy version)
-     * @param offerIds Array of offer IDs to accept
-     */
-    function batchAcceptLoans(uint256[] calldata offerIds) external payable {
-        if (offerIds.length == 0) return;
-
-        _validateBatch(offerIds);
-
-        _inBatchOperation = true;
-
-        // Execute each call with address(0) as receiver
-        for (uint256 i = 0; i < offerIds.length; i++) {
-            _acceptLoan(msg.sender, offerIds[i], address(0));
-        }
-
-        // Reset batch operation flag after successful execution
-        _inBatchOperation = false;
-    }
-
-    /**
-     * @notice Validates batch operation
-     * @param offerIds Array of offer IDs to validate
-     */
-    function _validateBatch(uint256[] calldata offerIds) private view {
-        uint256 totalRequiredFee = 0;
-        uint256 baseFee = _bullaClaim.CORE_PROTOCOL_FEE();
-
-        // Calculate total required fees by checking each offer's debtor exemption status
-        for (uint256 i = 0; i < offerIds.length; i++) {
-            LoanOffer memory offer = _loanOffers[offerIds[i]];
-            if (offer.params.creditor == address(0)) revert LoanOfferNotFound();
-
-            bool isProtocolFeeExempt = _bullaClaim.feeExemptions().isAllowed(offer.params.debtor)
-                || _bullaClaim.feeExemptions().isAllowed(offer.params.creditor);
-
-            uint256 requiredFee = isProtocolFeeExempt ? 0 : baseFee;
-            totalRequiredFee += requiredFee;
-        }
-
-        // Validate total msg.value matches required fees
-        if (msg.value != totalRequiredFee) {
-            revert FrendLendBatchInvalidMsgValue();
-        }
     }
 
     ////////////////////////////////
