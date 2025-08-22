@@ -25,7 +25,8 @@ interface IBullaApprovalRegistry {
         address indexed controller,
         CreateClaimApprovalType indexed approvalType,
         uint256 approvalCount,
-        bool isBindingAllowed
+        bool isBindingAllowed,
+        uint256 nonce
     );
 
     event ContractAuthorized(address indexed contractAddress, bool authorized);

@@ -227,6 +227,8 @@ library BullaClaimPermitLib {
         }
 
         // spec.RES3
-        emit IBullaApprovalRegistry.CreateClaimApproved(user, controller, approvalType, approvalCount, isBindingAllowed);
+        emit IBullaApprovalRegistry.CreateClaimApproved(
+            user, controller, approvalType, approvalCount, isBindingAllowed, approvals.createClaim.nonce
+        );
     }
 }
