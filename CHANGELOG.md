@@ -1,3 +1,10 @@
+# [1.21.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.20.0...v1.21.0) (2025-08-22)
+
+
+### Features
+
+* add nonce to CreateClaimApprovedEvent ([#93](https://github.com/bulla-network/bulla-contracts-V2/issues/93)) ([045e70d](https://github.com/bulla-network/bulla-contracts-V2/commit/045e70d51a0b75e55e4c1b50ec7263e1dd96bdb6))
+
 # [1.20.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.19.0...v1.20.0) (2025-08-21)
 
 
