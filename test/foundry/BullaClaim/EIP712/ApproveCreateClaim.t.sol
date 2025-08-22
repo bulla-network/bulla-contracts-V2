@@ -38,7 +38,8 @@ contract TestApproveCreateClaim is Test {
         address indexed controller,
         CreateClaimApprovalType indexed approvalType,
         uint256 approvalCount,
-        bool isBindingAllowed
+        bool isBindingAllowed,
+        uint256 nonce
     );
 
     function setUp() public {
@@ -57,7 +58,7 @@ contract TestApproveCreateClaim is Test {
         bool isBindingAllowed = true;
 
         vm.expectEmit(true, true, true, true);
-        emit CreateClaimApproved(alice, bob, approvalType, approvalCount, isBindingAllowed);
+        emit CreateClaimApproved(alice, bob, approvalType, approvalCount, isBindingAllowed, 1);
 
         vm.prank(alice);
         approvalRegistry.approveCreateClaim({
@@ -235,7 +236,7 @@ contract TestApproveCreateClaim is Test {
 
         // Now revoke
         vm.expectEmit(true, true, true, true);
-        emit CreateClaimApproved(alice, bob, CreateClaimApprovalType.Unapproved, 0, false);
+        emit CreateClaimApproved(alice, bob, CreateClaimApprovalType.Unapproved, 0, false, 2);
 
         vm.prank(alice);
         approvalRegistry.approveCreateClaim({

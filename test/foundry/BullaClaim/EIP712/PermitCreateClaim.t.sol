@@ -61,7 +61,8 @@ contract TestPermitCreateClaim is Test {
         address indexed controller,
         CreateClaimApprovalType indexed approvalType,
         uint256 approvalCount,
-        bool isBindingAllowed
+        bool isBindingAllowed,
+        uint256 nonce
     );
 
     function setUp() public {
@@ -93,7 +94,7 @@ contract TestPermitCreateClaim is Test {
         });
 
         vm.expectEmit(true, true, true, true);
-        emit CreateClaimApproved(alice, bob, approvalType, approvalCount, isBindingAllowed);
+        emit CreateClaimApproved(alice, bob, approvalType, approvalCount, isBindingAllowed, 1);
 
         approvalRegistry.permitCreateClaim({
             user: alice,
@@ -130,7 +131,7 @@ contract TestPermitCreateClaim is Test {
         eip1271Wallet.sign(digest);
 
         vm.expectEmit(true, true, true, true);
-        emit CreateClaimApproved(alice, bob, approvalType, approvalCount, isBindingAllowed);
+        emit CreateClaimApproved(alice, bob, approvalType, approvalCount, isBindingAllowed, 1);
 
         approvalRegistry.permitCreateClaim({
             user: alice,
@@ -187,7 +188,8 @@ contract TestPermitCreateClaim is Test {
             bob,
             CreateClaimApprovalType.Unapproved,
             0, // revoke case
-            false
+            false,
+            2
         );
         approvalRegistry.permitCreateClaim({
             user: alice,
@@ -244,7 +246,8 @@ contract TestPermitCreateClaim is Test {
             bob,
             CreateClaimApprovalType.Unapproved,
             0, // revoke case
-            false
+            false,
+            2
         );
 
         approvalRegistry.permitCreateClaim({
@@ -692,7 +695,7 @@ contract TestPermitCreateClaim is Test {
         });
 
         vm.expectEmit(true, true, true, true);
-        emit CreateClaimApproved(user, controller, approvalType, approvalCount, isBindingAllowed);
+        emit CreateClaimApproved(user, controller, approvalType, approvalCount, isBindingAllowed, 1);
 
         approvalRegistry.permitCreateClaim({
             user: user,
