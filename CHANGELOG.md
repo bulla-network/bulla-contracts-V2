@@ -1,3 +1,10 @@
+# [1.22.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.21.0...v1.22.0) (2025-08-28)
+
+
+### Features
+
+* add callback whitelist in frendlend ([#94](https://github.com/bulla-network/bulla-contracts-V2/issues/94)) ([3b2c468](https://github.com/bulla-network/bulla-contracts-V2/commit/3b2c468dc71466c649ef9e7b605231e3675b65be))
+
 # [1.21.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.20.0...v1.21.0) (2025-08-22)
 
 
