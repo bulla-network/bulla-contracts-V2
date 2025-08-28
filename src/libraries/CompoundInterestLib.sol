@@ -46,34 +46,36 @@ library CompoundInterestLib {
      * @dev When numberOfPeriodsPerYear is 0, simple interest is calculated (no compounding)
      * @param state The current interest computation state
      * @param remainingPrincipal The remaining principal to compute interest for
-     * @param dueBy The dueBy date
+     * @param interestStartTimestamp The interest start timestamp
      * @param config The interest configuration
      */
     function computeInterest(
         uint256 remainingPrincipal,
-        uint256 dueBy,
+        uint256 interestStartTimestamp,
         InterestConfig memory config,
         InterestComputationState memory state
     ) public view returns (InterestComputationState memory) {
         uint256 currentTimestamp = block.timestamp;
 
         if (
-            config.interestRateBps == 0 || config.numberOfPeriodsPerYear > MAX_DAYS_PER_YEAR || dueBy == 0
-                || dueBy >= currentTimestamp || remainingPrincipal == 0
+            config.interestRateBps == 0 || config.numberOfPeriodsPerYear > MAX_DAYS_PER_YEAR
+                || interestStartTimestamp == 0 || interestStartTimestamp >= currentTimestamp || remainingPrincipal == 0
         ) {
             return state;
         }
 
         // Handle simple interest case (numberOfPeriodsPerYear == 0)
         if (config.numberOfPeriodsPerYear == 0) {
-            return _computeSimpleInterest(remainingPrincipal, dueBy, config, state, currentTimestamp);
+            return _computeSimpleInterest(remainingPrincipal, interestStartTimestamp, config, state, currentTimestamp);
         }
 
         uint256 numberOfPeriodsPerYear = uint256(config.numberOfPeriodsPerYear);
 
-        // Calculate the number of periods since the dueBy date
+        // Calculate the number of periods since the interest start timestamp
         uint256 secondsPerPeriod = SECONDS_PER_YEAR / numberOfPeriodsPerYear;
-        uint256 currentPeriodNumber = currentTimestamp > dueBy ? (currentTimestamp - dueBy) / secondsPerPeriod : 0;
+        uint256 currentPeriodNumber = currentTimestamp > interestStartTimestamp
+            ? (currentTimestamp - interestStartTimestamp) / secondsPerPeriod
+            : 0;
 
         uint256 periodsElapsed =
             currentPeriodNumber > state.latestPeriodNumber ? currentPeriodNumber - state.latestPeriodNumber : 0;
@@ -110,20 +112,20 @@ library CompoundInterestLib {
      * Simple Interest = Principal × Rate × Time (in days)
      * Interest accrues daily, not continuously
      * @param remainingPrincipal The remaining principal to compute interest for
-     * @param dueBy The dueBy date
+     * @param interestStartTimestamp The interest start date
      * @param config The interest configuration
      * @param state The current interest computation state
      * @param currentTimestamp The current timestamp
      */
     function _computeSimpleInterest(
         uint256 remainingPrincipal,
-        uint256 dueBy,
+        uint256 interestStartTimestamp,
         InterestConfig memory config,
         InterestComputationState memory state,
         uint256 currentTimestamp
     ) private pure returns (InterestComputationState memory) {
-        // Calculate elapsed time in seconds since due date
-        uint256 secondsElapsed = currentTimestamp - dueBy;
+        // Calculate elapsed time in seconds since interest start timestamp
+        uint256 secondsElapsed = currentTimestamp - interestStartTimestamp;
 
         // Calculate complete days elapsed (interest only accrues on complete days)
         uint256 daysElapsed = secondsElapsed / 1 days;
