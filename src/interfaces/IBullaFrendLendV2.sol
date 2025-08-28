@@ -76,6 +76,11 @@ interface IBullaFrendLendV2 {
     function addToFeeTokenWhitelist(address token) external;
     function removeFromFeeTokenWhitelist(address token) external;
 
+    // Callback whitelist functions
+    function addToCallbackWhitelist(address callbackContract, bytes4 selector) external;
+    function removeFromCallbackWhitelist(address callbackContract, bytes4 selector) external;
+    function isCallbackWhitelisted(address callbackContract, bytes4 selector) external view returns (bool);
+
     // State variables
     function admin() external view returns (address);
 
@@ -102,4 +107,6 @@ interface IBullaFrendLendV2 {
     event FeeWithdrawn(address indexed admin, address indexed token, uint256 amount);
     event TokenAddedToFeesWhitelist(address indexed token);
     event TokenRemovedFromFeesWhitelist(address indexed token);
+    event CallbackWhitelisted(address indexed callbackContract, bytes4 indexed selector);
+    event CallbackRemovedFromWhitelist(address indexed callbackContract, bytes4 indexed selector);
 }

@@ -98,6 +98,10 @@ contract TestCallbackContractValidation is Test {
     function testCanCreateLoanOfferWithValidContractCallbackAddress() public {
         // Deploy a simple mock callback contract
         MockCallbackContract mockCallback = new MockCallbackContract();
+        bytes4 selector = bytes4(keccak256("onLoanAccepted(uint256,uint256)"));
+
+        // First, whitelist the callback
+        bullaFrendLend.addToCallbackWhitelist(address(mockCallback), selector);
 
         LoanRequestParams memory loanParams = LoanRequestParams({
             termLength: 30 days,
@@ -113,7 +117,7 @@ contract TestCallbackContractValidation is Test {
             impairmentGracePeriod: 7 days,
             expiresAt: 0,
             callbackContract: address(mockCallback), // Valid contract address
-            callbackSelector: bytes4(keccak256("onLoanAccepted(uint256,uint256)"))
+            callbackSelector: selector
         });
 
         // Should work fine
