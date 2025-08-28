@@ -116,6 +116,10 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
     }
 
     function testLoanOfferWithValidCallback() public {
+        // Whitelist the callback first
+        vm.prank(creditor); // creditor is admin
+        bullaFrendLend.addToCallbackWhitelist(address(mockCallback), mockCallback.onLoanAccepted.selector);
+
         // Create loan offer with callback
         LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
             .withToken(address(weth)).withCallback(address(mockCallback), mockCallback.onLoanAccepted.selector).build();
@@ -130,6 +134,10 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
     }
 
     function testCallbackExecutionOnLoanAcceptance() public {
+        // Whitelist the callback first
+        vm.prank(creditor); // creditor is admin
+        bullaFrendLend.addToCallbackWhitelist(address(mockCallback), mockCallback.onLoanAccepted.selector);
+
         // Setup approvals
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 2 ether);
@@ -204,6 +212,10 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
     }
 
     function testCallbackFailureHandling() public {
+        // Whitelist the callback first
+        vm.prank(creditor); // creditor is admin
+        bullaFrendLend.addToCallbackWhitelist(address(mockCallback), mockCallback.onLoanAccepted.selector);
+
         // Setup approvals
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 2 ether);
@@ -233,6 +245,10 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
     }
 
     function testMultipleCallbackExecutions() public {
+        // Whitelist the callback first
+        vm.prank(creditor); // creditor is admin
+        bullaFrendLend.addToCallbackWhitelist(address(mockCallback), mockCallback.onLoanAccepted.selector);
+
         // Setup approvals
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 4 ether);
@@ -275,6 +291,10 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
     }
 
     function testCallbackWithDebtorRequest() public {
+        // Whitelist the callback first (admin needs to do this)
+        vm.prank(creditor); // creditor is admin
+        bullaFrendLend.addToCallbackWhitelist(address(mockCallback), mockCallback.onLoanAccepted.selector);
+
         // Setup approvals
         vm.prank(creditor);
         weth.approve(address(bullaFrendLend), 2 ether);

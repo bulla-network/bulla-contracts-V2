@@ -26,6 +26,7 @@ error InvalidGracePeriod();
 error LoanOfferExpired();
 error CallbackFailed(bytes data);
 error InvalidCallback();
+error CallbackNotWhitelisted();
 error TokenNotWhitelistedForFeeWithdrawal();
 
 /**
@@ -47,6 +48,9 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, IBullaFrendLendV2
 
     // Whitelist for protocol fee token withdrawals
     mapping(address => bool) public protocolFeeTokenWhitelist;
+
+    // Whitelist for callback contracts and selectors
+    mapping(address => mapping(bytes4 => bool)) public callbackWhitelist;
 
     mapping(uint256 => LoanOffer) private _loanOffers;
     mapping(uint256 => LoanDetails) private _loanDetailsByClaimId;
@@ -469,6 +473,47 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, IBullaFrendLendV2
         emit TokenRemovedFromFeesWhitelist(token);
     }
 
+    /**
+     * @notice Allows admin to add a callback contract and selector to the whitelist
+     * @param callbackContract The contract address to whitelist
+     * @param selector The function selector to whitelist for this contract
+     */
+    function addToCallbackWhitelist(address callbackContract, bytes4 selector) external {
+        if (msg.sender != admin) revert NotAdmin();
+
+        // Don't allow whitelisting zero address or zero selector
+        if (callbackContract == address(0) || selector == bytes4(0)) {
+            return;
+        }
+
+        callbackWhitelist[callbackContract][selector] = true;
+
+        emit CallbackWhitelisted(callbackContract, selector);
+    }
+
+    /**
+     * @notice Allows admin to remove a callback contract and selector from the whitelist
+     * @param callbackContract The contract address to remove from whitelist
+     * @param selector The function selector to remove from whitelist for this contract
+     */
+    function removeFromCallbackWhitelist(address callbackContract, bytes4 selector) external {
+        if (msg.sender != admin) revert NotAdmin();
+
+        callbackWhitelist[callbackContract][selector] = false;
+
+        emit CallbackRemovedFromWhitelist(callbackContract, selector);
+    }
+
+    /**
+     * @notice Check if a callback contract and selector combination is whitelisted
+     * @param callbackContract The contract address to check
+     * @param selector The function selector to check
+     * @return True if the combination is whitelisted, false otherwise
+     */
+    function isCallbackWhitelisted(address callbackContract, bytes4 selector) external view returns (bool) {
+        return callbackWhitelist[callbackContract][selector];
+    }
+
     ////////////////////////////////
     // Private functions
     ////////////////////////////////
@@ -497,6 +542,13 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, IBullaFrendLendV2
             ) || (offer.callbackContract == address(0) && offer.callbackSelector != bytes4(0))
         ) {
             revert InvalidCallback();
+        }
+
+        // Check callback whitelist if callback is configured
+        if (offer.callbackContract != address(0)) {
+            if (!callbackWhitelist[offer.callbackContract][offer.callbackSelector]) {
+                revert CallbackNotWhitelisted();
+            }
         }
 
         CompoundInterestLib.validateInterestConfig(offer.interestConfig);
