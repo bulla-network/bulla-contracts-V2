@@ -236,6 +236,13 @@ contract BullaClaimV2 is ERC721, Ownable, IBullaClaimV2 {
         //      isn't trying to bypass controller specific logic (eg: late fees) and by going to this contract directly.
         if (claim.controller != address(0) && msg.sender != claim.controller) revert NotController(msg.sender);
 
+        // Validate msg.value for ETH payments to prevent underpayment vulnerability
+        if (claim.token == address(0)) {
+            if (msg.value != paymentAmount) {
+                revert IncorrectMsgValue();
+            }
+        }
+
         // Update payment state first to follow checks-effects-interactions pattern
         _updateClaimPaymentState(from, claimId, claim, paymentAmount);
 

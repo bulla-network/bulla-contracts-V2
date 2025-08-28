@@ -30,6 +30,7 @@ interface IBullaClaimV2 is IBullaClaimCore, IBullaClaimAdmin {
     error ApprovalExpired();
     error NotSupported();
     error MustBeControlledClaim();
+    error IncorrectMsgValue();
 
     /*///////////////////////////////////////////////////////////////
                             EVENTS
