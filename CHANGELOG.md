@@ -1,3 +1,10 @@
+## [1.22.1](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.22.0...v1.22.1) (2025-08-28)
+
+
+### Bug Fixes
+
+* validate payClaim in msg.value ([#96](https://github.com/bulla-network/bulla-contracts-V2/issues/96)) ([0d99905](https://github.com/bulla-network/bulla-contracts-V2/commit/0d9990544272f77edd7fdc3684d73558411f2213))
+
 # [1.22.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.21.0...v1.22.0) (2025-08-28)
 
 
