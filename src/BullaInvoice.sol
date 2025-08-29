@@ -10,6 +10,7 @@ import {SafeTransferLib} from "solmate/utils/SafeTransferLib.sol";
 import {ERC20} from "solmate/tokens/ERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 error InvalidDeliveryDate();
 error NotOriginalCreditor();
@@ -32,11 +33,10 @@ error TokenNotWhitelistedForFeeWithdrawal();
  * @title BullaInvoice
  * @notice A wrapper contract for IBullaClaim that delegates all calls to the provided contract instance
  */
-contract BullaInvoice is BullaClaimControllerBase, ERC165, IBullaInvoice {
+contract BullaInvoice is BullaClaimControllerBase, ERC165, Ownable, IBullaInvoice {
     using SafeTransferLib for address;
     using SafeTransferLib for ERC20;
 
-    address public admin;
     uint16 public protocolFeeBPS;
 
     ClaimMetadata public EMPTY_METADATA = ClaimMetadata({attachmentURI: "", tokenURI: ""});
@@ -53,11 +53,13 @@ contract BullaInvoice is BullaClaimControllerBase, ERC165, IBullaInvoice {
     /**
      * @notice Constructor
      * @param bullaClaim Address of the IBullaClaim contract to delegate calls to
-     * @param _admin Address of the contract administrator
+     * @param _owner Address of the contract owner
      * @param _protocolFeeBPS Protocol fee in basis points taken from interest payments
      */
-    constructor(address bullaClaim, address _admin, uint16 _protocolFeeBPS) BullaClaimControllerBase(bullaClaim) {
-        admin = _admin;
+    constructor(address bullaClaim, address _owner, uint16 _protocolFeeBPS)
+        BullaClaimControllerBase(bullaClaim)
+        Ownable(_owner)
+    {
         if (_protocolFeeBPS > MAX_BPS) revert InvalidProtocolFee();
         protocolFeeBPS = _protocolFeeBPS;
     }
@@ -484,16 +486,14 @@ contract BullaInvoice is BullaClaimControllerBase, ERC165, IBullaInvoice {
     }
 
     /**
-     * @notice Allows admin to withdraw accumulated protocol fees
+     * @notice Allows owner to withdraw accumulated protocol fees
      */
-    function withdrawAllFees() external {
-        if (msg.sender != admin) revert NotAdmin();
-
+    function withdrawAllFees() external onlyOwner {
         uint256 ethBalance = address(this).balance;
         // Withdraw protocol fees in ETH
         if (ethBalance > 0) {
-            admin.safeTransferETH(ethBalance);
-            emit FeeWithdrawn(admin, address(0), ethBalance);
+            owner().safeTransferETH(ethBalance);
+            emit FeeWithdrawn(owner(), address(0), ethBalance);
         }
 
         // Withdraw protocol fees in all tracked tokens that are whitelisted
@@ -503,18 +503,17 @@ contract BullaInvoice is BullaClaimControllerBase, ERC165, IBullaInvoice {
 
             if (feeAmount > 0 && protocolFeeTokenWhitelist[token]) {
                 protocolFeesByToken[token] = 0; // Reset fee amount before transfer
-                ERC20(token).safeTransfer(admin, feeAmount);
-                emit FeeWithdrawn(admin, token, feeAmount);
+                ERC20(token).safeTransfer(owner(), feeAmount);
+                emit FeeWithdrawn(owner(), token, feeAmount);
             }
         }
     }
 
     /**
-     * @notice Allows admin to set the protocol fee percentage
+     * @notice Allows owner to set the protocol fee percentage
      * @param _protocolFeeBPS New protocol fee in basis points
      */
-    function setProtocolFee(uint16 _protocolFeeBPS) external {
-        if (msg.sender != admin) revert NotAdmin();
+    function setProtocolFee(uint16 _protocolFeeBPS) external onlyOwner {
         if (_protocolFeeBPS > MAX_BPS) revert InvalidProtocolFee();
 
         uint16 oldFee = protocolFeeBPS;
@@ -524,27 +523,31 @@ contract BullaInvoice is BullaClaimControllerBase, ERC165, IBullaInvoice {
     }
 
     /**
-     * @notice Allows admin to add a token to the withdrawal whitelist
+     * @notice Allows owner to add a token to the withdrawal whitelist
      * @param token The token address to whitelist for withdrawals
      */
-    function addToFeeTokenWhitelist(address token) external {
-        if (msg.sender != admin) revert NotAdmin();
-
+    function addToFeeTokenWhitelist(address token) external onlyOwner {
         protocolFeeTokenWhitelist[token] = true;
 
         emit TokenAddedToFeesWhitelist(token);
     }
 
     /**
-     * @notice Allows admin to remove a token from the withdrawal whitelist
+     * @notice Allows owner to remove a token from the withdrawal whitelist
      * @param token The token address to remove from withdrawal whitelist
      */
-    function removeFromFeeTokenWhitelist(address token) external {
-        if (msg.sender != admin) revert NotAdmin();
-
+    function removeFromFeeTokenWhitelist(address token) external onlyOwner {
         protocolFeeTokenWhitelist[token] = false;
 
         emit TokenRemovedFromFeesWhitelist(token);
+    }
+
+    /**
+     * @notice Returns the admin address (owner) for interface compatibility
+     * @return The address of the owner
+     */
+    function admin() external view returns (address) {
+        return owner();
     }
 
     /// PRIVATE FUNCTIONS ///

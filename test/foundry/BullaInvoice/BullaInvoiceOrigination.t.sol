@@ -20,11 +20,11 @@ import {
     NotPurchaseOrder,
     PayingZero,
     InvalidProtocolFee,
-    NotAdmin,
     WithdrawalFailed,
     IncorrectMsgValue,
     IncorrectFee
 } from "contracts/BullaInvoice.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {InvoiceDetailsBuilder} from "test/foundry/BullaInvoice/InvoiceDetailsBuilder.t.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
 import {CreateInvoiceParamsBuilder} from "test/foundry/BullaInvoice/CreateInvoiceParamsBuilder.sol";
@@ -279,7 +279,7 @@ contract TestBullaInvoiceOrigination is Test {
 
         // Non-admin tries to withdraw
         vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(NotAdmin.selector));
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, creditor));
         bullaInvoice.withdrawAllFees();
     }
 }

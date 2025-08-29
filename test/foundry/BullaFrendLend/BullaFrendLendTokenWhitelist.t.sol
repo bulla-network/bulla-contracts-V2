@@ -6,7 +6,8 @@ import "forge-std/Vm.sol";
 import "contracts/types/Types.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
-import {BullaFrendLendV2, LoanRequestParams, NotAdmin} from "src/BullaFrendLendV2.sol";
+import {BullaFrendLendV2, LoanRequestParams} from "src/BullaFrendLendV2.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {MockERC20} from "contracts/mocks/MockERC20.sol";
 import {LoanRequestParamsBuilder} from "./LoanRequestParamsBuilder.t.sol";
 import {InterestConfig} from "contracts/libraries/CompoundInterestLib.sol";
@@ -89,7 +90,7 @@ contract TestBullaFrendLendTokenWhitelist is Test {
 
     function test_addToFeeTokenWhitelist_OnlyAdmin() public {
         vm.prank(nonAdmin);
-        vm.expectRevert(NotAdmin.selector);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, nonAdmin));
         bullaFrendLend.addToFeeTokenWhitelist(address(token1));
     }
 
@@ -98,7 +99,7 @@ contract TestBullaFrendLendTokenWhitelist is Test {
         bullaFrendLend.addToFeeTokenWhitelist(address(token1));
 
         vm.prank(nonAdmin);
-        vm.expectRevert(NotAdmin.selector);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, nonAdmin));
         bullaFrendLend.removeFromFeeTokenWhitelist(address(token1));
     }
 

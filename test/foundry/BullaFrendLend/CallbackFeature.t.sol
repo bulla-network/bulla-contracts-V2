@@ -14,14 +14,7 @@ import {
     CreateClaimApprovalType
 } from "contracts/types/Types.sol";
 import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
-import {
-    BullaFrendLendV2,
-    LoanRequestParams,
-    Loan,
-    LoanOffer,
-    InvalidCallback,
-    CallbackFailed
-} from "src/BullaFrendLendV2.sol";
+import {BullaFrendLendV2, LoanRequestParams, Loan, LoanOffer, CallbackFailed} from "src/BullaFrendLendV2.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
 import {BullaFrendLendTestHelper} from "test/foundry/BullaFrendLend/BullaFrendLendTestHelper.sol";
 import {EIP712Helper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
@@ -187,28 +180,6 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
         // Verify no callback was executed (using a non-existent loanOfferId)
         MockCallbackContract.CallbackData memory data = mockCallback.getCallbackData(loanOfferId);
         assertEq(data.callCount, 0);
-    }
-
-    function testCallbackValidation_ContractWithoutSelector() public {
-        // Attempt to create loan offer with contract but no selector
-        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
-            .withToken(address(weth)).withCallbackContract(address(mockCallback)).withCallbackSelector(bytes4(0)).build();
-
-        vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(InvalidCallback.selector));
-        bullaFrendLend.offerLoan(offer);
-    }
-
-    function testCallbackValidation_SelectorWithoutContract() public {
-        // Attempt to create loan offer with selector but no contract
-        LoanRequestParams memory offer = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
-            .withToken(address(weth)).withCallbackContract(address(0)).withCallbackSelector(
-            mockCallback.onLoanAccepted.selector
-        ).build();
-
-        vm.prank(creditor);
-        vm.expectRevert(abi.encodeWithSelector(InvalidCallback.selector));
-        bullaFrendLend.offerLoan(offer);
     }
 
     function testCallbackFailureHandling() public {
