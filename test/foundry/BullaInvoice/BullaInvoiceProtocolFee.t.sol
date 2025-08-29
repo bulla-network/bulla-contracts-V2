@@ -277,10 +277,6 @@ contract TestBullaInvoiceProtocolFee is Test {
 
         Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
         uint256 accruedInterest = invoice.interestComputationState.accruedInterest;
-
-        vm.expectRevert();
-        bullaInvoice.protocolFeeTokens(0);
-
         // Make payment with interest
         vm.prank(debtor);
         token1.approve(address(bullaInvoice), accruedInterest);
@@ -288,8 +284,7 @@ contract TestBullaInvoiceProtocolFee is Test {
         vm.prank(debtor);
         bullaInvoice.payInvoice(invoiceId, accruedInterest);
 
-        // Verify token added to array
-        assertEq(bullaInvoice.protocolFeeTokens(0), address(token1), "Token should be added to protocolFeeTokens array");
+        // Verify protocol fee was tracked for whitelisted token
         assertGt(bullaInvoice.protocolFeesByToken(address(token1)), 0, "Protocol fee should be tracked");
     }
 
@@ -324,11 +319,6 @@ contract TestBullaInvoiceProtocolFee is Test {
             "Total protocol fee should be double since it is the same amount twice"
         );
         assertGt(bullaInvoice.protocolFeesByToken(address(token1)), 0, "Protocol fee is not 0");
-
-        // Verify only one entry in array
-        assertEq(bullaInvoice.protocolFeeTokens(0), address(token1), "Token should still be at index 0");
-        vm.expectRevert();
-        bullaInvoice.protocolFeeTokens(1); // Should revert - no second token
     }
 
     // ==================== 5. ETH PAYMENT TESTS ====================
@@ -724,10 +714,6 @@ contract TestBullaInvoiceProtocolFee is Test {
         assertEq(address(bullaInvoice).balance, expectedEthFee, "ETH fees in contract balance");
         assertEq(bullaInvoice.protocolFeesByToken(address(token1)), expectedToken1Fee, "Token1 fees tracked");
         assertEq(bullaInvoice.protocolFeesByToken(address(token2)), expectedToken2Fee, "Token2 fees tracked");
-
-        // Verify token array contains both tokens
-        assertEq(bullaInvoice.protocolFeeTokens(0), address(token1), "First token in array");
-        assertEq(bullaInvoice.protocolFeeTokens(1), address(token2), "Second token in array");
     }
 
     // ==================== 9. EDGE CASES & ERROR HANDLING ====================

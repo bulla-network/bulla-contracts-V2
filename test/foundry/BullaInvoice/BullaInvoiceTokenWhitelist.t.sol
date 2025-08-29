@@ -128,9 +128,6 @@ contract TestBullaInvoiceTokenWhitelist is Test {
         vm.prank(debtor);
         bullaInvoice.payInvoice(invoiceId, PAYMENT_AMOUNT);
 
-        // Verify token was added to protocol fee tracking
-        assertEq(bullaInvoice.protocolFeeTokens(0), address(token1));
-
         // Verify protocol fees accumulated for this token
         assertGt(bullaInvoice.protocolFeesByToken(address(token1)), 0);
     }

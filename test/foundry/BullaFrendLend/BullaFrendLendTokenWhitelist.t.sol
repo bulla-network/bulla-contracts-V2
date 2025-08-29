@@ -139,9 +139,6 @@ contract TestBullaFrendLendTokenWhitelist is Test {
         vm.prank(debtor);
         bullaFrendLend.payLoan(claimId, PAYMENT_AMOUNT);
 
-        // Verify token was added to protocol fee tracking
-        assertEq(bullaFrendLend.protocolFeeTokens(0), address(token1));
-
         // Verify protocol fees accumulated for this token
         assertGt(bullaFrendLend.protocolFeesByToken(address(token1)), 0);
     }
