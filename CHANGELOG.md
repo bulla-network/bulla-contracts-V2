@@ -1,3 +1,10 @@
+# [1.23.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.22.1...v1.23.0) (2025-08-29)
+
+
+### Features
+
+* track whitelist tokens, do not track all tokens, only iterate t… ([#98](https://github.com/bulla-network/bulla-contracts-V2/issues/98)) ([099bcfc](https://github.com/bulla-network/bulla-contracts-V2/commit/099bcfc7691bdc55f0d3bda6eb9828700ace7e4a))
+
 ## [1.22.1](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.22.0...v1.22.1) (2025-08-28)
 
 
