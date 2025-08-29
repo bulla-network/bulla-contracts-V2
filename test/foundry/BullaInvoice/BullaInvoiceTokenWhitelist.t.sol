@@ -7,7 +7,8 @@ import "contracts/types/Types.sol";
 import {WETH} from "contracts/mocks/weth.sol";
 import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
 import {CreateInvoiceParamsBuilder} from "./CreateInvoiceParamsBuilder.sol";
-import {BullaInvoice, CreateInvoiceParams, NotAdmin} from "src/BullaInvoice.sol";
+import {BullaInvoice, CreateInvoiceParams} from "src/BullaInvoice.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {MockERC20} from "contracts/mocks/MockERC20.sol";
 import {InterestConfig} from "contracts/libraries/CompoundInterestLib.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
@@ -78,7 +79,7 @@ contract TestBullaInvoiceTokenWhitelist is Test {
 
     function test_addToFeeTokenWhitelist_OnlyAdmin() public {
         vm.prank(nonAdmin);
-        vm.expectRevert(NotAdmin.selector);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, nonAdmin));
         bullaInvoice.addToFeeTokenWhitelist(address(token1));
     }
 
@@ -87,7 +88,7 @@ contract TestBullaInvoiceTokenWhitelist is Test {
         bullaInvoice.addToFeeTokenWhitelist(address(token1));
 
         vm.prank(nonAdmin);
-        vm.expectRevert(NotAdmin.selector);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, nonAdmin));
         bullaInvoice.removeFromFeeTokenWhitelist(address(token1));
     }
 

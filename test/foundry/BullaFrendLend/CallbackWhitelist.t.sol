@@ -3,7 +3,8 @@ pragma solidity ^0.8.30;
 
 import "forge-std/Test.sol";
 import {WETH} from "contracts/mocks/weth.sol";
-import {BullaFrendLendV2, InvalidCallback} from "contracts/BullaFrendLendV2.sol";
+import {BullaFrendLendV2} from "contracts/BullaFrendLendV2.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
 import {LoanRequestParams} from "contracts/interfaces/IBullaFrendLendV2.sol";
@@ -13,8 +14,7 @@ import {BullaFrendLendTestHelper} from "test/foundry/BullaFrendLend/BullaFrendLe
 import {LoanRequestParamsBuilder} from "test/foundry/BullaFrendLend/LoanRequestParamsBuilder.t.sol";
 import {EIP712Helper} from "test/foundry/BullaClaim/BullaClaimTestHelper.sol";
 
-// Custom errors we'll need to add to BullaFrendLendV2
-error NotAdmin();
+// Custom errors
 error CallbackNotWhitelisted();
 
 /**
@@ -199,7 +199,7 @@ contract CallbackWhitelistTest is BullaFrendLendTestHelper {
 
         // Non-admin should not be able to add to whitelist
         vm.prank(nonAdmin);
-        vm.expectRevert(NotAdmin.selector);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, nonAdmin));
         bullaFrendLend.addToCallbackWhitelist(address(mockCallback), selector);
 
         // Non-admin should not be able to remove from whitelist
@@ -207,7 +207,7 @@ contract CallbackWhitelistTest is BullaFrendLendTestHelper {
         bullaFrendLend.addToCallbackWhitelist(address(mockCallback), selector);
 
         vm.prank(nonAdmin);
-        vm.expectRevert(NotAdmin.selector);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, nonAdmin));
         bullaFrendLend.removeFromCallbackWhitelist(address(mockCallback), selector);
     }
 

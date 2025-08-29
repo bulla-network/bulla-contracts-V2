@@ -11,6 +11,8 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {InterestConfig, InterestComputationState, CompoundInterestLib} from "./libraries/CompoundInterestLib.sol";
 
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+
 error IncorrectFee();
 error NotCreditor();
 error NotDebtor();
@@ -25,7 +27,7 @@ error InvalidProtocolFee();
 error InvalidGracePeriod();
 error LoanOfferExpired();
 error CallbackFailed(bytes data);
-error InvalidCallback();
+
 error CallbackNotWhitelisted();
 error TokenNotWhitelistedForFeeWithdrawal();
 
@@ -34,11 +36,10 @@ error TokenNotWhitelistedForFeeWithdrawal();
  * @notice A wrapper contract for IBullaClaim that allows both creditors to offer loans that debtors can accept,
  *         and debtors to request loans that creditors can accept
  */
-contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, IBullaFrendLendV2 {
+contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, Ownable, IBullaFrendLendV2 {
     using SafeTransferLib for ERC20;
     using SafeTransferLib for address;
 
-    address public admin;
     uint256 public loanOfferCount;
     uint16 public protocolFeeBPS;
 
@@ -60,11 +61,13 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, IBullaFrendLendV2
 
     /**
      * @param bullaClaim Address of the IBullaClaim contract to delegate calls to
-     * @param _admin Address of the contract administrator
+     * @param _owner Address of the contract owner
      * @param _protocolFeeBPS Protocol fee in basis points taken from interest payments
      */
-    constructor(address bullaClaim, address _admin, uint16 _protocolFeeBPS) BullaClaimControllerBase(bullaClaim) {
-        admin = _admin;
+    constructor(address bullaClaim, address _owner, uint16 _protocolFeeBPS)
+        BullaClaimControllerBase(bullaClaim)
+        Ownable(_owner)
+    {
         if (_protocolFeeBPS > MAX_BPS) revert InvalidProtocolFee();
         protocolFeeBPS = _protocolFeeBPS;
         _emptyMetadata = ClaimMetadata({tokenURI: "", attachmentURI: ""});
@@ -417,11 +420,9 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, IBullaFrendLendV2
     ////////////////////////////////
 
     /**
-     * @notice Allows admin to withdraw accumulated protocol fees
+     * @notice Allows owner to withdraw accumulated protocol fees
      */
-    function withdrawAllFees() external {
-        if (msg.sender != admin) revert NotAdmin();
-
+    function withdrawAllFees() external onlyOwner {
         // Withdraw protocol fees in all tracked tokens that are whitelisted
         for (uint256 i = 0; i < protocolFeeTokens.length; i++) {
             address token = protocolFeeTokens[i];
@@ -429,18 +430,17 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, IBullaFrendLendV2
 
             if (feeAmount > 0 && protocolFeeTokenWhitelist[token]) {
                 protocolFeesByToken[token] = 0; // Reset fee amount before transfer
-                ERC20(token).safeTransfer(admin, feeAmount);
-                emit FeeWithdrawn(admin, token, feeAmount);
+                ERC20(token).safeTransfer(owner(), feeAmount);
+                emit FeeWithdrawn(owner(), token, feeAmount);
             }
         }
     }
 
     /**
-     * @notice Allows admin to set the protocol fee percentage
+     * @notice Allows owner to set the protocol fee percentage
      * @param _protocolFeeBPS New protocol fee in basis points
      */
-    function setProtocolFee(uint16 _protocolFeeBPS) external {
-        if (msg.sender != admin) revert NotAdmin();
+    function setProtocolFee(uint16 _protocolFeeBPS) external onlyOwner {
         if (_protocolFeeBPS > MAX_BPS) revert InvalidProtocolFee();
 
         uint16 oldFee = protocolFeeBPS;
@@ -450,37 +450,31 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, IBullaFrendLendV2
     }
 
     /**
-     * @notice Allows admin to add a token to the withdrawal whitelist
+     * @notice Allows owner to add a token to the withdrawal whitelist
      * @param token The token address to whitelist for withdrawals
      */
-    function addToFeeTokenWhitelist(address token) external {
-        if (msg.sender != admin) revert NotAdmin();
-
+    function addToFeeTokenWhitelist(address token) external onlyOwner {
         protocolFeeTokenWhitelist[token] = true;
 
         emit TokenAddedToFeesWhitelist(token);
     }
 
     /**
-     * @notice Allows admin to remove a token from the withdrawal whitelist
+     * @notice Allows owner to remove a token from the withdrawal whitelist
      * @param token The token address to remove from withdrawal whitelist
      */
-    function removeFromFeeTokenWhitelist(address token) external {
-        if (msg.sender != admin) revert NotAdmin();
-
+    function removeFromFeeTokenWhitelist(address token) external onlyOwner {
         protocolFeeTokenWhitelist[token] = false;
 
         emit TokenRemovedFromFeesWhitelist(token);
     }
 
     /**
-     * @notice Allows admin to add a callback contract and selector to the whitelist
+     * @notice Allows owner to add a callback contract and selector to the whitelist
      * @param callbackContract The contract address to whitelist
      * @param selector The function selector to whitelist for this contract
      */
-    function addToCallbackWhitelist(address callbackContract, bytes4 selector) external {
-        if (msg.sender != admin) revert NotAdmin();
-
+    function addToCallbackWhitelist(address callbackContract, bytes4 selector) external onlyOwner {
         // Don't allow whitelisting zero address or zero selector
         if (callbackContract == address(0) || selector == bytes4(0)) {
             return;
@@ -492,16 +486,22 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, IBullaFrendLendV2
     }
 
     /**
-     * @notice Allows admin to remove a callback contract and selector from the whitelist
+     * @notice Allows owner to remove a callback contract and selector from the whitelist
      * @param callbackContract The contract address to remove from whitelist
      * @param selector The function selector to remove from whitelist for this contract
      */
-    function removeFromCallbackWhitelist(address callbackContract, bytes4 selector) external {
-        if (msg.sender != admin) revert NotAdmin();
-
+    function removeFromCallbackWhitelist(address callbackContract, bytes4 selector) external onlyOwner {
         callbackWhitelist[callbackContract][selector] = false;
 
         emit CallbackRemovedFromWhitelist(callbackContract, selector);
+    }
+
+    /**
+     * @notice Returns the admin address (owner) for interface compatibility
+     * @return The address of the owner
+     */
+    function admin() external view returns (address) {
+        return owner();
     }
 
     /**
@@ -529,19 +529,6 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, IBullaFrendLendV2
         // Check if offer has expired (only if expiresAt is set to a non-zero value)
         if (offer.expiresAt > 0 && block.timestamp > offer.expiresAt) {
             revert LoanOfferExpired();
-        }
-
-        // Validate callback configuration
-        if (
-            (
-                offer.callbackContract != address(0)
-                    && (
-                        offer.callbackSelector == bytes4(0) || offer.callbackContract.code.length == 0
-                            || offer.callbackContract == address(this)
-                    )
-            ) || (offer.callbackContract == address(0) && offer.callbackSelector != bytes4(0))
-        ) {
-            revert InvalidCallback();
         }
 
         // Check callback whitelist if callback is configured

@@ -17,10 +17,10 @@ import {
     NativeTokenNotSupported,
     NotDebtor,
     NotCreditor,
-    NotAdmin,
     LoanOfferNotFound,
     NotCreditorOrDebtor
 } from "contracts/BullaFrendLendV2.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
 import {MockERC20} from "contracts/mocks/MockERC20.sol";
 import {LoanRequestParamsBuilder} from "./LoanRequestParamsBuilder.t.sol";
@@ -943,7 +943,7 @@ contract TestBullaFrendLend is Test {
 
         // Test that non-admin cannot set protocol fee
         vm.prank(debtor);
-        vm.expectRevert(abi.encodeWithSelector(NotAdmin.selector));
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, debtor));
         bullaFrendLend.setProtocolFee(newProtocolFeeBPS);
 
         vm.prank(admin);

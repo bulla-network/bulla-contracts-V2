@@ -20,10 +20,10 @@ import {
     NotPurchaseOrder,
     PayingZero,
     InvalidProtocolFee,
-    NotAdmin,
     WithdrawalFailed,
     IncorrectMsgValue
 } from "contracts/BullaInvoice.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
 import {CreateInvoiceParamsBuilder} from "test/foundry/BullaInvoice/CreateInvoiceParamsBuilder.sol";
 import {CreateClaimParamsBuilder} from "test/foundry/BullaClaim/CreateClaimParamsBuilder.sol";
@@ -485,7 +485,7 @@ contract TestBullaInvoiceProtocolFee is Test {
 
     function testNonAdminCannotWithdrawFees() public {
         vm.prank(nonAdmin);
-        vm.expectRevert(NotAdmin.selector);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, nonAdmin));
         bullaInvoice.withdrawAllFees();
     }
 
@@ -525,7 +525,7 @@ contract TestBullaInvoiceProtocolFee is Test {
 
     function testNonAdminCannotUpdateProtocolFee() public {
         vm.prank(nonAdmin);
-        vm.expectRevert(NotAdmin.selector);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, nonAdmin));
         bullaInvoice.setProtocolFee(10000);
     }
 
