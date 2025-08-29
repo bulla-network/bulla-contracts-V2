@@ -43,9 +43,8 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, Ownable, IBullaFr
     uint256 public loanOfferCount;
     uint16 public protocolFeeBPS;
 
-    address[] public protocolFeeTokens;
+    address[] public whitelistedProtocolFeeTokens;
     mapping(address => uint256) public protocolFeesByToken;
-    mapping(address => bool) private _tokenExists;
 
     // Whitelist for protocol fee token withdrawals
     mapping(address => bool) public protocolFeeTokenWhitelist;
@@ -373,12 +372,8 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, Ownable, IBullaFr
 
         // Transfer the total amount from sender to this contract, to avoid double approval
         if (paymentAmount > 0) {
-            // Track protocol fee for this token if any interest was paid
+            // Track protocol fee for this token if any interest was paid, even if token is not whitelisted
             if (protocolFee > 0) {
-                if (!_tokenExists[loan.token]) {
-                    protocolFeeTokens.push(loan.token);
-                    _tokenExists[loan.token] = true;
-                }
                 protocolFeesByToken[loan.token] += protocolFee;
             }
 
@@ -423,12 +418,12 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, Ownable, IBullaFr
      * @notice Allows owner to withdraw accumulated protocol fees
      */
     function withdrawAllFees() external onlyOwner {
-        // Withdraw protocol fees in all tracked tokens that are whitelisted
-        for (uint256 i = 0; i < protocolFeeTokens.length; i++) {
-            address token = protocolFeeTokens[i];
+        // Withdraw protocol fees in all whitelisted tokens
+        for (uint256 i = 0; i < whitelistedProtocolFeeTokens.length; i++) {
+            address token = whitelistedProtocolFeeTokens[i];
             uint256 feeAmount = protocolFeesByToken[token];
 
-            if (feeAmount > 0 && protocolFeeTokenWhitelist[token]) {
+            if (feeAmount > 0) {
                 protocolFeesByToken[token] = 0; // Reset fee amount before transfer
                 ERC20(token).safeTransfer(owner(), feeAmount);
                 emit FeeWithdrawn(owner(), token, feeAmount);
@@ -454,7 +449,10 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, Ownable, IBullaFr
      * @param token The token address to whitelist for withdrawals
      */
     function addToFeeTokenWhitelist(address token) external onlyOwner {
-        protocolFeeTokenWhitelist[token] = true;
+        if (!protocolFeeTokenWhitelist[token]) {
+            protocolFeeTokenWhitelist[token] = true;
+            whitelistedProtocolFeeTokens.push(token);
+        }
 
         emit TokenAddedToFeesWhitelist(token);
     }
@@ -464,7 +462,19 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, Ownable, IBullaFr
      * @param token The token address to remove from withdrawal whitelist
      */
     function removeFromFeeTokenWhitelist(address token) external onlyOwner {
-        protocolFeeTokenWhitelist[token] = false;
+        if (protocolFeeTokenWhitelist[token]) {
+            protocolFeeTokenWhitelist[token] = false;
+
+            // Remove from whitelistedProtocolFeeTokens array
+            for (uint256 i = 0; i < whitelistedProtocolFeeTokens.length; i++) {
+                if (whitelistedProtocolFeeTokens[i] == token) {
+                    whitelistedProtocolFeeTokens[i] =
+                        whitelistedProtocolFeeTokens[whitelistedProtocolFeeTokens.length - 1];
+                    whitelistedProtocolFeeTokens.pop();
+                    break;
+                }
+            }
+        }
 
         emit TokenRemovedFromFeesWhitelist(token);
     }

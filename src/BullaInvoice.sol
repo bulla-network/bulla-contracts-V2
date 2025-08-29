@@ -41,9 +41,8 @@ contract BullaInvoice is BullaClaimControllerBase, ERC165, Ownable, IBullaInvoic
 
     ClaimMetadata public EMPTY_METADATA = ClaimMetadata({attachmentURI: "", tokenURI: ""});
 
-    address[] public protocolFeeTokens;
+    address[] public whitelistedProtocolFeeTokens;
     mapping(address => uint256) public protocolFeesByToken;
-    mapping(address => bool) private _tokenExists;
 
     // Whitelist for protocol fee token withdrawals
     mapping(address => bool) public protocolFeeTokenWhitelist;
@@ -329,10 +328,6 @@ contract BullaInvoice is BullaClaimControllerBase, ERC165, Ownable, IBullaInvoic
                 // Track protocol fee for this token if any interest was paid
                 // No need to track gas fee as it is the balance of the contract
                 if (protocolFee > 0) {
-                    if (!_tokenExists[claim.token]) {
-                        protocolFeeTokens.push(claim.token);
-                        _tokenExists[claim.token] = true;
-                    }
                     protocolFeesByToken[claim.token] += protocolFee;
                 }
                 // Handle ERC20 payments
@@ -496,12 +491,12 @@ contract BullaInvoice is BullaClaimControllerBase, ERC165, Ownable, IBullaInvoic
             emit FeeWithdrawn(owner(), address(0), ethBalance);
         }
 
-        // Withdraw protocol fees in all tracked tokens that are whitelisted
-        for (uint256 i = 0; i < protocolFeeTokens.length; i++) {
-            address token = protocolFeeTokens[i];
+        // Withdraw protocol fees in all whitelisted tokens
+        for (uint256 i = 0; i < whitelistedProtocolFeeTokens.length; i++) {
+            address token = whitelistedProtocolFeeTokens[i];
             uint256 feeAmount = protocolFeesByToken[token];
 
-            if (feeAmount > 0 && protocolFeeTokenWhitelist[token]) {
+            if (feeAmount > 0) {
                 protocolFeesByToken[token] = 0; // Reset fee amount before transfer
                 ERC20(token).safeTransfer(owner(), feeAmount);
                 emit FeeWithdrawn(owner(), token, feeAmount);
@@ -527,7 +522,10 @@ contract BullaInvoice is BullaClaimControllerBase, ERC165, Ownable, IBullaInvoic
      * @param token The token address to whitelist for withdrawals
      */
     function addToFeeTokenWhitelist(address token) external onlyOwner {
-        protocolFeeTokenWhitelist[token] = true;
+        if (!protocolFeeTokenWhitelist[token]) {
+            protocolFeeTokenWhitelist[token] = true;
+            whitelistedProtocolFeeTokens.push(token);
+        }
 
         emit TokenAddedToFeesWhitelist(token);
     }
@@ -537,7 +535,19 @@ contract BullaInvoice is BullaClaimControllerBase, ERC165, Ownable, IBullaInvoic
      * @param token The token address to remove from withdrawal whitelist
      */
     function removeFromFeeTokenWhitelist(address token) external onlyOwner {
-        protocolFeeTokenWhitelist[token] = false;
+        if (protocolFeeTokenWhitelist[token]) {
+            protocolFeeTokenWhitelist[token] = false;
+
+            // Remove from whitelistedProtocolFeeTokens array
+            for (uint256 i = 0; i < whitelistedProtocolFeeTokens.length; i++) {
+                if (whitelistedProtocolFeeTokens[i] == token) {
+                    whitelistedProtocolFeeTokens[i] =
+                        whitelistedProtocolFeeTokens[whitelistedProtocolFeeTokens.length - 1];
+                    whitelistedProtocolFeeTokens.pop();
+                    break;
+                }
+            }
+        }
 
         emit TokenRemovedFromFeesWhitelist(token);
     }

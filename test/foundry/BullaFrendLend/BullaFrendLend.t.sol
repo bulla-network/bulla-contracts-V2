@@ -952,21 +952,6 @@ contract TestBullaFrendLend is Test {
         assertEq(bullaFrendLend.protocolFeeBPS(), newProtocolFeeBPS, "Protocol fee not updated correctly");
     }
 
-    // helper function to check if token is in protocol fee tokens
-    function isTokenInProtocolFeeTokens(address token) internal view returns (bool) {
-        // we've defined at most 3 tokens in our test
-        for (uint256 i = 0; i < 3; i++) {
-            try bullaFrendLend.protocolFeeTokens(i) returns (address tokenAddr) {
-                if (tokenAddr == token) {
-                    return true;
-                }
-            } catch {
-                break;
-            }
-        }
-        return false;
-    }
-
     function testProtocolFeeWithMultipleTokens() public {
         vm.startPrank(creditor);
         weth.approve(address(bullaFrendLend), 10 ether);
@@ -1052,10 +1037,6 @@ contract TestBullaFrendLend is Test {
         assertEq(bullaFrendLend.protocolFeesByToken(address(weth)), wethProtocolFee, "WETH fee tracking incorrect");
         assertEq(bullaFrendLend.protocolFeesByToken(address(usdc)), usdcProtocolFee, "USDC fee tracking incorrect");
         assertEq(bullaFrendLend.protocolFeesByToken(address(dai)), daiProtocolFee, "DAI fee tracking incorrect");
-
-        assertTrue(isTokenInProtocolFeeTokens(address(weth)), "WETH not found in protocol fee tokens array");
-        assertTrue(isTokenInProtocolFeeTokens(address(usdc)), "USDC not found in protocol fee tokens array");
-        assertTrue(isTokenInProtocolFeeTokens(address(dai)), "DAI not found in protocol fee tokens array");
     }
 
     function testWithdrawAllFees() public {
@@ -1355,88 +1336,6 @@ contract TestBullaFrendLend is Test {
                 );
             }
         }
-    }
-
-    function testTokenTrackingUniqueness() public {
-        vm.startPrank(creditor);
-        weth.approve(address(bullaFrendLend), 10 ether);
-        vm.stopPrank();
-
-        vm.startPrank(debtor);
-        weth.approve(address(bullaFrendLend), 10 ether);
-        vm.stopPrank();
-
-        bullaClaim.approvalRegistry().permitCreateClaim({
-            user: debtor,
-            controller: address(bullaFrendLend),
-            approvalType: CreateClaimApprovalType.Approved,
-            approvalCount: 2,
-            isBindingAllowed: true,
-            signature: sigHelper.signCreateClaimPermit({
-                pk: debtorPK,
-                user: debtor,
-                controller: address(bullaFrendLend),
-                approvalType: CreateClaimApprovalType.Approved,
-                approvalCount: 2,
-                isBindingAllowed: true
-            })
-        });
-
-        // Create first WETH loan
-        LoanRequestParams memory wethOffer1 = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
-            .withDescription("WETH Loan 1").withToken(address(weth)).withLoanAmount(1 ether).withNumberOfPeriodsPerYear(365)
-            .build();
-
-        vm.prank(creditor);
-        uint256 wethLoanId1 = bullaFrendLend.offerLoan(wethOffer1);
-
-        vm.prank(debtor);
-        uint256 wethClaimId1 = bullaFrendLend.acceptLoan{value: FEE}(wethLoanId1);
-
-        // Create second WETH loan
-        LoanRequestParams memory wethOffer2 = new LoanRequestParamsBuilder().withCreditor(creditor).withDebtor(debtor)
-            .withDescription("WETH Loan 2").withToken(address(weth)).withLoanAmount(0.5 ether).withNumberOfPeriodsPerYear(
-            365
-        ).build();
-
-        vm.prank(creditor);
-        uint256 wethLoanId2 = bullaFrendLend.offerLoan(wethOffer2);
-
-        vm.prank(debtor);
-        uint256 wethClaimId2 = bullaFrendLend.acceptLoan{value: FEE}(wethLoanId2);
-
-        vm.warp(block.timestamp + 15 days);
-
-        // Make payments on both loans
-        vm.startPrank(debtor);
-
-        uint256 initialContractBalance = weth.balanceOf(address(bullaFrendLend));
-        (uint256 principal1, uint256 interest1) = bullaFrendLend.getTotalAmountDue(wethClaimId1);
-        bullaFrendLend.payLoan(wethClaimId1, principal1 + interest1);
-        uint256 fee1 = weth.balanceOf(address(bullaFrendLend)) - initialContractBalance;
-
-        uint256 contractBalanceAfterFirst = weth.balanceOf(address(bullaFrendLend));
-        (uint256 principal2, uint256 interest2) = bullaFrendLend.getTotalAmountDue(wethClaimId2);
-        bullaFrendLend.payLoan(wethClaimId2, principal2 + interest2);
-        uint256 fee2 = weth.balanceOf(address(bullaFrendLend)) - contractBalanceAfterFirst;
-        vm.stopPrank();
-
-        // Count WETH tokens in the array
-        uint256 wethTokenCount = 0;
-        for (uint256 i = 0; i < 3; i++) {
-            try bullaFrendLend.protocolFeeTokens(i) returns (address token) {
-                if (token == address(weth)) {
-                    wethTokenCount++;
-                }
-            } catch {
-                break;
-            }
-        }
-
-        assertEq(wethTokenCount, 1, "WETH should only appear once in protocol fee tokens array");
-        assertEq(
-            bullaFrendLend.protocolFeesByToken(address(weth)), fee1 + fee2, "WETH fees should accumulate correctly"
-        );
     }
 
     function testProtocolFeeVariations() public {
