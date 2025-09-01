@@ -1,3 +1,10 @@
+# [1.24.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.23.0...v1.24.0) (2025-09-01)
+
+
+### Features
+
+* add missing functions in interfaces ([#99](https://github.com/bulla-network/bulla-contracts-V2/issues/99)) ([070653f](https://github.com/bulla-network/bulla-contracts-V2/commit/070653fe0e54b8481bb5e45c8ba04884fa5496e4))
+
 # [1.23.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.22.1...v1.23.0) (2025-08-29)
 
 
