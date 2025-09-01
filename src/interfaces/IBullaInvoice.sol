@@ -70,6 +70,8 @@ interface IBullaInvoice {
     // Claim management functions
     function updateBinding(uint256 claimId, ClaimBinding binding) external;
     function cancelInvoice(uint256 claimId, string memory note) external;
+    function impairInvoice(uint256 claimId) external;
+    function markInvoiceAsPaid(uint256 claimId) external;
 
     // Admin functions
     function setProtocolFee(uint16 _protocolFeeBPS) external;
