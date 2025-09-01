@@ -29,5 +29,7 @@ interface IBullaClaimAdmin {
 
     function setFeeExemptions(address _feeExemptions) external;
 
+    function setClaimMetadataGenerator(address _metadataGenerator) external;
+
     function withdrawAllFees() external;
 }
