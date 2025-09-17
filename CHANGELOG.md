@@ -1,3 +1,15 @@
+# [2.0.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.24.0...v2.0.0) (2025-09-17)
+
+
+### Features
+
+* new audited version ([98f30de](https://github.com/bulla-network/bulla-contracts-V2/commit/98f30de3e7053256d80b4e820059e9703081056b))
+
+
+### BREAKING CHANGES
+
+* new audited version
+
 # [1.24.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v1.23.0...v1.24.0) (2025-09-01)
 
 
