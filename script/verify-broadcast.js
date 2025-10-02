@@ -15,6 +15,12 @@ const NETWORK_CONFIG = {
     explorerName: "Etherscan (Sepolia)",
     apiKey: process.env.ETHERSCAN_API_KEY,
   },
+  base: {
+    name: "base",
+    chainId: "8453",
+    explorerName: "BaseScan",
+    apiKey: process.env.ETHERSCAN_API_KEY,
+  },
   mainnet: {
     name: "mainnet",
     chainId: "1",
