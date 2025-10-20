@@ -1,3 +1,10 @@
+# [2.2.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v2.1.0...v2.2.0) (2025-10-20)
+
+
+### Features
+
+* add processing fee to BullaFrendlendV2 ([#102](https://github.com/bulla-network/bulla-contracts-V2/issues/102)) ([2099a38](https://github.com/bulla-network/bulla-contracts-V2/commit/2099a385a59d4551adc73fb45f0a32091d9f377a))
+
 # [2.1.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v2.0.0...v2.1.0) (2025-10-02)
 
 
