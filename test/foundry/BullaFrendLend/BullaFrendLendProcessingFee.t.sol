@@ -241,40 +241,6 @@ contract TestBullaFrendLendProcessingFee is Test {
         bullaFrendLend.acceptLoan{value: _CORE_PROTOCOL_FEE}(offerId);
     }
 
-    /// @notice Test 5: Protocol fee exempt user STILL pays processing fee (they are independent)
-    function testProtocolFeeExemptUserStillPaysProcessingFee() public {
-        // Add debtor to exemption list (for core protocol fee)
-        feeExemptions.allow(_debtor);
-
-        uint256 offerId = _createLoanOffer(_creditor, _debtor, _LOAN_AMOUNT, address(token));
-
-        vm.prank(_creditor);
-        token.approve(address(bullaFrendLend), _LOAN_AMOUNT);
-
-        uint256 debtorBalanceBefore = token.balanceOf(_debtor);
-        uint256 expectedProcessingFee = (_LOAN_AMOUNT * _PROCESSING_FEE_BPS) / 10000;
-        uint256 expectedAmountToDebtor = _LOAN_AMOUNT - expectedProcessingFee;
-
-        vm.prank(_debtor);
-        bullaFrendLend.acceptLoan{value: 0}(offerId); // No core fee for exempt user
-
-        uint256 debtorBalanceAfter = token.balanceOf(_debtor);
-
-        // Debtor should receive loan amount minus processing fee (processing fee is NOT exempted)
-        assertEq(
-            debtorBalanceAfter - debtorBalanceBefore,
-            expectedAmountToDebtor,
-            "Exempt user should still pay processing fee"
-        );
-
-        // Processing fee should be tracked
-        assertEq(
-            bullaFrendLend.protocolFeesByToken(address(token)),
-            expectedProcessingFee,
-            "Processing fee should be collected even for protocol-fee-exempt user"
-        );
-    }
-
     /// @notice Test 6: Exemption status at acceptance time doesn't affect processing fee (it's always collected)
     function testExemptionStatusDoesNotAffectProcessingFee() public {
         // Start with debtor NOT exempt
