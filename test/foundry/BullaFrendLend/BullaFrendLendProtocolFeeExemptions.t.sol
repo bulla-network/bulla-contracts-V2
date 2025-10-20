@@ -76,7 +76,7 @@ contract TestBullaFrendLendProtocolFeeExemptions is Test {
         // Deploy BullaClaim with fee exemptions
         vm.prank(_owner);
         DeployContracts.DeploymentResult memory deploymentResult =
-            (new DeployContracts()).deployForTest(_owner, LockState.Unlocked, _CORE_PROTOCOL_FEE, 0, 0, _owner);
+            (new DeployContracts()).deployForTest(_owner, LockState.Unlocked, _CORE_PROTOCOL_FEE, 0, 0, 0, _owner);
         bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
 
         // Set fee exemptions contract on BullaClaim
@@ -84,7 +84,7 @@ contract TestBullaFrendLendProtocolFeeExemptions is Test {
         bullaClaim.setFeeExemptions(address(feeExemptions));
 
         // Deploy BullaFrendLend
-        bullaFrendLend = new BullaFrendLendV2(address(bullaClaim), _admin, _PROTOCOL_FEE_BPS);
+        bullaFrendLend = new BullaFrendLendV2(address(bullaClaim), _admin, _PROTOCOL_FEE_BPS, 0); // 0 processing fee
 
         sigHelper = new EIP712Helper(address(bullaClaim));
 
@@ -220,7 +220,7 @@ contract TestBullaFrendLendProtocolFeeExemptions is Test {
         assertEq(token.balanceOf(address(bullaFrendLend)), contractBalanceBefore, "No protocol fee should be collected");
     }
 
-    // Test that non-exempt user pays protocol fee on interest
+    // Test that non-exempt user pays protocol fee on loan acceptance (not on interest)
     function testNonExemptUserPaysProtocolFeeOnInterest() public {
         // Create and accept loan with non-exempt user
         uint256 offerId = _createLoanOffer(_creditor, _nonExemptUser, _LOAN_AMOUNT);

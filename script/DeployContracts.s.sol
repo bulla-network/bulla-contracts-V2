@@ -19,6 +19,7 @@ contract DeployContracts is Script {
         uint256 coreProtocolFee;
         uint16 invoiceProtocolFeeBPS;
         uint16 frendLendProtocolFeeBPS;
+        uint16 frendLendProcessingFeeBPS;
         address admin;
     }
 
@@ -64,11 +65,13 @@ contract DeployContracts is Script {
     }
 
     function _loadConfig() internal returns (DeploymentConfig memory) {
+        uint16 frendLendProtocolFeeBPS = uint16(vm.envOr("FRENDLEND_PROTOCOL_FEE_BPS", uint256(0)));
         return DeploymentConfig({
             initialLockState: LockState(vm.envOr("LOCK_STATE", uint256(0))),
             coreProtocolFee: vm.envOr("CORE_PROTOCOL_FEE", uint256(0)),
             invoiceProtocolFeeBPS: uint16(vm.envOr("INVOICE_PROTOCOL_FEE_BPS", uint256(0))),
-            frendLendProtocolFeeBPS: uint16(vm.envOr("FRENDLEND_PROTOCOL_FEE_BPS", uint256(0))),
+            frendLendProtocolFeeBPS: frendLendProtocolFeeBPS,
+            frendLendProcessingFeeBPS: uint16(vm.envOr("FRENDLEND_PROCESSING_FEE_BPS", uint256(frendLendProtocolFeeBPS))),
             admin: vm.envOr("ADMIN_ADDRESS", msg.sender)
         });
     }
@@ -145,7 +148,9 @@ contract DeployContracts is Script {
 
         // Deploy BullaFrendLend
         console.log("Deploying BullaFrendLend...");
-        bullaFrendLend = new BullaFrendLendV2(address(bullaClaim), config.admin, config.frendLendProtocolFeeBPS);
+        bullaFrendLend = new BullaFrendLendV2(
+            address(bullaClaim), config.admin, config.frendLendProtocolFeeBPS, config.frendLendProcessingFeeBPS
+        );
         console.log("BullaFrendLend deployed at:", address(bullaFrendLend));
 
         console.log("");
@@ -386,6 +391,7 @@ contract DeployContracts is Script {
         uint256 coreProtocolFee,
         uint16 invoiceProtocolFeeBPS,
         uint16 frendLendProtocolFeeBPS,
+        uint16 frendLendProcessingFeeBPS,
         address admin
     ) public returns (DeploymentResult memory) {
         vm.startPrank(deployer);
@@ -395,6 +401,7 @@ contract DeployContracts is Script {
             coreProtocolFee: coreProtocolFee,
             invoiceProtocolFeeBPS: invoiceProtocolFeeBPS,
             frendLendProtocolFeeBPS: frendLendProtocolFeeBPS,
+            frendLendProcessingFeeBPS: frendLendProcessingFeeBPS,
             admin: admin
         });
 

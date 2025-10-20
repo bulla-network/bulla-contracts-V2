@@ -18,9 +18,9 @@ contract BullaFrendLendERC165Test is Test {
 
     function setUp() public {
         DeployContracts.DeploymentResult memory deploymentResult =
-            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, FEE, 0, 0, address(this));
+            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, FEE, 0, 0, 0, address(this));
         bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
-        bullaFrendLend = new BullaFrendLendV2(address(bullaClaim), admin, PROTOCOL_FEE_BPS);
+        bullaFrendLend = new BullaFrendLendV2(address(bullaClaim), admin, PROTOCOL_FEE_BPS, 0); // 0 processing fee
     }
 
     function testSupportsERC165Interface() public {
@@ -54,7 +54,8 @@ contract BullaFrendLendERC165Test is Test {
             ^ IBullaFrendLendV2.isCallbackWhitelisted.selector ^ IBullaFrendLendV2.admin.selector
             ^ IBullaFrendLendV2.loanOfferCount.selector ^ IBullaFrendLendV2.protocolFeeBPS.selector
             ^ IBullaFrendLendV2.getLoanOffer.selector ^ IBullaFrendLendV2.getLoanOfferMetadata.selector
-            ^ IBullaFrendLendV2.protocolFeesByToken.selector;
+            ^ IBullaFrendLendV2.protocolFeesByToken.selector ^ IBullaFrendLendV2.processingFeeBPS.selector
+            ^ IBullaFrendLendV2.setProcessingFee.selector;
 
         bytes4 actualInterfaceId = type(IBullaFrendLendV2).interfaceId;
         assertEq(actualInterfaceId, expectedInterfaceId, "Interface ID calculation should match");

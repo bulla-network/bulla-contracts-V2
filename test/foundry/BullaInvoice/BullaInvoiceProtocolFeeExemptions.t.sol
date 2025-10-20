@@ -73,7 +73,7 @@ contract TestBullaInvoiceProtocolFeeExemptions is Test {
         // Deploy BullaClaim with fee exemptions
         vm.prank(_owner);
         DeployContracts.DeploymentResult memory deploymentResult =
-            (new DeployContracts()).deployForTest(_owner, LockState.Unlocked, _CORE_PROTOCOL_FEE, 0, 0, _owner);
+            (new DeployContracts()).deployForTest(_owner, LockState.Unlocked, _CORE_PROTOCOL_FEE, 0, 0, 0, _owner);
         bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
 
         // Set fee exemptions contract on BullaClaim

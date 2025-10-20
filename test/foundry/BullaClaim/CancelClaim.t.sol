@@ -34,7 +34,7 @@ contract TestCancelClaim is BullaClaimTestHelper {
         vm.label(debtor, "DEBTOR");
 
         DeployContracts.DeploymentResult memory deploymentResult =
-            (new DeployContracts()).deployForTest(deployer, LockState.Unlocked, 0, 0, 0, deployer);
+            (new DeployContracts()).deployForTest(deployer, LockState.Unlocked, 0, 0, 0, 0, deployer);
         bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
         approvalRegistry = bullaClaim.approvalRegistry();

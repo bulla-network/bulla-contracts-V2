@@ -27,7 +27,7 @@ contract TestPayClaimInsufficientEth is BullaClaimTestHelper {
         vm.label(debtor, "DEBTOR");
 
         DeployContracts.DeploymentResult memory deploymentResult =
-            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
+            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, 0, address(this));
         bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
         approvalRegistry = bullaClaim.approvalRegistry();
 

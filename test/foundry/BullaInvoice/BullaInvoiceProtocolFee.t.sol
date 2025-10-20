@@ -63,7 +63,7 @@ contract TestBullaInvoiceProtocolFee is Test {
         token2 = new ERC20Mock("Token2", "TK2", debtor, 1000 ether);
 
         DeployContracts.DeploymentResult memory deploymentResult =
-            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0 ether, 0, 0, address(this));
+            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0 ether, 0, 0, 0, address(this));
         bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
 

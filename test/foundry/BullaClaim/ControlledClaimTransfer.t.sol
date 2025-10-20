@@ -149,7 +149,7 @@ contract ControlledClaimTransferTest is BullaClaimTestHelper {
     function setUp() public {
         weth = new WETH();
         DeployContracts.DeploymentResult memory deploymentResult =
-            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
+            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, 0, address(this));
         bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
         approvalRegistry = bullaClaim.approvalRegistry();
         sigHelper = new EIP712Helper(address(bullaClaim));
@@ -157,7 +157,7 @@ contract ControlledClaimTransferTest is BullaClaimTestHelper {
         // Deploy controllers
         mockController = new MockController(address(bullaClaim));
         invoice = new BullaInvoice(address(bullaClaim), address(this), 250);
-        frendLend = new BullaFrendLendV2(address(bullaClaim), address(this), 100);
+        frendLend = new BullaFrendLendV2(address(bullaClaim), address(this), 100, 0); // 1% protocol fee, 0 processing fee
 
         vm.deal(creditor, 10 ether);
         vm.deal(debtor, 10 ether);

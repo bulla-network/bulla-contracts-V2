@@ -36,7 +36,7 @@ contract TestUpdateBinding is BullaClaimTestHelper {
         vm.label(debtor, "DEBTOR");
 
         DeployContracts.DeploymentResult memory deploymentResult =
-            (new DeployContracts()).deployForTest(address(0xB0b), LockState.Unlocked, 0, 0, 0, address(0xB0b));
+            (new DeployContracts()).deployForTest(address(0xB0b), LockState.Unlocked, 0, 0, 0, 0, address(0xB0b));
         bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
         approvalRegistry = bullaClaim.approvalRegistry();

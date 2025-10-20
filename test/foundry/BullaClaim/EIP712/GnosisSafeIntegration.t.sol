@@ -27,7 +27,7 @@ contract TestGnosisSafeSignatures is Test {
 
     function _setup(address[] memory _owners) internal {
         DeployContracts.DeploymentResult memory deploymentResult =
-            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
+            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, 0, address(this));
         bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
 
         sigHelper = new EIP712Helper(address(bullaClaim));

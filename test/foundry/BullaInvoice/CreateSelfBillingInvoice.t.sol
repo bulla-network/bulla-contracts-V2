@@ -66,7 +66,7 @@ contract TestCreateSelfBillingInvoice is Test {
         testToken = new ERC20Mock("Test Token", "TEST", address(this), 1000000 ether);
 
         DeployContracts.DeploymentResult memory deploymentResult = (new DeployContracts()).deployForTest(
-            address(this), LockState.Unlocked, CORE_PROTOCOL_FEE, 0, 0, address(this)
+            address(this), LockState.Unlocked, CORE_PROTOCOL_FEE, 0, 0, 0, address(this)
         );
         bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
