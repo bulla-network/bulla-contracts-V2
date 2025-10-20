@@ -77,7 +77,7 @@ contract TestFeeExemptions is Test {
         // Deploy BullaClaim
         vm.prank(_owner);
         DeployContracts.DeploymentResult memory deploymentResult =
-            (new DeployContracts()).deployForTest(_owner, LockState.Unlocked, _STANDARD_FEE, 0, 0, _owner);
+            (new DeployContracts()).deployForTest(_owner, LockState.Unlocked, _STANDARD_FEE, 0, 0, 0, _owner);
         bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
 
         // Set fee exemptions contract
@@ -398,7 +398,7 @@ contract TestFeeExemptions is Test {
         // Deploy claim with zero fee
         vm.prank(_owner);
         DeployContracts.DeploymentResult memory deploymentResult =
-            (new DeployContracts()).deployForTest(_owner, LockState.Unlocked, 0, 0, 0, _owner);
+            (new DeployContracts()).deployForTest(_owner, LockState.Unlocked, 0, 0, 0, 0, _owner);
         zeroFeeClaim = BullaClaimV2(deploymentResult.bullaClaim);
 
         vm.prank(_owner);

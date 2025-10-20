@@ -59,7 +59,7 @@ contract TestInvariants is Test {
 
         vm.prank(contractOwner);
         DeployContracts.DeploymentResult memory deploymentResult =
-            (new DeployContracts()).deployForTest(contractOwner, LockState.Unlocked, 0, 0, 0, contractOwner);
+            (new DeployContracts()).deployForTest(contractOwner, LockState.Unlocked, 0, 0, 0, 0, contractOwner);
         bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
 
         weth.transferFrom(address(this), creditor, type(uint136).max);

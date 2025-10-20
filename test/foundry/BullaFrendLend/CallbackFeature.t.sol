@@ -86,13 +86,13 @@ contract CallbackFeatureTest is BullaFrendLendTestHelper {
 
         // Initialize the base contracts
         DeployContracts.DeploymentResult memory deploymentResult =
-            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, FEE, 0, 0, address(this));
+            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, FEE, 0, 0, 0, address(this));
         bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
         approvalRegistry = bullaClaim.approvalRegistry();
 
         // Initialize the BullaFrendLend contract
-        bullaFrendLend = new BullaFrendLendV2(address(bullaClaim), creditor, 1000); // 10% protocol fee
+        bullaFrendLend = new BullaFrendLendV2(address(bullaClaim), creditor, 1000, 0); // 10% protocol fee, 0 processing fee
 
         mockCallback = new MockCallbackContract();
 

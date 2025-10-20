@@ -58,11 +58,11 @@ contract TestBullaInvoiceOrigination is Test {
         weth = new WETH();
 
         DeployContracts.DeploymentResult memory deploymentResult = (new DeployContracts()).deployForTest(
-            address(this), LockState.Unlocked, CORE_PROTOCOL_FEE, 0, 0, address(this)
+            address(this), LockState.Unlocked, CORE_PROTOCOL_FEE, 0, 0, 0, address(this)
         );
         bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
         DeployContracts.DeploymentResult memory deploymentResult2 =
-            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
+            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, 0, address(this));
         zeroFeeBullaClaim = BullaClaimV2(deploymentResult2.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
         zeroFeeSigHelper = new EIP712Helper(address(zeroFeeBullaClaim));

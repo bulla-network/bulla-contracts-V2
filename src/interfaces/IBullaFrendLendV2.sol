@@ -73,6 +73,7 @@ interface IBullaFrendLendV2 {
     // Admin functions
     function withdrawAllFees() external;
     function setProtocolFee(uint16 _protocolFeeBPS) external;
+    function setProcessingFee(uint16 _processingFeeBPS) external;
     function addToFeeTokenWhitelist(address token) external;
     function removeFromFeeTokenWhitelist(address token) external;
 
@@ -86,6 +87,7 @@ interface IBullaFrendLendV2 {
 
     function loanOfferCount() external view returns (uint256);
     function protocolFeeBPS() external view returns (uint16);
+    function processingFeeBPS() external view returns (uint16);
     function getLoanOffer(uint256) external view returns (LoanOffer memory);
     function getLoanOfferMetadata(uint256) external view returns (ClaimMetadata memory);
     function protocolFeesByToken(address token) external view returns (uint256);
@@ -98,12 +100,18 @@ interface IBullaFrendLendV2 {
         uint256 indexed offerId, address indexed offeredBy, LoanRequestParams loanOffer, ClaimMetadata metadata
     );
     event LoanOfferAccepted(
-        uint256 indexed offerId, uint256 indexed claimId, address indexed receiver, uint256 fee, ClaimMetadata metadata
+        uint256 indexed offerId,
+        uint256 indexed claimId,
+        address indexed receiver,
+        uint256 fee,
+        uint256 processingFee,
+        ClaimMetadata metadata
     );
     event LoanOfferRejected(uint256 indexed offerId, address indexed rejectedBy);
     /// @notice grossInterestPaid = interest received by creditor + protocolFee
     event LoanPayment(uint256 indexed claimId, uint256 grossInterestPaid, uint256 principalPaid, uint256 protocolFee);
     event ProtocolFeeUpdated(uint16 oldFee, uint16 newFee);
+    event ProcessingFeeUpdated(uint16 oldFee, uint16 newFee);
     event FeeWithdrawn(address indexed admin, address indexed token, uint256 amount);
     event TokenAddedToFeesWhitelist(address indexed token);
     event TokenRemovedFromFeesWhitelist(address indexed token);

@@ -42,11 +42,11 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
         weth = new WETH();
 
         DeployContracts.DeploymentResult memory deploymentResult =
-            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, FEE, 0, 0, address(this));
+            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, FEE, 0, 0, 0, address(this));
         bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
         sigHelper = new EIP712Helper(address(bullaClaim));
         approvalRegistry = bullaClaim.approvalRegistry();
-        bullaFrendLend = new BullaFrendLendV2(address(bullaClaim), admin, PROTOCOL_FEE_BPS);
+        bullaFrendLend = new BullaFrendLendV2(address(bullaClaim), admin, PROTOCOL_FEE_BPS, 0); // 0 processing fee
 
         vm.deal(creditor, 10 ether);
         vm.deal(debtor, 10 ether);

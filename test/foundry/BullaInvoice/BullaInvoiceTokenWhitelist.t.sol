@@ -51,6 +51,7 @@ contract TestBullaInvoiceTokenWhitelist is Test {
             FEE, // coreProtocolFee
             PROTOCOL_FEE_BPS, // invoiceProtocolFeeBPS
             PROTOCOL_FEE_BPS, // frendLendProtocolFeeBPS
+            0, // frendLendProcessingFeeBPS
             address(this) // admin
         );
         bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);

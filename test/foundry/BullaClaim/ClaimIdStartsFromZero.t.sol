@@ -35,7 +35,7 @@ contract TestClaimIdStartsFromZero is Test {
     function setUp() public {
         weth = new WETH();
         DeployContracts.DeploymentResult memory deploymentResult =
-            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
+            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, 0, address(this));
         bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
 
         vm.deal(creditor, 10 ether);

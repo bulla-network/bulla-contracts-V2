@@ -58,12 +58,12 @@ contract TestCoreProtocolFee is Test {
         // Deploy BullaClaim with standard fee
         vm.startPrank(_owner);
         DeployContracts.DeploymentResult memory deploymentResult =
-            (new DeployContracts()).deployForTest(_owner, LockState.Unlocked, _STANDARD_FEE, 0, 0, _owner);
+            (new DeployContracts()).deployForTest(_owner, LockState.Unlocked, _STANDARD_FEE, 0, 0, 0, _owner);
         bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
 
         // Deploy BullaClaim with zero fee for comparison tests
         DeployContracts.DeploymentResult memory deploymentResult2 =
-            (new DeployContracts()).deployForTest(_owner, LockState.Unlocked, 0, 0, 0, _owner);
+            (new DeployContracts()).deployForTest(_owner, LockState.Unlocked, 0, 0, 0, 0, _owner);
         zeroFeeBullaClaim = BullaClaimV2(deploymentResult2.bullaClaim);
         vm.stopPrank();
 

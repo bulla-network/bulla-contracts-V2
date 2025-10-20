@@ -20,7 +20,7 @@ contract ERC721Test is DSTestPlus {
 
     function setUp() public {
         DeployContracts.DeploymentResult memory deploymentResult =
-            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
+            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, 0, address(this));
         token = BullaClaimV2(deploymentResult.bullaClaim);
     }
 

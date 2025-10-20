@@ -42,6 +42,7 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, Ownable, IBullaFr
 
     uint256 public loanOfferCount;
     uint16 public protocolFeeBPS;
+    uint16 public processingFeeBPS;
 
     address[] public whitelistedProtocolFeeTokens;
     mapping(address => uint256) public protocolFeesByToken;
@@ -62,13 +63,16 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, Ownable, IBullaFr
      * @param bullaClaim Address of the IBullaClaim contract to delegate calls to
      * @param _owner Address of the contract owner
      * @param _protocolFeeBPS Protocol fee in basis points taken from interest payments
+     * @param _processingFeeBPS Processing fee in basis points taken from loan amount on acceptance
      */
-    constructor(address bullaClaim, address _owner, uint16 _protocolFeeBPS)
+    constructor(address bullaClaim, address _owner, uint16 _protocolFeeBPS, uint16 _processingFeeBPS)
         BullaClaimControllerBase(bullaClaim)
         Ownable(_owner)
     {
         if (_protocolFeeBPS > MAX_BPS) revert InvalidProtocolFee();
+        if (_processingFeeBPS > MAX_BPS) revert InvalidProtocolFee();
         protocolFeeBPS = _protocolFeeBPS;
+        processingFeeBPS = _processingFeeBPS;
         _emptyMetadata = ClaimMetadata({tokenURI: "", attachmentURI: ""});
     }
 
@@ -319,16 +323,30 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, Ownable, IBullaFr
             isProtocolFeeExempt: isProtocolFeeExempt
         });
 
-        // Transfer token from creditor to debtor via the contract
-        // First, transfer from creditor to this contract
-        ERC20(offer.params.token).safeTransferFrom(offer.params.creditor, finalReceiver, offer.params.loanAmount);
+        // Calculate processing fee from loan amount (taken on acceptance)
+        // Note: Processing fee is independent of protocol fee exemptions
+        uint256 processingFee = Math.mulDiv(offer.params.loanAmount, processingFeeBPS, MAX_BPS);
+        uint256 amountToReceiver = offer.params.loanAmount - processingFee;
+
+        // Track processing fee if any
+        if (processingFee > 0) {
+            protocolFeesByToken[offer.params.token] += processingFee;
+        }
+
+        // Transfer full loan amount from creditor to this contract
+        ERC20(offer.params.token).safeTransferFrom(offer.params.creditor, address(this), offer.params.loanAmount);
+
+        // Transfer loan amount minus processing fee to receiver
+        if (amountToReceiver > 0) {
+            ERC20(offer.params.token).safeTransfer(finalReceiver, amountToReceiver);
+        }
 
         // Execute callback if configured
         if (offer.params.callbackContract != address(0)) {
             _executeCallback(offer.params.callbackContract, offer.params.callbackSelector, offerId, claimId);
         }
 
-        emit LoanOfferAccepted(offerId, claimId, finalReceiver, fee, metadata);
+        emit LoanOfferAccepted(offerId, claimId, finalReceiver, fee, processingFee, metadata);
 
         return claimId;
     }
@@ -442,6 +460,19 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, Ownable, IBullaFr
         protocolFeeBPS = _protocolFeeBPS;
 
         emit ProtocolFeeUpdated(oldFee, _protocolFeeBPS);
+    }
+
+    /**
+     * @notice Allows owner to set the processing fee percentage
+     * @param _processingFeeBPS New processing fee in basis points
+     */
+    function setProcessingFee(uint16 _processingFeeBPS) external onlyOwner {
+        if (_processingFeeBPS > MAX_BPS) revert InvalidProtocolFee();
+
+        uint16 oldFee = processingFeeBPS;
+        processingFeeBPS = _processingFeeBPS;
+
+        emit ProcessingFeeUpdated(oldFee, _processingFeeBPS);
     }
 
     /**

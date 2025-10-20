@@ -56,6 +56,7 @@ contract TestBullaInvoice is Test {
             0, // coreProtocolFee
             0, // invoiceProtocolFeeBPS
             0, // frendLendProtocolFeeBPS
+            0, // frendLendProcessingFeeBPS
             address(this) // admin
         );
         bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);

@@ -52,10 +52,11 @@ contract TestBullaFrendLendTokenWhitelist is Test {
             FEE, // coreProtocolFee
             PROTOCOL_FEE_BPS, // invoiceProtocolFeeBPS
             PROTOCOL_FEE_BPS, // frendLendProtocolFeeBPS
+            0, // frendLendProcessingFeeBPS
             address(this) // admin
         );
         bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
-        bullaFrendLend = new BullaFrendLendV2(address(bullaClaim), admin, PROTOCOL_FEE_BPS);
+        bullaFrendLend = new BullaFrendLendV2(address(bullaClaim), admin, PROTOCOL_FEE_BPS, 0); // 0 processing fee
         sigHelper = new EIP712Helper(address(bullaClaim));
 
         vm.deal(creditor, 10 ether);

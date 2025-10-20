@@ -27,11 +27,12 @@ contract TestLoanOfferIdStartsFromZero is Test {
             10000000000000000, // coreProtocolFee (0.01 ETH)
             500, // invoiceProtocolFeeBPS (5%)
             500, // frendLendProtocolFeeBPS (5%)
+            0, // frendLendProcessingFeeBPS
             address(this) // admin
         );
 
         BullaClaimV2 bullaClaim = BullaClaimV2(result.bullaClaim);
-        bullaFrendLend = new BullaFrendLendV2(address(bullaClaim), address(this), 500);
+        bullaFrendLend = new BullaFrendLendV2(address(bullaClaim), address(this), 500, 0); // 5% protocol fee, 0 processing fee
 
         weth = new WETH();
 

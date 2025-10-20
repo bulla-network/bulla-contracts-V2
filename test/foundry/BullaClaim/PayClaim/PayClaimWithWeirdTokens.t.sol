@@ -43,7 +43,7 @@ contract TestPayClaimWithWeirdTokens is Test {
         vm.label(address(this), "TEST_CONTRACT");
 
         DeployContracts.DeploymentResult memory deploymentResult =
-            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, address(this));
+            (new DeployContracts()).deployForTest(address(this), LockState.Unlocked, 0, 0, 0, 0, address(this));
         bullaClaim = BullaClaimV2(deploymentResult.bullaClaim);
 
         reverting = new RevertingToken();
