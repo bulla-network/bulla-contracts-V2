@@ -1,3 +1,10 @@
+# [2.3.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v2.2.0...v2.3.0) (2025-10-21)
+
+
+### Features
+
+* add FL only deploy script and artifacts to sc ([#103](https://github.com/bulla-network/bulla-contracts-V2/issues/103)) ([e5e57a1](https://github.com/bulla-network/bulla-contracts-V2/commit/e5e57a1fc47376c810ea3e2e9809e4ea53ebf46c))
+
 # [2.2.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v2.1.0...v2.2.0) (2025-10-20)
 
 
