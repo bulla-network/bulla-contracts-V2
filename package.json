@@ -59,7 +59,9 @@
     "verify:sepolia": "dotenv -e .env -- cross-env NETWORK=sepolia node script/verify-broadcast.js",
     "deploy:base": "dotenv -e .env -- cross-env NETWORK=base node script/deploy.js",
     "verify:base": "dotenv -e .env -- cross-env NETWORK=base node script/verify-broadcast.js",
-    "verify": "dotenv -e .env -- node script/verify-broadcast.js"
+    "verify": "dotenv -e .env -- node script/verify-broadcast.js",
+    "deploy:frendlend:sepolia": "dotenv -e .env -- cross-env NETWORK=sepolia node script/deploy-frendlend.js",
+    "deploy:frendlend:base": "dotenv -e .env -- cross-env NETWORK=base node script/deploy-frendlend.js"
   },
   "devDependencies": {
     "@semantic-release/changelog": "^6.0.3",

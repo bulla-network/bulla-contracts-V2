@@ -1,0 +1,12 @@
+{
+  "adminAddress": "0x81f1e947811496453dBBaeA0AC2c250e056BBd96",
+  "blockNumber": 9455063,
+  "bullaClaimV2": "0x772b675A4180B4F48d9D816619620664f90Cf281",
+  "bullaFrendLendV2": "0x8948A00fAc01110210F97F8F9fA107aa07E6F46c",
+  "chainId": 11155111,
+  "deployer": "0x81f1e947811496453dBBaeA0AC2c250e056BBd96",
+  "network": "sepolia",
+  "processingFeeBPS": 0,
+  "protocolFeeBPS": 0,
+  "timestamp": 1760999088
+}

@@ -1,4 +1,5 @@
-out
+out/*
+!out/foundry
 cache
 node_modules
 .env
