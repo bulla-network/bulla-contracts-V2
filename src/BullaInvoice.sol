@@ -28,6 +28,7 @@ error NotAdmin();
 error WithdrawalFailed();
 error NotCreditorOrDebtor();
 error TokenNotWhitelistedForFeeWithdrawal();
+error CallbackFailed(bytes data);
 
 /**
  * @title BullaInvoice
@@ -298,8 +299,9 @@ contract BullaInvoice is BullaClaimControllerBase, ERC165, Ownable, IBullaInvoic
         uint256 creditorTotal = creditorInterest + principalBeingPaid;
 
         // Update claim state in BullaClaim BEFORE transfers (for re-entrancy protection)
+        bool claimPaid;
         if (principalBeingPaid > 0) {
-            _bullaClaim.payClaimFromControllerWithoutTransfer(msg.sender, claimId, principalBeingPaid);
+            claimPaid = _bullaClaim.payClaimFromControllerWithoutTransfer(msg.sender, claimId, principalBeingPaid);
         }
 
         // Update interest computation state
@@ -341,6 +343,14 @@ contract BullaInvoice is BullaClaimControllerBase, ERC165, Ownable, IBullaInvoic
             }
 
             emit InvoicePaid(claimId, grossInterestBeingPaid, principalBeingPaid, protocolFee);
+        }
+
+        // Execute callback if invoice became paid and callback is configured
+        if (claimPaid) {
+            PaidClaimCallback memory callback = _bullaClaim.getPaidClaimCallback(claimId);
+            if (callback.callbackContract != address(0)) {
+                _executePaidClaimCallback(callback.callbackContract, callback.callbackSelector, claimId);
+            }
         }
     }
 
@@ -387,7 +397,35 @@ contract BullaInvoice is BullaClaimControllerBase, ERC165, Ownable, IBullaInvoic
         Claim memory claim = _bullaClaim.getClaim(claimId);
         _checkController(claim.controller);
 
-        return _bullaClaim.markClaimAsPaidFrom(msg.sender, claimId);
+        _bullaClaim.markClaimAsPaidFrom(msg.sender, claimId);
+    }
+
+    /**
+     * @notice Allows the creditor to set a paid invoice callback
+     * @param invoiceId The ID of the invoice to set the callback for
+     * @param callbackContract The contract address to call when invoice is paid
+     * @param callbackSelector The function selector to call on callback contract
+     */
+    function setPaidInvoiceCallback(uint256 invoiceId, address callbackContract, bytes4 callbackSelector) external {
+        Claim memory claim = _bullaClaim.getClaim(invoiceId);
+        _checkController(claim.controller);
+
+        _bullaClaim.setPaidClaimCallbackFrom(msg.sender, invoiceId, callbackContract, callbackSelector);
+    }
+
+    /**
+     * @notice Execute callback to the specified contract after invoice is paid
+     * @param callbackContract The contract to call
+     * @param callbackSelector The function selector to call
+     * @param claimId The ID of the paid invoice
+     */
+    function _executePaidClaimCallback(address callbackContract, bytes4 callbackSelector, uint256 claimId) private {
+        bytes memory callData = abi.encodeWithSelector(callbackSelector, claimId);
+
+        (bool success, bytes memory returnData) = callbackContract.call(callData);
+        if (!success) {
+            revert CallbackFailed(returnData);
+        }
     }
 
     /**

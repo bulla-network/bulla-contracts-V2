@@ -51,6 +51,11 @@ struct ClaimMetadata {
     string attachmentURI;
 }
 
+struct PaidClaimCallback {
+    address callbackContract; // contract to call when claim is paid (0 = no callback)
+    bytes4 callbackSelector; // function selector to call on callback contract
+}
+
 struct ClaimStorage {
     uint128 claimAmount;
     uint128 paidAmount;

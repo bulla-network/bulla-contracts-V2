@@ -45,7 +45,9 @@ interface IBullaClaimCore is IERC721 {
 
     function payClaimFrom(address from, uint256 claimId, uint256 amount) external payable;
 
-    function payClaimFromControllerWithoutTransfer(address from, uint256 claimId, uint256 amount) external;
+    function payClaimFromControllerWithoutTransfer(address from, uint256 claimId, uint256 amount)
+        external
+        returns (bool claimPaid);
 
     function updateBinding(uint256 claimId, ClaimBinding binding) external;
 
@@ -62,6 +64,23 @@ interface IBullaClaimCore is IERC721 {
     function markClaimAsPaid(uint256 claimId) external;
 
     function markClaimAsPaidFrom(address from, uint256 claimId) external;
+
+    /*///////////////////////////////////////////////////////////////
+                        PAID CLAIM CALLBACK FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    function setPaidClaimCallback(uint256 claimId, address callbackContract, bytes4 callbackSelector) external;
+
+    function setPaidClaimCallbackFrom(address from, uint256 claimId, address callbackContract, bytes4 callbackSelector)
+        external;
+
+    function getPaidClaimCallback(uint256 claimId) external view returns (PaidClaimCallback memory);
+
+    function addToPaidCallbackWhitelist(address callbackContract, bytes4 selector) external;
+
+    function removeFromPaidCallbackWhitelist(address callbackContract, bytes4 selector) external;
+
+    function isPaidCallbackWhitelisted(address callbackContract, bytes4 selector) external view returns (bool);
 
     /*///////////////////////////////////////////////////////////////
                         ERC721 "FROM" FUNCTIONS

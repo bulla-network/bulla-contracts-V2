@@ -72,6 +72,7 @@ interface IBullaInvoice {
     function cancelInvoice(uint256 claimId, string memory note) external;
     function impairInvoice(uint256 claimId) external;
     function markInvoiceAsPaid(uint256 claimId) external;
+    function setPaidInvoiceCallback(uint256 invoiceId, address callbackContract, bytes4 callbackSelector) external;
 
     // Admin functions
     function setProtocolFee(uint16 _protocolFeeBPS) external;

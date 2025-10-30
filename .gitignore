@@ -1,5 +1,6 @@
 out/*
-!out/foundry
+!out/foundry/build-info/*
+test/*
 cache
 node_modules
 .env
