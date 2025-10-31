@@ -47,6 +47,11 @@ contract BullaClaimV2 is ERC721, Ownable, IBullaClaimV2 {
     uint256 public CORE_PROTOCOL_FEE;
     IPermissions public feeExemptions;
 
+    /// Whitelist for callback contracts and selectors
+    mapping(address => mapping(bytes4 => bool)) public paidCallbackWhitelist;
+    /// Mapping of claimId to paid claim callback configuration
+    mapping(uint256 => PaidClaimCallback) private paidClaimCallbacks;
+
     /*///////////////////////////////////////////////////////////////
                            MODIFIERS
     //////////////////////////////////////////////////////////////*/
@@ -210,7 +215,11 @@ contract BullaClaimV2 is ERC721, Ownable, IBullaClaimV2 {
     /// @param from The address that is paying the claim
     /// @param claimId The ID of the claim to pay
     /// @param amount The amount to pay
-    function payClaimFromControllerWithoutTransfer(address from, uint256 claimId, uint256 amount) external {
+    /// @return claimPaid True if the claim is now fully paid, false otherwise
+    function payClaimFromControllerWithoutTransfer(address from, uint256 claimId, uint256 amount)
+        external
+        returns (bool claimPaid)
+    {
         Claim memory claim = getClaim(claimId);
 
         // Only controlled claims can use this function
@@ -219,7 +228,7 @@ contract BullaClaimV2 is ERC721, Ownable, IBullaClaimV2 {
         // Only the controller can call this function
         if (claim.controller != msg.sender) revert NotController(msg.sender);
 
-        _updateClaimPaymentState(from, claimId, claim, amount);
+        return _updateClaimPaymentState(from, claimId, claim, amount);
     }
 
     /// @notice Allows any user to pay a claim with the token the claim is denominated in
@@ -244,12 +253,20 @@ contract BullaClaimV2 is ERC721, Ownable, IBullaClaimV2 {
         }
 
         // Update payment state first to follow checks-effects-interactions pattern
-        _updateClaimPaymentState(from, claimId, claim, paymentAmount);
+        bool claimPaid = _updateClaimPaymentState(from, claimId, claim, paymentAmount);
 
         // Process token transfer after state is updated
         claim.token == address(0)
             ? claim.creditor.safeTransferETH(paymentAmount)
             : ERC20(claim.token).safeTransferFrom(from, claim.creditor, paymentAmount);
+
+        // Execute callback if claim just became paid and callback is configured
+        if (claimPaid) {
+            PaidClaimCallback memory callback = paidClaimCallbacks[claimId];
+            if (callback.callbackContract != address(0)) {
+                _executePaidClaimCallback(callback.callbackContract, callback.callbackSelector, claimId);
+            }
+        }
     }
 
     /// @notice Updates claim payment state without transferring tokens
@@ -259,12 +276,15 @@ contract BullaClaimV2 is ERC721, Ownable, IBullaClaimV2 {
     /// @param paymentAmount The amount to pay
     function _updateClaimPaymentState(address from, uint256 claimId, Claim memory claim, uint256 paymentAmount)
         internal
+        returns (bool claimPaid)
     {
         _notLocked();
 
         // Use validation library for payment validation and calculation
-        (uint256 totalPaidAmount, bool claimPaid) =
+        (uint256 totalPaidAmount, bool tempClaimPaid) =
             BullaClaimValidationLib.validateAndCalculatePayment(from, claim, paymentAmount);
+
+        claimPaid = tempClaimPaid;
 
         ClaimStorage storage claimStorage = claims[claimId];
 
@@ -453,6 +473,103 @@ contract BullaClaimV2 is ERC721, Ownable, IBullaClaimV2 {
         claims[claimId].status = Status.Paid;
 
         emit ClaimMarkedAsPaid(claimId);
+
+        // Execute callback if configured
+        // Note: When marking as paid manually, funds should already have been transferred
+        // by the controller, so it's safe to execute the callback here
+        PaidClaimCallback memory callback = paidClaimCallbacks[claimId];
+        if (callback.callbackContract != address(0)) {
+            _executePaidClaimCallback(callback.callbackContract, callback.callbackSelector, claimId);
+        }
+    }
+
+    /**
+     * /// SET PAID CLAIM CALLBACK ///
+     */
+
+    /// @notice Allows the creditor to set a paid claim callback
+    /// @notice SPEC:
+    ///     1. call _setPaidClaimCallback on behalf of the msg.sender
+    /// @param claimId The ID of the claim to set the callback for
+    /// @param callbackContract The contract address to call when claim is paid
+    /// @param callbackSelector The function selector to call on callback contract
+    function setPaidClaimCallback(uint256 claimId, address callbackContract, bytes4 callbackSelector) external {
+        _setPaidClaimCallback(msg.sender, claimId, callbackContract, callbackSelector);
+    }
+
+    /// @notice Allows a controller to set a paid claim callback on behalf of the creditor
+    /// @notice SPEC:
+    ///     1. verify the claim is controlled
+    ///     2. verify the caller is the controller
+    ///     3. call _setPaidClaimCallback on `from`'s behalf
+    /// @param from The address (creditor) on whose behalf the callback is being set
+    /// @param claimId The ID of the claim to set the callback for
+    /// @param callbackContract The contract address to call when claim is paid
+    /// @param callbackSelector The function selector to call on callback contract
+    function setPaidClaimCallbackFrom(address from, uint256 claimId, address callbackContract, bytes4 callbackSelector)
+        external
+    {
+        Claim memory claim = getClaim(claimId);
+        if (claim.controller == address(0)) revert MustBeControlledClaim();
+        if (claim.controller != msg.sender) revert NotController(msg.sender);
+
+        _setPaidClaimCallback(from, claimId, callbackContract, callbackSelector);
+    }
+
+    /// @notice Internal function to set a paid claim callback
+    /// @notice SPEC:
+    ///     1. Verify the claim exists
+    ///     2. Verify the caller is the creditor (owner of the claim NFT)
+    ///     3. Verify the callback is whitelisted if not zero address
+    ///     4. Set the callback configuration
+    /// @param from The address that is setting the callback (must be the creditor)
+    /// @param claimId The ID of the claim to set the callback for
+    /// @param callbackContract The contract address to call when claim is paid
+    /// @param callbackSelector The function selector to call on callback contract
+    function _setPaidClaimCallback(address from, uint256 claimId, address callbackContract, bytes4 callbackSelector)
+        internal
+    {
+        // Check if claim exists first
+        if (claimId >= currentClaimId) revert NotMinted();
+
+        address creditor = _ownerOf(claimId);
+
+        // Only the creditor can set callbacks
+        if (from != creditor) revert NotCreditor();
+
+        // If setting a callback (not zero address), verify it's whitelisted
+        if (callbackContract != address(0)) {
+            if (!paidCallbackWhitelist[callbackContract][callbackSelector]) {
+                revert CallbackNotWhitelisted();
+            }
+        }
+
+        paidClaimCallbacks[claimId] =
+            PaidClaimCallback({callbackContract: callbackContract, callbackSelector: callbackSelector});
+
+        emit PaidClaimCallbackSet(claimId, callbackContract, callbackSelector);
+    }
+
+    /// @notice Get the paid claim callback configuration
+    /// @param claimId The ID of the claim
+    /// @return The callback configuration
+    function getPaidClaimCallback(uint256 claimId) external view returns (PaidClaimCallback memory) {
+        return paidClaimCallbacks[claimId];
+    }
+
+    /**
+     * @notice Execute callback to the specified contract after claim is paid
+     * @param callbackContract The contract to call
+     * @param callbackSelector The function selector to call
+     * @param claimId The ID of the paid claim
+     */
+    function _executePaidClaimCallback(address callbackContract, bytes4 callbackSelector, uint256 claimId) private {
+        bytes memory callData = abi.encodeWithSelector(callbackSelector, claimId);
+
+        (bool success, bytes memory returnData) = callbackContract.call(callData);
+        if (!success) {
+            revert CallbackFailed(returnData);
+        }
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -588,6 +705,22 @@ contract BullaClaimV2 is ERC721, Ownable, IBullaClaimV2 {
         revert NotSupported();
     }
 
+    /**
+     * @notice Override _update to clear paid claim callback on transfer
+     * @dev Callbacks are cleared when NFT is transferred to prevent the new owner from inheriting the previous owner's callback
+     */
+    function _update(address to, uint256 tokenId, address auth) internal virtual override returns (address) {
+        address from = super._update(to, tokenId, auth);
+
+        // Clear callback on transfer (not on mint)
+        // from != address(0) means not a mint
+        if (from != address(0)) {
+            delete paidClaimCallbacks[tokenId];
+        }
+
+        return from;
+    }
+
     function supportsInterface(bytes4 interfaceId) public view override(ERC721, IERC165) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
@@ -614,6 +747,43 @@ contract BullaClaimV2 is ERC721, Ownable, IBullaClaimV2 {
 
     function setFeeExemptions(address _feeExemptions) external onlyOwner {
         feeExemptions = IPermissions(_feeExemptions);
+    }
+
+    /**
+     * @notice Allows owner to add a paid claim callback contract and selector to the whitelist
+     * @param callbackContract The contract address to whitelist
+     * @param selector The function selector to whitelist for this contract
+     */
+    function addToPaidCallbackWhitelist(address callbackContract, bytes4 selector) external onlyOwner {
+        // Don't allow whitelisting zero address or zero selector
+        if (callbackContract == address(0) || selector == bytes4(0)) {
+            return;
+        }
+
+        paidCallbackWhitelist[callbackContract][selector] = true;
+
+        emit CallbackWhitelisted(callbackContract, selector);
+    }
+
+    /**
+     * @notice Allows owner to remove a paid claim callback contract and selector from the whitelist
+     * @param callbackContract The contract address to remove from whitelist
+     * @param selector The function selector to remove from whitelist for this contract
+     */
+    function removeFromPaidCallbackWhitelist(address callbackContract, bytes4 selector) external onlyOwner {
+        paidCallbackWhitelist[callbackContract][selector] = false;
+
+        emit CallbackRemovedFromWhitelist(callbackContract, selector);
+    }
+
+    /**
+     * @notice Check if a paid claim callback contract and selector combination is whitelisted
+     * @param callbackContract The contract address to check
+     * @param selector The function selector to check
+     * @return True if the combination is whitelisted, false otherwise
+     */
+    function isPaidCallbackWhitelisted(address callbackContract, bytes4 selector) external view returns (bool) {
+        return paidCallbackWhitelist[callbackContract][selector];
     }
 
     /**

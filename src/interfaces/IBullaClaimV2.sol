@@ -31,6 +31,8 @@ interface IBullaClaimV2 is IBullaClaimCore, IBullaClaimAdmin {
     error NotSupported();
     error MustBeControlledClaim();
     error IncorrectMsgValue();
+    error CallbackNotWhitelisted();
+    error CallbackFailed(bytes data);
 
     /*///////////////////////////////////////////////////////////////
                             EVENTS
@@ -62,4 +64,10 @@ interface IBullaClaimV2 is IBullaClaimCore, IBullaClaimAdmin {
     event ClaimImpaired(uint256 indexed claimId);
 
     event ClaimMarkedAsPaid(uint256 indexed claimId);
+
+    event CallbackWhitelisted(address indexed callbackContract, bytes4 indexed selector);
+
+    event CallbackRemovedFromWhitelist(address indexed callbackContract, bytes4 indexed selector);
+
+    event PaidClaimCallbackSet(uint256 indexed claimId, address indexed callbackContract, bytes4 selector);
 }

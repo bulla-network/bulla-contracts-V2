@@ -55,7 +55,7 @@ contract BullaFrendLendERC165Test is Test {
             ^ IBullaFrendLendV2.loanOfferCount.selector ^ IBullaFrendLendV2.protocolFeeBPS.selector
             ^ IBullaFrendLendV2.getLoanOffer.selector ^ IBullaFrendLendV2.getLoanOfferMetadata.selector
             ^ IBullaFrendLendV2.protocolFeesByToken.selector ^ IBullaFrendLendV2.processingFeeBPS.selector
-            ^ IBullaFrendLendV2.setProcessingFee.selector;
+            ^ IBullaFrendLendV2.setProcessingFee.selector ^ IBullaFrendLendV2.setPaidLoanCallback.selector;
 
         bytes4 actualInterfaceId = type(IBullaFrendLendV2).interfaceId;
         assertEq(actualInterfaceId, expectedInterfaceId, "Interface ID calculation should match");

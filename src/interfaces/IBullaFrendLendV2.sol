@@ -69,6 +69,7 @@ interface IBullaFrendLendV2 {
     function payLoan(uint256 claimId, uint256 paymentAmount) external;
     function impairLoan(uint256 claimId) external;
     function markLoanAsPaid(uint256 claimId) external;
+    function setPaidLoanCallback(uint256 loanId, address callbackContract, bytes4 callbackSelector) external;
 
     // Admin functions
     function withdrawAllFees() external;

@@ -384,8 +384,9 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, Ownable, IBullaFr
         uint256 creditorTotal = creditorInterest + principalPayment;
 
         // Update claim state in BullaClaim BEFORE transfers (for re-entrancy protection)
+        bool claimPaid;
         if (principalPayment > 0) {
-            _bullaClaim.payClaimFromControllerWithoutTransfer(msg.sender, claimId, principalPayment);
+            claimPaid = _bullaClaim.payClaimFromControllerWithoutTransfer(msg.sender, claimId, principalPayment);
         }
 
         // Transfer the total amount from sender to this contract, to avoid double approval
@@ -404,6 +405,29 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, Ownable, IBullaFr
         }
 
         emit LoanPayment(claimId, grossInterestBeingPaid, principalPayment, protocolFee);
+
+        // Execute callback if loan became paid and callback is configured
+        if (claimPaid) {
+            PaidClaimCallback memory callback = _bullaClaim.getPaidClaimCallback(claimId);
+            if (callback.callbackContract != address(0)) {
+                _executePaidClaimCallback(callback.callbackContract, callback.callbackSelector, claimId);
+            }
+        }
+    }
+
+    /**
+     * @notice Execute callback to the specified contract after loan is paid
+     * @param callbackContract The contract to call
+     * @param callbackSelector The function selector to call
+     * @param claimId The ID of the paid loan claim
+     */
+    function _executePaidClaimCallback(address callbackContract, bytes4 callbackSelector, uint256 claimId) private {
+        bytes memory callData = abi.encodeWithSelector(callbackSelector, claimId);
+
+        (bool success, bytes memory returnData) = callbackContract.call(callData);
+        if (!success) {
+            revert CallbackFailed(returnData);
+        }
     }
 
     /**
@@ -426,6 +450,19 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, Ownable, IBullaFr
         _checkController(claim.controller);
 
         return _bullaClaim.markClaimAsPaidFrom(msg.sender, claimId);
+    }
+
+    /**
+     * @notice Allows the creditor to set a paid loan callback
+     * @param loanId The ID of the loan to set the callback for
+     * @param callbackContract The contract address to call when loan is paid
+     * @param callbackSelector The function selector to call on callback contract
+     */
+    function setPaidLoanCallback(uint256 loanId, address callbackContract, bytes4 callbackSelector) external {
+        Claim memory claim = _bullaClaim.getClaim(loanId);
+        _checkController(claim.controller);
+
+        _bullaClaim.setPaidClaimCallbackFrom(msg.sender, loanId, callbackContract, callbackSelector);
     }
 
     ////////////////////////////////
