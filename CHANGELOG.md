@@ -1,3 +1,10 @@
+# [2.4.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v2.3.0...v2.4.0) (2025-10-31)
+
+
+### Features
+
+* add paid callback to BullaClaim and controllers ([#104](https://github.com/bulla-network/bulla-contracts-V2/issues/104)) ([9d3e21a](https://github.com/bulla-network/bulla-contracts-V2/commit/9d3e21af4e2ab32ca1c077af5126fe7b44ac8703))
+
 # [2.3.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v2.2.0...v2.3.0) (2025-10-21)
 
 
