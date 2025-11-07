@@ -1,3 +1,10 @@
+## [2.4.1](https://github.com/bulla-network/bulla-contracts-V2/compare/v2.4.0...v2.4.1) (2025-11-07)
+
+
+### Bug Fixes
+
+* remove unused params ([#105](https://github.com/bulla-network/bulla-contracts-V2/issues/105)) ([bda27e1](https://github.com/bulla-network/bulla-contracts-V2/commit/bda27e1e52fd1dc4f918d5a3af8698fe2b94383a))
+
 # [2.4.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v2.3.0...v2.4.0) (2025-10-31)
 
 
