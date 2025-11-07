@@ -121,14 +121,7 @@ contract BullaApprovalRegistry is IBullaApprovalRegistry, Ownable, EIP712 {
         bool isBindingAllowed
     ) external {
         BullaClaimPermitLib.approveCreateClaim(
-            approvals[msg.sender][controller],
-            controllerRegistry,
-            _domainSeparatorV4(),
-            msg.sender,
-            controller,
-            approvalType,
-            approvalCount,
-            isBindingAllowed
+            approvals[msg.sender][controller], msg.sender, controller, approvalType, approvalCount, isBindingAllowed
         );
     }
 

@@ -186,29 +186,17 @@ library BullaClaimPermitLib {
             !SignatureChecker.isValidSignatureNow(user, digest, signature) // spec.SIG1, spec.SIG2
         ) revert IBullaApprovalRegistry.InvalidSignature();
 
-        approveCreateClaim(
-            approvals,
-            controllerRegistry,
-            domainSeparator,
-            user,
-            controller,
-            approvalType,
-            approvalCount,
-            isBindingAllowed
-        );
+        approveCreateClaim(approvals, user, controller, approvalType, approvalCount, isBindingAllowed);
     }
 
     function approveCreateClaim(
         Approvals storage approvals,
-        IBullaControllerRegistry controllerRegistry,
-        bytes32 domainSeparator,
         address user,
         address controller,
         CreateClaimApprovalType approvalType,
         uint64 approvalCount,
         bool isBindingAllowed
     ) public {
-        uint64 nonce = approvals.createClaim.nonce;
         if (approvalType == CreateClaimApprovalType.Unapproved) {
             if (approvalCount > 0 || isBindingAllowed) revert IBullaApprovalRegistry.InvalidApproval(); // spec.R2, spec.R3
 
