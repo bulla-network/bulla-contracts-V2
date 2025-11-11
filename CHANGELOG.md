@@ -1,3 +1,10 @@
+# [2.5.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v2.4.1...v2.5.0) (2025-11-11)
+
+
+### Features
+
+* deploy latest 2_1 contracts ([#107](https://github.com/bulla-network/bulla-contracts-V2/issues/107)) ([04c85f2](https://github.com/bulla-network/bulla-contracts-V2/commit/04c85f285cf43998bbe81fcac7f0eb0a0dae8e87))
+
 ## [2.4.1](https://github.com/bulla-network/bulla-contracts-V2/compare/v2.4.0...v2.4.1) (2025-11-07)
 
 
