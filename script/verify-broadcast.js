@@ -88,6 +88,50 @@ async function loadBroadcastArtifact(network) {
   return broadcastData;
 }
 
+function getAllBroadcastFiles(network) {
+  const networkConfig = NETWORK_CONFIG[network];
+  if (!networkConfig) {
+    throw new Error(`Unsupported network: ${network}`);
+  }
+
+  const broadcastDir = path.join(
+    "broadcast",
+    "DeployContracts.s.sol",
+    networkConfig.chainId
+  );
+
+  if (!fs.existsSync(broadcastDir)) {
+    throw new Error(
+      `No broadcast directory found for network: ${network}. Directory not found: ${broadcastDir}`
+    );
+  }
+
+  // Get all run-*.json files (excluding run-latest.json and dry-run directory)
+  const files = fs
+    .readdirSync(broadcastDir)
+    .filter(
+      (file) =>
+        file.startsWith("run-") &&
+        file.endsWith(".json") &&
+        file !== "run-latest.json"
+    )
+    .map((file) => {
+      // Extract timestamp from filename: run-1753192405.json -> 1753192405
+      const timestamp = parseInt(file.replace("run-", "").replace(".json", ""));
+      return {
+        filename: file,
+        path: path.join(broadcastDir, file),
+        timestamp: timestamp,
+      };
+    })
+    .sort((a, b) => b.timestamp - a.timestamp); // Sort newest to oldest
+
+  console.log(
+    `📚 Found ${files.length} historical broadcast files for ${network}`
+  );
+  return files;
+}
+
 function extractLibraryAddresses(broadcastData) {
   // Extract library addresses from broadcast artifacts
   const libraries = {};
@@ -106,6 +150,79 @@ function extractLibraryAddresses(broadcastData) {
     `📚 Found ${Object.keys(libraries).length} libraries:`,
     libraries
   );
+  return libraries;
+}
+
+function extractLibraryAddressesRecursive(network, requiredLibraries) {
+  const libraries = {};
+  const librarySource = {}; // Track which file each library came from
+  const broadcastFiles = getAllBroadcastFiles(network);
+
+  console.log(`🔍 Searching for libraries: ${requiredLibraries.join(", ")}`);
+
+  // Search through each broadcast file (newest to oldest) until all libraries are found
+  for (const file of broadcastFiles) {
+    if (Object.keys(libraries).length === requiredLibraries.length) {
+      // All libraries found
+      break;
+    }
+
+    const broadcastDate = new Date(file.timestamp * 1000)
+      .toISOString()
+      .split("T")[0];
+    console.log(`   📄 Checking ${file.filename} (${broadcastDate})...`);
+
+    try {
+      const broadcastData = JSON.parse(fs.readFileSync(file.path, "utf8"));
+      let foundInThisFile = false;
+
+      broadcastData.transactions.forEach((tx) => {
+        if (
+          (tx.transactionType === "CREATE" ||
+            tx.transactionType === "CREATE2") &&
+          tx.contractName &&
+          tx.contractName.endsWith("Lib") &&
+          requiredLibraries.includes(tx.contractName) &&
+          !libraries[tx.contractName] // Only add if not already found
+        ) {
+          libraries[tx.contractName] = tx.contractAddress.toLowerCase();
+          librarySource[tx.contractName] = file.filename;
+          foundInThisFile = true;
+          console.log(
+            `      ✅ Found ${tx.contractName} at ${tx.contractAddress}`
+          );
+        }
+      });
+
+      if (!foundInThisFile) {
+        console.log(`      ⏭️  No new libraries found`);
+      }
+    } catch (error) {
+      console.log(`      ⚠️  Error reading ${file.filename}: ${error.message}`);
+    }
+  }
+
+  // Check if all required libraries were found
+  const missingLibraries = requiredLibraries.filter((lib) => !libraries[lib]);
+
+  if (missingLibraries.length > 0) {
+    console.log(`   ❌ Missing libraries: ${missingLibraries.join(", ")}`);
+    return null;
+  }
+
+  console.log(
+    `   ✅ All ${
+      Object.keys(libraries).length
+    } required libraries found in historical broadcasts`
+  );
+
+  // Log summary of where each library was found
+  requiredLibraries.forEach((lib) => {
+    if (librarySource[lib]) {
+      console.log(`      ${lib} → ${librarySource[lib]}`);
+    }
+  });
+
   return libraries;
 }
 
@@ -180,7 +297,7 @@ function getConstructorSignatureFromBroadcast(contractName, args) {
   return { signature: inferredSignature, args };
 }
 
-function getLibrariesForContract(contractName, libraryAddresses) {
+function getLibrariesForContract(contractName, libraryAddresses, network) {
   // Map contract names to their required libraries (using dynamic addresses)
   const contractLibraryNames = {
     // Libraries don't need other libraries
@@ -197,6 +314,38 @@ function getLibrariesForContract(contractName, libraryAddresses) {
   };
 
   const requiredLibraryNames = contractLibraryNames[contractName] || [];
+
+  // If no libraries required, return empty array
+  if (requiredLibraryNames.length === 0) {
+    return [];
+  }
+
+  // Check which libraries are missing from current broadcast
+  const missingLibraries = requiredLibraryNames.filter(
+    (libName) => !libraryAddresses[libName]
+  );
+
+  // If libraries are missing, search recursively through older broadcasts
+  if (missingLibraries.length > 0) {
+    console.log(
+      `   ⚠️  Some libraries not found in current broadcast, searching historical broadcasts...`
+    );
+    const historicalLibraries = extractLibraryAddressesRecursive(
+      network,
+      missingLibraries
+    );
+
+    if (!historicalLibraries) {
+      throw new Error(
+        `Library ${missingLibraries.join(
+          ", "
+        )} not found in any broadcast artifacts for ${contractName}`
+      );
+    }
+
+    // Merge historical libraries with current libraries
+    Object.assign(libraryAddresses, historicalLibraries);
+  }
 
   // Convert library names to full library strings with addresses
   return requiredLibraryNames.map((libName) => {
@@ -259,7 +408,8 @@ async function verifyContractWithBroadcast(
   contractName,
   deployment,
   networkConfig,
-  libraryAddresses
+  libraryAddresses,
+  network
 ) {
   if (!deployment) {
     console.log(`❌ Skipping ${contractName} - no deployment found`);
@@ -283,7 +433,11 @@ async function verifyContractWithBroadcast(
   console.log(`   🔗 Deploy tx: ${deployment.transactionHash}`);
 
   // Get required libraries for this contract
-  const libraries = getLibrariesForContract(contractName, libraryAddresses);
+  const libraries = getLibrariesForContract(
+    contractName,
+    libraryAddresses,
+    network
+  );
   if (libraries.length > 0) {
     console.log(`   📚 Libraries: ${libraries.length} required`);
     libraries.forEach((lib) => console.log(`       ${lib}`));
@@ -468,7 +622,8 @@ async function verifyAllContracts() {
         deploymentName,
         deployment,
         networkConfig,
-        libraryAddresses
+        libraryAddresses,
+        network
       );
       if (success) successCount++;
 
