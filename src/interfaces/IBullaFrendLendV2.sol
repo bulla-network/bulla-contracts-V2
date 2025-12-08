@@ -86,7 +86,7 @@ interface IBullaFrendLendV2 {
     // State variables
     function admin() external view returns (address);
 
-    function loanOfferCount() external view returns (uint256);
+    function loanOfferNonces(address user) external view returns (uint256);
     function protocolFeeBPS() external view returns (uint16);
     function processingFeeBPS() external view returns (uint16);
     function getLoanOffer(uint256) external view returns (LoanOffer memory);
