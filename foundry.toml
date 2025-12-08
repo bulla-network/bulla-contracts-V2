@@ -5,7 +5,7 @@ out = 'out/foundry'
 libs = ['lib']
 solc = '0.8.30'
 optimizer = true
-optimizer_runs = 2_000_000
+optimizer_runs = 26_000
 fuzz_runs = 256
 gas_reports = ['BullaClaim']
 fs_permissions = [{ access = "read-write", path = "./deployments" }]
