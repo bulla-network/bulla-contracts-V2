@@ -1,3 +1,10 @@
+# [2.6.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v2.5.0...v2.6.0) (2025-12-08)
+
+
+### Features
+
+* use hash for frendlend id ([#108](https://github.com/bulla-network/bulla-contracts-V2/issues/108)) ([434c0b6](https://github.com/bulla-network/bulla-contracts-V2/commit/434c0b66b6922b55307d35a5fd2b2e3385d682e2))
+
 # [2.5.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v2.4.1...v2.5.0) (2025-11-11)
 
 
