@@ -135,9 +135,9 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
         // Verify loan was accepted successfully
         assertTrue(bullaClaim.currentClaimId() > 0, "Claim should be created");
 
-        // Verify offer was deleted after acceptance
-        LoanOffer memory deletedOffer = bullaFrendLend.getLoanOffer(loanOfferId);
-        assertEq(deletedOffer.params.creditor, address(0), "Offer should be deleted");
+        // Verify offer was deleted after acceptance - should revert
+        vm.expectRevert(LoanOfferNotFound.selector);
+        bullaFrendLend.getLoanOffer(loanOfferId);
     }
 
     function testAcceptLoan_AfterExpiry_ShouldFail() public {
@@ -323,9 +323,9 @@ contract TestLoanOfferExpiry is BullaFrendLendTestHelper {
         vm.prank(creditor);
         bullaFrendLend.rejectLoanOffer(loanId);
 
-        // Verify offer was deleted
-        LoanOffer memory deletedOffer = bullaFrendLend.getLoanOffer(loanId);
-        assertEq(deletedOffer.params.creditor, address(0), "Offer should be deleted");
+        // Verify offer was deleted - should revert
+        vm.expectRevert(LoanOfferNotFound.selector);
+        bullaFrendLend.getLoanOffer(loanId);
     }
 
     /*///////////////////// TIME MANIPULATION TESTS /////////////////////*/

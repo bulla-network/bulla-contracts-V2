@@ -7,7 +7,7 @@ import {BullaFrendLendV2} from "contracts/BullaFrendLendV2.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {BullaClaimV2} from "contracts/BullaClaimV2.sol";
 import {DeployContracts} from "script/DeployContracts.s.sol";
-import {LoanRequestParams} from "contracts/interfaces/IBullaFrendLendV2.sol";
+import {LoanRequestParams, LoanOffer} from "contracts/interfaces/IBullaFrendLendV2.sol";
 import {InterestConfig} from "contracts/libraries/CompoundInterestLib.sol";
 import {LockState, ClaimMetadata} from "contracts/types/Types.sol";
 import {BullaFrendLendTestHelper} from "test/foundry/BullaFrendLend/BullaFrendLendTestHelper.sol";
@@ -267,7 +267,10 @@ contract CallbackWhitelistTest is BullaFrendLendTestHelper {
         // Should succeed
         vm.prank(creditor);
         uint256 offerId = bullaFrendLend.offerLoan(offer);
-        assertEq(offerId, 0);
+
+        // Verify offer was created and can be retrieved
+        LoanOffer memory retrievedOffer = bullaFrendLend.getLoanOffer(offerId);
+        assertEq(retrievedOffer.params.creditor, creditor);
     }
 
     function testCannotCreateLoanOfferWithWhitelistedContractButWrongSelector() public {
@@ -296,7 +299,10 @@ contract CallbackWhitelistTest is BullaFrendLendTestHelper {
         // Should succeed regardless of whitelist
         vm.prank(creditor);
         uint256 offerId = bullaFrendLend.offerLoan(offer);
-        assertEq(offerId, 0);
+
+        // Verify offer was created
+        LoanOffer memory retrievedOffer = bullaFrendLend.getLoanOffer(offerId);
+        assertEq(retrievedOffer.params.creditor, creditor);
     }
 
     function testLoanOfferWithMetadataRespectsWhitelist() public {
@@ -320,7 +326,10 @@ contract CallbackWhitelistTest is BullaFrendLendTestHelper {
         // Should succeed now
         vm.prank(creditor);
         uint256 offerId = bullaFrendLend.offerLoanWithMetadata(offer, metadata);
-        assertEq(offerId, 0);
+
+        // Verify offer was created
+        LoanOffer memory retrievedOffer = bullaFrendLend.getLoanOffer(offerId);
+        assertEq(retrievedOffer.params.creditor, creditor);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -370,7 +379,10 @@ contract CallbackWhitelistTest is BullaFrendLendTestHelper {
 
         vm.prank(creditor);
         uint256 offerId1 = bullaFrendLend.offerLoan(offer);
-        assertEq(offerId1, 0);
+
+        // Verify first offer was created
+        LoanOffer memory retrievedOffer = bullaFrendLend.getLoanOffer(offerId1);
+        assertEq(retrievedOffer.params.creditor, creditor);
 
         // Remove from whitelist
         vm.prank(admin);

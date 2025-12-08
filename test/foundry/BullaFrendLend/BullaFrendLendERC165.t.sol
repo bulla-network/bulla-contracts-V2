@@ -52,7 +52,7 @@ contract BullaFrendLendERC165Test is Test {
             ^ IBullaFrendLendV2.addToFeeTokenWhitelist.selector ^ IBullaFrendLendV2.removeFromFeeTokenWhitelist.selector
             ^ IBullaFrendLendV2.addToCallbackWhitelist.selector ^ IBullaFrendLendV2.removeFromCallbackWhitelist.selector
             ^ IBullaFrendLendV2.isCallbackWhitelisted.selector ^ IBullaFrendLendV2.admin.selector
-            ^ IBullaFrendLendV2.loanOfferCount.selector ^ IBullaFrendLendV2.protocolFeeBPS.selector
+            ^ IBullaFrendLendV2.loanOfferNonces.selector ^ IBullaFrendLendV2.protocolFeeBPS.selector
             ^ IBullaFrendLendV2.getLoanOffer.selector ^ IBullaFrendLendV2.getLoanOfferMetadata.selector
             ^ IBullaFrendLendV2.protocolFeesByToken.selector ^ IBullaFrendLendV2.processingFeeBPS.selector
             ^ IBullaFrendLendV2.setProcessingFee.selector ^ IBullaFrendLendV2.setPaidLoanCallback.selector;

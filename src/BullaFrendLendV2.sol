@@ -10,7 +10,7 @@ import {ERC20} from "solmate/tokens/ERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {InterestConfig, InterestComputationState, CompoundInterestLib} from "./libraries/CompoundInterestLib.sol";
-
+import {LoanOfferIdLib} from "./libraries/LoanOfferIdLib.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 error IncorrectFee();
@@ -27,7 +27,6 @@ error InvalidProtocolFee();
 error InvalidGracePeriod();
 error LoanOfferExpired();
 error CallbackFailed(bytes data);
-
 error CallbackNotWhitelisted();
 error TokenNotWhitelistedForFeeWithdrawal();
 
@@ -40,7 +39,6 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, Ownable, IBullaFr
     using SafeTransferLib for ERC20;
     using SafeTransferLib for address;
 
-    uint256 public loanOfferCount;
     uint16 public protocolFeeBPS;
     uint16 public processingFeeBPS;
 
@@ -52,6 +50,12 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, Ownable, IBullaFr
 
     // Whitelist for callback contracts and selectors
     mapping(address => mapping(bytes4 => bool)) public callbackWhitelist;
+
+    // Per-user nonce for loan offer uniqueness
+    mapping(address => uint256) public loanOfferNonces;
+
+    // Domain separator for hashing (EIP-712 style)
+    bytes32 public immutable DOMAIN_SEPARATOR;
 
     mapping(uint256 => LoanOffer) private _loanOffers;
     mapping(uint256 => LoanDetails) private _loanDetailsByClaimId;
@@ -74,6 +78,17 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, Ownable, IBullaFr
         protocolFeeBPS = _protocolFeeBPS;
         processingFeeBPS = _processingFeeBPS;
         _emptyMetadata = ClaimMetadata({tokenURI: "", attachmentURI: ""});
+
+        // Initialize domain separator for EIP-712 style hashing
+        DOMAIN_SEPARATOR = keccak256(
+            abi.encode(
+                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+                keccak256(bytes("BullaFrendLendV2")),
+                keccak256(bytes("1")),
+                block.chainid,
+                address(this)
+            )
+        );
     }
 
     ////////////////////////////////
@@ -153,8 +168,9 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, Ownable, IBullaFr
      * @return The loan offer details
      */
     function getLoanOffer(uint256 offerId) public view returns (LoanOffer memory) {
-        if (offerId >= loanOfferCount) revert LoanOfferNotFound();
-        return _loanOffers[offerId];
+        LoanOffer memory offer = _loanOffers[offerId];
+        if (offer.params.creditor == address(0)) revert LoanOfferNotFound();
+        return offer;
     }
 
     /**
@@ -163,7 +179,8 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, Ownable, IBullaFr
      * @return The metadata for the loan offer
      */
     function getLoanOfferMetadata(uint256 offerId) public view returns (ClaimMetadata memory) {
-        if (offerId >= loanOfferCount) revert LoanOfferNotFound();
+        // Check if offer exists
+        if (_loanOffers[offerId].params.creditor == address(0)) revert LoanOfferNotFound();
         return _loanOfferMetadata[offerId];
     }
 
@@ -200,7 +217,13 @@ contract BullaFrendLendV2 is BullaClaimControllerBase, ERC165, Ownable, IBullaFr
 
         _validateLoanOffer(offer, requestedByCreditor);
 
-        uint256 offerId = loanOfferCount++;
+        // Get the current nonce for the offerer and increment it
+        uint256 currentNonce = loanOfferNonces[msg.sender];
+        loanOfferNonces[msg.sender] = currentNonce + 1;
+
+        // Compute unique offer ID from parameters + nonce + domain separator
+        uint256 offerId = LoanOfferIdLib.computeLoanOfferId(offer, currentNonce, DOMAIN_SEPARATOR);
+
         _loanOffers[offerId] = LoanOffer({params: offer, requestedByCreditor: requestedByCreditor});
 
         if (bytes(metadata.tokenURI).length > 0 || bytes(metadata.attachmentURI).length > 0) {
