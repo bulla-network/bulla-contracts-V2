@@ -298,7 +298,11 @@ contract DeployContracts is Script {
             "BullaFrendLendV2",
             result.bullaFrendLend,
             "src/BullaFrendLendV2.sol:BullaFrendLendV2",
-            _encodeConstructorArgs(abi.encode(result.bullaClaim, config.admin, config.frendLendProtocolFeeBPS)),
+            _encodeConstructorArgs(
+                abi.encode(
+                    result.bullaClaim, config.admin, config.frendLendProtocolFeeBPS, config.frendLendProcessingFeeBPS
+                )
+            ),
             networkName
         );
 
