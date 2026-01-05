@@ -96,7 +96,7 @@ async function deployContracts() {
     forgeProcess.on("close", (code) => {
       if (code === 0) {
         console.log("\n✅ Deployment completed successfully!");
-        console.log("🎉 Your contracts are now live on Sepolia!");
+        console.log(`🎉 Your contracts are now live on ${network}!`);
       } else {
         console.error(`\n❌ Deployment failed with exit code ${code}`);
         process.exit(code);
