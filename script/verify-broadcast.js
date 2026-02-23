@@ -27,23 +27,61 @@ const NETWORK_CONFIG = {
     explorerName: "Etherscan (Mainnet)",
     apiKey: process.env.ETHERSCAN_API_KEY,
   },
+  // All PolygonScan / Arbiscan / BscScan / Gnosisscan / Celoscan / Optimistic Etherscan
+  // explorers are part of the Etherscan family and accept the same API key.
   polygon: {
     name: "polygon",
     chainId: "137",
     explorerName: "PolygonScan",
-    apiKey: process.env.POLYGONSCAN_API_KEY,
+    apiKey: process.env.ETHERSCAN_API_KEY,
   },
   arbitrum: {
     name: "arbitrum",
     chainId: "42161",
     explorerName: "Arbiscan",
-    apiKey: process.env.ARBISCAN_API_KEY,
+    apiKey: process.env.ETHERSCAN_API_KEY,
   },
   optimism: {
     name: "optimism",
     chainId: "10",
     explorerName: "Optimistic Etherscan",
-    apiKey: process.env.OPTIMISTIC_ETHERSCAN_API_KEY,
+    apiKey: process.env.ETHERSCAN_API_KEY,
+  },
+  bsc: {
+    name: "bsc",
+    chainId: "56",
+    explorerName: "BscScan",
+    apiKey: process.env.ETHERSCAN_API_KEY,
+  },
+  gnosis: {
+    name: "gnosis",
+    chainId: "100",
+    explorerName: "Gnosisscan",
+    apiKey: process.env.ETHERSCAN_API_KEY,
+  },
+  celo: {
+    name: "celo",
+    chainId: "42220",
+    explorerName: "Celoscan",
+    apiKey: process.env.ETHERSCAN_API_KEY,
+  },
+  // Routescan-powered explorers — need a custom verifier URL.
+  // Snowtrace (Avalanche) migrated from Etherscan to Routescan in 2023.
+  // Redbelly has always used Routescan.
+  // ROUTESCAN_API_KEY is optional; Routescan accepts "verifyContract" for free use.
+  avalanche: {
+    name: "avalanche",
+    chainId: "43114",
+    explorerName: "Snowtrace (Routescan)",
+    apiKey: process.env.ROUTESCAN_API_KEY || "verifyContract",
+    verifierUrl: "https://api.routescan.io/v2/network/mainnet/evm/43114/etherscan",
+  },
+  redbelly: {
+    name: "151",
+    chainId: "151",
+    explorerName: "Redbelly Routescan",
+    apiKey: process.env.ROUTESCAN_API_KEY || "verifyContract",
+    verifierUrl: "https://api.routescan.io/v2/network/mainnet/evm/151/etherscan",
   },
 };
 
@@ -449,6 +487,10 @@ async function verifyContractWithBroadcast(
   cmd.push(contractPath);
   cmd.push(`--chain=${networkConfig.name}`);
   cmd.push("--verifier=etherscan");
+
+  if (networkConfig.verifierUrl) {
+    cmd.push(`--verifier-url=${networkConfig.verifierUrl}`);
+  }
 
   if (networkConfig.apiKey) {
     cmd.push(`--etherscan-api-key=${networkConfig.apiKey}`);

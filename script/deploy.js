@@ -12,7 +12,7 @@ function promptForPrivateKey() {
     });
 
     console.log(
-      "⚠️  WARNING: Your private key input will be visible on screen."
+      "⚠️  WARNING: Your private key input will be visible on screen.",
     );
     console.log("🔒 Make sure no one is watching your screen!\n");
 
@@ -34,7 +34,7 @@ async function deployContracts() {
       console.error("❌ NETWORK environment variable is required");
       console.error("   Set NETWORK in your .env file or use:");
       console.error(
-        "   dotenv -e .env -- cross-env NETWORK=sepolia node script/deploy.js"
+        "   dotenv -e .env -- cross-env NETWORK=sepolia node script/deploy.js",
       );
       process.exit(1);
     }
@@ -51,7 +51,7 @@ async function deployContracts() {
     // Validate private key format (basic check)
     if (!privateKey.match(/^(0x)?[a-fA-F0-9]{64}$/)) {
       console.error(
-        "❌ Invalid private key format. Should be 64 hex characters (with or without 0x prefix)"
+        "❌ Invalid private key format. Should be 64 hex characters (with or without 0x prefix)",
       );
       process.exit(1);
     }
@@ -72,7 +72,6 @@ async function deployContracts() {
       "--broadcast",
       "--private-key",
       formattedPrivateKey,
-      "--ffi",
     ];
 
     // Set environment variables
@@ -106,7 +105,7 @@ async function deployContracts() {
     forgeProcess.on("error", (error) => {
       if (error.code === "ENOENT") {
         console.error(
-          "❌ Forge not found. Make sure Foundry is installed and in your PATH."
+          "❌ Forge not found. Make sure Foundry is installed and in your PATH.",
         );
         console.error("   Install from: https://getfoundry.sh/");
       } else {

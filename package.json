@@ -59,9 +59,21 @@
     "verify:sepolia": "dotenv -e .env -- cross-env NETWORK=sepolia node script/verify-broadcast.js",
     "deploy:base": "dotenv -e .env -- cross-env NETWORK=base node script/deploy.js",
     "verify:base": "dotenv -e .env -- cross-env NETWORK=base node script/verify-broadcast.js",
+    "verify:polygon": "dotenv -e .env -- cross-env NETWORK=polygon node script/verify-broadcast.js",
     "verify": "dotenv -e .env -- node script/verify-broadcast.js",
     "deploy:frendlend:sepolia": "dotenv -e .env -- cross-env NETWORK=sepolia node script/deploy-frendlend.js",
-    "deploy:frendlend:base": "dotenv -e .env -- cross-env NETWORK=base node script/deploy-frendlend.js"
+    "deploy:frendlend:base": "dotenv -e .env -- cross-env NETWORK=base node script/deploy-frendlend.js",
+    "deploy:mainnet": "dotenv -e .env -- cross-env NETWORK=mainnet node script/deploy.js",
+    "deploy:optimism": "dotenv -e .env -- cross-env NETWORK=optimism node script/deploy.js",
+    "deploy:bsc": "dotenv -e .env -- cross-env NETWORK=bsc node script/deploy.js",
+    "deploy:gnosis": "dotenv -e .env -- cross-env NETWORK=gnosis node script/deploy.js",
+    "deploy:polygon": "dotenv -e .env -- cross-env NETWORK=polygon node script/deploy.js",
+    "deploy:redbelly": "dotenv -e .env -- cross-env NETWORK=redbelly node script/deploy.js",
+    "deploy:arbitrum": "dotenv -e .env -- cross-env NETWORK=arbitrum node script/deploy.js",
+    "deploy:celo": "dotenv -e .env -- cross-env NETWORK=celo node script/deploy.js",
+    "deploy:avalanche": "dotenv -e .env -- cross-env NETWORK=avalanche node script/deploy.js",
+    "deploy:all": "dotenv -e .env -- node script/deploy-all.js",
+    "check:gas": "dotenv -e .env -- node script/deploy-all.js --check-only"
   },
   "devDependencies": {
     "@semantic-release/changelog": "^6.0.3",
