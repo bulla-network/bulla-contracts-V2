@@ -1,3 +1,19 @@
+# [2.7.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v2.6.0...v2.7.0) (2026-02-24)
+
+
+### Bug Fixes
+
+* add missing conventional-changelog-conventionalcommits dependency ([dfaefd2](https://github.com/bulla-network/bulla-contracts-V2/commit/dfaefd27083d78d5f2b4984361c1c71cb52bd032))
+* restore original release config and remove incompatible .releaserc.json ([1555574](https://github.com/bulla-network/bulla-contracts-V2/commit/1555574676cf26a4f8b131c5914886cd0950464f))
+
+
+### Features
+
+* add bulla_registry_export for bulla-registry ([#114](https://github.com/bulla-network/bulla-contracts-V2/issues/114)) ([974305f](https://github.com/bulla-network/bulla-contracts-V2/commit/974305fb51f296251379252b8ad10d7f568bbc3c))
+* deploy 2_1 on Base ([#111](https://github.com/bulla-network/bulla-contracts-V2/issues/111)) ([55c72e4](https://github.com/bulla-network/bulla-contracts-V2/commit/55c72e4b4492326165af2109d0adf6958c17a64c))
+* deploy 2.1 contracts ([#109](https://github.com/bulla-network/bulla-contracts-V2/issues/109)) ([c49cf34](https://github.com/bulla-network/bulla-contracts-V2/commit/c49cf34155ba705b3af0a80b4f9a415049cdf61e))
+* deploy V2 on remaining networks (except RedBelly) ([#113](https://github.com/bulla-network/bulla-contracts-V2/issues/113)) ([bf2e06b](https://github.com/bulla-network/bulla-contracts-V2/commit/bf2e06bcb850a0b3fb7968e0ef8b52a2a74bcb6a))
+
 # [2.6.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v2.5.0...v2.6.0) (2025-12-08)
 
 
