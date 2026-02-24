@@ -1,0 +1,75 @@
+{
+  "repo": "bulla-contracts-v2",
+  "contracts": {
+    "1": {
+      "bullaClaimV2": "0x10a55a4dbd24fa188eed98a2adae2ebff0ef1219",
+      "bullaApprovalRegistry": "0x998d8d1ef0984fbd226eb61d97e291b2d3eb7bfb",
+      "bullaInvoice": "0xfe2631bcb3e622750b6fbb605a416173ffa3a770",
+      "bullaClaimPermitLib": "0x07e0b0d697419b050ba531df6db8671f14433998",
+      "frendLendV2": "0x1097b7ecf0721aaffff147cf7bec154422896317"
+    },
+    "10": {
+      "bullaClaimV2": "0x54280b44f8725c89d57d224c4d5a2f8870549471",
+      "bullaApprovalRegistry": "0x4d5ea6f590a5bec220995f63b31fa9585dbed857",
+      "bullaInvoice": "0x12c0edd1de5578e02390209224f22fe1ca2d0d40",
+      "bullaClaimPermitLib": "0x07e0b0d697419b050ba531df6db8671f14433998",
+      "frendLendV2": "0x17eb35e2205820aa4ed30704226f2517507f433b"
+    },
+    "56": {
+      "bullaClaimV2": "0xbe25a1086de2b587b2d20e4b14c442cda2437945",
+      "bullaApprovalRegistry": "0x6985d6af038f177438a6681d1f64d4409dc8aac2",
+      "bullaInvoice": "0xba80d22b532eb1a2326334f35565af551f9c8af7",
+      "bullaClaimPermitLib": "0x07e0b0d697419b050ba531df6db8671f14433998",
+      "frendLendV2": "0xf34aa523a1cf4d91a3cb1c53cb50acd6eed0b153"
+    },
+    "100": {
+      "bullaClaimV2": "0xf28c50eb5996508b558f0ffdde637c4385117430",
+      "bullaApprovalRegistry": "0xb358fb00a1403fe38099dba2946631f092ea21b4",
+      "bullaInvoice": "0xd60f8fc651bdcee2c6ed9914d610c0e22ce190d6",
+      "bullaClaimPermitLib": "0x07e0b0d697419b050ba531df6db8671f14433998",
+      "frendLendV2": "0x7c3e51e84705fed1832bd6aabb9edd3e4681374e"
+    },
+    "137": {
+      "bullaClaimV2": "0x0313433613f24c73efc15c5c74408f40b462fd9e",
+      "bullaApprovalRegistry": "0xf446785eb5e7ebeafd89e7a0ec1fe4ec37686486",
+      "bullaInvoice": "0x7c2cc85cb30844b81524e703f04a5ee98e3313fb",
+      "bullaClaimPermitLib": "0x07e0b0d697419b050ba531df6db8671f14433998",
+      "frendLendV2": "0x8a6b12c9980249f4e52b1e2a31cdbc23d3354629"
+    },
+    "8453": {
+      "bullaClaimV2": "0x8D59E594a3e4D0647C15887Cde5ECBfBE583b441",
+      "bullaApprovalRegistry": "0x909820879c91F1EB51c44367414ccBD19Ed06B75",
+      "bullaInvoice": "0x1E1d535a41515D3D2c29C1524C825236D67733E1",
+      "bullaClaimPermitLib": "0x07e0b0d697419b050ba531df6db8671f14433998",
+      "frendLendV2": "0x777A7966464a4E5684FE95025aDb2AD56bdaE77B"
+    },
+    "42161": {
+      "bullaClaimV2": "0xb58f4f651553d51d95c69f59364a9ee1ca554b7e",
+      "bullaApprovalRegistry": "0x8948a00fac01110210f97f8f9fa107aa07e6f46c",
+      "bullaInvoice": "0x74c62f475464a03a462578d65629240b34221c1b",
+      "bullaClaimPermitLib": "0x07e0b0d697419b050ba531df6db8671f14433998",
+      "frendLendV2": "0x1a34dfd1ee17130228452f3d9cdda5908865d22d"
+    },
+    "42220": {
+      "bullaClaimV2": "0xd60f8fc651bdcee2c6ed9914d610c0e22ce190d6",
+      "bullaApprovalRegistry": "0x5e4fd9bb839ebea7eaf1c74edf4e92ed5c1bd773",
+      "bullaInvoice": "0xdeb31d99d92d92988b2cce4312c807fbf4406f4f",
+      "bullaClaimPermitLib": "0x07e0b0d697419b050ba531df6db8671f14433998",
+      "frendLendV2": "0xcc32679a9bbfce9e49d1eba4faf42e68a227bd06"
+    },
+    "43114": {
+      "bullaClaimV2": "0xf28c50eb5996508b558f0ffdde637c4385117430",
+      "bullaApprovalRegistry": "0xb358fb00a1403fe38099dba2946631f092ea21b4",
+      "bullaInvoice": "0xd60f8fc651bdcee2c6ed9914d610c0e22ce190d6",
+      "bullaClaimPermitLib": "0x07e0b0d697419b050ba531df6db8671f14433998",
+      "frendLendV2": "0x7c3e51e84705fed1832bd6aabb9edd3e4681374e"
+    },
+    "11155111": {
+      "bullaClaimV2": "0x0d9EF9d436fF341E500360a6B5E5750aB85BCCB6",
+      "bullaApprovalRegistry": "0xb1F9a06D72F8737B4fcf4550f1C8EA769772Ad76",
+      "bullaInvoice": "0xa2c4B7239A0d179A923751cC75277fe139AB092F",
+      "bullaClaimPermitLib": "0x334D266830326Be3Cc130C80D022eD98ea623379",
+      "frendLendV2": "0x4d6A66D32CF34270e4cc9C9F201CA4dB650Be3f2"
+    }
+  }
+}
