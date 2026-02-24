@@ -79,7 +79,6 @@
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
     "@typechain/ethers-v5": "^11.1.2",
-    "conventional-changelog-conventionalcommits": "^9.1.0",
     "cross-env": "^7.0.3",
     "dotenv-cli": "^8.0.0",
     "ethers": "^5.4.0",
@@ -89,5 +88,27 @@
     "toml": "^3.0.0",
     "typechain": "^8.3.0",
     "typescript": "^5.0.0"
+  },
+  "release": {
+    "branches": [
+      "main"
+    ],
+    "plugins": [
+      "@semantic-release/commit-analyzer",
+      "@semantic-release/release-notes-generator",
+      "@semantic-release/changelog",
+      "@semantic-release/npm",
+      "@semantic-release/github",
+      [
+        "@semantic-release/git",
+        {
+          "assets": [
+            "CHANGELOG.md",
+            "package.json"
+          ],
+          "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+        }
+      ]
+    ]
   }
 }
