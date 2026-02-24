@@ -102,3 +102,11 @@ jobs:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npx semantic-release
+
+      - name: Notify bulla-registry
+        if: success()
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.REGISTRY_DISPATCH_TOKEN }}" \
+            https://api.github.com/repos/bulla-network/bulla-registry/dispatches \
+            -d '{"event_type":"source-updated","client_payload":{"repo":"${{ github.repository }}"}}'
