@@ -19,6 +19,7 @@ error InvoiceNotPending();
 error NotPurchaseOrder();
 error PayingZero();
 error InvalidDepositAmount();
+error InsufficientDepositAmount();
 error NotAuthorizedForBinding();
 error InvalidMsgValue();
 error InvalidProtocolFee();
@@ -275,6 +276,20 @@ contract BullaInvoice is BullaClaimControllerBase, ERC165, Ownable, IBullaInvoic
             invoiceDetails.interestComputationState
         );
 
+        _payInvoiceUnsafe(claimId, paymentAmount, claim, invoiceDetails, interestComputationState);
+    }
+
+    /**
+     * @notice Internal payment logic that skips re-fetching claim data and recomputing interest
+     * @dev Callers must ensure claim, invoiceDetails, and interestComputationState are up-to-date
+     */
+    function _payInvoiceUnsafe(
+        uint256 claimId,
+        uint256 paymentAmount,
+        Claim memory claim,
+        InvoiceDetails memory invoiceDetails,
+        InterestComputationState memory interestComputationState
+    ) private {
         uint256 grossInterestBeingPaid = Math.min(paymentAmount, interestComputationState.accruedInterest);
         uint256 principalBeingPaid =
             Math.min(paymentAmount - grossInterestBeingPaid, claim.claimAmount - claim.paidAmount);
@@ -449,12 +464,6 @@ contract BullaInvoice is BullaClaimControllerBase, ERC165, Ownable, IBullaInvoic
             revert NotAuthorizedForBinding();
         }
 
-        // Validate that the payment amount doesn't exceed what's left to pay on the claim
-        uint256 amountLeftToPay = claim.claimAmount - claim.paidAmount;
-        if (depositAmount > amountLeftToPay) {
-            revert InvalidDepositAmount();
-        }
-
         // Calculate and store interest computation state
         InterestComputationState memory interestComputationState = CompoundInterestLib.computeInterest(
             claim.claimAmount - claim.paidAmount,
@@ -467,7 +476,20 @@ contract BullaInvoice is BullaClaimControllerBase, ERC165, Ownable, IBullaInvoic
             _invoiceDetailsByClaimId[claimId].interestComputationState = interestComputationState;
         }
 
-        bool isBound = false;
+        // Validate that the payment amount doesn't exceed what's left to pay (principal + accrued interest)
+        uint256 amountLeftToPay = claim.claimAmount + interestComputationState.accruedInterest - claim.paidAmount;
+
+        if (depositAmount > amountLeftToPay) {
+            revert InvalidDepositAmount();
+        }
+
+        // Check that the deposit amount covers the total needed (principal deposit + accrued interest)
+        uint256 depositAmountNeeded =
+            _getTotalAmountNeededForPurchaseOrderDepositUnsafe(claim, invoiceDetails, interestComputationState);
+
+        if (depositAmountNeeded > depositAmount) {
+            revert InsufficientDepositAmount();
+        }
 
         // Pay the deposit amount if any
         if (depositAmount > 0) {
@@ -484,38 +506,18 @@ contract BullaInvoice is BullaClaimControllerBase, ERC165, Ownable, IBullaInvoic
                 }
             }
 
-            // Use payInvoice to handle payment (interest already calculated and stored above)
-            payInvoice(claimId, depositAmount);
-
-            // After payment, get updated claim data and use unsafe version
-            Claim memory updatedClaim = _bullaClaim.getClaim(claimId);
-            InvoiceDetails memory updatedInvoiceDetails = _invoiceDetailsByClaimId[claimId];
-
-            uint256 totalAmountNeeded = _getTotalAmountNeededForPurchaseOrderDepositUnsafe(
-                updatedClaim, updatedInvoiceDetails, updatedInvoiceDetails.interestComputationState
-            );
-
-            if (totalAmountNeeded == 0) {
-                _bullaClaim.updateBindingFrom(msg.sender, claimId, ClaimBinding.Bound);
-                isBound = true;
-            }
+            // Use _payInvoiceUnsafe to avoid re-fetching claim and recomputing interest
+            _payInvoiceUnsafe(claimId, depositAmount, claim, invoiceDetails, interestComputationState);
         } else {
             // If no payment needed, msg.value should be 0
             if (msg.value != 0) {
                 revert InvalidMsgValue();
             }
-
-            // Use the already calculated interest computation state
-            uint256 totalAmountNeeded =
-                _getTotalAmountNeededForPurchaseOrderDepositUnsafe(claim, invoiceDetails, interestComputationState);
-
-            if (totalAmountNeeded == 0) {
-                _bullaClaim.updateBindingFrom(msg.sender, claimId, ClaimBinding.Bound);
-                isBound = true;
-            }
         }
 
-        emit PurchaseOrderAccepted(claimId, msg.sender, depositAmount, isBound);
+        _bullaClaim.updateBindingFrom(msg.sender, claimId, ClaimBinding.Bound);
+
+        emit PurchaseOrderAccepted(claimId, msg.sender, depositAmount, true);
     }
 
     /**
