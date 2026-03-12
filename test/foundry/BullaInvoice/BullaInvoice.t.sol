@@ -21,6 +21,7 @@ import {
     InvoiceDetails,
     NotPurchaseOrder,
     InvalidDepositAmount,
+    InsufficientDepositAmount,
     InvalidMsgValue,
     NotAuthorizedForBinding
 } from "contracts/BullaInvoice.sol";
@@ -1963,43 +1964,10 @@ contract TestBullaInvoice is Test {
         vm.prank(creditor);
         uint256 invoiceId = bullaInvoice.createInvoice(params);
 
-        // Accept purchase order by paying partial deposit
+        // Accepting with a partial deposit should revert
+        vm.expectRevert(abi.encodeWithSelector(InsufficientDepositAmount.selector));
         vm.prank(debtor);
         bullaInvoice.acceptPurchaseOrder{value: partialDepositAmount}(invoiceId, partialDepositAmount);
-
-        // Verify purchase order acceptance - should NOT be bound with partial deposit
-        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
-        assertEq(
-            uint8(invoice.binding),
-            uint8(ClaimBinding.BindingPending),
-            "Invoice should remain BindingPending with partial deposit"
-        );
-        assertEq(invoice.paidAmount, partialDepositAmount, "Paid amount should equal partial deposit");
-
-        // Verify remaining deposit
-        uint256 remainingDeposit = bullaInvoice.getTotalAmountNeededForPurchaseOrderDeposit(invoiceId);
-        assertEq(
-            remainingDeposit,
-            totalDepositAmount - partialDepositAmount,
-            "Remaining deposit should be calculated correctly"
-        );
-        assertTrue(remainingDeposit > 0, "Should still have remaining deposit amount");
-
-        // Now pay the remaining deposit to complete the binding
-        uint256 finalDepositAmount = remainingDeposit;
-        vm.prank(debtor);
-        bullaInvoice.acceptPurchaseOrder{value: finalDepositAmount}(invoiceId, finalDepositAmount);
-
-        // Verify purchase order is now bound after full deposit
-        invoice = bullaInvoice.getInvoice(invoiceId);
-        assertEq(
-            uint8(invoice.binding), uint8(ClaimBinding.Bound), "Invoice should be Bound after full deposit is paid"
-        );
-        assertEq(invoice.paidAmount, totalDepositAmount, "Total paid amount should equal full deposit");
-
-        // Verify no remaining deposit
-        remainingDeposit = bullaInvoice.getTotalAmountNeededForPurchaseOrderDeposit(invoiceId);
-        assertEq(remainingDeposit, 0, "No remaining deposit should be left");
     }
 
     function testAcceptPurchaseOrder_ZeroDeposit() public {
@@ -2480,30 +2448,19 @@ contract TestBullaInvoice is Test {
         // Check the amounts excluding accrued interest
         uint256 remainingPrincipalDepositExcludingInterest = depositAmount - invoiceBefore.paidAmount;
 
-        // Attempt to accept purchase order by paying only the principal deposit amount (insufficient)
+        // Attempting to accept with only the principal deposit (no interest) should revert
+        vm.expectRevert(abi.encodeWithSelector(InsufficientDepositAmount.selector));
         vm.prank(debtor);
         bullaInvoice.acceptPurchaseOrder{value: remainingPrincipalDepositExcludingInterest}(
             invoiceId, remainingPrincipalDepositExcludingInterest
         );
 
-        // Verify that the binding was NOT updated to Bound because payment was insufficient
-        Invoice memory invoiceAfter = bullaInvoice.getInvoice(invoiceId);
-        assertEq(
-            uint8(invoiceAfter.binding),
-            uint8(ClaimBinding.BindingPending),
-            "Invoice should remain BindingPending because payment was insufficient"
-        );
+        // Now pay the full amount needed (deposit + accrued interest) to complete the deposit
+        uint256 totalAmountNeeded = bullaInvoice.getTotalAmountNeededForPurchaseOrderDeposit(invoiceId);
+        assertTrue(totalAmountNeeded > depositAmount, "Total amount needed should exceed deposit due to interest");
 
-        // Verify partial payment was made (some interest + partial principal)
-        assertTrue(invoiceAfter.paidAmount > 0, "Some payment should have been made");
-
-        // Verify there's still an amount needed to complete the deposit
-        uint256 remainingAmountNeeded = bullaInvoice.getTotalAmountNeededForPurchaseOrderDeposit(invoiceId);
-        assertTrue(remainingAmountNeeded > 0, "There should still be an amount needed to complete the deposit");
-
-        // Now pay the remaining amount needed to complete the deposit
         vm.prank(debtor);
-        bullaInvoice.acceptPurchaseOrder{value: remainingAmountNeeded}(invoiceId, remainingAmountNeeded);
+        bullaInvoice.acceptPurchaseOrder{value: totalAmountNeeded}(invoiceId, totalAmountNeeded);
 
         // Verify that the binding is updated to Bound
         Invoice memory invoiceFinal = bullaInvoice.getInvoice(invoiceId);
@@ -2900,5 +2857,131 @@ contract TestBullaInvoice is Test {
         // Accept purchase order by paying full deposit
         vm.prank(debtor);
         bullaInvoice.acceptPurchaseOrder{value: depositAmount}(invoiceId, depositAmount);
+    }
+
+    function testAcceptPurchaseOrder_RevertsWhenDepositInsufficientDueToAccruedInterest() public {
+        // Setup permissions (binding allowed so updateBindingFrom can work if it gets that far)
+        bullaClaim.approvalRegistry().permitCreateClaim({
+            user: creditor,
+            controller: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
+        });
+
+        uint256 depositAmount = 0.5 ether;
+
+        // Create a purchase order with a late fee: 10% APR, daily compounding (365 periods/year)
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withClaimAmount(1 ether).withDueBy(block.timestamp + 30 days).withDeliveryDate(block.timestamp + 60 days)
+            .withDepositAmount(depositAmount).withLateFeeConfig(
+            InterestConfig({interestRateBps: 1000, numberOfPeriodsPerYear: 365})
+        ).build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Warp to 7 days past the due date — interest has been accruing
+        vm.warp(block.timestamp + 37 days);
+
+        // Accepting with exactly the deposit amount should revert because
+        // accrued interest means the total amount needed exceeds the deposit
+        vm.expectRevert(abi.encodeWithSelector(InsufficientDepositAmount.selector));
+        vm.prank(debtor);
+        bullaInvoice.acceptPurchaseOrder{value: depositAmount}(invoiceId, depositAmount);
+    }
+
+    function testAcceptPurchaseOrder_CanPayPrincipalPlusOneWeiWhenInterestAccrued() public {
+        // Setup permissions
+        bullaClaim.approvalRegistry().permitCreateClaim({
+            user: creditor,
+            controller: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
+        });
+
+        // Create a PO with deposit < claimAmount, with late fees
+        uint256 claimAmount = 1 ether;
+        uint256 depositAmount = 0.5 ether;
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withClaimAmount(claimAmount).withDueBy(block.timestamp + 30 days).withDeliveryDate(block.timestamp + 60 days)
+            .withDepositAmount(depositAmount).withLateFeeConfig(
+            InterestConfig({interestRateBps: 1000, numberOfPeriodsPerYear: 365})
+        ).build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Warp past due date so interest accrues
+        vm.warp(block.timestamp + 37 days);
+
+        // Verify interest has accrued
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        assertTrue(invoice.interestComputationState.accruedInterest > 0, "Interest should have accrued");
+
+        // Paying remaining principal (1 ether) + 1 wei should be valid since interest > 0
+        // means the total owed exceeds the principal. Before the fix, this would revert
+        // with InvalidDepositAmount because amountLeftToPay didn't include interest.
+        uint256 payAmount = claimAmount + 1 wei;
+        vm.prank(debtor);
+        bullaInvoice.acceptPurchaseOrder{value: payAmount}(invoiceId, payAmount);
+    }
+
+    function testAcceptPurchaseOrder_ZeroDepositAfterPayInvoiceCoversDeposit() public {
+        // Setup permissions
+        bullaClaim.approvalRegistry().permitCreateClaim({
+            user: creditor,
+            controller: address(bullaInvoice),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: 1,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: creditorPK,
+                user: creditor,
+                controller: address(bullaInvoice),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: 1,
+                isBindingAllowed: true
+            })
+        });
+
+        // Create a PO: 1 ETH claim with 0.5 ETH deposit required
+        CreateInvoiceParams memory params = new CreateInvoiceParamsBuilder().withDebtor(debtor).withCreditor(creditor)
+            .withClaimAmount(1 ether).withDeliveryDate(block.timestamp + 60 days).withDepositAmount(0.5 ether).build();
+
+        vm.prank(creditor);
+        uint256 invoiceId = bullaInvoice.createInvoice(params);
+
+        // Debtor pays 0.6 ETH via payInvoice (more than the 0.5 ETH deposit)
+        vm.prank(debtor);
+        bullaInvoice.payInvoice{value: 0.6 ether}(invoiceId, 0.6 ether);
+
+        Invoice memory invoice = bullaInvoice.getInvoice(invoiceId);
+        assertEq(invoice.paidAmount, 0.6 ether, "Paid amount should be 0.6 ETH");
+
+        // Accept PO with 0 deposit — deposit already covered by prior payment
+        vm.prank(debtor);
+        bullaInvoice.acceptPurchaseOrder(invoiceId, 0);
+
+        // Verify the PO is bound
+        invoice = bullaInvoice.getInvoice(invoiceId);
+        assertEq(uint8(invoice.binding), uint8(ClaimBinding.Bound), "PO should be bound");
     }
 }
