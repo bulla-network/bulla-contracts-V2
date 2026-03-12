@@ -1,3 +1,10 @@
+## [2.7.1](https://github.com/bulla-network/bulla-contracts-V2/compare/v2.7.0...v2.7.1) (2026-03-12)
+
+
+### Bug Fixes
+
+* validate deposit covers accrued interest in acceptPurchaseOrder ([#115](https://github.com/bulla-network/bulla-contracts-V2/issues/115)) ([7e1118e](https://github.com/bulla-network/bulla-contracts-V2/commit/7e1118e0e4413d992ae7b95a881eeb5899968102))
+
 # [2.7.0](https://github.com/bulla-network/bulla-contracts-V2/compare/v2.6.0...v2.7.0) (2026-02-24)
 
 
