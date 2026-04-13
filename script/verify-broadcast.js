@@ -83,6 +83,13 @@ const NETWORK_CONFIG = {
     apiKey: process.env.ROUTESCAN_API_KEY || "verifyContract",
     verifierUrl: "https://api.routescan.io/v2/network/mainnet/evm/151/etherscan",
   },
+  xdc: {
+    name: "50",
+    chainId: "50",
+    explorerName: "Etherscan (XDC)",
+    apiKey: process.env.ETHERSCAN_API_KEY,
+    verifierUrl: "https://api.etherscan.io/v2/api",
+  },
 };
 
 // Map of all deployments we want to verify (libraries and contracts)
@@ -489,11 +496,13 @@ async function verifyContractWithBroadcast(
   cmd.push("--verifier=etherscan");
 
   if (networkConfig.verifierUrl) {
-    cmd.push(`--verifier-url=${networkConfig.verifierUrl}`);
+    cmd.push("--verifier-url");
+    cmd.push(networkConfig.verifierUrl);
   }
 
   if (networkConfig.apiKey) {
-    cmd.push(`--etherscan-api-key=${networkConfig.apiKey}`);
+    cmd.push("--etherscan-api-key");
+    cmd.push(networkConfig.apiKey);
   }
 
   // Add libraries if required (each library needs its own --libraries flag)
@@ -544,8 +553,16 @@ async function verifyContractWithBroadcast(
     console.log(`💻 Forge command: ${cmd.join(" ")}`);
     console.log("");
 
+    // For custom verifier URLs (non-Etherscan chains), forge may require
+    // ETHERSCAN_API_KEY env var regardless of --etherscan-api-key flag.
+    // Override it in the spawned process so forge picks up the correct key.
+    const spawnEnv = networkConfig.apiKey
+      ? { ...process.env, ETHERSCAN_API_KEY: networkConfig.apiKey }
+      : process.env;
+
     const childProcess = spawn(cmd[0], cmd.slice(1), {
       stdio: ["pipe", "pipe", "pipe"],
+      env: spawnEnv,
     });
 
     let output = "";
