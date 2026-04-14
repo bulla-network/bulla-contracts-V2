@@ -72,6 +72,8 @@
     "deploy:arbitrum": "dotenv -e .env -- cross-env NETWORK=arbitrum node script/deploy.js",
     "deploy:celo": "dotenv -e .env -- cross-env NETWORK=celo node script/deploy.js",
     "deploy:avalanche": "dotenv -e .env -- cross-env NETWORK=avalanche node script/deploy.js",
+    "deploy:xdc": "dotenv -e .env -- cross-env NETWORK=xdc node script/deploy.js",
+    "verify:xdc": "dotenv -e .env -- cross-env NETWORK=xdc node script/verify-broadcast.js",
     "deploy:all": "dotenv -e .env -- node script/deploy-all.js",
     "check:gas": "dotenv -e .env -- node script/deploy-all.js --check-only"
   },

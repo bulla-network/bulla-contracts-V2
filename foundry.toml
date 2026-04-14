@@ -36,3 +36,7 @@ avalanche = "${AVALANCHE_RPC_URL}"
 gnosis = "${GNOSIS_RPC_URL}"
 celo = "${CELO_RPC_URL}"
 redbelly = "${REDBELLY_RPC_URL}"
+xdc = "${XDC_RPC_URL}"
+
+[etherscan]
+xdc = { key = "${ETHERSCAN_API_KEY}", chain = 50, url = "https://api.etherscan.io/v2/api" }

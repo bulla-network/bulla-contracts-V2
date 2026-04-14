@@ -94,6 +94,13 @@ const NETWORKS = [
     rpcUrl: process.env.AVALANCHE_RPC_URL || "https://avalanche-mainnet.core.chainstack.com/ext/bc/C/rpc/c3e5daa97eb95ebd06b9b1b553ca0ebe",
     nativeToken: "AVAX",
   },
+  {
+    name: "xdc",
+    chainId: 50,
+    displayName: "XDC Network",
+    rpcUrl: process.env.XDC_RPC_URL || "https://erpc.xinfin.network",
+    nativeToken: "XDC",
+  },
 ];
 
 // ---------------------------------------------------------------------------
