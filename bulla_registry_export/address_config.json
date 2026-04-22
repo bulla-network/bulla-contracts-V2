@@ -64,6 +64,13 @@
       "bullaClaimPermitLib": "0x07e0b0d697419b050ba531df6db8671f14433998",
       "frendLendV2": "0x7c3e51e84705fed1832bd6aabb9edd3e4681374e"
     },
+    "50": {
+      "bullaClaimV2": "0xbe25a1086de2b587b2d20e4b14c442cda2437945",
+      "bullaApprovalRegistry": "0x6985d6af038f177438a6681d1f64d4409dc8aac2",
+      "bullaInvoice": "0xba80d22b532eb1a2326334f35565af551f9c8af7",
+      "bullaClaimPermitLib": "0x07e0b0d697419b050ba531df6db8671f14433998",
+      "frendLendV2": "0xf34aa523a1cf4d91a3cb1c53cb50acd6eed0b153"
+    },
     "11155111": {
       "bullaClaimV2": "0x0d9EF9d436fF341E500360a6B5E5750aB85BCCB6",
       "bullaApprovalRegistry": "0xb1F9a06D72F8737B4fcf4550f1C8EA769772Ad76",
