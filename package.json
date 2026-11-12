@@ -3,7 +3,10 @@
   "version": "2.7.1",
   "description": "V2 smart contracts for the Bulla Protocol",
   "main": "package.json",
-  "repository": "https://github.com/bulla-network/bulla-contracts-V2",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bulla-network/bulla-contracts-V2.git"
+  },
   "publishConfig": {
     "access": "public"
   },
