@@ -55,6 +55,11 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     if: github.repository == 'bulla-network/bulla-contracts-V2' && github.event_name == 'push'
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write # npm trusted publishing (OIDC) + provenance
 
     steps:
       - name: Generate GitHub App Token
@@ -101,7 +106,6 @@ jobs:
       - name: Release
         env:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npx semantic-release
 
       - name: Notify bulla-registry
