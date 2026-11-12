@@ -1,3 +1,10 @@
+## [2.7.2](https://github.com/bulla-network/bulla-contracts-V2/compare/v2.7.1...v2.7.2) (2026-11-12)
+
+
+### Bug Fixes
+
+* use normalized repository field in package.json ([#122](https://github.com/bulla-network/bulla-contracts-V2/issues/122)) ([d34184b](https://github.com/bulla-network/bulla-contracts-V2/commit/d34184b8d6b6bc4b74cc50d9e291f8213ba67903))
+
 ## [2.7.1](https://github.com/bulla-network/bulla-contracts-V2/compare/v2.7.0...v2.7.1) (2026-03-12)
 
 

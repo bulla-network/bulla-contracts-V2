@@ -1,6 +1,6 @@
 {
   "name": "@bulla/contracts-v2",
-  "version": "2.7.1",
+  "version": "2.7.2",
   "description": "V2 smart contracts for the Bulla Protocol",
   "main": "package.json",
   "repository": {
