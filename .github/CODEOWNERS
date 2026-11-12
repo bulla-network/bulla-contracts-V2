@@ -1,0 +1,6 @@
+# Every change needs a review from one of the people who merge.
+# Only list people (or teams) with write access here. Never list a bot.
+*          @bengobeil @solidoracle
+
+# Changes to CI, workflows and this file.
+/.github/  @bengobeil @solidoracle

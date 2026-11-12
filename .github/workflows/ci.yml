@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  pull_request:
+
+# A new push to a PR cancels the run it replaces.
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  FOUNDRY_PROFILE: ci
+
+# The only required check is "CI gate", the last job, so the other job names can change freely.
+jobs:
+  forge:
+    name: "Forge Tests + Gas 🧪"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.2.3
+
+      - name: Install dependencies
+        run: forge install
+
+      - name: Setup Node.js for TypeChain
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          check-latest: true
+          cache: "yarn"
+
+      - name: Install yarn dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Run forge build
+        run: |
+          forge --version
+          forge build --sizes
+        id: build
+
+      - name: Generate TypeChain types
+        run: yarn typechain
+
+      - name: Run tests with fuzzing
+        run: forge test -vvv --gas-report
+
+  coverage:
+    name: "Coverage Report 👨🏽‍🔬"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.2.3
+
+      - name: Install dependencies
+        run: forge install
+
+      - name: Generate coverage report
+        run: |
+          forge coverage --report lcov
+          ex -c 'g/SF:src\/mocks/.-1,/end_of_record/d' -c 'wq' lcov.info
+          ex -c 'g/SF:test/.-1,/end_of_record/d' -c 'wq' lcov.info
+        id: coverage
+      - uses: codecov/codecov-action@v3
+
+  # The one required check on main. Passes when every job above succeeded or was skipped.
+  gate:
+    name: CI gate
+    if: always()
+    needs: [forge, coverage]
+    runs-on: ubuntu-latest
+    steps:
+      - name: no job failed or was cancelled
+        run: jq -e 'all(.[]; .result == "success" or .result == "skipped")' <<<"$NEEDS" || { echo "$NEEDS"; exit 1; }
+        env:
+          NEEDS: ${{ toJSON(needs) }}
