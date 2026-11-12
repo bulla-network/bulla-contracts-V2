@@ -1,3 +1,10 @@
+## [2.7.3](https://github.com/bulla-network/bulla-contracts-V2/compare/v2.7.2...v2.7.3) (2026-11-12)
+
+
+### Bug Fixes
+
+* publish to npm (2.7.2 was tagged but never published) ([#125](https://github.com/bulla-network/bulla-contracts-V2/issues/125)) ([b899b3c](https://github.com/bulla-network/bulla-contracts-V2/commit/b899b3c66bf112ea5f5ea4638727fbe3a1ab8475))
+
 ## [2.7.2](https://github.com/bulla-network/bulla-contracts-V2/compare/v2.7.1...v2.7.2) (2026-11-12)
 
 
