@@ -108,10 +108,19 @@ jobs:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
         run: npx semantic-release
 
+      # Tells bulla-registry to consolidate now. The token comes from the bulla-registry-notify app, which
+      # can only start workflows in bulla-registry (Actions: write), so its key can't change any code.
+      - name: Mint a bulla-registry-notify token
+        id: registry-notify
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.REGISTRY_NOTIFY_APP_ID }}
+          private-key: ${{ secrets.REGISTRY_NOTIFY_APP_PRIVATE_KEY }}
+          owner: bulla-network
+          repositories: bulla-registry
+          permission-actions: write
+
       - name: Notify bulla-registry
-        if: success()
-        run: |
-          curl -X POST \
-            -H "Authorization: Bearer ${{ secrets.REGISTRY_DISPATCH_TOKEN }}" \
-            https://api.github.com/repos/bulla-network/bulla-registry/dispatches \
-            -d '{"event_type":"source-updated","client_payload":{"repo":"${{ github.repository }}"}}'
+        env:
+          GH_TOKEN: ${{ steps.registry-notify.outputs.token }}
+        run: gh workflow run consolidate.yml -R bulla-network/bulla-registry -f source=${{ github.repository }}
